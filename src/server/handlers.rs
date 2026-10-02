@@ -1,0 +1,1256 @@
+//! server/handlers.rs — endpoint axum di luar server fn:
+//!
+//!   POST /buat/kirim                 formulir pemesanan (multipart: foto + lagu)
+//!   GET  /kelola/{slug}/tamu.csv     ekspor daftar tamu + RSVP (butuh ?key=)
+//!   GET  /layanan/wa                 formulir cetak/dekorasi/MUA → wa.me admin
+//!   GET  /tema.css                   CSS semua tema (dari tabel themes, di-cache)
+//!   POST /admin/masuk | /admin/setup | /admin/keluar   sesi akun admin (server/auth.rs)
+//!   POST /admin/tema/simpan | /admin/tema/hapus        kelola tema (editor+)
+//!   POST /admin/animasi/simpan | /bawaan | /hapus     semua animasi undangan (editor+)
+//!   POST /admin/banner/simpan | /admin/banner/{urut,hapus}  banner beranda (editor+)
+//!   POST /admin/konten/simpan                          konten & harga (editor+, multipart)
+//!   POST /admin/undangan/simpan                        aktivasi pesanan (admin)
+//!   POST /admin/akun/simpan | /admin/sandi             akun (admin) / sandi sendiri
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use axum::{
+    extract::{Multipart, Path, Query},
+    http::{header, StatusCode},
+    response::{IntoResponse, Redirect, Response},
+    Extension,
+};
+use serde_json::json;
+
+use super::{auth, security};
+use super::repo::{self, MempelaiInput, NewInvitation};
+use super::state::AppState;
+use crate::web::model::AdminUser;
+use crate::web::{fmt, themes};
+
+pub use crate::web::fmt::clean;
+
+/// Panjang kunci rahasia di ujung tautan: 8 karakter dari 32 simbol = 40 bit
+/// (±1,1 triliun kemungkinan) — nama boleh diketahui, kuncinya tidak tertebak.
+pub const INVITATION_KEY_LEN: usize = 8;
+
+/// Foto galeri maksimal per undangan (tiap foto ≤ MAX_IMAGE).
+pub const MAX_GALLERY: usize = 6;
+
+/// Tautan /u/{nama-wanita}-{nama-pria}-{kunci}, mis. "anindita-raditya-k7f3x9m2".
+/// Nama = kata pertama tiap mempelai (terbaca & mudah dikenali tamu); kunci
+/// acak menjamin unik & tak bisa ditebak walau nama pasangan sama.
+pub fn new_invitation_id(bride: &str, groom: &str) -> String {
+    let first = |s: &str| fmt::key(s.split_whitespace().next().unwrap_or(""));
+    let names: String = fmt::key(&format!("{} {}", first(bride), first(groom))).chars().take(32).collect();
+    let names = names.trim_end_matches('-');
+    let key = random_key(INVITATION_KEY_LEN);
+    if names.is_empty() { key } else { format!("{names}-{key}") }
+}
+
+pub fn random_key(len: usize) -> String {
+    use rand::Rng;
+    const A: &[u8] = b"abcdefghijkmnpqrstuvwxyz23456789";
+    let mut rng = rand::rng();
+    (0..len).map(|_| A[rng.random_range(0..A.len())] as char).collect()
+}
+
+fn back_with_error(msg: &str) -> Response {
+    Redirect::to(&format!("/buat?galat={}", fmt::url_encode(msg))).into_response()
+}
+
+pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, headers: axum::http::HeaderMap, mp: Multipart) -> Response {
+    // Dicek SEBELUM membaca multipart: kiriman spam tak sempat diunggah ke RustFS.
+    if let Err(secs) = state.create_limit.hit(&format!("buat:{}", security::client_ip(&headers))) {
+        return back_with_error(&format!("Terlalu banyak pembuatan undangan dari jaringan ini. Coba lagi dalam {} menit.", secs.div_ceil(60)));
+    }
+    let mut form = match super::form::read(mp, 4 + MAX_GALLERY).await {
+        Ok(f) => f,
+        Err(()) => return back_with_error("Unggahan terputus atau terlalu besar (foto maks 5 MB, lagu maks 6 MB)."),
+    };
+    // Berkas dipisah dulu: satu per input + galeri (banyak berkas, satu nama input).
+    let (gallery_files, mut files): (Vec<super::form::Upload>, Vec<super::form::Upload>) =
+        std::mem::take(&mut form.files).into_iter().partition(|u| u.field == "gallery");
+    let mut addons: Vec<String> = form.all("addon").to_vec();
+    let get = |k: &str, max: usize| form.get(k, max);
+
+    let bride_name = get("bride_name", 80);
+    let groom_name = get("groom_name", 80);
+    if bride_name.is_empty() || groom_name.is_empty() {
+        return back_with_error("Nama lengkap kedua mempelai wajib diisi.");
+    }
+    let akad_date = get("akad_date", 10);
+    if fmt::parse_date(&akad_date).is_none() {
+        return back_with_error("Tanggal akad / pemberkatan wajib diisi.");
+    }
+    let contact = fmt::wa_number(&get("contact_phone", 20));
+    if contact.is_empty() {
+        return back_with_error("Nomor WhatsApp pemesan wajib diisi (untuk konfirmasi pembayaran).");
+    }
+
+    // Tautan undangan = ID acak, BUKAN nama pasangan: tak bisa ditebak dan tak
+    // pernah bentrok walau nama mempelai sama (UNIQUE di DB + coba ulang).
+    let slug = new_invitation_id(&bride_name, &groom_name);
+
+    let theme = get("theme", 60);
+    let theme = if state.themes().get(&theme).is_some() { theme } else { crate::web::skin::DEFAULT_THEME.to_string() };
+    let konten = state.konten();
+    let package = konten.package_or_default(&get("package", 20)).slug;
+    addons.retain(|a| konten.addon.iter().any(|x| x.slug == *a));
+    let coupon = get("coupon", 30).to_uppercase();
+    let (_, _, total) = konten.calc_total(&package, &addons, &coupon);
+    let payment = get("payment", 20);
+    let payment = if themes::PAYMENT_METHODS.iter().any(|(k, _, _)| *k == payment) { payment } else { "qris".into() };
+
+    // ── Unggahan (opsional; tanpa RustFS dilewati) ──
+    // Jalur terbaca per undangan: foto/{slug}/sampul.jpg, musik/{slug}/{nama-lagu}.mp3.
+    let mut urls: HashMap<&str, String> = HashMap::new();
+    for (key, nama) in [("bride_photo", "mempelai-wanita"), ("groom_photo", "mempelai-pria"), ("cover_photo", "sampul"), ("music_file", "")] {
+        let Some(i) = files.iter().position(|u| u.field == key) else { continue };
+        let up = files.swap_remove(i);
+        let Some(st) = state.storage.as_ref() else {
+            tracing::warn!(field = key, "buat: RustFS belum dikonfigurasi — unggahan dilewati");
+            continue;
+        };
+        let res = if key == "music_file" {
+            st.upload_audio_as(up.data, &slug, &up.file_name).await
+        } else {
+            st.upload_image_as(up.data, &slug, nama, super::storage::Ukuran::Foto).await
+        };
+        match res {
+            Ok(url) => {
+                urls.insert(key, url);
+            }
+            Err(e) => return back_with_error(&e.to_string()),
+        }
+    }
+
+    let mut gallery: Vec<String> = Vec::new();
+    for (i, up) in gallery_files.into_iter().take(MAX_GALLERY).enumerate() {
+        let Some(st) = state.storage.as_ref() else {
+            tracing::warn!("buat: RustFS belum dikonfigurasi — galeri dilewati");
+            break;
+        };
+        match st.upload_image_as(up.data, &slug, &format!("galeri-{}", i + 1), super::storage::Ukuran::Foto).await {
+            Ok(url) => gallery.push(url),
+            Err(e) => return back_with_error(&format!("Galeri: {e}")),
+        }
+    }
+
+    // ── Kisah cinta, siaran langsung, warna busana ──
+    let love_story: Vec<serde_json::Value> = (1..=4)
+        .filter_map(|i| {
+            let title = get(&format!("story{i}_title"), 80);
+            let text = get(&format!("story{i}_text"), 500);
+            (!title.is_empty() || !text.is_empty())
+                .then(|| json!({ "year": get(&format!("story{i}_year"), 20), "title": title, "text": text }))
+        })
+        .collect();
+    let live_url = get("live_url", 300);
+    let live_url = if live_url.starts_with("https://") && crate::web::skin::is_safe_url(&live_url) { live_url } else { String::new() };
+    let dress_colors: Vec<serde_json::Value> = (1..=4)
+        .filter_map(|i| {
+            let name = get(&format!("dress{i}_name"), 30);
+            let hex = get(&format!("dress{i}_hex"), 9).to_lowercase();
+            (!name.is_empty() && crate::web::skin::is_color(&hex)).then(|| json!({ "name": name, "hex": hex }))
+        })
+        .collect();
+
+    // ── Acara ──
+    let tz = get("tz", 4);
+    let tz = if fmt::TIMEZONES.iter().any(|t| t.0 == tz) { tz } else { "WIB".to_string() };
+    let akad_title = get("akad_title", 40);
+    let mut events = vec![json!({
+        "kind": "akad",
+        "title": if akad_title.is_empty() { "Akad Nikah".to_string() } else { akad_title },
+        "badge": "Pemberkatan & Akad",
+        "tag": "Sesi Khidmat",
+        "date": akad_date,
+        "time_start": get("akad_start", 5),
+        "time_end": get("akad_end", 5),
+        "sessions": [],
+        "venue": get("akad_venue", 120),
+        "address": get("akad_address", 200),
+        "maps_url": get("akad_maps", 300),
+        "tz": tz,
+    })];
+    let resepsi_date = get("resepsi_date", 10);
+    if fmt::parse_date(&resepsi_date).is_some() {
+        let mut sessions = Vec::new();
+        for (i, label) in [(1, "Sesi Siang"), (2, "Sesi Malam")] {
+            let t = get(&format!("resepsi_s{i}"), 40);
+            if !t.is_empty() {
+                sessions.push(json!({ "label": label, "time": t }));
+            }
+        }
+        events.push(json!({
+            "kind": "resepsi",
+            "title": "Resepsi Pernikahan",
+            "badge": "Resepsi Agung",
+            "tag": "Selebrasi",
+            "date": resepsi_date,
+            "time_start": get("resepsi_start", 5),
+            "time_end": get("resepsi_end", 5),
+            "sessions": sessions,
+            "venue": get("resepsi_venue", 120),
+            "address": get("resepsi_address", 200),
+            "maps_url": get("resepsi_maps", 300),
+            "tz": tz,
+        }));
+    }
+
+    // ── Rekening ──
+    let mut banks = Vec::new();
+    for i in 1..=2 {
+        let number = get(&format!("bank{i}_number"), 40);
+        if !number.is_empty() {
+            banks.push(json!({
+                "bank": get(&format!("bank{i}_name"), 60),
+                "number": number,
+                "holder": get(&format!("bank{i}_holder"), 80),
+            }));
+        }
+    }
+
+    // ── Musik: unggahan menang atas pilihan bawaan ──
+    let (music_title, music_artist, mut music_url) = match urls.remove("music_file") {
+        Some(url) => ("Lagu Pilihan Mempelai".to_string(), String::new(), url),
+        None => match themes::song(&get("music_preset", 40)) {
+            Some(s) => (s.title.to_string(), s.artist.to_string(), s.url()),
+            None => (String::new(), String::new(), String::new()),
+        },
+    };
+    // Titik mulai lagu & posisi foto disimpan sebagai fragmen URL (fmt.rs).
+    if !music_url.is_empty() {
+        music_url.push_str(&fmt::music_start_fragment(&get("music_start", 10)));
+    }
+    for key in ["bride_photo", "groom_photo", "cover_photo"] {
+        if let Some(url) = urls.get_mut(key) {
+            url.push_str(&fmt::photo_pos_fragment(&get(&format!("{key}_pos"), 30)));
+        }
+    }
+
+    let quote_idx: usize = get("quote", 2).parse().unwrap_or(0);
+    let (quote_text, quote_source) = themes::QUOTES.get(quote_idx).copied().unwrap_or(themes::QUOTES[0]);
+
+    // ±200 bit acak; yang disimpan hanya hash-nya — kunci polos tampil sekali
+    // di tautan Kelola setelah pesan (dan bisa diterbitkan ulang oleh admin).
+    let manage_key = random_key(40);
+    let ig = |k: &str| get(k, 40).trim_start_matches('@').to_string();
+    let n = NewInvitation {
+        slug: slug.clone(),
+        manage_key_hash: auth::token_hash(&manage_key),
+        theme,
+        package,
+        bride: MempelaiInput {
+            name: bride_name.clone(),
+            degree: get("bride_degree", 30),
+            nick: get("bride_nick", 30),
+            parents: get("bride_parents", 200),
+            ig: ig("bride_ig"),
+            photo: urls.remove("bride_photo").unwrap_or_default(),
+        },
+        groom: MempelaiInput {
+            name: groom_name.clone(),
+            degree: get("groom_degree", 30),
+            nick: get("groom_nick", 30),
+            parents: get("groom_parents", 200),
+            ig: ig("groom_ig"),
+            photo: urls.remove("groom_photo").unwrap_or_default(),
+        },
+        events: json!(events),
+        dress_code: get("dress_code", 200),
+        quote_text: quote_text.to_string(),
+        quote_source: quote_source.to_string(),
+        music_title,
+        music_artist,
+        music_url,
+        music_autoplay: form.has("music_autoplay"),
+        banks: json!(banks),
+        family_name: get("family_name", 120),
+        addons: json!(addons),
+        coupon,
+        total_price: total,
+        payment_method: payment,
+        contact_phone: contact,
+        cover_photo: urls.remove("cover_photo").unwrap_or_default(),
+        love_story: json!(love_story),
+        live_url,
+        gallery: json!(gallery),
+        dress_colors: json!(dress_colors),
+    };
+
+    let mut n = n;
+    // ID kembar hampir mustahil (±60 bit), tapi tetap dijaga: buat ID baru.
+    for attempt in 0..5 {
+        match repo::create_invitation(&state.pool, &n).await {
+            Ok(()) => break,
+            Err(e) if attempt < 4 && repo::is_unique_violation(&e) => {
+                n.slug = new_invitation_id(&bride_name, &groom_name);
+            }
+            Err(e) => {
+                tracing::error!(error = %format!("{e:#}"), "buat: insert");
+                return back_with_error("Gagal menyimpan undangan, coba lagi.");
+            }
+        }
+    }
+    let slug = n.slug.clone();
+    tracing::info!(slug = %slug, total, "undangan baru dibuat");
+    Redirect::to(&format!("/kelola/{slug}?key={manage_key}&baru=1")).into_response()
+}
+
+
+
+fn csv_cell(s: &str) -> String {
+    // Satu baris per tamu; cegah formula injection saat dibuka di Excel/Sheets.
+    let s = s.replace(['\n', '\r'], " ");
+    let s = if s.starts_with(['=', '+', '-', '@', '\t']) { format!("'{s}") } else { s };
+    format!("\"{}\"", s.replace('"', "\"\""))
+}
+
+pub async fn export_guests(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(slug): Path<String>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Response {
+    let key = q.get("key").map(String::as_str).unwrap_or("");
+    let inv = match repo::invitation(&state.pool, &slug).await {
+        Ok(Some(i)) if auth::same_hash(&auth::token_hash(key), &i.manage_key_hash) => i,
+        Ok(_) => return (StatusCode::FORBIDDEN, "Kunci kelola tidak valid").into_response(),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "export");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Gagal memuat data").into_response();
+        }
+    };
+    let guests = match repo::guests(&state.pool, inv.id).await {
+        Ok(g) => g,
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "export guests");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Gagal memuat data").into_response();
+        }
+    };
+    let mut out = String::from("\u{feff}Kode,Nama,WhatsApp,Kategori,Sesi,Meja,Pax Undangan,Status RSVP,Pax Hadir,Dibuka,Check-in,Tanda Kasih\n");
+    for g in guests {
+        let row = [
+            csv_cell(&g.code),
+            csv_cell(&g.name),
+            csv_cell(&g.phone),
+            csv_cell(crate::web::model::category_label(&g.category)),
+            csv_cell(&g.session),
+            csv_cell(&g.table_no),
+            g.pax.to_string(),
+            csv_cell(crate::web::model::rsvp_label(&g.rsvp)),
+            g.rsvp_pax.to_string(),
+            if g.opened { "Ya" } else { "Belum" }.into(),
+            if g.checked_in { "Ya" } else { "Belum" }.into(),
+            g.gift_amount.to_string(),
+        ];
+        out.push_str(&row.join(","));
+        out.push('\n');
+    }
+    (
+        [
+            (header::CONTENT_TYPE, "text/csv; charset=utf-8".to_string()),
+            (header::CONTENT_DISPOSITION, format!("attachment; filename=\"tamu-{slug}.csv\"")),
+        ],
+        out,
+    )
+        .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn pesan_sebelum_jangkar() {
+        assert_eq!(with_notice("/admin/banner#banner-5", "ok", "Siap"), "/admin/banner?ok=Siap#banner-5");
+        assert_eq!(with_notice("/admin/undangan?q=a", "galat", "x"), "/admin/undangan?q=a&galat=x");
+        assert_eq!(with_notice("/admin", "ok", "y"), "/admin?ok=y");
+    }
+
+    use super::*;
+
+    #[test]
+    fn id_undangan_nama_plus_kunci() {
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..5_000 {
+            // Nama pasangan SAMA → tautan tetap berbeda.
+            let id = new_invitation_id("Anindita Kirana, S.Ds.", "Raditya Pratama");
+            let key = id.strip_prefix("anindita-raditya-").expect("awalan nama");
+            assert_eq!(key.len(), INVITATION_KEY_LEN);
+            // Tanpa karakter mirip (0/o, 1/l) agar aman diketik ulang.
+            assert!(key.chars().all(|c| (c.is_ascii_lowercase() || c.is_ascii_digit()) && !"0o1l".contains(c)));
+            assert!(seen.insert(id), "ID kembar");
+        }
+        assert_eq!(new_invitation_id("Siti Nur", "Ahmad").split('-').take(2).collect::<Vec<_>>(), ["siti", "ahmad"]);
+        // Nama tanpa huruf latin → hanya kunci.
+        assert_eq!(new_invitation_id("", "").len(), INVITATION_KEY_LEN);
+        assert_eq!(csv_cell("=HYPERLINK()"), "\"'=HYPERLINK()\"");
+    }
+}
+
+/// Formulir layanan (cetak, sampel, dekorasi, MUA) → 303 ke WhatsApp admin
+/// dengan pesan tersusun. Estimasi cetak dihitung ulang di sini, bukan dari
+/// angka di browser. Tanpa ADMIN_WHATSAPP, wa.me membiarkan pengguna memilih
+/// kontak sendiri.
+pub async fn layanan_wa(
+    Extension(state): Extension<Arc<AppState>>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Response {
+    let konten = state.konten();
+    let text = crate::web::layanan::pesan_wa(&konten, |k| q.get(k).map(|v| clean(v, 300)).unwrap_or_default());
+    Redirect::to(&format!("https://wa.me/{}?text={}", state.admin_wa, fmt::url_encode(&text))).into_response()
+}
+
+// ── Tema & admin ───────────────────────────────────────────────────────────
+
+pub async fn theme_css(Extension(state): Extension<Arc<AppState>>) -> Response {
+    let cat = state.themes();
+    (
+        [
+            (header::CONTENT_TYPE, "text/css; charset=utf-8"),
+            // URL selalu memuat ?v=hash-isi → aman di-cache lama.
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        cat.css.clone(),
+    )
+        .into_response()
+}
+
+/// GET /readyz — 200 bila Postgres menjawab, 503 bila tidak.
+pub async fn readyz(Extension(state): Extension<Arc<AppState>>) -> Response {
+    let ok = match state.pool.get().await {
+        Ok(c) => c.simple_query("SELECT 1").await.is_ok(),
+        Err(_) => false,
+    };
+    if ok { (StatusCode::OK, "ready").into_response() } else { (StatusCode::SERVICE_UNAVAILABLE, "db tidak siap").into_response() }
+}
+
+/// GET /app.js — skrip global (web/global.js). URL selalu ber-`?v=hash`.
+pub async fn app_js() -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "text/javascript; charset=utf-8"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        crate::web::app::GLOBAL_JS,
+    )
+        .into_response()
+}
+
+/// Nilai cookie dari header `Cookie`.
+pub fn cookie_value<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
+    headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(';'))
+        .filter_map(|kv| kv.trim().split_once('='))
+        .find(|(k, _)| *k == name)
+        .map(|(_, v)| v)
+}
+
+fn to(path: &str, key: &str, msg: &str) -> Response {
+    Redirect::to(&with_notice(path, key, msg)).into_response()
+}
+
+/// `path?key=msg` — query disisipkan SEBELUM `#jangkar` (kalau ditaruh di
+/// belakangnya, pesan ikut masuk fragmen dan tak terbaca halaman).
+fn with_notice(path: &str, key: &str, msg: &str) -> String {
+    let (base, hash) = match path.split_once('#') {
+        Some((b, h)) => (b, format!("#{h}")),
+        None => (path, String::new()),
+    };
+    let sep = if base.contains('?') { '&' } else { '?' };
+    format!("{base}{sep}{key}={}{hash}", fmt::url_encode(msg))
+}
+
+fn with_cookie(mut res: Response, cookie: String) -> Response {
+    if let Ok(v) = cookie.parse() {
+        res.headers_mut().append(header::SET_COOKIE, v);
+    }
+    res
+}
+
+/// Admin yang masuk & berperan cukup; selain itu redirect dengan pesan.
+async fn require(state: &AppState, headers: &axum::http::HeaderMap, need_admin: bool) -> Result<AdminUser, Response> {
+    auth::require(state, headers, need_admin).await.map_err(|d| match d {
+        auth::Denied::NotAdmin => to("/admin", "galat", "Hanya peran Admin yang boleh melakukan ini."),
+        auth::Denied::NoSession => to("/admin", "galat", "Sesi berakhir, silakan masuk lagi."),
+    })
+}
+
+async fn start_session(state: &AppState, headers: &axum::http::HeaderMap, user_id: i64, to_path: &str) -> Response {
+    let token = auth::new_token();
+    if let Err(e) = repo::create_session(&state.pool, &auth::token_hash(&token), user_id, auth::SESSION_DAYS).await {
+        tracing::error!(error = %format!("{e:#}"), "admin: buat sesi");
+        return to("/admin", "galat", "Gagal membuat sesi, coba lagi.");
+    }
+    let res = with_cookie(Redirect::to(to_path).into_response(), auth::cookie(&token, auth::SESSION_DAYS * 86_400, headers));
+    with_cookie(res, auth::marker_cookie(true))
+}
+
+pub async fn admin_login(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let username = f.get("username").map(|u| u.trim().to_lowercase()).unwrap_or_default();
+    let password = f.get("password").cloned().unwrap_or_default();
+    let (ku, ki) = (format!("u:{username}"), format!("ip:{}", security::client_ip(&headers)));
+    if let Some(secs) = state.login_limit.blocked(&[&ku, &ki]) {
+        tracing::warn!(user = %username, ip = %ki, "admin: login diblokir sementara (terlalu banyak gagal)");
+        return security::too_many(secs);
+    }
+    let row = match repo::admin_login_row(&state.pool, &username).await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: login");
+            return to("/admin", "galat", "Database akun belum siap — jalankan migration/003_admin_konten.sql.");
+        }
+    };
+    match row {
+        Some((u, hash)) if u.active && auth::verify_password(&password, &hash) => {
+            tracing::info!(user = %u.username, "admin: masuk");
+            state.login_limit.clear(&ku);
+            start_session(&state, &headers, u.id, "/admin").await
+        }
+        _ => {
+            state.login_limit.fail(&[&ku, &ki]);
+            tracing::warn!(user = %username, ip = %ki, "admin: login gagal");
+            // Perlambat tebak-tebakan sandi.
+            tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+            to("/admin", "galat", "Username atau sandi salah (atau akun dinonaktifkan).")
+        }
+    }
+}
+
+/// Akun pertama: hanya bila belum ada akun sama sekali, dengan kode ADMIN_TOKEN.
+pub async fn admin_setup(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let get = |k: &str| f.get(k).cloned().unwrap_or_default();
+    match repo::admin_count(&state.pool).await {
+        Ok(0) => {}
+        Ok(_) => return to("/admin", "galat", "Akun admin sudah ada — silakan masuk."),
+        Err(_) => return to("/admin", "galat", "Database akun belum siap — jalankan migration/003_admin_konten.sql."),
+    }
+    let ki = format!("setup-ip:{}", security::client_ip(&headers));
+    if let Some(secs) = state.login_limit.blocked(&[&ki]) {
+        return security::too_many(secs);
+    }
+    if state.admin_token.is_empty() || !auth::same_hash(get("code").trim(), &state.admin_token) {
+        state.login_limit.fail(&[&ki]);
+        tracing::warn!(ip = %ki, "admin: kode setup salah");
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        return to("/admin", "galat", "Kode setup (ADMIN_TOKEN) salah.");
+    }
+    let username = get("username").trim().to_lowercase();
+    let (pw, pw2) = (get("password"), get("password2"));
+    if !auth::valid_username(&username) {
+        return to("/admin", "galat", "Username 3–32 karakter: huruf kecil, angka, titik, minus, garis bawah.");
+    }
+    if pw.chars().count() < auth::MIN_PASSWORD || pw != pw2 {
+        return to("/admin", "galat", "Sandi minimal 8 karakter dan kedua isian harus sama.");
+    }
+    let hash = match auth::hash_password(&pw) {
+        Ok(h) => h,
+        Err(_) => return to("/admin", "galat", "Gagal memproses sandi."),
+    };
+    match repo::create_admin(&state.pool, &username, &clean(&get("name"), 60), &hash, "admin").await {
+        Ok(id) => {
+            tracing::info!(user = %username, "admin: akun pertama dibuat");
+            start_session(&state, &headers, id, "/admin?ok=Akun%20admin%20dibuat.").await
+        }
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: setup");
+            to("/admin", "galat", "Gagal membuat akun.")
+        }
+    }
+}
+
+pub async fn admin_logout(Extension(state): Extension<Arc<AppState>>, headers: axum::http::HeaderMap) -> Response {
+    if let Some(t) = cookie_value(&headers, auth::COOKIE) {
+        let _ = repo::delete_session(&state.pool, &auth::token_hash(t)).await;
+    }
+    let res = with_cookie(Redirect::to("/admin").into_response(), auth::cookie("", 0, &headers));
+    with_cookie(res, auth::marker_cookie(false))
+}
+
+/// Admin mengelola akun lain: `aksi` = baru | ubah | sandi.
+pub async fn admin_account_save(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let me = match require(&state, &headers, true).await {
+        Ok(u) => u,
+        Err(r) => return r,
+    };
+    let get = |k: &str| f.get(k).cloned().unwrap_or_default();
+    let back = "/admin/akun";
+    let role = get("role");
+    if !role.is_empty() && !crate::web::model::ADMIN_ROLES.iter().any(|r| r.0 == role) {
+        return to(back, "galat", "Peran tidak dikenal.");
+    }
+    match get("aksi").as_str() {
+        "baru" => {
+            let username = get("username").trim().to_lowercase();
+            let pw = get("password");
+            if !auth::valid_username(&username) {
+                return to(back, "galat", "Username 3–32 karakter: huruf kecil, angka, titik, minus, garis bawah.");
+            }
+            if pw.chars().count() < auth::MIN_PASSWORD {
+                return to(back, "galat", "Sandi minimal 8 karakter.");
+            }
+            let Ok(hash) = auth::hash_password(&pw) else { return to(back, "galat", "Gagal memproses sandi.") };
+            match repo::create_admin(&state.pool, &username, &clean(&get("name"), 60), &hash, &role).await {
+                Ok(_) => {
+                    tracing::info!(by = %me.username, user = %username, role = %role, "admin: akun dibuat");
+                    to(back, "ok", &format!("Akun {username} dibuat. Berikan username & sandinya secara pribadi."))
+                }
+                Err(e) if repo::is_unique_violation(&e) => to(back, "galat", "Username sudah dipakai."),
+                Err(e) => {
+                    tracing::error!(error = %format!("{e:#}"), "admin: buat akun");
+                    to(back, "galat", "Gagal membuat akun.")
+                }
+            }
+        }
+        "ubah" => {
+            let id: i64 = get("id").parse().unwrap_or(0);
+            let active = get("active") == "1";
+            // Jangan sampai panel tak punya Admin aktif (termasuk menurunkan diri sendiri).
+            if (role != "admin" || !active) && repo::other_active_admins(&state.pool, id).await.unwrap_or(0) == 0 {
+                return to(back, "galat", "Harus ada minimal satu Admin aktif.");
+            }
+            match repo::update_admin(&state.pool, id, &clean(&get("name"), 60), &role, active).await {
+                Ok(()) => to(back, "ok", "Akun diperbarui."),
+                Err(e) => {
+                    tracing::error!(error = %format!("{e:#}"), "admin: ubah akun");
+                    to(back, "galat", "Gagal menyimpan akun.")
+                }
+            }
+        }
+        "sandi" => {
+            let id: i64 = get("id").parse().unwrap_or(0);
+            let pw = get("password");
+            if pw.chars().count() < auth::MIN_PASSWORD {
+                return to(back, "galat", "Sandi baru minimal 8 karakter.");
+            }
+            let Ok(hash) = auth::hash_password(&pw) else { return to(back, "galat", "Gagal memproses sandi.") };
+            match repo::set_admin_password(&state.pool, id, &hash, None).await {
+                Ok(()) => to(back, "ok", "Sandi diganti; sesi lama akun itu dikeluarkan."),
+                Err(_) => to(back, "galat", "Gagal mengganti sandi."),
+            }
+        }
+        _ => to(back, "galat", "Aksi tidak dikenal."),
+    }
+}
+
+/// Ganti sandi sendiri (semua peran).
+pub async fn admin_own_password(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let me = match require(&state, &headers, false).await {
+        Ok(u) => u,
+        Err(r) => return r,
+    };
+    let get = |k: &str| f.get(k).cloned().unwrap_or_default();
+    let back = "/admin/profil";
+    let Ok(Some((_, hash))) = repo::admin_login_row(&state.pool, &me.username).await else {
+        return to(back, "galat", "Akun tidak ditemukan.");
+    };
+    if !auth::verify_password(&get("old"), &hash) {
+        return to(back, "galat", "Sandi lama salah.");
+    }
+    let (pw, pw2) = (get("password"), get("password2"));
+    if pw.chars().count() < auth::MIN_PASSWORD || pw != pw2 {
+        return to(back, "galat", "Sandi baru minimal 8 karakter dan kedua isian harus sama.");
+    }
+    let Ok(new_hash) = auth::hash_password(&pw) else { return to(back, "galat", "Gagal memproses sandi.") };
+    let keep = cookie_value(&headers, auth::COOKIE).map(auth::token_hash);
+    match repo::set_admin_password(&state.pool, me.id, &new_hash, keep.as_deref()).await {
+        Ok(()) => to(back, "ok", "Sandi diganti. Sesi di perangkat lain dikeluarkan."),
+        Err(_) => to(back, "galat", "Gagal mengganti sandi."),
+    }
+}
+
+/// Simpan satu bagian konten dari editor generik (multipart: ada unggahan foto).
+pub async fn admin_save_konten(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    let me = match require(&state, &headers, false).await {
+        Ok(u) => u,
+        Err(r) => return r,
+    };
+    let Ok(mut form) = super::form::read(mp, 40).await else {
+        return to("/admin/konten", "galat", "Unggahan terputus atau terlalu besar (foto maks 5 MB).");
+    };
+    let files = std::mem::take(&mut form.files);
+    let mut f = form.fields;
+    let key = f.get("section").cloned().unwrap_or_default();
+    let Some(sec) = crate::web::konten::section(&key) else {
+        return to("/admin/konten", "galat", "Bagian konten tidak dikenal.");
+    };
+    let back = format!("/admin/konten/{key}");
+    // Galeri: foto bercentang "Hapus" dibuang dari daftarnya (`…__del__{j}`).
+    let dels: Vec<(String, String)> = f
+        .iter()
+        .filter_map(|(k, v)| k.split_once("__del__").map(|(target, _)| (target.to_string(), v.clone())))
+        .collect();
+    for (target, url) in dels {
+        if let Some(list) = f.get_mut(&target) {
+            *list = list.lines().filter(|l| l.trim() != url).collect::<Vec<_>>().join("\n");
+        }
+    }
+    // Unggahan: Gambar → menimpa isian URL-nya; Galeri → ditambahkan di akhir.
+    // Jalur terbaca: foto/{bagian}-{kode item}/{nama-berkas-asli}.jpg.
+    for up in files {
+        let Some(target) = up.field.strip_suffix("__file") else { continue };
+        let Some(st) = state.storage.as_ref() else {
+            return to(&back, "galat", "RustFS belum dikonfigurasi — isi URL/path gambar saja (mis. /img/layanan/…).");
+        };
+        let (item, field_key) = target.split_once("__").unwrap_or(("", target));
+        let is_gallery = sec.fields.iter().any(|fl| fl.key == field_key && fl.kind == crate::web::konten::Kind::Gallery);
+        let item_key = [format!("{item}__slug"), format!("{item}__name"), format!("{item}__judul")]
+            .iter()
+            .filter_map(|k| f.get(k))
+            .map(|v| fmt::key(v))
+            .find(|v| !v.is_empty())
+            .unwrap_or_else(|| "umum".into());
+        let dir = format!("{}-{item_key}", fmt::key(&key));
+        let current = f.get(target).cloned().unwrap_or_default();
+        // Nama sama dengan foto yang sudah ada di daftar → beri akhiran -2, -3, …
+        let name = super::storage::StorageService::unique_name(&super::storage::file_stem(&up.file_name, "foto"), |n| {
+            current.lines().any(|l| l.contains(&format!("/{dir}/{n}.")))
+        });
+        match st.upload_image_as(up.data, &dir, &name, super::storage::Ukuran::Aset).await {
+            Ok(url) if is_gallery => {
+                let lines = if current.trim().is_empty() { url } else { format!("{current}\n{url}") };
+                f.insert(target.to_string(), lines);
+            }
+            Ok(url) => {
+                f.insert(target.to_string(), url);
+            }
+            Err(e) => return to(&back, "galat", &e.to_string()),
+        }
+    }
+    let n: usize = f.get("n").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let data = match crate::web::konten::form_to_json(sec, n, |k| f.get(k).cloned().unwrap_or_default()) {
+        Ok(d) => d,
+        Err(msg) => return to(&back, "galat", &msg),
+    };
+    // Validasi akhir: harus bisa dibaca sebagai tipe Konten.
+    let mut probe = (*state.konten()).clone();
+    if !probe.apply(&key, data.clone()) {
+        return to(&back, "galat", "Isian tidak valid untuk bagian ini.");
+    }
+    if let Err(e) = repo::save_content(&state.pool, &key, &data, &me.username).await {
+        tracing::error!(error = %format!("{e:#}"), "admin: simpan konten");
+        return to(&back, "galat", "Gagal menyimpan — sudah menjalankan migration/003_admin_konten.sql?");
+    }
+    state.refresh_konten().await;
+    tracing::info!(by = %me.username, section = %key, "admin: konten disimpan");
+    to(&back, "ok", "Tersimpan & langsung tayang.")
+}
+
+pub async fn admin_save_theme(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    // Unggahan: image_file → image_url, bg_file → bg_image, dst.
+    let Ok(mut form) = super::form::read(mp, 4).await else {
+        return to("/admin/tema", "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
+    };
+    let uploads = std::mem::take(&mut form.files);
+    let mut f = form.fields;
+    let editing = f.get("orig").cloned().unwrap_or_default();
+    // Slug tidak bisa diganti saat menyunting (undangan menyimpan slug-nya).
+    if !editing.is_empty() {
+        f.insert("slug".into(), editing.clone());
+    }
+    let back = if editing.is_empty() { "/admin/tema/baru".to_string() } else { format!("/admin/tema/{editing}") };
+    let mut theme = match crate::web::skin::from_form(|k| f.get(k).cloned().unwrap_or_default()) {
+        Ok(t) => t,
+        Err(msg) => return to(&back, "galat", &msg),
+    };
+    if editing.is_empty() {
+        match repo::theme_exists(&state.pool, &theme.slug).await {
+            Ok(false) => {}
+            Ok(true) => return to(&back, "galat", &format!("Kode tema \"{}\" sudah dipakai tema lain.", theme.slug)),
+            Err(e) => {
+                tracing::error!(error = %format!("{e:#}"), "admin: cek tema");
+                return to(&back, "galat", "Database belum siap — sudah menjalankan migration/002_themes.sql?");
+            }
+        }
+    }
+    if f.get("image_clear").is_some_and(|v| v == "1") {
+        theme.image_url.clear();
+    }
+    // Animasi harus ada di katalog dan jenisnya cocok.
+    {
+        let cat = state.themes();
+        for (key, kind, label) in [(&theme.open_anim, "buka", "Cara membuka"), (&theme.scroll_anim, "scroll", "Gerak saat scroll"), (&theme.float_deco, "hiasan", "Hiasan melayang")] {
+            if !cat.has_anim(key, kind) {
+                return to(&back, "galat", &format!("{label}: animasi \"{key}\" tidak ditemukan."));
+            }
+        }
+    }
+    for up in uploads {
+        let Some(st) = state.storage.as_ref() else {
+            return to(&back, "galat", "RustFS belum dikonfigurasi — tempel URL gambar saja.");
+        };
+        // Jalur terbaca: foto/tema/{slug}/{nama-berkas-asli}.webp
+        let url = match st.upload_image_as(up.data, &format!("tema-{}", theme.slug), &up.file_name, super::storage::Ukuran::Aset).await {
+            Ok(url) => url,
+            Err(e) => return to(&back, "galat", &e.to_string()),
+        };
+        match up.field.as_str() {
+            "image_file" => theme.image_url = url,
+            "bg_file" => theme.bg_image = url,
+            "frame_file" => theme.frame_image = url,
+            "deco_file" => theme.card_deco = url,
+            _ => {}
+        }
+    }
+    if let Err(e) = repo::upsert_theme(&state.pool, &theme).await {
+        tracing::error!(error = %format!("{e:#}"), "admin: simpan tema");
+        return to(&back, "galat", "Gagal menyimpan tema — sudah menjalankan migration/002_themes.sql?");
+    }
+    state.refresh_themes().await;
+    tracing::info!(slug = %theme.slug, "admin: tema disimpan");
+    to(&format!("/admin/tema/{}", theme.slug), "ok", "Tema tersimpan & langsung tayang.")
+}
+
+pub async fn admin_delete_theme(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let slug = f.get("slug").cloned().unwrap_or_default();
+    if slug == crate::web::skin::DEFAULT_THEME {
+        return to(&format!("/admin/tema/{slug}"), "galat", "Tema bawaan tidak bisa dihapus.");
+    }
+    match repo::delete_theme(&state.pool, &slug).await {
+        Ok(true) => {
+            state.refresh_themes().await;
+            to("/admin/tema", "ok", &format!("Tema {slug} dihapus."))
+        }
+        Ok(false) => to(
+            &format!("/admin/tema/{slug}"),
+            "galat",
+            "Tema masih dipakai undangan — sembunyikan saja dari katalog (hapus centang \"Tampil di katalog\").",
+        ),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: hapus tema");
+            to(&format!("/admin/tema/{slug}"), "galat", "Gagal menghapus tema.")
+        }
+    }
+}
+
+/// POST /admin/animasi/simpan — buat/sunting animasi (multipart: panel_file,
+/// orn_file, float_file → gambar di RustFS). Animasi bawaan pun bisa disunting.
+pub async fn admin_save_animation(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let Ok(mut form) = super::form::read(mp, 3).await else {
+        return to("/admin/animasi", "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
+    };
+    let uploads = std::mem::take(&mut form.files);
+    let mut f = form.fields;
+    let editing = f.get("orig").cloned().unwrap_or_default();
+    let kind = f.get("kind").cloned().unwrap_or_default();
+    let cat = state.themes();
+    // Kode & jenis tak bisa diganti saat menyunting (tema menyimpan kuncinya).
+    let old = if editing.is_empty() {
+        None
+    } else {
+        match cat.anim(&kind, &editing) {
+            Some(a) => Some(a.clone()),
+            None => return to("/admin/animasi", "galat", "Animasi tidak ditemukan."),
+        }
+    };
+    if old.is_some() {
+        f.insert("slug".into(), editing.clone());
+    }
+    let back = match &old {
+        Some(_) => format!("/admin/animasi/{kind}/{editing}"),
+        None => format!("/admin/animasi/baru?jenis={}", fmt::url_encode(&kind)),
+    };
+    let mut anim = match crate::web::anim::from_form(|k| f.get(k).cloned().unwrap_or_default()) {
+        Ok(a) => a,
+        Err(msg) => return to(&back, "galat", &msg),
+    };
+    match &old {
+        Some(o) => {
+            anim.builtin = o.builtin;
+            anim.sort_order = o.sort_order;
+        }
+        None if cat.anim(&anim.kind, &anim.slug).is_some() => {
+            return to(&back, "galat", &format!("Kode \"{}\" sudah dipakai animasi lain jenis ini.", anim.slug));
+        }
+        None => {}
+    }
+    for up in uploads {
+        let Some(st) = state.storage.as_ref() else {
+            return to(&back, "galat", "RustFS belum dikonfigurasi — tempel URL gambar saja.");
+        };
+        let url = match st.upload_image_as(up.data, &format!("animasi-{}", anim.slug), &up.file_name, super::storage::Ukuran::Aset).await {
+            Ok(url) => url,
+            Err(e) => return to(&back, "galat", &e.to_string()),
+        };
+        match up.field.as_str() {
+            "panel_file" => {
+                anim.spec.panel_image = url;
+                anim.spec.fill = "image".into();
+            }
+            "orn_file" => anim.spec.orn_image = url,
+            "float_file" => anim.spec.float_image = url,
+            _ => {}
+        }
+    }
+    if let Err(e) = repo::upsert_animation(&state.pool, &anim).await {
+        tracing::error!(error = %format!("{e:#}"), "admin: simpan animasi");
+        return to(&back, "galat", "Gagal menyimpan animasi — sudah menjalankan migration/008_animasi_semua.sql?");
+    }
+    state.refresh_themes().await;
+    tracing::info!(slug = %anim.slug, kind = %anim.kind, "admin: animasi disimpan");
+    to(&format!("/admin/animasi/{}/{}", anim.kind, anim.slug), "ok", "Animasi tersimpan & langsung tayang di semua tema yang memakainya.")
+}
+
+/// POST /admin/animasi/bawaan — kembalikan animasi bawaan ke isi pabrik.
+pub async fn admin_reset_animation(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let kind = f.get("kind").cloned().unwrap_or_default();
+    let slug = f.get("slug").cloned().unwrap_or_default();
+    let back = format!("/admin/animasi/{kind}/{slug}");
+    let Some(a) = crate::web::anim::builtin(&kind, &slug) else {
+        return to(&back, "galat", "Bukan animasi bawaan.");
+    };
+    if let Err(e) = repo::upsert_animation(&state.pool, &a).await {
+        tracing::error!(error = %format!("{e:#}"), "admin: reset animasi");
+        return to(&back, "galat", "Gagal — sudah menjalankan migration/008_animasi_semua.sql?");
+    }
+    state.refresh_themes().await;
+    to(&back, "ok", "Animasi dikembalikan ke bawaan.")
+}
+
+/// POST /admin/animasi/hapus — hanya animasi buatan admin yang tak dipakai tema.
+pub async fn admin_delete_animation(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let kind = f.get("kind").cloned().unwrap_or_default();
+    let slug = f.get("slug").cloned().unwrap_or_default();
+    let back = format!("/admin/animasi/{kind}/{slug}");
+    if state.themes().anim(&kind, &slug).is_some_and(|a| a.builtin) {
+        return to(&back, "galat", "Animasi bawaan tidak bisa dihapus — sunting atau kembalikan ke bawaan saja.");
+    }
+    match repo::animation_users(&state.pool, &kind, &slug).await {
+        Ok(users) if !users.is_empty() => {
+            return to(&back, "galat", &format!("Masih dipakai tema: {}. Ganti animasi di tema itu dulu.", users.join(", ")));
+        }
+        Ok(_) => {}
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: cek pemakai animasi");
+            return to(&back, "galat", "Gagal memeriksa pemakai animasi.");
+        }
+    }
+    if let Err(e) = repo::delete_animation(&state.pool, &kind, &slug).await {
+        tracing::error!(error = %format!("{e:#}"), "admin: hapus animasi");
+        return to(&back, "galat", "Gagal menghapus animasi.");
+    }
+    state.refresh_themes().await;
+    to("/admin/animasi", "ok", &format!("Animasi {slug} dihapus."))
+}
+
+/// POST /admin/banner/simpan — tambah/ubah banner (multipart: img_file,
+/// img_hp_file → RustFS `foto/banner/{nama-berkas}.webp`).
+pub async fn admin_save_banner(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let back = "/admin/banner";
+    let Ok(mut form) = super::form::read(mp, 2).await else {
+        return to(back, "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
+    };
+    let files = std::mem::take(&mut form.files);
+    let get = |k: &str, max: usize| form.get(k, max);
+    let id: i64 = get("id", 20).parse().unwrap_or(0);
+    let mut b = crate::web::model::Banner {
+        id,
+        judul: get("judul", 120),
+        sub: get("sub", 300),
+        cta: get("cta", 40),
+        link: get("link", 300),
+        img: get("img", 500),
+        img_hp: get("img_hp", 500),
+        aktif: form.raw("aktif") == "1",
+        urutan: get("urutan", 6).parse().unwrap_or(100),
+        mulai: get("mulai", 16),
+        selesai: get("selesai", 16),
+        status: String::new(),
+    };
+    // Unggahan menimpa isian URL. Nama berkas terbaca; bentrok dgn banner lain → akhiran -2, -3…
+    let used: Vec<String> = repo::banners_all(&state.pool)
+        .await
+        .map(|v| v.into_iter().filter(|x| x.id != id).flat_map(|x| [x.img, x.img_hp]).collect())
+        .unwrap_or_default();
+    for up in files {
+        let Some(st) = state.storage.as_ref() else {
+            return to(back, "galat", "RustFS belum dikonfigurasi — isi alamat gambar saja (mis. /img/banner/… atau https://…).");
+        };
+        let name = super::storage::StorageService::unique_name(&super::storage::file_stem(&up.file_name, "banner"), |n| {
+            used.iter().any(|u| u.contains(&format!("/banner/{n}.")))
+        });
+        let url = match st.upload_image_as(up.data, "banner", &name, super::storage::Ukuran::Banner).await {
+            Ok(u) => u,
+            Err(e) => return to(back, "galat", &e.to_string()),
+        };
+        match up.field.as_str() {
+            "img_file" => b.img = url,
+            "img_hp_file" => b.img_hp = url,
+            _ => {}
+        }
+    }
+    if !crate::web::skin::is_safe_url(&b.img) {
+        return to(back, "galat", "Gambar desktop wajib diisi (unggah berkas atau alamat /img/… / https://…).");
+    }
+    if !b.img_hp.is_empty() && !crate::web::skin::is_safe_url(&b.img_hp) {
+        return to(back, "galat", "Alamat gambar HP tidak valid.");
+    }
+    if !b.link.is_empty() && !crate::web::skin::is_safe_url(&b.link) {
+        return to(back, "galat", "Tautan harus diawali / (halaman situs) atau https://.");
+    }
+    let dt_ok = |v: &str| v.is_empty() || (v.len() == 16 && fmt::parse_date(&v[..10]).is_some() && v.as_bytes()[10] == b'T');
+    if !dt_ok(&b.mulai) || !dt_ok(&b.selesai) {
+        return to(back, "galat", "Format jadwal tidak valid.");
+    }
+    if !b.mulai.is_empty() && !b.selesai.is_empty() && b.selesai <= b.mulai {
+        return to(back, "galat", "Jadwal selesai harus setelah jadwal mulai.");
+    }
+    match repo::save_banner(&state.pool, &b).await {
+        Ok(new_id) => {
+            tracing::info!(id = new_id, "admin: banner disimpan");
+            to(&format!("{back}#banner-{new_id}"), "ok", if id == 0 { "Banner ditambahkan." } else { "Banner tersimpan & langsung tayang." })
+        }
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: simpan banner");
+            to(back, "galat", "Gagal menyimpan — sudah menjalankan migration/011_banner.sql?")
+        }
+    }
+}
+
+/// POST /admin/banner/urut (id, arah=naik|turun) & /admin/banner/hapus (id).
+pub async fn admin_banner_action(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::extract::Path(aksi): axum::extract::Path<String>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let back = "/admin/banner";
+    let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let res = match aksi.as_str() {
+        "urut" => repo::move_banner(&state.pool, id, f.get("arah").is_some_and(|a| a == "naik")).await.map(|_| ("Urutan diperbarui.", format!("{back}#banner-{id}"))),
+        "hapus" => repo::delete_banner(&state.pool, id).await.map(|_| ("Banner dihapus.", back.to_string())),
+        _ => return to(back, "galat", "Aksi tidak dikenal."),
+    };
+    match res {
+        Ok((msg, to_url)) => to(&to_url, "ok", msg),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: banner {aksi}");
+            to(back, "galat", "Gagal memproses banner.")
+        }
+    }
+}
+
+pub async fn admin_update_invitation(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let me = match require(&state, &headers, true).await {
+        Ok(u) => u,
+        Err(r) => return r,
+    };
+    let slug = clean(f.get("slug").map(String::as_str).unwrap_or(""), 60);
+    let status = f.get("status").cloned().unwrap_or_default();
+    let theme = f.get("theme").cloned().unwrap_or_default();
+    let back = format!("/admin/undangan?q={}", fmt::url_encode(f.get("q").map(String::as_str).unwrap_or("")));
+    if !crate::web::model::INV_STATUSES.iter().any(|(k, _)| *k == status) || state.themes().get(&theme).is_none() {
+        return to(&back, "galat", "Status atau tema tidak valid.");
+    }
+    match repo::admin_update_invitation(&state.pool, &slug, &status, &theme).await {
+        Ok(true) => {
+            tracing::info!(by = %me.username, slug = %slug, status = %status, theme = %theme, "admin: undangan diperbarui");
+            to(&back, "ok", &format!("/u/{slug} diperbarui."))
+        }
+        Ok(false) => to(&back, "galat", "Undangan tidak ditemukan (undangan demo tidak bisa diubah)."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: ubah undangan");
+            to(&back, "galat", "Gagal menyimpan perubahan.")
+        }
+    }
+}
+
+/// Terbitkan ulang tautan Kelola (pelanggan kehilangan tautan). Kunci lama
+/// langsung tidak berlaku; tautan baru ditampilkan sekali ke admin.
+pub async fn admin_reset_key(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let me = match require(&state, &headers, true).await {
+        Ok(u) => u,
+        Err(r) => return r,
+    };
+    let slug = clean(f.get("slug").map(String::as_str).unwrap_or(""), 60);
+    let back = format!("/admin/undangan?q={}", fmt::url_encode(&slug));
+    let key = random_key(40);
+    match repo::reset_manage_key(&state.pool, &slug, &auth::token_hash(&key)).await {
+        Ok(true) => {
+            tracing::info!(by = %me.username, slug = %slug, "admin: kunci Kelola diterbitkan ulang");
+            let link = format!("/kelola/{slug}?key={key}");
+            Redirect::to(&format!("{back}&ok={}&kelola={}", fmt::url_encode("Tautan Kelola baru diterbitkan — kirim ke pemesan, tautan lama tidak berlaku."), fmt::url_encode(&link)))
+                .into_response()
+        }
+        Ok(false) => to(&back, "galat", "Undangan tidak ditemukan (undangan demo tidak bisa diubah)."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: reset kunci");
+            to(&back, "galat", "Gagal menerbitkan tautan — sudah menjalankan migration/004_keamanan.sql?")
+        }
+    }
+}
+
+// ── Ornamen tema (/admin/tema/{slug}/ornamen) ─────────────────────────────
+
+/// POST /admin/ornamen/simpan (multipart): satu ornamen, id 0 = baru.
+pub async fn admin_save_ornament(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let Ok(mut form) = super::form::read(mp, 1).await else {
+        return to("/admin/tema", "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
+    };
+    let file = form.take_file("img_file");
+    let mut f = form.fields;
+    let theme = clean(f.get("theme").map(String::as_str).unwrap_or(""), 60);
+    if state.themes().get(&theme).is_none() {
+        return to("/admin/tema", "galat", "Tema tidak ditemukan.");
+    }
+    let back = format!("/admin/tema/{theme}/ornamen");
+    if let Some(up) = file {
+        let Some(st) = state.storage.as_ref() else {
+            return to(&back, "galat", "RustFS belum dikonfigurasi — isi alamat gambar saja (mis. /img/tema/ornamen/… atau https://…).");
+        };
+        let used: Vec<String> = state.themes().get(&theme).map(|t| t.ornaments.iter().map(|o| o.img.clone()).collect()).unwrap_or_default();
+        let name = super::storage::StorageService::unique_name(&super::storage::file_stem(&up.file_name, "ornamen"), |n| {
+            used.iter().any(|u| u.contains(&format!("/{n}.")))
+        });
+        match st.upload_image_as(up.data, &format!("ornamen-{theme}"), &name, super::storage::Ukuran::Aset).await {
+            Ok(u) => {
+                f.insert("img".into(), u);
+            }
+            Err(e) => return to(&back, "galat", &e.to_string()),
+        }
+    }
+    let get = |k: &str| clean(f.get(k).map(String::as_str).unwrap_or(""), 500);
+    let mut o = match crate::web::ornamen::from_form(get) {
+        Ok(o) => o,
+        Err(m) => return to(&back, "galat", &m),
+    };
+    o.theme = theme.clone();
+    match repo::save_ornament(&state.pool, &o).await {
+        Ok(id) => {
+            state.refresh_themes().await;
+            tracing::info!(theme = %theme, id, "admin: ornamen disimpan");
+            to(&format!("{back}#orn-{id}"), "ok", if o.id == 0 { "Ornamen ditambahkan." } else { "Ornamen tersimpan & langsung tampil di undangan." })
+        }
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: simpan ornamen");
+            to(&back, "galat", "Gagal menyimpan — sudah menjalankan migration/012_ornamen.sql?")
+        }
+    }
+}
+
+/// POST /admin/ornamen/hapus (theme, id) & /admin/ornamen/salin (theme, dari).
+pub async fn admin_ornament_action(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::extract::Path(aksi): axum::extract::Path<String>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let cat = state.themes();
+    let theme = clean(f.get("theme").map(String::as_str).unwrap_or(""), 60);
+    if cat.get(&theme).is_none() {
+        return to("/admin/tema", "galat", "Tema tidak ditemukan.");
+    }
+    let back = format!("/admin/tema/{theme}/ornamen");
+    let res = match aksi.as_str() {
+        "hapus" => {
+            let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
+            repo::delete_ornament(&state.pool, &theme, id).await.map(|_| "Ornamen dihapus.".to_string())
+        }
+        "salin" => {
+            let from = clean(f.get("dari").map(String::as_str).unwrap_or(""), 60);
+            if from == theme || cat.get(&from).is_none() {
+                return to(&back, "galat", "Pilih tema sumber yang lain.");
+            }
+            repo::copy_ornaments(&state.pool, &from, &theme).await.map(|n| format!("{n} ornamen disalin."))
+        }
+        _ => return to(&back, "galat", "Aksi tidak dikenal."),
+    };
+    match res {
+        Ok(msg) => {
+            state.refresh_themes().await;
+            to(&back, "ok", &msg)
+        }
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: ornamen {aksi}");
+            to(&back, "galat", "Gagal memproses ornamen.")
+        }
+    }
+}

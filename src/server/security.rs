@@ -1,0 +1,274 @@
+//! server/security.rs — lapisan keamanan HTTP:
+//!
+//!   * `headers`   — Cache-Control `private, no-store` untuk halaman pribadi
+//!                   (/u/*: QR & nama tamu, /kelola/*: daftar tamu, /admin/*),
+//!                   CSP ber-nonce untuk HTML, dan header pengaman lain.
+//!   * `csrf`      — tolak POST lintas situs (Origin ≠ host). Cookie admin juga
+//!                   SameSite=Strict; ini lapis kedua.
+//!   * `RateLimit` — batasi tebak sandi /admin/masuk & /admin/setup, serta
+//!                   tulis publik (RSVP, tanda kasih, pembuatan undangan).
+//!
+//! CSP memakai nonce acak per request: middleware menaruh `CspNonce` di
+//! extensions request, `shell()` (web/app.rs) membacanya lewat `Parts` lalu
+//! `provide_context(Nonce)` → skrip hydration Leptos & skrip global ikut
+//! ber-nonce. 'wasm-unsafe-eval' wajib agar WASM Leptos bisa dikompilasi.
+
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+use axum::extract::Request;
+use axum::http::{header, HeaderValue, Method, StatusCode};
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
+
+#[derive(Clone)]
+pub struct CspNonce(pub String);
+
+/// Mode dev: izinkan websocket hot-reload cargo-leptos (port 3601).
+#[derive(Clone, Copy)]
+pub struct DevMode(pub bool);
+
+fn is_private(path: &str) -> bool {
+    path.starts_with("/u/") || path.starts_with("/kelola/") || path == "/admin" || path.starts_with("/admin/") || path == "/buat"
+}
+
+pub fn csp(nonce: &str, dev: bool) -> String {
+    format!(
+        "default-src 'self'; \
+         script-src 'self' 'nonce-{nonce}' 'wasm-unsafe-eval'; \
+         style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
+         font-src 'self' https://fonts.gstatic.com; \
+         img-src 'self' data: blob: https:; \
+         media-src 'self' blob: https:; \
+         connect-src 'self'{}; \
+         frame-src https://www.google.com https://maps.google.com; \
+         form-action 'self' https://wa.me https://api.whatsapp.com; \
+         frame-ancestors 'self'; base-uri 'self'; object-src 'none'",
+        if dev { " ws: http://localhost:3601 http://127.0.0.1:3601" } else { "" }
+    )
+}
+
+pub async fn headers(mut req: Request, next: Next) -> Response {
+    let nonce = super::auth::random_hex(16);
+    let dev = req.extensions().get::<DevMode>().map(|d| d.0).unwrap_or(false);
+    req.extensions_mut().insert(CspNonce(nonce.clone()));
+    let path = req.uri().path().to_string();
+    let private = is_private(&path);
+    let mut res = next.run(req).await;
+    let ok = res.status().is_success();
+    let h = res.headers_mut();
+    if private {
+        h.insert(header::CACHE_CONTROL, HeaderValue::from_static("private, no-store"));
+        // Undangan & dashboard tak boleh masuk mesin pencari walau tautannya tersebar.
+        h.insert("x-robots-tag", HeaderValue::from_static("noindex, nofollow"));
+    } else if ok && (path.starts_with("/img/") || path.starts_with("/music/")) && !h.contains_key(header::CACHE_CONTROL) {
+        // Foto & lagu bawaan: jarang berubah → cache 7 hari.
+        h.insert(header::CACHE_CONTROL, HeaderValue::from_static("public, max-age=604800"));
+    }
+    let is_html = h.get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).is_some_and(|v| v.starts_with("text/html"));
+    if is_html {
+        if let Ok(v) = HeaderValue::from_str(&csp(&nonce, dev)) {
+            h.insert(header::CONTENT_SECURITY_POLICY, v);
+        }
+    }
+    h.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
+    // same-origin: permintaan ke situs LAIN tanpa Referer sama sekali —
+    //  * tautan undangan (/u/slug?g=KODE) tak bocor ke Maps, wa.me, dll.;
+    //  * lagu & foto di RustFS (image.ulalaapi.store, di balik proxy hotlink
+    //    yang menolak Referer domain tak terdaftar tapi mengizinkan Referer
+    //    kosong) tetap termuat dari domain mana pun, termasuk localhost.
+    // JANGAN "no-referrer": itu membuat header Origin form POST menjadi "null"
+    // sehingga csrf() di bawah menolak RSVP & server fn lain.
+    h.insert("referrer-policy", HeaderValue::from_static("same-origin"));
+    // Kamera hanya untuk halaman ini sendiri (pemindai QR check-in).
+    h.insert("permissions-policy", HeaderValue::from_static("camera=(self), microphone=(), geolocation=()"));
+    res
+}
+
+/// Host yang dilihat klien (di balik proxy: X-Forwarded-Host).
+fn request_host(req: &Request) -> Option<String> {
+    req.headers()
+        .get("x-forwarded-host")
+        .or_else(|| req.headers().get(header::HOST))
+        .and_then(|v| v.to_str().ok())
+        .map(|h| h.split(',').next().unwrap_or(h).trim().to_ascii_lowercase())
+}
+
+/// POST dengan Origin dari situs lain → 403. Tanpa Origin (klien lama/non-
+/// browser) dibiarkan: browser modern selalu mengirim Origin pada POST.
+pub async fn csrf(req: Request, next: Next) -> Result<Response, StatusCode> {
+    if req.method() == Method::POST {
+        if let Some(origin) = req.headers().get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
+            let origin_host = origin.split("://").nth(1).map(|h| h.split('/').next().unwrap_or(h).to_ascii_lowercase());
+            if origin == "null" || origin_host.is_none() || origin_host != request_host(&req) {
+                tracing::warn!(origin, path = %req.uri().path(), "csrf: POST lintas situs ditolak");
+                return Err(StatusCode::FORBIDDEN);
+            }
+        }
+    }
+    Ok(next.run(req).await)
+}
+
+/// Pembatas percobaan per kunci (username / IP), jendela tetap sederhana.
+/// Disimpan di memori PROSES: aplikasi ini sengaja single-instance (satu
+/// container). Restart = hitungan mulai ulang — dapat diterima karena login
+/// juga diperlambat 800 ms per kegagalan dan sandi di-hash argon2id. Bila
+/// kelak dijalankan >1 replika, pindahkan ke tabel Postgres.
+/// Memori terbatas: entri kedaluwarsa dibuang paling lambat tiap satu jendela,
+/// dan peta tak pernah melebihi `CAP` kunci (kunci tertua dibuang dulu).
+pub struct RateLimit {
+    max: u32,
+    window: Duration,
+    inner: Mutex<Hits>,
+}
+
+struct Hits {
+    map: HashMap<String, (u32, Instant)>,
+    swept: Instant,
+}
+
+const CAP: usize = 20_000;
+
+impl RateLimit {
+    pub fn new(max: u32, window: Duration) -> Self {
+        Self { max, window, inner: Mutex::new(Hits { map: HashMap::new(), swept: Instant::now() }) }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, Hits> {
+        self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn remaining(&self, e: &(u32, Instant), now: Instant) -> Option<u64> {
+        let age = now.duration_since(e.1);
+        (e.0 >= self.max && age < self.window).then(|| (self.window - age).as_secs() + 1)
+    }
+
+    /// Sisa detik blokir bila salah satu kunci sudah melewati batas.
+    pub fn blocked(&self, keys: &[&str]) -> Option<u64> {
+        let now = Instant::now();
+        let h = self.lock();
+        keys.iter().filter_map(|k| h.map.get(*k)).filter_map(|e| self.remaining(e, now)).max()
+    }
+
+    fn record(&self, h: &mut Hits, keys: &[&str], now: Instant) {
+        if now.duration_since(h.swept) >= self.window || h.map.len() >= CAP {
+            let w = self.window;
+            h.map.retain(|_, (_, start)| now.duration_since(*start) < w);
+            h.swept = now;
+            if h.map.len() >= CAP {
+                // Serangan dengan banyak kunci unik: buang separuh tertua.
+                let mut ages: Vec<Instant> = h.map.values().map(|v| v.1).collect();
+                ages.sort_unstable();
+                let cut = ages[ages.len() / 2];
+                h.map.retain(|_, (_, start)| *start > cut);
+            }
+        }
+        for k in keys {
+            let e = h.map.entry((*k).to_string()).or_insert((0, now));
+            if now.duration_since(e.1) >= self.window {
+                *e = (0, now);
+            }
+            e.0 += 1;
+        }
+    }
+
+    pub fn fail(&self, keys: &[&str]) {
+        let now = Instant::now();
+        let mut h = self.lock();
+        self.record(&mut h, keys, now);
+    }
+
+    /// Catat satu percobaan untuk SEMUA permintaan (bukan hanya yang gagal):
+    /// `Err(detik)` bila kunci sudah mencapai batas dalam jendela. Satu kunci
+    /// mutex untuk cek + catat (tak ada celah balapan di antaranya).
+    pub fn hit(&self, key: &str) -> Result<(), u64> {
+        let now = Instant::now();
+        let mut h = self.lock();
+        if let Some(secs) = h.map.get(key).and_then(|e| self.remaining(e, now)) {
+            return Err(secs);
+        }
+        self.record(&mut h, &[key], now);
+        Ok(())
+    }
+
+    pub fn clear(&self, key: &str) {
+        self.lock().map.remove(key);
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.lock().map.len()
+    }
+}
+
+/// IP klien untuk kunci pembatas: X-Real-IP / X-Forwarded-For dari proxy,
+/// atau "langsung". (Bisa dipalsukan bila tak di balik proxy — batas per
+/// username tetap berlaku.)
+pub fn client_ip(headers: &axum::http::HeaderMap) -> String {
+    headers
+        .get("x-real-ip")
+        .or_else(|| headers.get("x-forwarded-for"))
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.split(',').next().unwrap_or(v).trim().to_string())
+        .unwrap_or_else(|| "langsung".into())
+}
+
+pub fn too_many(secs: u64) -> Response {
+    let menit = secs.div_ceil(60);
+    axum::response::Redirect::to(&format!(
+        "/admin?galat={}",
+        crate::web::fmt::url_encode(&format!("Terlalu banyak percobaan gagal. Coba lagi dalam {menit} menit."))
+    ))
+    .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn batas_kiriman_publik() {
+        let rl = RateLimit::new(3, std::time::Duration::from_secs(60));
+        assert!(rl.hit("rsvp:ani:1.2.3.4").is_ok() && rl.hit("rsvp:ani:1.2.3.4").is_ok() && rl.hit("rsvp:ani:1.2.3.4").is_ok());
+        assert!(rl.hit("rsvp:ani:1.2.3.4").is_err_and(|s| s > 0 && s <= 61), "kiriman ke-4 ditahan");
+        // Undangan lain / IP lain tak ikut tertahan.
+        assert!(rl.hit("rsvp:budi:1.2.3.4").is_ok() && rl.hit("rsvp:ani:5.6.7.8").is_ok());
+    }
+
+    use super::*;
+
+    #[test]
+    fn pembatas() {
+        let rl = RateLimit::new(3, Duration::from_secs(300));
+        assert!(rl.blocked(&["u:rina"]).is_none());
+        for _ in 0..3 {
+            rl.fail(&["u:rina", "ip:1.2.3.4"]);
+        }
+        assert!(rl.blocked(&["u:rina"]).is_some());
+        assert!(rl.blocked(&["ip:1.2.3.4"]).is_some());
+        assert!(rl.blocked(&["u:sekar"]).is_none());
+        rl.clear("u:rina");
+        assert!(rl.blocked(&["u:rina"]).is_none());
+    }
+
+    #[test]
+    fn memori_pembatas_terbatas() {
+        let rl = RateLimit::new(5, Duration::from_millis(30));
+        for i in 0..1000 {
+            rl.fail(&[&format!("ip:{i}")]);
+        }
+        assert_eq!(rl.len(), 1000);
+        std::thread::sleep(Duration::from_millis(40));
+        rl.fail(&["ip:baru"]);
+        assert_eq!(rl.len(), 1, "entri kedaluwarsa dibuang");
+    }
+
+    #[test]
+    fn csp_memuat_nonce() {
+        let c = csp("abc123", false);
+        assert!(c.contains("'nonce-abc123'") && c.contains("'wasm-unsafe-eval'") && c.contains("frame-ancestors 'self'"));
+        assert!(!c.contains("ws:"));
+        assert!(csp("x", true).contains("ws:"));
+        assert!(is_private("/u/ani?g=AB12") && is_private("/kelola/ani") && is_private("/admin/akun") && !is_private("/paket"));
+    }
+}

@@ -1,0 +1,89 @@
+name: Undangan ILY CI/CD
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+# Deploy beruntun menunggu, tidak bertabrakan / tiba dengan urutan terbalik.
+concurrency:
+  group: deploy-undangan
+  cancel-in-progress: false
+
+jobs:
+  # ── Tes di luar `docker build`: kegagalan tes tak tercampur log Docker, dan
+  # target wasm32 yang patah ketahuan dalam hitungan menit.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --lib
+      - run: cargo check --lib --no-default-features --features hydrate --target wasm32-unknown-unknown
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/undangan:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/undangan:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── Deploy: salin lalu jalankan berkas milik server (/opt/undangan/deploy.txt,
+      # lihat deploy.example.txt). Repo tak memuat perintah `docker run` /
+      # env-nya. Yang dikirim hanya tag image berbasis SHA commit.
+      - name: Deploy ke server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            SUMBER=/opt/undangan/deploy.txt
+            SALINAN=/opt/undangan/riwayat/deploy-$(date +%Y%m%d-%H%M%S)-${{ github.sha }}.sh
+
+            if [ ! -f "$SUMBER" ]; then
+              echo "ERROR: $SUMBER tidak ada di server."
+              echo "Buat berkas itu (perintah docker run + env), lihat deploy.example.txt di repo."
+              exit 1
+            fi
+            if [ ! -r "$SUMBER" ]; then
+              echo "ERROR: $SUMBER tidak bisa dibaca oleh user $(id -un)."
+              echo "Perbaiki sekali di server: sudo chown $(id -un) $SUMBER && sudo chmod 600 $SUMBER"
+              exit 1
+            fi
+
+            # Folder riwayat harus milik user SSH ini (bukan root), kalau tidak
+            # `cp` di bawah gagal "Permission denied" — pelajaran dari LajuBus.
+            sudo mkdir -p /opt/undangan/riwayat
+            sudo chown -R "$(id -un):$(id -gn)" /opt/undangan/riwayat
+            chmod 700 /opt/undangan/riwayat
+            cp "$SUMBER" "$SALINAN"
+            chmod 700 "$SALINAN"
+
+            export UNDANGAN_IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/undangan:${{ github.sha }}"
+            echo "→ Menjalankan $SALINAN dengan image $UNDANGAN_IMAGE"
+            bash "$SALINAN" "$UNDANGAN_IMAGE"
+
+            # Simpan 10 salinan terakhir.
+            ls -1t /opt/undangan/riwayat/deploy-*.sh 2>/dev/null | tail -n +11 | xargs -r rm -f

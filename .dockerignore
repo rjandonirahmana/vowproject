@@ -1,0 +1,16 @@
+target/
+.env
+.env.*
+*.env
+deploy.example.txt
+.git/
+.github/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+**/.DS_Store
+*.swp
+*~
+rustc-ice-*.txt
+node_modules/

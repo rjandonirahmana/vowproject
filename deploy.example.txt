@@ -1,0 +1,74 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONTOH isi /opt/undangan/deploy.txt  —  berkas ASLI tinggal di server saja.
+#
+# Workflow (.github/workflows/master.yml) menyalin berkas server lalu
+# menjalankan salinannya, dan hanya mengirim tag image (argumen $1 / UNDANGAN_IMAGE).
+#
+# Pasang sekali di server (sebagai user SSH yang dipakai CI):
+#   sudo mkdir -p /opt/undangan/riwayat && sudo chown -R $USER:$USER /opt/undangan
+#   nano /opt/undangan/deploy.txt          # salin isi di bawah, isi kontaknya
+#   chmod 600 /opt/undangan/deploy.txt
+#
+# Uji manual tanpa CI:
+#   bash /opt/undangan/deploy.txt <user-dockerhub>/undangan:latest
+#   curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3600/healthz   # harus 200
+#
+# ── ATURAN: `docker run` HARUS diakhiri "$IMAGE" (bukan nama image tertulis
+# mati) — kalau tidak, tag dari CI diabaikan dan image LAMA terus dijalankan.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+set -euo pipefail
+
+IMAGE="${1:-${UNDANGAN_IMAGE:?tag image tidak diberikan}}"
+NAMA=undangan
+PORT_HOST=3600
+
+echo "→ Menarik $IMAGE"
+docker pull "$IMAGE"
+
+# Hentikan yang lama SESUDAH image baru berhasil ditarik.
+docker rm -f "$NAMA" 2>/dev/null || true
+
+docker run -d \
+  --name "$NAMA" \
+  --restart unless-stopped \
+  `# HOST 3600 → CONTAINER 3000. Port host lain: 3000 panel WA,` \
+  `# 3100 e-ticketing, 3200-3202 ppm, 3300 Gitea, 3400 LajuBus, 3500 ILY.` \
+  -p 127.0.0.1:${PORT_HOST}:3000 \
+  `# Postgres di host → pakai gateway bridge 172.17.0.1, bukan 127.0.0.1.` \
+  `# Buat DB sekali: createdb undangan lalu migrasi manual: psql -f migration/001_init.sql.` \
+  -e DATABASE_URL='postgres://USER:SANDI@172.17.0.1:5417/undangan' \
+  -e AUTO_MIGRATE=false \
+  `# WA admin untuk tombol konfirmasi pembayaran (boleh 08xx / 62xx).` \
+  -e ADMIN_WHATSAPP='62812XXXXXXXX' \
+  `# RustFS: foto mempelai & lagu upload. PUBLIC_URL = domain yang dilihat` \
+  `# browser (/BUCKET ditambahkan otomatis); bucket harus bisa dibaca publik.` \
+  -e RUSTFS_ENDPOINT='http://172.17.0.1:9000' \
+  -e RUSTFS_BUCKET='undangan' \
+  -e RUSTFS_ACCESS_KEY='...' \
+  -e RUSTFS_SECRET_KEY='...' \
+  -e RUSTFS_PUBLIC_URL='https://image.ulalaapi.store' \
+  `# Titik awal — ukur: docker stats --no-stream undangan, lalu beri ruang ~2x.` \
+  --memory=256m \
+  --memory-swap=256m \
+  -e RUST_LOG='undangan=info,tower_http=warn' \
+  "$IMAGE"
+
+# Tunggu app menjawab (curl dari HOST — health status Docker tak andal di VPS
+# ini karena runtime youki gagal `docker exec`).
+echo "→ Menunggu http://127.0.0.1:${PORT_HOST}/healthz"
+for i in $(seq 1 30); do
+  if curl -fsS -o /dev/null "http://127.0.0.1:${PORT_HOST}/healthz"; then
+    echo "✓ $NAMA sehat ($IMAGE)"
+    break
+  fi
+  if [ "$(docker inspect -f '{{.State.Running}}' "$NAMA" 2>/dev/null)" != "true" ]; then
+    echo "✗ Container $NAMA berhenti. 50 baris log terakhir:"
+    docker logs --tail 50 "$NAMA" || true
+    exit 1
+  fi
+  [ "$i" = 30 ] && { echo "✗ Tak kunjung sehat dalam 150 dtk:"; docker logs --tail 50 "$NAMA" || true; exit 1; }
+  sleep 5
+done
+
+docker image prune -f >/dev/null 2>&1 || true

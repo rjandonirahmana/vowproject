@@ -1,0 +1,123 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# undangan-ily — platform undangan pernikahan digital (tema Botanical Heritage
+# Romance & kawan-kawan). Satu crate: server Axum + halaman Leptos SSR yang
+# di-hydrate (WASM). Pola sama dengan bis / ILY / e-ticketing: Postgres via
+# deadpool, migrasi ter-embed (build.rs), foto & lagu ke RustFS (S3).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+[package]
+name = "undangan"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "undangan"
+path = "src/main.rs"
+
+[lib]
+name = "undangan"
+crate-type = ["cdylib", "rlib"]
+path = "src/lib.rs"
+
+[package.metadata.leptos]
+name = "undangan"
+output-name = "undangan"
+site-root = "target/site"
+site-pkg-dir = "pkg"
+style-file = "style/main.css"
+assets-dir = "public"
+site-addr = "0.0.0.0:3600"
+reload-port = 3601
+browserquery = "defaults"
+env = "DEV"
+bin-features = ["ssr"]
+lib-features = ["hydrate"]
+lib-profile-release = "wasm-release"
+
+# ── Features ───────────────────────────────────────────────────────────────────
+[features]
+default = ["ssr"]
+ssr = [
+    "leptos/ssr",
+    "leptos/nonce",
+    "leptos_meta/ssr",
+    "leptos_router/ssr",
+    "dep:leptos_axum",
+]
+hydrate = ["leptos/hydrate", "leptos/nonce"]
+
+# ── Shared deps (native SSR + WASM) ────────────────────────────────────────────
+# ATURAN: jangan taruh dep yang menarik tokio/mio/axum di sini.
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+leptos = { version = "0.8", default-features = false }
+leptos_meta = { version = "0.8", default-features = false }
+leptos_router = { version = "0.8", default-features = false }
+leptos_axum = { version = "0.8", optional = true }
+
+# QR check-in tamu — murni Rust, aman di wasm32.
+qrcodegen = "1.8"
+
+# Dikunci PERSIS mengikuti `wasm-bindgen` CLI global (lihat bis/Cargo.toml).
+wasm-bindgen = "=0.2.122"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlElement", "HtmlDocument", "Location"] }
+
+# ── Server-only deps ───────────────────────────────────────────────────────────
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Optimasi foto sebelum disimpan ke RustFS (server/gambar.rs): dekode
+# JPEG/PNG/WebP + rotasi EXIF + perkecil dimensi (image), lalu WebP lossy
+# kualitas tinggi via libwebp (webp) — biasanya 80–95% lebih kecil dari foto HP.
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+webp = "0.3"
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8.9", features = ["multipart", "macros"] }
+tower-http = { version = "0.7", features = ["fs", "compression-gzip", "compression-br", "set-header", "trace", "timeout"] }
+
+tokio-postgres = { version = "0.7", features = ["with-uuid-1", "with-chrono-0_4", "with-serde_json-1"] }
+deadpool-postgres = "0.14.1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+rand = "0.9"
+# Akun admin: hash sandi (argon2id) & hash token sesi.
+argon2 = "0.5"
+sha2 = "0.10"
+
+# Tanpa fitur default `rustls` (klien lama: hyper 0.14 + rustls 0.21 + ring) →
+# hanya SATU stack TLS: rustls 0.23 + aws-lc lewat `default-https-client`.
+aws-sdk-s3 = { version = "1.132.0", default-features = false, features = ["sigv4a", "http-1x", "default-https-client", "rt-tokio"] }
+rustls = { version = "0.23", features = ["aws_lc_rs"], default-features = false }
+
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# ── WASM-only deps ─────────────────────────────────────────────────────────────
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+# getrandom (ditarik leptos) butuh backend browser di wasm32 — sama seperti bis.
+getrandom = { version = "0.4.3", features = ["wasm_js"] }
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+
+# ── Profiles ───────────────────────────────────────────────────────────────────
+[profile.dev]
+opt-level = 1
+debug = 1
+incremental = true
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+panic = "abort"
