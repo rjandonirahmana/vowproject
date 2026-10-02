@@ -37,8 +37,20 @@ mod srv {
         repo::invitation(&st.pool, slug).await.map_err(internal)?.ok_or_else(not_found)
     }
 
+    /// Kunci Kelola: yang dikirim klien, atau (umumnya) dari cookie
+    /// `ily_k_{slug}` hasil tukar tautan khusus (server/owner.rs).
+    pub async fn owner_key(slug: &str, key: &str) -> Result<String, ServerFnError> {
+        let key = key.trim();
+        if !key.is_empty() {
+            return Ok(key.to_string());
+        }
+        let headers: axum::http::HeaderMap = leptos_axum::extract().await?;
+        Ok(crate::server::owner::key_from(&headers, slug).unwrap_or_default())
+    }
+
     /// Undangan + verifikasi kunci kelola. Demo boleh dibuka dengan kunci "demo".
     pub async fn load_owned(slug: &str, key: &str) -> Result<InvRow, ServerFnError> {
+        let key = &owner_key(slug, key).await?;
         let row = load(slug).await?;
         if key.is_empty() || !crate::server::auth::same_hash(&crate::server::auth::token_hash(key), &row.manage_key_hash) {
             return Err(ServerFnError::new("Kunci kelola tidak valid. Buka dari tautan yang Anda terima saat memesan."));
@@ -92,7 +104,8 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
     apply_demo_theme(&st, &mut row, tema.as_deref());
     let preview = row.inv.is_locked();
     if preview {
-        let owner = k.as_deref().is_some_and(|k| {
+        let k = owner_key(&slug, k.as_deref().unwrap_or("")).await?;
+        let owner = Some(k.as_str()).filter(|k| !k.is_empty()).is_some_and(|k| {
             crate::server::auth::same_hash(&crate::server::auth::token_hash(k.trim()), &row.manage_key_hash)
         });
         if !owner {
@@ -241,6 +254,7 @@ pub async fn get_contact() -> Result<String, ServerFnError> {
 pub async fn get_dashboard(slug: String, key: String, tema: Option<String>) -> Result<Dashboard, ServerFnError> {
     use srv::*;
     let st = state()?;
+    let key = owner_key(&slug, &key).await?;
     let mut row = load_owned(&slug, &key).await?;
     apply_demo_theme(&st, &mut row, tema.as_deref());
     // Empat query independen → jalan paralel.
@@ -253,6 +267,7 @@ pub async fn get_dashboard(slug: String, key: String, tema: Option<String>) -> R
     .map_err(internal)?;
     let float_deco = st.themes().get(&row.inv.theme).map(|t| t.float_deco.clone()).unwrap_or_default();
     Ok(Dashboard {
+        manage_key: key,
         float_deco,
         minutes_left,
         package_name: st.konten().package_name(&row.inv.package),

@@ -27,7 +27,8 @@
 
 # ── Builder ───────────────────────────────────────────────────────────────────
 # Versi DIPIN. MSRV tertinggi di Cargo.lock saat ini 1.94.1 (crate aws-smithy-*);
-# naikkan tag ini bila `cargo update` menarik dependency yang menuntut lebih baru.
+# naikkan tag ini bila `cargo update` menarik dependency yang menuntut lebih baru —
+# BERSAMAAN dengan `toolchain:` di .github/workflows/master.yml.
 FROM rust:1.95-alpine AS builder
 
 # cmake + linux-headers: jaring pengaman untuk aws-lc-sys (rustls/aws-sdk-s3) —

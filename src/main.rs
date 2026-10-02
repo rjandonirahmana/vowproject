@@ -4,7 +4,7 @@
 //!   /tema/{slug}             → demo tema + kontrol musik
 //!   /buat  (POST /buat/kirim) → formulir pemesanan (multipart: foto + lagu)
 //!   /u/{slug}[/acara|/rsvp]  → undangan untuk tamu (?g=KODE / ?to=Nama)
-//!   /kelola/{slug}[/scan]    → dashboard pengantin (?key=…)
+//!   /kelola/{slug}[/scan]    → dashboard pengantin (?key=… sekali → cookie, server/owner.rs)
 //!   /api/*                   → server function
 //!   /pkg/*                   → aset WASM/JS/CSS
 //!   /cetak /dekorasi /mua /seserahan → layanan pendukung (formulir → /layanan/wa)
@@ -190,9 +190,12 @@ async fn main() -> Result<()> {
         // Header keamanan (CSP ber-nonce, nosniff, Referrer-Policy, dll.) SEMUA
         // ditulis server/security.rs `headers` — jangan diduplikasi di sini.
         .layer(tower_http::compression::CompressionLayer::new())
+        // Tautan Kelola ?key= / pratinjau ?k= → cookie HttpOnly + 303 ke URL bersih.
+        .layer(axum::middleware::from_fn(undangan::server::owner::exchange))
         .layer(axum::middleware::from_fn(security::csrf))
         .layer(axum::middleware::from_fn(security::headers))
         .layer(axum::Extension(security::DevMode(dev)))
+        .layer(axum::Extension(state.clone()))
         // Unggahan 17 MB di sinyal lemah butuh waktu; proxy juga memberi batas.
         .layer(tower_http::timeout::TimeoutLayer::with_status_code(
             axum::http::StatusCode::REQUEST_TIMEOUT,

@@ -34,6 +34,12 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
         provide_context(leptos::nonce::Nonce::from_value(n.0));
     }
     let nonce = leptos::nonce::use_nonce();
+    // Pratinjau kartu katalog (iframe ?pv=1): tanpa WASM — gerbang, animasi
+    // muncul & hitung mundur sudah ditangani /app.js, jadi iframe tampil jauh
+    // lebih cepat (tak mengunduh/kompilasi WASM untuk tiap kartu).
+    let preview = use_context::<axum::http::request::Parts>().is_some_and(|p| {
+        crate::server::security::is_demo_preview(p.uri.path(), p.uri.query().unwrap_or(""))
+    });
     view! {
         <!DOCTYPE html>
         <html lang="id">
@@ -52,8 +58,10 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
                 <link rel="stylesheet" href=icon_font_href() />
                 // Tema dari DB: CSS variabel per tema + font judul yang dipakai tema.
                 {theme_links()}
-                <AutoReload options=options.clone() />
-                <HydrationScripts options=options.clone() />
+                {(!preview).then(|| view! {
+                    <AutoReload options=options.clone() />
+                    <HydrationScripts options=options.clone() />
+                })}
                 <MetaTags />
             </head>
             <body>

@@ -33,6 +33,21 @@ fn detect_audio(data: &[u8]) -> Option<(&'static str, &'static str)> {
     }
 }
 
+/// Policy S3 baca-saja publik untuk isi bucket — lewat serializer JSON agar
+/// nama bucket selalu ter-escape benar.
+fn public_read_policy(bucket: &str) -> String {
+    serde_json::json!({
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "AWS": ["*"] },
+            "Action": ["s3:GetObject"],
+            "Resource": [format!("arn:aws:s3:::{bucket}/*")],
+        }],
+    })
+    .to_string()
+}
+
 /// URL publik objek = `{public_url}/{bucket}/{key}` (path-style). Bucket tidak
 /// ditambahkan dua kali bila `RUSTFS_PUBLIC_URL` sudah berakhiran bucket.
 fn public_base(public_url: &str, bucket: &str) -> String {
@@ -49,6 +64,7 @@ pub struct StorageService {
     client: Client,
     bucket: String,
     public_url: String,
+    auto_create_bucket: bool,
 }
 
 impl StorageService {
@@ -69,6 +85,7 @@ impl StorageService {
             client: Client::from_conf(config),
             bucket: cfg.bucket.clone(),
             public_url: public_base(&cfg.public_url, &cfg.bucket),
+            auto_create_bucket: cfg.auto_create_bucket,
         })
     }
 
@@ -77,16 +94,18 @@ impl StorageService {
             Ok(list) => {
                 if list.buckets().iter().any(|b| b.name() == Some(&self.bucket)) {
                     tracing::info!(bucket = %self.bucket, "RustFS: bucket sudah ada");
+                } else if !self.auto_create_bucket {
+                    tracing::warn!(
+                        bucket = %self.bucket,
+                        "RustFS: bucket belum ada — buat manual (+ policy baca publik) atau set RUSTFS_AUTO_CREATE_BUCKET=true"
+                    );
                 } else if let Err(e) = self.client.create_bucket().bucket(&self.bucket).send().await {
                     tracing::warn!(error = %format!("{e:#}"), "RustFS: gagal membuat bucket");
                 } else {
                     // Bucket baru: foto & lagu diakses tamu langsung lewat URL
                     // publik → izinkan baca-saja (GetObject) untuk semua.
                     // Bucket yang SUDAH ada tidak disentuh (policy-nya milik admin).
-                    let policy = format!(
-                        r#"{{"Version":"2012-10-17","Statement":[{{"Effect":"Allow","Principal":{{"AWS":["*"]}},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::{}/*"]}}]}}"#,
-                        self.bucket
-                    );
+                    let policy = public_read_policy(&self.bucket);
                     match self.client.put_bucket_policy().bucket(&self.bucket).policy(policy).send().await {
                         Ok(_) => tracing::info!(bucket = %self.bucket, "RustFS: bucket dibuat + policy baca publik"),
                         Err(e) => tracing::warn!(error = %format!("{e:#}"), "RustFS: bucket dibuat tapi policy publik gagal — set manual agar foto tidak 403"),
@@ -105,7 +124,7 @@ impl StorageService {
         }
         let (mime, ext) = detect_image(&data).ok_or_else(|| anyhow::anyhow!("Foto harus JPEG/PNG/WebP"))?;
         let before = data.len();
-        Ok(match super::gambar::optimasi(data, ukuran).await {
+        Ok(match super::gambar::optimasi(data, ukuran).await? {
             (_, Some(h)) => {
                 tracing::info!(sebelum_kb = before / 1024, sesudah_kb = h.data.len() / 1024, "gambar: dioptimasi");
                 (h.data, h.mime, h.ext)
@@ -229,6 +248,12 @@ mod tests {
     }
 
     #[test]
+    fn policy_publik_json_valid() {
+        let v: serde_json::Value = serde_json::from_str(&public_read_policy("und\"angan")).unwrap();
+        assert_eq!(v["Statement"][0]["Resource"][0], "arn:aws:s3:::und\"angan/*");
+    }
+
+    #[test]
     fn hanya_hapus_unggahan_sendiri() {
         let cfg = RustFsConfig {
             endpoint: "http://127.0.0.1:9000".into(),
@@ -236,6 +261,7 @@ mod tests {
             secret_key: "s".into(),
             bucket: "undangan".into(),
             public_url: "https://image.ulalaapi.store".into(),
+            auto_create_bucket: false,
         };
         let st = StorageService::new(&cfg).expect("storage");
         let base = "https://image.ulalaapi.store/undangan";

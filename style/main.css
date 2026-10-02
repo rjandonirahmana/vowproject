@@ -518,6 +518,15 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .tcard__badge .ms, .tcard__rating .ms { color: #b38b2d; font-variation-settings: "FILL" 1; }
 .tcard__region { position: absolute; left: 12px; bottom: 12px; z-index: 2; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
 .tcard__rating { position: absolute; right: 12px; bottom: 10px; z-index: 2; }
+/* Pratinjau undangan bergulir di kartu (global.js: iframe /u/demo?tema=…&pv=1, lebar 390px diskalakan). */
+.tcard__pv { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+.tcard__pv iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: var(--surface); }
+.tcard__art.is-pv .tcard__pv { opacity: 1; }
+.tcard__art .tcard__badge { z-index: 3; }
+.tcard__art.is-pv .tcard__region, .tcard__art.is-pv .tcard__rating { opacity: 0; }
+html.is-pv { scrollbar-width: none; scroll-behavior: auto; }
+html.is-pv::-webkit-scrollbar { display: none; }
+html.is-pv .inv-top, html.is-pv .bottom-nav, html.is-pv .toast { display: none; }
 .mini {
   position: relative; z-index: 2; width: 58%; padding: 16px 10px 14px; text-align: center; border-radius: var(--mini-radius, 80px 80px 14px 14px);
   background: var(--card); box-shadow: 0 16px 30px -10px rgba(0, 0, 0, 0.35); border: 1px solid var(--line-gold);
@@ -675,6 +684,12 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .theme-pick__sw { display: flex; }
 .theme-pick__sw i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; background: var(--primary); }
 .theme-pick__sw i + i { margin-left: -6px; background: var(--gold); }
+/* /buat?tema=… — tema sudah dipilih dari katalog/detail: ringkasan, bukan daftar. */
+.theme-chosen { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--primary-2); background: var(--surface-low); box-shadow: 0 0 0 1px var(--primary-2); }
+.theme-chosen .theme-pick__sw i { width: 26px; height: 26px; }
+.theme-chosen__txt { flex: 1; min-width: 160px; display: grid; gap: 1px; }
+.theme-chosen__txt b { font-size: 15px; }
+.theme-chosen__txt small { font-size: 11px; color: var(--muted); }
 .upload { display: flex; align-items: center; gap: 12px; padding: 14px; margin: 10px 0; border-radius: var(--r-md); border: 1.5px dashed var(--line-gold); background: var(--surface-low); cursor: pointer; flex-wrap: wrap; }
 .upload > .ms { font-size: 24px; color: var(--gold-deep); }
 .upload b { display: block; font-size: 13.5px; }

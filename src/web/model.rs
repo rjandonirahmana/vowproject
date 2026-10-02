@@ -324,6 +324,10 @@ pub struct Dashboard {
     /// Hiasan melayang tema undangan (dashboard ikut bernuansa tema).
     #[serde(default)]
     pub float_deco: String,
+    /// Kunci Kelola yang sudah terverifikasi (dari cookie) — URL tak lagi
+    /// memuatnya, jadi dashboard menampilkannya agar tautan khusus bisa disalin.
+    #[serde(default)]
+    pub manage_key: String,
 }
 
 pub fn category_label(c: &str) -> &'static str {

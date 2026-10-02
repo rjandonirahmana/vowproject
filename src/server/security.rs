@@ -29,6 +29,15 @@ pub struct CspNonce(pub String);
 #[derive(Clone, Copy)]
 pub struct DevMode(pub bool);
 
+/// Pratinjau bergulir kartu katalog: undangan DEMO dengan `?pv=1` (lihat
+/// global.js). Isinya publik & sama untuk semua orang → boleh di-cache browser
+/// agar prefetch katalog membuat iframe tampil seketika.
+pub fn is_demo_preview(path: &str, query: &str) -> bool {
+    let demo = crate::web::themes::DEMO_SLUG;
+    path.strip_prefix("/u/").is_some_and(|r| r == demo || r.starts_with(&format!("{demo}/")))
+        && query.split('&').any(|kv| kv == "pv=1")
+}
+
 fn is_private(path: &str) -> bool {
     path.starts_with("/u/") || path.starts_with("/kelola/") || path == "/admin" || path.starts_with("/admin/") || path == "/buat"
 }
@@ -42,7 +51,7 @@ pub fn csp(nonce: &str, dev: bool) -> String {
          img-src 'self' data: blob: https:; \
          media-src 'self' blob: https:; \
          connect-src 'self'{}; \
-         frame-src https://www.google.com https://maps.google.com; \
+         frame-src 'self' https://www.google.com https://maps.google.com; \
          form-action 'self' https://wa.me https://api.whatsapp.com; \
          frame-ancestors 'self'; base-uri 'self'; object-src 'none'",
         if dev { " ws: http://localhost:3601 http://127.0.0.1:3601" } else { "" }
@@ -55,10 +64,14 @@ pub async fn headers(mut req: Request, next: Next) -> Response {
     req.extensions_mut().insert(CspNonce(nonce.clone()));
     let path = req.uri().path().to_string();
     let private = is_private(&path);
+    let demo_pv = is_demo_preview(&path, req.uri().query().unwrap_or(""));
     let mut res = next.run(req).await;
     let ok = res.status().is_success();
     let h = res.headers_mut();
-    if private {
+    if private && demo_pv && ok {
+        h.insert(header::CACHE_CONTROL, HeaderValue::from_static("private, max-age=600"));
+        h.insert("x-robots-tag", HeaderValue::from_static("noindex, nofollow"));
+    } else if private {
         h.insert(header::CACHE_CONTROL, HeaderValue::from_static("private, no-store"));
         // Undangan & dashboard tak boleh masuk mesin pencari walau tautannya tersebar.
         h.insert("x-robots-tag", HeaderValue::from_static("noindex, nofollow"));
@@ -269,6 +282,8 @@ mod tests {
         assert!(c.contains("'nonce-abc123'") && c.contains("'wasm-unsafe-eval'") && c.contains("frame-ancestors 'self'"));
         assert!(!c.contains("ws:"));
         assert!(csp("x", true).contains("ws:"));
+        assert!(is_demo_preview("/u/anindita-raditya", "tema=jawa&pv=1") && is_demo_preview("/u/anindita-raditya/acara", "pv=1"));
+        assert!(!is_demo_preview("/u/anindita-raditya", "tema=jawa") && !is_demo_preview("/u/budi-ani-x1", "pv=1") && !is_demo_preview("/u/anindita-raditya-x", "pv=1"));
         assert!(is_private("/u/ani?g=AB12") && is_private("/kelola/ani") && is_private("/admin/akun") && !is_private("/paket"));
     }
 }

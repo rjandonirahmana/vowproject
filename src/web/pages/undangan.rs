@@ -61,12 +61,8 @@ pub fn InvitationLayout() -> impl IntoView {
                         (None, false) => parts.push(format!("to={}", crate::web::fmt::url_encode(&to))),
                         _ => {}
                     }
-                    // Pratinjau pemilik: kunci ikut dibawa antar tab.
-                    if page.preview {
-                        if let Some(k) = q.get("k") {
-                            parts.push(format!("k={}", crate::web::fmt::url_encode(&k)));
-                        }
-                    }
+                    // Pratinjau pemilik: kunci TIDAK dibawa di URL — server
+                    // membacanya dari cookie Kelola (server/owner.rs).
                     // Demo dengan tema pilihan: tema ikut dibawa antar tab.
                     if page.inv.is_demo {
                         if let Some(t) = q.get("tema").filter(|t| *t == page.inv.theme) {
@@ -199,7 +195,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
                         </button>
                     })}
                     {inv.is_demo.then(|| view! {
-                        <a class="icon-btn icon-btn--dark" href=format!("/kelola/{}?key=demo&tema={}", inv.slug, crate::web::fmt::url_encode(&inv.theme)) aria-label="Kelola">
+                        <a class="icon-btn icon-btn--dark" href=format!("/kelola/{}?key=demo&tema={}", inv.slug, crate::web::fmt::url_encode(&inv.theme)) rel="external" aria-label="Kelola">
                             <Icon name="person" />
                         </a>
                     })}
@@ -227,7 +223,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
                     }).collect_view().into_any()
                 }}
                 {inv.is_demo.then(|| view! {
-                    <a class="bottom-nav__item" href=format!("/kelola/{}?key=demo&tema={}", inv.slug, crate::web::fmt::url_encode(&inv.theme))>
+                    <a class="bottom-nav__item" href=format!("/kelola/{}?key=demo&tema={}", inv.slug, crate::web::fmt::url_encode(&inv.theme)) rel="external">
                         <Icon name="admin_panel_settings" />
                         <span>"Kelola"</span>
                     </a>

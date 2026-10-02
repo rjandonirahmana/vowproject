@@ -10,6 +10,10 @@
   var d=document, KEY='bgm-on';
   // "Kurangi animasi" dari sistem — dibaca sekali, dipakai semua fitur.
   var calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Pratinjau tema di kartu katalog (iframe /u/…?pv=1): mode SENYAP — tanpa
+  // musik, tanpa menulis sessionStorage (dipakai bersama tab induk), tanpa
+  // pemulihan posisi; gerbang dibuka & halaman digulir otomatis (lihat bawah).
+  var PV=window.top!==window && /[?&]pv=1(&|$)/.test(location.search);
   // Satu MutationObserver untuk semua tugas yang perlu tahu DOM berubah
   // (dijadwalkan sekali per frame, bukan per mutasi).
   var domTasks=[], domPending=false;
@@ -18,8 +22,8 @@
   function audio(){ return d.getElementById('bgm'); }
   function start(a){ var p=a.play(); if(p&&p.catch) p.catch(function(){}); }
   function sync(){ var a=audio(); d.documentElement.classList.toggle('bgm-playing', !!a && !a.paused); }
-  function play(){ var a=audio(); if(!a||!a.getAttribute('src')) return; start(a); try{sessionStorage.setItem(KEY,'1')}catch(e){} }
-  function pause(){ var a=audio(); if(a) a.pause(); try{sessionStorage.setItem(KEY,'0')}catch(e){} }
+  function play(){ if(PV) return; var a=audio(); if(!a||!a.getAttribute('src')) return; start(a); try{sessionStorage.setItem(KEY,'1')}catch(e){} }
+  function pause(){ var a=audio(); if(a) a.pause(); if(!PV) try{sessionStorage.setItem(KEY,'0')}catch(e){} }
   d.addEventListener('play', sync, true);
   d.addEventListener('pause', sync, true);
   // Musik hanya terdengar selama halaman dilihat: pindah tab/aplikasi atau
@@ -334,7 +338,7 @@
   // pendek "terlempar" ke bawah (posisi katalog terpotong ke dasar halaman).
   // Kini: posisi dicatat sendiri dan dipulihkan setelah halaman cukup tinggi —
   // untuk katalog, kartu "lebih banyak" dimuat ulang dulu sampai posisinya ada.
-  if('scrollRestoration' in history){
+  if(!PV && 'scrollRestoration' in history){
     history.scrollRestoration='manual';
     var SK='ily_scroll';
     var pageKey=function(){ return location.pathname+location.search; };
@@ -417,8 +421,114 @@
     watchMore();
     onDom(watchMore);
   }
+  // ── Pratinjau tema di katalog ───────────────────────────────────────────
+  // Kartu tema punya wadah kosong `.tcard__pv[data-pv=URL demo]` (dirender
+  // Leptos tanpa anak → iframe yang disisipkan tak mengganggu hydrate).
+  // Desktop: langsung saat hover. Layar sentuh: kartu yang disentuh, atau kartu
+  // paling tengah di layar setelah gulir berhenti. Hanya SATU iframe hidup.
+  if(PV){
+    d.documentElement.classList.add('is-pv');
+    // Skrip ini di akhir <body> → DOM sudah lengkap: beri tahu kartu induk
+    // SEKARANG (tak menunggu gambar), buka gerbang, lalu mulai bergulir.
+    try{ parent.postMessage({pv:'ready'}, location.origin); }catch(_){}
+    var pvRun=function(){
+      var o=d.querySelector('.gate [data-open]') || d.querySelector('[data-open]');
+      if(o && !d.documentElement.classList.contains('inv-opened')) o.click();
+      if(calm) return;
+      // ±90 px/dtk ke bawah; di dasar jeda, kembali ke atas, ulangi.
+      var y=0, last=0, wait=performance.now()+(o?900:300);
+      (function run(t){
+        if(t<wait){ last=0; requestAnimationFrame(run); return; }
+        var max=d.documentElement.scrollHeight-innerHeight;
+        if(y<0){ y=0; window.scrollTo({top:0, behavior:'smooth'}); wait=t+1500; requestAnimationFrame(run); return; }
+        var dt=last ? Math.min(t-last, 50) : 16; last=t;
+        y=Math.min(Math.max(max,0), y+dt*0.09);
+        window.scrollTo({top:y, behavior:'instant'});
+        if(max>0 && y>=max){ y=-1; wait=t+1800; }
+        requestAnimationFrame(run);
+      })(performance.now());
+    };
+    pvRun();
+  } else if(!(navigator.connection && navigator.connection.saveData)){
+    var pvCur=null, pvTimer=0, PW=390;
+    var pvStop=function(){
+      clearTimeout(pvTimer);
+      if(!pvCur) return;
+      var f=pvCur.querySelector('iframe'); if(f) f.remove();
+      if(pvCur.parentNode) pvCur.parentNode.classList.remove('is-pv');
+      pvCur=null;
+    };
+    var pvStart=function(h){
+      if(pvCur===h && h.isConnected) return;
+      pvStop(); pvCur=h;
+      var art=h.parentNode, r=art.getBoundingClientRect(), s=r.width/PW;
+      if(!s) return;
+      var f=d.createElement('iframe');
+      f.title='Pratinjau tema'; f.tabIndex=-1; f.setAttribute('aria-hidden','true');
+      f.style.width=PW+'px'; f.style.height=Math.ceil(r.height/s)+'px'; f.style.transform='scale('+s+')';
+      f.onload=function(){ if(pvCur===h) art.classList.add('is-pv'); };
+      f.src=h.getAttribute('data-pv');
+      h.appendChild(f);
+    };
+    // Iframe memberi tahu begitu HTML-nya terurai (lebih cepat dari onload).
+    window.addEventListener('message', function(e){
+      if(e.origin!==location.origin || !e.data || e.data.pv!=='ready' || !pvCur) return;
+      var f=pvCur.querySelector('iframe'); if(f && e.source===f.contentWindow) pvCur.parentNode.classList.add('is-pv');
+    });
+    // Prefetch HTML pratinjau kartu yang terlihat (di-cache browser 10 mnt,
+    // security::is_demo_preview) → saat disentuh/di-hover iframe tampil seketika.
+    // Maks 2 unduhan bersamaan; tiap URL sekali saja.
+    if('IntersectionObserver' in window && window.fetch){
+      var pfDone=new Set(), pfQ=[], pfRun=0;
+      var pfNext=function(){
+        while(pfRun<2 && pfQ.length){
+          var u=pfQ.shift(); pfRun++;
+          fetch(u, {credentials:'same-origin', priority:'low'}).catch(function(){}).then(function(){ pfRun--; pfNext(); });
+        }
+      };
+      var pfIO=new IntersectionObserver(function(es){
+        es.forEach(function(e){
+          if(!e.isIntersecting) return; pfIO.unobserve(e.target);
+          var u=e.target.getAttribute('data-pv'); if(u && !pfDone.has(u)){ pfDone.add(u); pfQ.push(u); }
+        });
+        pfNext();
+      }, {rootMargin:'150px 0px'});
+      var pfSeen=new WeakSet();
+      var pfWatch=function(){ d.querySelectorAll('.tcard__pv[data-pv]').forEach(function(h){ if(!pfSeen.has(h)){ pfSeen.add(h); pfIO.observe(h); } }); };
+      var pfStart=function(){ pfWatch(); onDom(pfWatch); };
+      // Setelah halaman sendiri selesai dimuat — prefetch tak berebut dengan katalog.
+      if(d.readyState==='complete') setTimeout(pfStart, 300); else window.addEventListener('load', function(){ setTimeout(pfStart, 300); });
+    }
+    if(matchMedia('(hover: hover) and (pointer: fine)').matches){
+      d.addEventListener('mouseover', function(e){
+        var art=e.target.closest && e.target.closest('.tcard__art'); if(!art) return;
+        var h=art.querySelector('[data-pv]'); if(!h || h===pvCur) return;
+        pvStart(h);
+      });
+      d.addEventListener('mouseout', function(e){
+        var art=e.target.closest && e.target.closest('.tcard__art'); if(!art) return;
+        if(e.relatedTarget && art.contains(e.relatedTarget)) return;
+        if(pvCur && art.contains(pvCur)) pvStop();
+      });
+    } else {
+      var pvPick=function(){
+        var best=null, bd=1e9, mid=innerHeight/2;
+        d.querySelectorAll('.tcard__art > [data-pv]').forEach(function(h){
+          var r=h.parentNode.getBoundingClientRect();
+          if(r.top<0 || r.bottom>innerHeight) return;
+          var dd=Math.abs((r.top+r.bottom)/2-mid); if(dd<bd){ bd=dd; best=h; }
+        });
+        if(best) pvStart(best); else pvStop();
+      };
+      window.addEventListener('scroll', function(){ clearTimeout(pvTimer); pvTimer=setTimeout(pvPick, 250); }, {passive:true});
+      d.addEventListener('touchstart', function(e){
+        var art=e.target.closest && e.target.closest('.tcard__art'); if(!art) return;
+        var h=art.querySelector('[data-pv]'); if(h) pvStart(h);
+      }, {passive:true});
+    }
+  }
   new MutationObserver(function(){ if(!domPending){ domPending=true; requestAnimationFrame(runDom); } })
     .observe(d.body, {childList:true, subtree:true, attributes:true, attributeFilter:['data-load-more']});
   // Tamu yang sudah membuka undangan di tab ini: lanjutkan musik saat pindah halaman penuh.
-  try{ if(sessionStorage.getItem(KEY)==='1'){ d.documentElement.classList.add('inv-opened'); var a=audio(); if(a&&a.dataset.autoplay!=='false') play(); } }catch(e){}
+  try{ if(!PV && sessionStorage.getItem(KEY)==='1'){ d.documentElement.classList.add('inv-opened'); var a=audio(); if(a&&a.dataset.autoplay!=='false') play(); } }catch(e){}
 })();

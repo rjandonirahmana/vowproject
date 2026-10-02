@@ -8,6 +8,10 @@ pub struct RustFsConfig {
     pub bucket: String,
     /// Base public URL tanpa trailing slash.
     pub public_url: String,
+    /// RUSTFS_AUTO_CREATE_BUCKET=true → bucket yang belum ada dibuat saat start
+    /// + policy baca publik. Bawaan false: di production bucket & policy-nya
+    /// disiapkan admin secara sadar, bukan efek samping start aplikasi.
+    pub auto_create_bucket: bool,
 }
 
 #[derive(Clone)]
@@ -39,6 +43,7 @@ impl AppConfig {
                 secret_key: env("RUSTFS_SECRET_KEY", ""),
                 bucket: env("RUSTFS_BUCKET", "undangan"),
                 public_url: env("RUSTFS_PUBLIC_URL", "http://127.0.0.1:9000"),
+                auto_create_bucket: env("RUSTFS_AUTO_CREATE_BUCKET", "false") == "true",
             },
         })
     }

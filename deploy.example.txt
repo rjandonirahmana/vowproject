@@ -48,6 +48,7 @@ docker run -d \
   -e RUSTFS_ACCESS_KEY='...' \
   -e RUSTFS_SECRET_KEY='...' \
   -e RUSTFS_PUBLIC_URL='https://image.ulalaapi.store' \
+  -e RUSTFS_AUTO_CREATE_BUCKET='false' \
   `# Titik awal — ukur: docker stats --no-stream undangan, lalu beri ruang ~2x.` \
   --memory=256m \
   --memory-swap=256m \

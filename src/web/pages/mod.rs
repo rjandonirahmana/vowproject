@@ -177,7 +177,8 @@ pub fn SiteFooter() -> impl IntoView {
                     <p class="site-foot__head">"Bantuan"</p>
                     <a href="/panduan">"Pusat Panduan & FAQ"</a>
                     <a href=demo_u>"Lihat Undangan Demo"</a>
-                    <a href=demo_kelola>"Demo Dashboard Pengantin"</a>
+                    // rel=external: muat penuh agar server menukar ?key=demo jadi cookie.
+                    <a href=demo_kelola rel="external">"Demo Dashboard Pengantin"</a>
                     <a href="/privasi">"Kebijakan Privasi & Data Tamu"</a>
                     <a href="/syarat">"Syarat & Ketentuan"</a>
                 </div>

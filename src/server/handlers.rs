@@ -1,7 +1,7 @@
 //! server/handlers.rs — endpoint axum di luar server fn:
 //!
 //!   POST /buat/kirim                 formulir pemesanan (multipart: foto + lagu)
-//!   GET  /kelola/{slug}/tamu.csv     ekspor daftar tamu + RSVP (butuh ?key=)
+//!   GET  /kelola/{slug}/tamu.csv     ekspor daftar tamu + RSVP (cookie kunci Kelola / ?key=)
 //!   GET  /layanan/wa                 formulir cetak/dekorasi/MUA → wa.me admin
 //!   GET  /tema.css                   CSS semua tema (dari tabel themes, di-cache)
 //!   POST /admin/masuk | /admin/setup | /admin/keluar   sesi akun admin (server/auth.rs)
@@ -56,6 +56,16 @@ pub fn random_key(len: usize) -> String {
     (0..len).map(|_| A[rng.random_range(0..A.len())] as char).collect()
 }
 
+/// Hapus unggahan pesanan yang batal disimpan (best-effort, galat dicatat).
+async fn discard_uploads(state: &AppState, urls: &[String]) {
+    let Some(st) = state.storage.as_ref() else { return };
+    for url in urls {
+        if let Err(e) = st.delete_url(url).await {
+            tracing::warn!(error = %format!("{e:#}"), url = %url, "buat: gagal menghapus unggahan yatim");
+        }
+    }
+}
+
 fn back_with_error(msg: &str) -> Response {
     Redirect::to(&format!("/buat?galat={}", fmt::url_encode(msg))).into_response()
 }
@@ -89,9 +99,29 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         return back_with_error("Nomor WhatsApp pemesan wajib diisi (untuk konfirmasi pembayaran).");
     }
 
-    // Tautan undangan = ID acak, BUKAN nama pasangan: tak bisa ditebak dan tak
-    // pernah bentrok walau nama mempelai sama (UNIQUE di DB + coba ulang).
-    let slug = new_invitation_id(&bride_name, &groom_name);
+    // Tautan undangan = nama + kunci acak: tak bisa ditebak dan tak bentrok
+    // walau nama mempelai sama. Slug dikunci SEBELUM unggah dan tak pernah
+    // diganti sesudahnya — folder RustFS foto/{slug}/ mengikutinya, jadi slug
+    // yang berganti setelah unggah = berkas di folder lain / menimpa milik
+    // undangan lain.
+    let mut slug = String::new();
+    for _ in 0..5 {
+        let s = new_invitation_id(&bride_name, &groom_name);
+        match repo::slug_taken(&state.pool, &s).await {
+            Ok(false) => {
+                slug = s;
+                break;
+            }
+            Ok(true) => continue,
+            Err(e) => {
+                tracing::error!(error = %format!("{e:#}"), "buat: cek slug");
+                return back_with_error("Gagal menyimpan undangan, coba lagi.");
+            }
+        }
+    }
+    if slug.is_empty() {
+        return back_with_error("Gagal menyimpan undangan, coba lagi.");
+    }
 
     let theme = get("theme", 60);
     let theme = if state.themes().get(&theme).is_some() { theme } else { crate::web::skin::DEFAULT_THEME.to_string() };
@@ -106,6 +136,9 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     // ── Unggahan (opsional; tanpa RustFS dilewati) ──
     // Jalur terbaca per undangan: foto/{slug}/sampul.jpg, musik/{slug}/{nama-lagu}.mp3.
     let mut urls: HashMap<&str, String> = HashMap::new();
+    // Semua yang sudah terunggah — dihapus lagi bila langkah berikutnya gagal
+    // (tanpa ini objek yatim menumpuk di RustFS).
+    let mut uploaded: Vec<String> = Vec::new();
     for (key, nama) in [("bride_photo", "mempelai-wanita"), ("groom_photo", "mempelai-pria"), ("cover_photo", "sampul"), ("music_file", "")] {
         let Some(i) = files.iter().position(|u| u.field == key) else { continue };
         let up = files.swap_remove(i);
@@ -120,9 +153,13 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         };
         match res {
             Ok(url) => {
+                uploaded.push(url.clone());
                 urls.insert(key, url);
             }
-            Err(e) => return back_with_error(&e.to_string()),
+            Err(e) => {
+                discard_uploads(&state, &uploaded).await;
+                return back_with_error(&e.to_string());
+            }
         }
     }
 
@@ -133,8 +170,14 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
             break;
         };
         match st.upload_image_as(up.data, &slug, &format!("galeri-{}", i + 1), super::storage::Ukuran::Foto).await {
-            Ok(url) => gallery.push(url),
-            Err(e) => return back_with_error(&format!("Galeri: {e}")),
+            Ok(url) => {
+                uploaded.push(url.clone());
+                gallery.push(url);
+            }
+            Err(e) => {
+                discard_uploads(&state, &uploaded).await;
+                return back_with_error(&format!("Galeri: {e}"));
+            }
         }
     }
 
@@ -281,21 +324,18 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         dress_colors: json!(dress_colors),
     };
 
-    let mut n = n;
-    // ID kembar hampir mustahil (±60 bit), tapi tetap dijaga: buat ID baru.
-    for attempt in 0..5 {
-        match repo::create_invitation(&state.pool, &n).await {
-            Ok(()) => break,
-            Err(e) if attempt < 4 && repo::is_unique_violation(&e) => {
-                n.slug = new_invitation_id(&bride_name, &groom_name);
-            }
-            Err(e) => {
-                tracing::error!(error = %format!("{e:#}"), "buat: insert");
-                return back_with_error("Gagal menyimpan undangan, coba lagi.");
-            }
+    // Slug TIDAK diganti di sini (berkas sudah di foto/{slug}/). Bentrok hanya
+    // mungkin bila pemesan lain merebut slug yang sama di antara cek & INSERT
+    // (±40 bit acak) — berkas di folder itu bisa jadi miliknya, jadi jangan dihapus.
+    if let Err(e) = repo::create_invitation(&state.pool, &n).await {
+        if repo::is_unique_violation(&e) {
+            tracing::warn!(slug = %slug, "buat: slug direbut di antara cek & insert — unggahan dibiarkan");
+        } else {
+            tracing::error!(error = %format!("{e:#}"), "buat: insert");
+            discard_uploads(&state, &uploaded).await;
         }
+        return back_with_error("Gagal menyimpan undangan, coba lagi.");
     }
-    let slug = n.slug.clone();
     tracing::info!(slug = %slug, total, "undangan baru dibuat");
     Redirect::to(&format!("/kelola/{slug}?key={manage_key}&baru=1")).into_response()
 }
@@ -313,8 +353,11 @@ pub async fn export_guests(
     Extension(state): Extension<Arc<AppState>>,
     Path(slug): Path<String>,
     Query(q): Query<HashMap<String, String>>,
+    headers: axum::http::HeaderMap,
 ) -> Response {
-    let key = q.get("key").map(String::as_str).unwrap_or("");
+    // Kunci dari cookie (server/owner.rs); ?key= tetap diterima.
+    let cookie_key = super::owner::key_from(&headers, &slug);
+    let key = q.get("key").map(String::as_str).filter(|k| !k.is_empty()).or(cookie_key.as_deref()).unwrap_or("");
     let inv = match repo::invitation(&state.pool, &slug).await {
         Ok(Some(i)) if auth::same_hash(&auth::token_hash(key), &i.manage_key_hash) => i,
         Ok(_) => return (StatusCode::FORBIDDEN, "Kunci kelola tidak valid").into_response(),

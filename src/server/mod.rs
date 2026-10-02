@@ -9,6 +9,7 @@ pub mod form;
 pub mod gambar;
 pub mod handlers;
 pub mod migrate;
+pub mod owner;
 pub mod repo;
 pub mod security;
 pub mod state;

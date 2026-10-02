@@ -31,6 +31,9 @@ impl Song {
     }
 }
 
+/// Slug undangan demo (seed 001) — "Coba Demo" & pratinjau bergulir katalog.
+pub const DEMO_SLUG: &str = "anindita-raditya";
+
 /// Lagu bawaan SEMUA contoh/demo (undangan demo & halaman demo tema). Undangan
 /// demo di DB memakai URL yang sama (migration/010_musik_demo.sql).
 pub const DEMO_SONG: Song = Song {

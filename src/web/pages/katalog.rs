@@ -321,6 +321,8 @@ pub fn ThemeCard(t: ThemeInfo, from: i64, #[prop(default = None)] anchor: Option
                 </div>
                 <span class="tcard__region">{t.region.clone()}</span>
                 {rating}
+                // Wadah pratinjau bergulir (iframe disisipkan global.js saat hover/sentuh).
+                <div class="tcard__pv" data-pv=format!("/u/{}?tema={}&pv=1", crate::web::themes::DEMO_SLUG, t.slug) aria-hidden="true"></div>
             </a>
             <div class="tcard__body">
                 <h3>{t.name.clone()}</h3>

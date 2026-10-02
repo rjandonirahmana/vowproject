@@ -1,5 +1,7 @@
-//! pages/kelola.rs — dashboard pengantin (/kelola/:slug?key=…) dan pemindai
-//! QR buku tamu (/kelola/:slug/scan?key=…).
+//! pages/kelola.rs — dashboard pengantin (/kelola/:slug) dan pemindai QR buku
+//! tamu (/kelola/:slug/scan). Tautan khusus `?key=…` ditukar server menjadi
+//! cookie HttpOnly lalu URL dibersihkan (server/owner.rs); `?key=` di URL
+//! hanya tersisa bila router berpindah halaman di klien (mis. tautan demo).
 //!
 //! Akses = kunci rahasia di URL (dikirim sekali saat pesan). Undangan demo
 //! memakai kunci "demo" dan bersifat read-only.
@@ -49,7 +51,7 @@ pub fn KelolaPage() -> impl IntoView {
         <Title text=concat!("Kelola Undangan — ", crate::brand!()) />
         <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
             {move || dash.get().map(|r| match r {
-                Ok(d) => Either::Left(view! { <Dashboard d=d key=key() baru=baru() add=add del=del /> }),
+                Ok(d) => Either::Left(view! { <Dashboard d=d baru=baru() add=add del=del /> }),
                 Err(e) => Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }),
             })}
         </Suspense>
@@ -57,9 +59,11 @@ pub fn KelolaPage() -> impl IntoView {
 }
 
 #[component]
-fn Dashboard(d: Dashboard, key: String, baru: bool, add: ServerAction<AddGuest>, del: ServerAction<DeleteGuest>) -> impl IntoView {
+fn Dashboard(d: Dashboard, baru: bool, add: ServerAction<AddGuest>, del: ServerAction<DeleteGuest>) -> impl IntoView {
     let inv = d.inv.clone();
     let s = d.stats.clone();
+    // Kunci terverifikasi dari server (cookie) — untuk aksi & tautan yang disalin.
+    let key = d.manage_key.clone();
     let origin = use_origin();
     let search = RwSignal::new(String::new());
     let filter = RwSignal::new("semua");
@@ -78,14 +82,12 @@ fn Dashboard(d: Dashboard, key: String, baru: bool, add: ServerAction<AddGuest>,
     // Demo: tema yang sedang dilihat ikut dibawa ke undangan, pemindai, dst.
     let tema_qs = if inv.is_demo { format!("tema={}", fmt::url_encode(&inv.theme)) } else { String::new() };
     let with_tema = |base: String| if tema_qs.is_empty() { base } else { format!("{base}{}{tema_qs}", if base.contains('?') { "&" } else { "?" }) };
-    let base_link = with_tema(if inv.is_locked() {
-        format!("/u/{}?k={}", inv.slug, fmt::url_encode(&key))
-    } else {
-        format!("/u/{}", inv.slug)
-    });
+    // Pratinjau pemilik, pemindai & CSV cukup URL bersih: cookie kunci ikut.
+    let base_link = with_tema(format!("/u/{}", inv.slug));
+    // Tautan khusus (dengan kunci) HANYA untuk disalin/disimpan pemilik.
     let kelola_link = with_tema(format!("/kelola/{}?key={}", inv.slug, key));
-    let scan_link = with_tema(format!("/kelola/{}/scan?key={}", inv.slug, key));
-    let csv_link = format!("/kelola/{}/tamu.csv?key={}", inv.slug, key);
+    let scan_link = with_tema(format!("/kelola/{}/scan", inv.slug));
+    let csv_link = format!("/kelola/{}/tamu.csv", inv.slug);
 
     let guests = d.guests.clone();
     let counts = (
@@ -124,6 +126,7 @@ fn Dashboard(d: Dashboard, key: String, baru: bool, add: ServerAction<AddGuest>,
 
     let (list_inv, list_key) = (inv.clone(), key.clone());
     let (add_slug, add_key) = (inv.slug.clone(), key.clone());
+    let kl_copy = kelola_link.clone();
     view! {
         // Dashboard memakai tema undangan: warna & huruf (th-…), ilustrasi latar
         // + ornamen (inv__glow), hiasan melayang, dan hiasan di atas kartu utama.
@@ -136,6 +139,14 @@ fn Dashboard(d: Dashboard, key: String, baru: bool, add: ServerAction<AddGuest>,
                     <span><b>{inv.couple()}</b><small>"Kelola"</small></span>
                 </a>
                 <div class="inv-top__actions">
+                    // URL tak lagi memuat kunci → tautan khusus bisa disalin dari sini
+                    // (untuk membuka Kelola di HP/laptop lain).
+                    {(!inv.is_demo).then(|| view! {
+                        <button type="button" class="btn btn--outline btn--sm" title="Tautan rahasia untuk membuka Kelola di perangkat lain"
+                            data-copy=move || format!("{}{}", origin.get(), kl_copy.clone()) data-copied="Tautan kelola tersalin — simpan baik-baik">
+                            <Icon name="key" />"Salin Tautan Kelola"
+                        </button>
+                    })}
                     <a class="btn btn--soft btn--sm" href=base_link.clone() target="_blank"><Icon name="visibility" />"Lihat Undangan"</a>
                 </div>
             </header>
@@ -437,18 +448,20 @@ pub fn ScanPage() -> impl IntoView {
     let action = ServerAction::<CheckIn>::new();
     let tema = query.read_untracked().get("tema");
     let back = match &tema {
-        Some(t) => format!("/kelola/{slug}?key={key}&tema={}", fmt::url_encode(t)),
-        None => format!("/kelola/{slug}?key={key}"),
+        Some(t) => format!("/kelola/{slug}?tema={}", fmt::url_encode(t)),
+        None => format!("/kelola/{slug}"),
     };
     // Tema undangan untuk tampilan pemindai (demo: tema yang sedang dilihat).
     let dash = Resource::new({ let (s, k, t) = (slug.clone(), key.clone(), tema.clone()); move || (s.clone(), k.clone(), t.clone()) }, |(s, k, t)| get_dashboard(s, k, t));
     let theme = move || {
         dash.get().and_then(|r| r.ok()).map(|d| d.inv.theme).unwrap_or_else(|| crate::web::skin::DEFAULT_THEME.to_string())
     };
+    // Kunci terverifikasi (dari cookie) untuk check-in; cadangan: ?key= URL.
+    let key = move || dash.get().and_then(|r| r.ok()).map(|d| d.manage_key).filter(|k| !k.is_empty()).unwrap_or_else(|| key.clone());
     view! {
         <Title text=concat!("Scanner Buku Tamu — ", crate::brand!()) />
         <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
-        {move || { let theme = theme(); let (slug, key, back) = (slug.clone(), key.clone(), back.clone()); view! {
+        {move || { let theme = theme(); let (slug, key, back) = (slug.clone(), key(), back.clone()); view! {
         <div class=format!("inv th-{theme}")>
             <div class="inv__glow" aria-hidden="true"></div>
             <header class="inv-top">

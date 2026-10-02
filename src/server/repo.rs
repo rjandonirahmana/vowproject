@@ -76,6 +76,13 @@ pub async fn demo_invitation(pool: &Pool) -> Result<Option<InvRow>> {
     Ok(db_opt(&c,sql, &[]).await?.as_ref().map(row_to_inv))
 }
 
+/// Slug sudah dipakai undangan mana pun (termasuk nonaktif) — dicek SEBELUM
+/// unggah, karena folder RustFS foto/{slug}/ & musik/{slug}/ ikut slug.
+pub async fn slug_taken(pool: &Pool, slug: &str) -> Result<bool> {
+    let c = pool.get().await?;
+    Ok(db_opt(&c, "SELECT 1 FROM invitations WHERE slug = $1", &[&slug]).await?.is_some())
+}
+
 /// Pelanggaran UNIQUE (kode 23505) — mis. slug direbut pemesan lain.
 pub fn is_unique_violation(e: &anyhow::Error) -> bool {
     e.chain()

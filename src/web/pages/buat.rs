@@ -8,6 +8,8 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 
+use std::ops::Not;
+
 use crate::web::api::{get_konten, get_theme, list_themes};
 use crate::web::components::monogram_svg;
 use crate::web::fmt::{self, rupiah};
@@ -26,6 +28,9 @@ pub fn BuatPage() -> impl IntoView {
 
     let tema_q = qget("tema");
     let theme = RwSignal::new(if tema_q.is_empty() { DEFAULT_THEME.to_string() } else { tema_q.clone() });
+    // Datang dari detail/kartu tema (?tema=slug): tema sudah dipilih → daftar
+    // pilihan disembunyikan, cukup ringkasan + tombol "Ganti tema".
+    let pick_open = RwSignal::new(tema_q.is_empty());
     // Katalog + tema privat dari ?tema= (pesanan custom yang dibuatkan admin).
     let theme_list = Resource::new(
         move || tema_q.clone(),
@@ -99,8 +104,27 @@ pub fn BuatPage() -> impl IntoView {
                             </span>
                         </div>
                         <Suspense fallback=|| view! { <p class="muted small">"Memuat tema…"</p> }>
+                            {move || theme_list.get().and_then(|list| {
+                                let cur = theme.get_untracked();
+                                let t = list.into_iter().find(|t| t.slug == cur)?;
+                                pick_open.get().not().then(|| view! {
+                                    <div class="theme-chosen">
+                                        <input type="hidden" name="theme" value=t.slug.clone() />
+                                        <span class=format!("theme-pick__sw th-{}", t.slug)><i></i><i></i></span>
+                                        <span class="theme-chosen__txt">
+                                            <small>"Tema terpilih"</small>
+                                            <b>{t.name.clone()}</b>
+                                            <small>{if t.listed { t.region.clone() } else { "Tema custom milik Anda".to_string() }}</small>
+                                        </span>
+                                        <a class="btn btn--soft btn--sm" href=format!("/tema/{}", t.slug) target="_blank"><Icon name="visibility" />"Demo"</a>
+                                        <button type="button" class="btn btn--outline btn--sm" on:click=move |_| pick_open.set(true)>
+                                            <Icon name="swap_horiz" />"Ganti tema"
+                                        </button>
+                                    </div>
+                                })
+                            })}
                             <div class="theme-pick">
-                                {move || theme_list.get().map(|list| list.into_iter().map(|t| {
+                                {move || pick_open.get().then(|| theme_list.get().map(|list| list.into_iter().map(|t| {
                                     let slug = t.slug.clone();
                                     let checked = theme.get_untracked() == t.slug;
                                     view! {
@@ -114,7 +138,7 @@ pub fn BuatPage() -> impl IntoView {
                                             </span>
                                         </label>
                                     }
-                                }).collect_view())}
+                                }).collect_view()))}
                             </div>
                         </Suspense>
                     </section>

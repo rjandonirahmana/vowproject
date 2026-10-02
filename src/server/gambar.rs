@@ -55,8 +55,10 @@ fn antrian() -> &'static Semaphore {
     S.get_or_init(|| Semaphore::new(2))
 }
 
-/// Versi async: jalan di thread blocking + antrian. `None` = pakai berkas asli.
-pub async fn optimasi(data: Vec<u8>, ukuran: Ukuran) -> (Vec<u8>, Option<Hasil>) {
+/// Versi async: jalan di thread blocking + antrian. `Ok((asli, None))` = pakai
+/// berkas asli. Thread panik → `Err` (data asli ikut hilang bersama thread;
+/// JANGAN dianggap "tak dioptimasi", nanti yang terunggah objek kosong).
+pub async fn optimasi(data: Vec<u8>, ukuran: Ukuran) -> anyhow::Result<(Vec<u8>, Option<Hasil>)> {
     let _izin = antrian().acquire().await;
     let max = ukuran.max_side();
     match tokio::task::spawn_blocking(move || {
@@ -65,14 +67,14 @@ pub async fn optimasi(data: Vec<u8>, ukuran: Ukuran) -> (Vec<u8>, Option<Hasil>)
     })
     .await
     {
-        Ok((data, Ok(h))) => (data, h),
+        Ok((data, Ok(h))) => Ok((data, h)),
         Ok((data, Err(e))) => {
             tracing::warn!(error = %format!("{e:#}"), "gambar: optimasi gagal — berkas asli disimpan");
-            (data, None)
+            Ok((data, None))
         }
         Err(e) => {
             tracing::error!(error = %e, "gambar: thread optimasi panik");
-            (Vec::new(), None)
+            anyhow::bail!("Foto gagal diproses, coba unggah ulang.")
         }
     }
 }
