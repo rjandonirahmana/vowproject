@@ -265,8 +265,12 @@ pub async fn get_dashboard(slug: String, key: String, tema: Option<String>) -> R
         repo::unpaid_minutes_left(&st.pool, row.id, st.unpaid_ttl_hours),
     )
     .map_err(internal)?;
+    // Kolom bukti belum dimigrasi (017) → dianggap belum ada, bukan 500.
+    let payment_proof = if row.inv.is_locked() { repo::payment_proof(&st.pool, row.id).await.unwrap_or_default() } else { None };
     let float_deco = st.themes().get(&row.inv.theme).map(|t| t.float_deco.clone()).unwrap_or_default();
     Ok(Dashboard {
+        payment: st.konten().pembayaran.clone(),
+        payment_proof,
         manage_key: key,
         float_deco,
         minutes_left,

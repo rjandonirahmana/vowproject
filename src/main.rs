@@ -94,6 +94,17 @@ async fn main() -> Result<()> {
         pool,
         storage,
         admin_wa: cfg.admin_wa.clone(),
+        waha: {
+            let w = undangan::server::waha::WahaClient::new(cfg.waha.clone());
+            match (&w, cfg.notify_wa.is_empty()) {
+                (None, _) => tracing::warn!("WAHA_BASE_URL kosong — notifikasi WA bukti transfer dinonaktifkan"),
+                (Some(_), true) => tracing::warn!("WAHA aktif tapi PAYMENT_NOTIFY_WA/ADMIN_WHATSAPP kosong — tak ada penerima notifikasi"),
+                (Some(_), false) => tracing::info!(to = %cfg.notify_wa, "WAHA: notifikasi bukti transfer aktif"),
+            }
+            w
+        },
+        notify_wa: cfg.notify_wa.clone(),
+        site_url: cfg.site_url.clone(),
         admin_token: if cfg.admin_token.len() >= 12 { cfg.admin_token.clone() } else { String::new() },
         themes: state::fallback_catalog(),
         konten: std::sync::RwLock::new(std::sync::Arc::new(undangan::web::konten::Konten::default())),
@@ -108,6 +119,17 @@ async fn main() -> Result<()> {
     });
     // Hapus pesanan yang tak dikonfirmasi admin dalam UNPAID_TTL_HOURS (+ file RustFS).
     tokio::spawn(undangan::server::cleanup::run(state.clone()));
+    // WAHA: cek sesi sekali saat start — log jelas bila belum tersambung,
+    // jangan sampai baru ketahuan ketika bukti transfer pertama tak sampai.
+    if let Some(w) = state.waha.clone() {
+        tokio::spawn(async move {
+            match w.session_status().await {
+                Ok(s) if s == "WORKING" => tracing::info!(status = %s, "WAHA: sesi tersambung"),
+                Ok(s) => tracing::error!(status = %s, "WAHA: sesi BELUM siap (scan QR di dashboard WAHA) — notifikasi bukti transfer tak akan terkirim"),
+                Err(e) => tracing::error!(error = %format!("{e:#}"), "WAHA: gagal dicek — notifikasi bukti transfer tak akan terkirim"),
+            }
+        });
+    }
     match state.reload_konten().await {
         Ok(()) => tracing::info!("konten situs dimuat"),
         Err(e) => tracing::warn!(error = %format!("{e:#}"), "tabel site_content belum siap (jalankan migration/003_admin_konten.sql) — memakai konten bawaan"),
@@ -128,6 +150,7 @@ async fn main() -> Result<()> {
     let form_routes = axum::Router::new()
         .route("/buat/kirim", axum::routing::post(handlers::create_invitation))
         .route("/kelola/{slug}/tamu.csv", axum::routing::get(handlers::export_guests))
+        .route("/kelola/{slug}/bukti", axum::routing::post(handlers::upload_payment_proof))
         .route("/layanan/wa", axum::routing::get(handlers::layanan_wa))
         .route("/tema.css", axum::routing::get(handlers::theme_css))
         .route("/app.js", axum::routing::get(handlers::app_js))

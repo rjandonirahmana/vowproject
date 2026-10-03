@@ -14,6 +14,12 @@ pub struct RustFsConfig {
     pub auto_create_bucket: bool,
 }
 
+/// Alamat publik situs (tautan di pesan WA). Override: SITE_URL (mis. untuk staging).
+pub const DEFAULT_SITE_URL: &str = "https://ilyvowcraft.online";
+
+/// Penerima bawaan notifikasi bukti transfer (WhatsApp pemilik usaha).
+pub const DEFAULT_NOTIFY_WA: &str = "089635816942";
+
 #[derive(Clone)]
 pub struct AppConfig {
     pub database_url: String,
@@ -25,6 +31,13 @@ pub struct AppConfig {
     /// sekian jam. UNPAID_TTL_HOURS, bawaan 24.
     pub unpaid_ttl_hours: i64,
     pub rustfs: RustFsConfig,
+    pub waha: super::waha::WahaConfig,
+    /// Nomor WA (62…) penerima notifikasi bukti transfer. PAYMENT_NOTIFY_WA,
+    /// bawaan = 6289635816942 (nomor pemilik).
+    pub notify_wa: String,
+    /// Alamat publik situs untuk tautan di pesan WA (SITE_URL, bawaan
+    /// https://ilyvowcraft.online). Diset kosong = dari header request (proxy).
+    pub site_url: String,
 }
 
 impl AppConfig {
@@ -45,6 +58,13 @@ impl AppConfig {
                 public_url: env("RUSTFS_PUBLIC_URL", "http://127.0.0.1:9000"),
                 auto_create_bucket: env("RUSTFS_AUTO_CREATE_BUCKET", "false") == "true",
             },
+            waha: super::waha::WahaConfig {
+                base_url: env("WAHA_BASE_URL", "").trim().trim_end_matches('/').to_string(),
+                session: env("WAHA_SESSION", "default").trim().to_string(),
+                api_key: env("WAHA_API_KEY", "").trim().to_string(),
+            },
+            notify_wa: crate::web::fmt::wa_number(&env("PAYMENT_NOTIFY_WA", DEFAULT_NOTIFY_WA)),
+            site_url: env("SITE_URL", DEFAULT_SITE_URL).trim().trim_end_matches('/').to_string(),
         })
     }
 }

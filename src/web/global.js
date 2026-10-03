@@ -40,6 +40,15 @@
     setTimeout(function(){t.classList.add('toast--out')},2200); setTimeout(function(){t.remove()},2700);
   };
   d.addEventListener('click', function(e){
+    // Tampilkan/sembunyikan sandi (form admin): .pw > input + [data-pw-toggle].
+    var pw=e.target.closest('[data-pw-toggle]');
+    if(pw){
+      var box=pw.closest('.pw'), inp=box && box.querySelector('input'); if(!inp) return;
+      var show=inp.type==='password'; inp.type=show?'text':'password';
+      box.classList.toggle('is-shown', show); pw.setAttribute('aria-pressed', show?'true':'false');
+      var t=show?'Sembunyikan sandi':'Tampilkan sandi'; pw.setAttribute('aria-label', t); pw.title=t;
+      inp.focus(); return;
+    }
     var el=e.target.closest('[data-music],[data-open],[data-copy],[data-song],[data-demo-open]');
     if(!el) return;
     if(el.hasAttribute('data-demo-open')){

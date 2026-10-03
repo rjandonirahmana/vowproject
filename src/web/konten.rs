@@ -194,6 +194,19 @@ pub struct SeserahanInfo {
     pub syarat: Vec<String>,
 }
 
+/// Rekening tujuan pembayaran undangan digital (satu-satunya cara bayar):
+/// tampil di /buat & dashboard Kelola, ikut di pesan WA bukti transfer.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Pembayaran {
+    /// Nama dompet / bank, mis. "ShopeePay".
+    pub metode: String,
+    pub nomor: String,
+    pub atas_nama: String,
+    /// Catatan kecil di bawah instruksi (opsional).
+    pub catatan: String,
+}
+
 /// Foto hero & angka kecil per halaman.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -232,6 +245,7 @@ pub struct Konten {
     pub seserahan_galeri: Vec<Foto>,
     pub seserahan_info: SeserahanInfo,
     pub seserahan_testimoni: Vec<Testimoni>,
+    pub pembayaran: Pembayaran,
     pub umum: Umum,
 }
 
@@ -796,6 +810,12 @@ Sound check teknis dilakukan H-1 bersama MC, band, atau pengisi acara agar tidak
                     meta: s("Lamaran • Karanganyar"),
                 },
             ],
+            pembayaran: Pembayaran {
+                metode: s("ShopeePay"),
+                nomor: s("089635816942"),
+                atas_nama: s("rjandoni rahmana"),
+                catatan: s("Transfer sesuai total (sampai digit terakhir), lalu unggah tangkapan layar bukti transfer di halaman Kelola."),
+            },
             umum: Umum {
                 cetak_hero: s("/img/layanan/cetak-hero.jpg"),
                 dekor_hero: s("/img/layanan/dekor-hero.jpg"),
@@ -1132,6 +1152,21 @@ pub const SECTIONS: &[Section] = &[
         ],
     },
     Section { key: "seserahan_testimoni", group: "Sewa Seserahan", title: "Testimoni Seserahan", help: "", single: false, title_field: "who", page: "/seserahan", fields: TESTI_FIELDS },
+    Section {
+        key: "pembayaran",
+        group: "Undangan Digital",
+        title: "Rekening Pembayaran",
+        help: "Satu-satunya tujuan transfer pesanan undangan. Tampil di /buat & dashboard Kelola, dan ikut di pesan WA bukti transfer.",
+        single: true,
+        title_field: "",
+        page: "/buat",
+        fields: &[
+            fh("metode", "Nama dompet / bank", Text, "mis. ShopeePay"),
+            f("nomor", "Nomor tujuan", Text),
+            f("atas_nama", "Atas nama", Text),
+            f("catatan", "Catatan untuk pemesan", Long),
+        ],
+    },
     Section {
         key: "umum",
         group: "Umum",

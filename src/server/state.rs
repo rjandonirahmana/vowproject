@@ -13,6 +13,13 @@ pub struct AppState {
     pub storage: Option<StorageService>,
     /// Nomor WA admin untuk konfirmasi pembayaran (62…).
     pub admin_wa: String,
+    /// `None` bila WAHA_BASE_URL kosong — notifikasi bukti transfer dilewati
+    /// (bukti tetap tersimpan & tampil di /admin/undangan).
+    pub waha: Option<super::waha::WahaClient>,
+    /// Penerima notifikasi bukti transfer (62…).
+    pub notify_wa: String,
+    /// SITE_URL (tanpa garis miring akhir); kosong = dari header request.
+    pub site_url: String,
     /// Kode setup akun admin PERTAMA (ADMIN_TOKEN); kosong = setup ditutup.
     pub admin_token: String,
     /// Katalog tema di memori — dibaca tiap render, dimuat ulang setiap admin

@@ -14,7 +14,7 @@ pub const MAX_IMAGE: usize = 5 * 1024 * 1024;
 pub const MAX_AUDIO: usize = 6 * 1024 * 1024;
 
 /// Validasi magic bytes — Content-Type dari klien tak dipercaya begitu saja.
-fn detect_image(data: &[u8]) -> Option<(&'static str, &'static str)> {
+pub fn detect_image(data: &[u8]) -> Option<(&'static str, &'static str)> {
     match data {
         [0xFF, 0xD8, 0xFF, ..] => Some(("image/jpeg", "jpg")),
         [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, ..] => Some(("image/png", "png")),

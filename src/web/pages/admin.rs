@@ -117,15 +117,15 @@ fn Login(info: AdminSessionInfo) -> impl IntoView {
             <p class="muted small">"Belum ada akun. Buat akun Admin pertama memakai kode setup "<code>"ADMIN_TOKEN"</code>" dari .env server. Setelah itu kode ini tidak dipakai lagi untuk masuk."</p>
             <form method="post" action="/admin/setup" class="stack adm-login__form">
                 <label class="field"><span class="field__label">"Kode setup (ADMIN_TOKEN)"</span>
-                    <input class="input" type="password" name="code" required autocomplete="off" /></label>
+                    <span class="pw"><input class="input" type="password" name="code" required autocomplete="off" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span></label>
                 <label class="field"><span class="field__label">"Nama tampilan"</span>
                     <input class="input" name="name" maxlength="60" placeholder="Rina (Owner)" /></label>
                 <label class="field"><span class="field__label">"Username"</span>
                     <input class="input" name="username" required minlength="3" maxlength="32" pattern="[a-z0-9._-]+" autocomplete="username" placeholder="rina" /></label>
                 <label class="field"><span class="field__label">"Sandi (min. 8 karakter)"</span>
-                    <input class="input" type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
+                    <span class="pw"><input class="input" type="password" name="password" required minlength="8" autocomplete="new-password" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span></label>
                 <label class="field"><span class="field__label">"Ulangi sandi"</span>
-                    <input class="input" type="password" name="password2" required minlength="8" autocomplete="new-password" /></label>
+                    <span class="pw"><input class="input" type="password" name="password2" required minlength="8" autocomplete="new-password" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span></label>
                 <button class="btn btn--primary btn--block" type="submit">"Buat Akun Admin & Masuk"</button>
             </form>
         }
@@ -136,7 +136,7 @@ fn Login(info: AdminSessionInfo) -> impl IntoView {
                 <label class="field"><span class="field__label">"Username"</span>
                     <input class="input" name="username" required autocomplete="username" /></label>
                 <label class="field"><span class="field__label">"Sandi"</span>
-                    <input class="input" type="password" name="password" required autocomplete="current-password" /></label>
+                    <span class="pw"><input class="input" type="password" name="password" required autocomplete="current-password" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span></label>
                 <button class="btn btn--primary btn--block" type="submit">"Masuk"</button>
             </form>
             <p class="muted small">"Lupa sandi? Minta Admin lain mengganti sandi Anda di menu Akun."</p>
@@ -1418,7 +1418,7 @@ pub fn AdminUndangan() -> impl IntoView {
                     </div>
                 </div>
             })}
-            <p class="muted small">"Pesanan menunggu pembayaran tampil di atas. Setelah dana masuk, ubah status ke "<b>"Aktif"</b>" — penanda pratinjau di undangan hilang. Tema bisa diganti ke tema custom (privat) yang Anda buat untuk pasangan ini."</p>
+            <p class="muted small">"Pesanan yang sudah mengirim bukti transfer tampil paling atas, lalu yang menunggu pembayaran. Cek mutasi rekening, lalu ubah status ke "<b>"Aktif"</b>" — penanda pratinjau di undangan hilang. Tema bisa diganti ke tema custom (privat) yang Anda buat untuk pasangan ini."</p>
             <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
                 {move || {
                     let theme_opts: Vec<(String, String)> = themes.get().and_then(|r| r.ok()).unwrap_or_default()
@@ -1447,6 +1447,15 @@ pub fn AdminUndangan() -> impl IntoView {
                                                     <a class="adm-order__wa" href=format!("https://wa.me/{wa}") target="_blank" rel="noopener"><Icon name="chat" />{format!("+{wa}")}</a>
                                                 })}
                                                 {i.is_demo.then(|| view! { <span class="status">"Demo — tidak bisa diubah"</span> })}
+                                                // Bukti transfer dari Kelola — pesanan ini diurutkan paling atas.
+                                                {(!i.proof_at.is_empty()).then(|| view! {
+                                                    <span class="status status--hadir"><Icon name="check_circle" />{format!("Bukti transfer dikirim {}", i.proof_at)}</span>
+                                                })}
+                                                {(!i.payment_proof.is_empty()).then(|| view! {
+                                                    <a class="adm-order__proof" href=i.payment_proof.clone() target="_blank" rel="noopener">
+                                                        <img src=i.payment_proof.clone() alt="Bukti transfer" loading="lazy" />
+                                                    </a>
+                                                })}
                                                 {i.minutes_left.map(|m| view! {
                                                     <span class="status status--tidak"><Icon name="hourglass_top" />{format!("Dihapus otomatis dalam {}", crate::web::model::durasi(m))}</span>
                                                 })}
@@ -1756,7 +1765,7 @@ pub fn AdminAkun() -> impl IntoView {
                                             <form method="post" action="/admin/akun/simpan" class="adm-acc__row">
                                                 <input type="hidden" name="aksi" value="sandi" />
                                                 <input type="hidden" name="id" value=id />
-                                                <input class="input" type="password" name="password" minlength="8" required placeholder="Sandi baru (min. 8)" autocomplete="new-password" />
+                                                <span class="pw"><input class="input" type="password" name="password" minlength="8" required placeholder="Sandi baru (min. 8)" autocomplete="new-password" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span>
                                                 <button class="btn btn--soft btn--sm" type="submit">"Ganti Sandi"</button>
                                             </form>
                                         </details>
@@ -1780,7 +1789,7 @@ pub fn AdminAkun() -> impl IntoView {
                             {ADMIN_ROLES.iter().map(|(k, l, _)| view! { <option value=*k selected=*k == "editor">{*l}</option> }).collect_view()}
                         </select></label>
                     <label class="field"><span class="field__label">"Sandi awal (min. 8)"</span>
-                        <input class="input" type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
+                        <span class="pw"><input class="input" type="password" name="password" required minlength="8" autocomplete="new-password" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span></label>
                     <button class="btn btn--primary" type="submit"><Icon name="add" />"Buat Akun"</button>
                 </form>
             </section>
@@ -1800,11 +1809,11 @@ pub fn AdminProfil() -> impl IntoView {
                 {move || use_context::<AdminUser>().map(|u| view! { <p class="muted">{format!("Masuk sebagai {} • {}", u.username, role_label(&u.role))}</p> })}
                 <form method="post" action="/admin/sandi" class="stack adm-login__form">
                     <label class="field"><span class="field__label">"Sandi lama"</span>
-                        <input class="input" type="password" name="old" required autocomplete="current-password" /></label>
+                        <span class="pw"><input class="input" type="password" name="old" required autocomplete="current-password" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span></label>
                     <label class="field"><span class="field__label">"Sandi baru (min. 8)"</span>
-                        <input class="input" type="password" name="password" required minlength="8" autocomplete="new-password" /></label>
+                        <span class="pw"><input class="input" type="password" name="password" required minlength="8" autocomplete="new-password" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span></label>
                     <label class="field"><span class="field__label">"Ulangi sandi baru"</span>
-                        <input class="input" type="password" name="password2" required minlength="8" autocomplete="new-password" /></label>
+                        <span class="pw"><input class="input" type="password" name="password2" required minlength="8" autocomplete="new-password" /><button type="button" class="pw__btn" data-pw-toggle="" aria-label="Tampilkan sandi" aria-pressed="false" title="Tampilkan sandi"><Icon name="visibility" class="pw__on" /><Icon name="visibility_off" class="pw__off" /></button></span></label>
                     <button class="btn btn--primary btn--block" type="submit">"Simpan Sandi"</button>
                 </form>
             </section>

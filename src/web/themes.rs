@@ -5,11 +5,9 @@
 
 // Paket, add-on, kupon & harga kini di web/konten.rs (bisa disunting admin).
 
-pub const PAYMENT_METHODS: &[(&str, &str, &str)] = &[
-    ("qris", "QRIS Instan", "qr_code_scanner"),
-    ("va", "Virtual Account", "account_balance"),
-    ("kartu", "Kartu Kredit", "credit_card"),
-];
+/// Pembayaran HANYA transfer manual ke rekening di Konten `pembayaran`
+/// (bawaan ShopeePay), lalu pemesan mengunggah bukti di Kelola.
+pub const PAYMENT_METHODS: &[(&str, &str, &str)] = &[("shopeepay", "ShopeePay", "account_balance_wallet")];
 
 // ── Musik bawaan ───────────────────────────────────────────────────────────
 // Berkasnya diletakkan di public/music/{slug}.mp3 (royalty-free, bukan bagian

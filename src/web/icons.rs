@@ -133,6 +133,7 @@ pub const ICONS: &[&str] = &[
     "verified_user",
     "view_carousel",
     "visibility",
+    "visibility_off",
     "volume_off",
     "volume_up",
     "water_drop",

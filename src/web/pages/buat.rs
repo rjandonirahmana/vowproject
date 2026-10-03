@@ -364,16 +364,22 @@ pub fn BuatPage() -> impl IntoView {
                             <p class="totals__grand"><span>"Total Pembayaran"</span><b>{move || rupiah(totals().2)}</b></p>
                         </div>
                         </Suspense>
-                        <p class="eyebrow">"Metode Pembayaran"</p>
-                        <div class="paymethods">
-                            {PAYMENT_METHODS.iter().enumerate().map(|(i, (k, label, icon))| view! {
-                                <label class="paymethod">
-                                    <input type="radio" name="payment" value=*k checked=i == 0 />
-                                    <span class="ms" aria-hidden="true">{*icon}</span>
-                                    <small>{*label}</small>
-                                </label>
-                            }).collect_view()}
-                        </div>
+                        <p class="eyebrow">"Pembayaran"</p>
+                        // Satu-satunya cara bayar: transfer ke rekening Konten
+                        // `pembayaran`, lalu unggah bukti di dashboard Kelola.
+                        <input type="hidden" name="payment" value=PAYMENT_METHODS[0].0 />
+                        <Suspense fallback=|| ()>
+                            {move || { let p = k().pembayaran; view! {
+                                <div class="payinfo">
+                                    <span class="ms" aria-hidden="true">"account_balance_wallet"</span>
+                                    <span>
+                                        <small>{format!("Transfer {}", p.metode)}</small>
+                                        <b>{p.nomor.clone()}</b>
+                                        <small>{format!("a/n {} • bukti transfer diunggah setelah pesanan disimpan", p.atas_nama)}</small>
+                                    </span>
+                                </div>
+                            } }}
+                        </Suspense>
                         <label class="field">
                             <span class="field__label">"WhatsApp Pemesan (untuk konfirmasi)"</span>
                             <input class="input" name="contact_phone" required inputmode="tel" maxlength="20" placeholder="0812-xxxx-xxxx" />

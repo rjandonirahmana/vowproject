@@ -89,6 +89,9 @@ sha2 = "0.10"
 # hanya SATU stack TLS: rustls 0.23 + aws-lc lewat `default-https-client`.
 aws-sdk-s3 = { version = "1.132.0", default-features = false, features = ["sigv4a", "http-1x", "default-https-client", "rt-tokio"] }
 rustls = { version = "0.23", features = ["aws_lc_rs"], default-features = false }
+# Notifikasi WA admin lewat WAHA (bukti transfer: gambar base64 + keterangan).
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+base64 = "0.22"
 
 dotenvy = "0.15"
 tracing = "0.1"

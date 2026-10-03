@@ -131,7 +131,7 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     let coupon = get("coupon", 30).to_uppercase();
     let (_, _, total) = konten.calc_total(&package, &addons, &coupon);
     let payment = get("payment", 20);
-    let payment = if themes::PAYMENT_METHODS.iter().any(|(k, _, _)| *k == payment) { payment } else { "qris".into() };
+    let payment = if themes::PAYMENT_METHODS.iter().any(|(k, _, _)| *k == payment) { payment } else { themes::PAYMENT_METHODS[0].0.to_string() };
 
     // ── Unggahan (opsional; tanpa RustFS dilewati) ──
     // Jalur terbaca per undangan: foto/{slug}/sampul.jpg, musik/{slug}/{nama-lagu}.mp3.
@@ -1295,5 +1295,169 @@ pub async fn admin_ornament_action(
             tracing::error!(error = %format!("{e:#}"), "admin: ornamen {aksi}");
             to(&back, "galat", "Gagal memproses ornamen.")
         }
+    }
+}
+
+// ── Bukti transfer (/kelola/{slug}/bukti) ─────────────────────────────────
+
+/// Alamat publik situs untuk tautan di pesan WA: SITE_URL, atau dari header
+/// proxy (X-Forwarded-Proto/Host) bila kosong.
+fn public_origin(state: &AppState, headers: &axum::http::HeaderMap) -> String {
+    if !state.site_url.is_empty() {
+        return state.site_url.clone();
+    }
+    let h = |k: &str| headers.get(k).and_then(|v| v.to_str().ok()).map(|v| v.split(',').next().unwrap_or(v).trim().to_string());
+    let host = h("x-forwarded-host").or_else(|| h("host")).unwrap_or_else(|| "localhost".into());
+    format!("{}://{host}", h("x-forwarded-proto").unwrap_or_else(|| "http".into()))
+}
+
+/// Keterangan pesan WA admin untuk bukti transfer baru.
+fn proof_caption(row: &repo::InvRow, package_name: &str, metode: &str, origin: &str) -> String {
+    let wa = fmt::wa_number(&row.contact_phone);
+    format!(
+        concat!(
+            "🧾 *Bukti pembayaran baru* — ", crate::brand!(), "\n\n",
+            "Undangan: *{couple}*\n",
+            "Paket: {paket} — *{total}*\n",
+            "Metode: {metode}\n",
+            "WA pemesan: {wa}\n\n",
+            "Lihat undangan: {origin}/u/{slug}\n",
+            "Cek & aktifkan: {origin}/admin/undangan?q={slug}"
+        ),
+        couple = row.inv.couple(),
+        paket = package_name,
+        total = fmt::rupiah(row.total_price),
+        metode = metode,
+        wa = if wa.is_empty() { "-".to_string() } else { format!("+{wa}") },
+        origin = origin,
+        slug = row.inv.slug,
+    )
+}
+
+/// POST multipart dari dashboard Kelola: gambar bukti transfer → RustFS
+/// (foto/{slug}/bukti-transfer-….webp) + kolom payment_proof, lalu WA ke
+/// admin lewat WAHA (gambar + tautan). Pemilik dikenali dari cookie kunci
+/// Kelola (server/owner.rs) atau input `key`.
+pub async fn upload_payment_proof(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(slug): Path<String>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    let back = format!("/kelola/{}#bayar", fmt::key(&slug));
+    if let Err(secs) = state.write_limit.hit(&format!("bukti:{}:{slug}", security::client_ip(&headers))) {
+        return to(&back, "galat", &format!("Terlalu banyak unggahan. Coba lagi dalam {} menit.", secs.div_ceil(60)));
+    }
+    let Ok(mut form) = super::form::read(mp, 1).await else {
+        return to(&back, "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
+    };
+    let row = match repo::invitation(&state.pool, &slug).await {
+        Ok(Some(r)) => r,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Undangan tidak ditemukan").into_response(),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "bukti: muat undangan");
+            return to(&back, "galat", "Server sedang sibuk, coba lagi sebentar.");
+        }
+    };
+    let key = Some(form.raw("key")).filter(|k| !k.trim().is_empty()).or_else(|| super::owner::key_from(&headers, &slug)).unwrap_or_default();
+    if !auth::same_hash(&auth::token_hash(key.trim()), &row.manage_key_hash) {
+        return to(&back, "galat", "Kunci kelola tidak valid. Buka dari tautan yang Anda terima saat memesan.");
+    }
+    if row.inv.is_demo {
+        return to(&back, "galat", "Ini dashboard demo — bukti transfer tidak dikirim.");
+    }
+    if !row.inv.is_locked() {
+        return to(&back, "ok", "Undangan sudah aktif — tidak perlu mengirim bukti lagi.");
+    }
+    let Some(up) = form.take_file("bukti") else {
+        return to(&back, "galat", "Pilih gambar bukti transfer (tangkapan layar) dulu.");
+    };
+    if up.data.len() > super::storage::MAX_IMAGE {
+        return to(&back, "galat", "Gambar bukti maksimal 5 MB.");
+    }
+    let Some((mime, ext)) = super::storage::detect_image(&up.data) else {
+        return to(&back, "galat", "Bukti harus berupa gambar JPEG/PNG/WebP (tangkapan layar).");
+    };
+    if state.storage.is_none() && state.waha.is_none() {
+        tracing::error!(slug = %slug, "bukti: RustFS & WAHA sama-sama tak dikonfigurasi");
+        return to(&back, "galat", "Unggah bukti belum tersedia — kirim bukti lewat WhatsApp admin.");
+    }
+
+    // 1. Simpan gambar (bila RustFS ada). Isi asli disimpan untuk WA.
+    let original = up.data.clone();
+    let url = match state.storage.as_ref() {
+        Some(st) => {
+            let name = format!("bukti-transfer-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
+            match st.upload_image_as(up.data, &row.inv.slug, &name, super::storage::Ukuran::Foto).await {
+                Ok(u) => u,
+                Err(e) => return to(&back, "galat", &e.to_string()),
+            }
+        }
+        None => String::new(),
+    };
+    // 2. Catat di DB (hanya bila masih menunggu pembayaran).
+    match repo::set_payment_proof(&state.pool, row.id, &url).await {
+        Ok(Some(old)) => {
+            if !old.is_empty() && old != url {
+                if let Some(st) = state.storage.as_ref() {
+                    let _ = st.delete_url(&old).await;
+                }
+            }
+        }
+        Ok(None) => {
+            discard_uploads(&state, std::slice::from_ref(&url)).await;
+            return to(&back, "ok", "Undangan sudah aktif — tidak perlu mengirim bukti lagi.");
+        }
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "bukti: simpan (sudah menjalankan migration/017_bukti_bayar.sql?)");
+            discard_uploads(&state, std::slice::from_ref(&url)).await;
+            return to(&back, "galat", "Gagal menyimpan bukti, coba lagi.");
+        }
+    }
+    tracing::info!(slug = %row.inv.slug, total = row.total_price, "bukti transfer diterima");
+
+    // 3. WA ke admin — di latar: pemesan tak menunggu WAHA. Gagal = dicatat;
+    //    bukti tetap terlihat di /admin/undangan.
+    if let (Some(waha), false) = (state.waha.clone(), state.notify_wa.is_empty()) {
+        let konten = state.konten();
+        let caption = proof_caption(&row, &konten.package_name(&row.inv.package), &konten.pembayaran.metode, &public_origin(&state, &headers));
+        let to_chat = super::waha::chat_id(&state.notify_wa);
+        let (mime, filename) = (mime.to_string(), format!("bukti-{}.{ext}", row.inv.slug));
+        let slug = row.inv.slug.clone();
+        tokio::spawn(async move {
+            let img = super::waha::Gambar { data: &original, mime: &mime, filename: &filename };
+            match waha.send_image_or_text(&to_chat, img, &caption, &url).await {
+                Ok(()) => tracing::info!(slug = %slug, "bukti: WA admin terkirim"),
+                Err(e) => tracing::error!(slug = %slug, error = %format!("{e:#}"), "bukti: WA admin GAGAL"),
+            }
+        });
+    }
+    to(&back, "ok", "Bukti transfer terkirim! Admin akan memeriksa lalu mengaktifkan undangan Anda.")
+}
+
+#[cfg(test)]
+mod bukti_tests {
+    use super::*;
+
+    #[test]
+    fn keterangan_wa_memuat_tautan_dan_total() {
+        let row = repo::InvRow {
+            id: 1,
+            inv: crate::web::model::Invitation {
+                slug: "ani-budi-k7f3x9m2".into(),
+                bride_name: "Ani Lestari".into(),
+                groom_name: "Budi Santoso".into(),
+                ..Default::default()
+            },
+            manage_key_hash: String::new(),
+            total_price: 149_000,
+            payment_method: "shopeepay".into(),
+            contact_phone: "0812-3456-7890".into(),
+        };
+        let c = proof_caption(&row, "Gold", "ShopeePay", "https://ilyvowcraft.online");
+        assert!(c.contains("https://ilyvowcraft.online/u/ani-budi-k7f3x9m2"), "{c}");
+        assert!(c.contains("https://ilyvowcraft.online/admin/undangan?q=ani-budi-k7f3x9m2"), "{c}");
+        assert!(c.contains("+6281234567890") && c.contains("ShopeePay") && c.contains("Gold"), "{c}");
+        assert!(c.contains("149"), "{c}");
     }
 }

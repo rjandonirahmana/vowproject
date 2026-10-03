@@ -156,12 +156,14 @@ pub async fn missing(pool: &Pool) -> Result<Vec<&'static str>> {
                             WHERE table_name = 'animations' AND column_name = 'builtin'),
                     to_regclass('public.banners') IS NOT NULL,
                     to_regclass('public.theme_ornaments') IS NOT NULL,
-                    to_regclass('public.invitations_unpaid_idx') IS NOT NULL",
+                    to_regclass('public.invitations_unpaid_idx') IS NOT NULL,
+                    EXISTS (SELECT 1 FROM information_schema.columns
+                            WHERE table_name = 'invitations' AND column_name = 'payment_proof_at')",
             &[],
         )
         .await
         .context("cek skema")?;
-    let checks = [(0, "002_themes.sql"), (1, "003_admin_konten.sql"), (2, "004_keamanan.sql"), (3, "005_tampilan.sql"), (4, "006_animasi.sql"), (5, "008_animasi_semua.sql (007 boleh dilewati)"), (6, "011_banner.sql"), (7, "012_ornamen.sql"), (8, "015_indeks.sql")];
+    let checks = [(0, "002_themes.sql"), (1, "003_admin_konten.sql"), (2, "004_keamanan.sql"), (3, "005_tampilan.sql"), (4, "006_animasi.sql"), (5, "008_animasi_semua.sql (007 boleh dilewati)"), (6, "011_banner.sql"), (7, "012_ornamen.sql"), (8, "015_indeks.sql"), (9, "017_bukti_bayar.sql")];
     Ok(checks.into_iter().filter(|(i, _)| !r.get::<_, bool>(*i)).map(|(_, n)| n).collect())
 }
 

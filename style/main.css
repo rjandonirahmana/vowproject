@@ -252,7 +252,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .inv-top__brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .inv-top__brand b { display: block; font-family: var(--font-display); font-size: 19px; font-weight: 500; color: var(--primary); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-top__brand small, .event__tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-deep); }
-.inv-top__actions { display: flex; gap: 8px; }
+.inv-top__actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 .disc .ms { transition: transform 0.3s; }
 .bgm-playing .disc .ms { animation: spin 3s linear infinite; }
@@ -365,7 +365,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .guide__item p { font-size: 12.5px; color: var(--muted); }
 .guide__icon { flex-shrink: 0; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--gold-pale); color: var(--gold-deep); }
 
-.gallery, .seg, .paymethods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gallery, .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .gallery img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: var(--r-md); }
 
 .closing { margin: 12px 0 0; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
@@ -685,6 +685,38 @@ html.is-pv .inv-top, html.is-pv .bottom-nav, html.is-pv .toast { display: none; 
 .theme-pick__sw i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; background: var(--primary); }
 .theme-pick__sw i + i { margin-left: -6px; background: var(--gold); }
 /* /buat?tema=… — tema sudah dipilih dari katalog/detail: ringkasan, bukan daftar. */
+/* Kelola: kartu pembayaran (transfer manual + unggah bukti). */
+.adm-order__proof img { display: block; width: 72px; height: 96px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); margin-top: 6px; }
+/* Input sandi + tombol mata (admin). */
+.pw { position: relative; display: block; }
+.pw .input { width: 100%; padding-right: 46px; }
+.pw__btn { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+.pw__btn:hover, .pw__btn:focus-visible { background: var(--surface-high); color: var(--ink); }
+.pw__off, .pw.is-shown .pw__on { display: none; }
+.pw.is-shown .pw__off { display: inline; }
+.pay-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; padding: clamp(16px, 4vw, 26px); scroll-margin-top: 90px; border: 1px solid var(--line-gold); }
+.pay-card > * { margin: 0; }
+.pay-card .notice { margin: 0; }
+.pay-card .totals__grand { flex-wrap: wrap; gap: 4px 12px; }
+.pay-card > .btn { justify-self: start; }
+.pay-card h2 { display: flex; align-items: center; gap: 8px; }
+.pay-card__acc { display: grid; justify-items: start; gap: 2px; padding: 14px 16px; border-radius: var(--r-md); background: var(--surface-low); }
+.pay-card__acc small { color: var(--muted); font-weight: 600; }
+.pay-card__no { font-size: 24px; letter-spacing: 0.06em; color: var(--primary); }
+.pay-card__acc .btn { margin-top: 8px; }
+.pay-card__steps { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-size: 14px; }
+.pay-card__done { display: grid; grid-template-columns: auto 1fr; gap: 8px 10px; align-items: start; padding: 12px; border-radius: var(--r-md); background: var(--surface-high); font-size: 14px; }
+.pay-card__done img { max-width: 160px; max-height: 240px; border-radius: 10px; object-fit: cover; border: 1px solid var(--line); }
+.pay-card__done a { grid-column: 1 / -1; }
+.pay-card__form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.pay-card__acc, .pay-card__done { min-width: 0; overflow-wrap: anywhere; }
+.pay-card__file { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; border: 1.5px dashed var(--line-gold); border-radius: var(--r-md); cursor: pointer; font-size: 14px; }
+.pay-card__file input { flex: 1 1 100%; min-width: 0; font-size: 13px; }
+/* /buat: info rekening tujuan (pengganti pilihan metode). */
+.payinfo { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--line-gold); background: var(--surface-low); font-size: 13px; }
+.payinfo .ms { font-size: 28px; color: var(--primary); }
+.payinfo b { display: block; font-size: 15px; letter-spacing: 0.04em; }
+.payinfo small { color: var(--muted); }
 .theme-chosen { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--primary-2); background: var(--surface-low); box-shadow: 0 0 0 1px var(--primary-2); }
 .theme-chosen .theme-pick__sw i { width: 26px; height: 26px; }
 .theme-chosen__txt { flex: 1; min-width: 160px; display: grid; gap: 1px; }
@@ -713,10 +745,6 @@ html.is-pv .inv-top, html.is-pv .bottom-nav, html.is-pv .toast { display: none; 
 .totals__disc { color: var(--ok); }
 .totals__grand { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-low); }
 .totals__grand b { font-family: var(--font-display); font-size: 26px; color: var(--primary); }
-.paymethod { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 4px; border-radius: var(--r-md); background: var(--surface); cursor: pointer; font-size: 11px; font-weight: 600; text-align: center; border: 1px solid transparent; }
-.paymethod input { position: absolute; opacity: 0; }
-.paymethod .ms { font-size: 20px; color: var(--primary); }
-.paymethod:has(input:checked) { border-color: var(--primary-2); background: var(--card); }
 
 /* ── Kelola ───────────────────────────────────────────────────────────── */
 .banner-new { padding: 20px; display: flex; flex-direction: column; gap: 10px; border: 2px solid var(--gold); }

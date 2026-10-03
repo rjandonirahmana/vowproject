@@ -44,6 +44,8 @@ pub struct InvRow {
     pub manage_key_hash: String,
     pub total_price: i64,
     pub payment_method: String,
+    /// WA pemesan (62…) — hanya untuk admin, tak pernah dikirim ke tamu.
+    pub contact_phone: String,
 }
 
 fn json<T: serde::de::DeserializeOwned + Default>(v: Value) -> T {
@@ -60,6 +62,7 @@ fn row_to_inv(r: &Row) -> InvRow {
         manage_key_hash: s("manage_key_hash"),
         total_price: j.get("total_price").and_then(|v| v.as_i64()).unwrap_or(0),
         payment_method: s("payment_method"),
+        contact_phone: s("contact_phone"),
         inv: serde_json::from_value(j.clone()).unwrap_or_default(),
     }
 }
@@ -552,12 +555,16 @@ pub async fn admin_invitations(pool: &Pool, q: &str, ttl_hours: i64) -> Result<V
         
             "SELECT slug, bride_name, groom_name, theme, package, status, total_price, payment_method,
                     contact_phone, is_demo, to_char(created_at AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') AS created,
-                    CASE WHEN status = 'menunggu_pembayaran' AND NOT is_demo
+                    -- Kolom bukti (017) dibaca lewat jsonb: belum dimigrasi → kosong, bukan galat.
+                    COALESCE(to_jsonb(i) ->> 'payment_proof', '') AS payment_proof,
+                    to_char((to_jsonb(i) ->> 'payment_proof_at')::timestamptz AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') AS proof_at,
+                    CASE WHEN status = 'menunggu_pembayaran' AND NOT is_demo AND to_jsonb(i) ->> 'payment_proof_at' IS NULL
                          THEN GREATEST(0, EXTRACT(EPOCH FROM (created_at + make_interval(hours => $2::int) - NOW())) / 60)::BIGINT
                     END AS minutes_left
-             FROM invitations
+             FROM invitations i
              WHERE $1 = '' OR slug ILIKE $3 OR bride_name ILIKE $3 OR groom_name ILIKE $3 OR contact_phone ILIKE $3
-             ORDER BY (status = 'menunggu_pembayaran') DESC, created_at DESC
+             ORDER BY (status = 'menunggu_pembayaran' AND to_jsonb(i) ->> 'payment_proof_at' IS NOT NULL) DESC,
+                      (status = 'menunggu_pembayaran') DESC, created_at DESC
              LIMIT 200",
             &[&q, &(ttl_hours as i32), &like],
         )
@@ -578,8 +585,39 @@ pub async fn admin_invitations(pool: &Pool, q: &str, ttl_hours: i64) -> Result<V
             is_demo: r.get("is_demo"),
             created: r.get("created"),
             minutes_left: r.get("minutes_left"),
+            payment_proof: r.get("payment_proof"),
+            proof_at: r.get::<_, Option<String>>("proof_at").unwrap_or_default(),
         })
         .collect())
+}
+
+/// Bukti transfer pemesan: (URL gambar, "x menit lalu"). Belum ada → None.
+/// Kolom belum dimigrasi (017) → Err; pemanggil memperlakukannya "belum ada".
+pub async fn payment_proof(pool: &Pool, inv_id: i64) -> Result<Option<(String, String)>> {
+    let c = pool.get().await?;
+    let r = db_opt(&c,
+        "SELECT payment_proof, EXTRACT(EPOCH FROM NOW() - payment_proof_at)::BIGINT AS age
+           FROM invitations WHERE id = $1 AND payment_proof_at IS NOT NULL",
+        &[&inv_id],
+    )
+    .await?;
+    Ok(r.map(|r| (r.get("payment_proof"), lalu(r.get("age")))))
+}
+
+/// Simpan bukti transfer (hanya pesanan yang masih menunggu pembayaran).
+/// Mengembalikan URL bukti LAMA (untuk dihapus dari RustFS) bila diganti;
+/// `None` = undangan tak ditemukan / sudah tidak menunggu pembayaran.
+pub async fn set_payment_proof(pool: &Pool, inv_id: i64, url: &str) -> Result<Option<String>> {
+    let c = pool.get().await?;
+    let r = db_opt(&c,
+        "UPDATE invitations i SET payment_proof = $2, payment_proof_at = NOW(), updated_at = NOW()
+           FROM (SELECT id, payment_proof AS lama FROM invitations WHERE id = $1 FOR UPDATE) o
+          WHERE i.id = o.id AND i.status = 'menunggu_pembayaran' AND NOT i.is_demo
+          RETURNING o.lama",
+        &[&inv_id, &url],
+    )
+    .await?;
+    Ok(r.map(|r| r.get(0)))
 }
 
 pub async fn admin_update_invitation(pool: &Pool, slug: &str, status: &str, theme: &str) -> Result<bool> {
@@ -756,6 +794,8 @@ pub async fn purge_unpaid(pool: &Pool, hours: i64) -> Result<Vec<Purged>> {
         
             "DELETE FROM invitations
              WHERE status = 'menunggu_pembayaran' AND NOT is_demo
+               -- Sudah kirim bukti transfer → jangan dihapus (lewat jsonb: aman sebelum 017).
+               AND to_jsonb(invitations) ->> 'payment_proof_at' IS NULL
                AND created_at < NOW() - make_interval(hours => $1::int)
              RETURNING to_jsonb(invitations) AS j",
             &[&(hours as i32)],
@@ -768,7 +808,7 @@ pub async fn purge_unpaid(pool: &Pool, hours: i64) -> Result<Vec<Purged>> {
             let j: Value = r.get("j");
             let s = |k: &str| j.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let mut files: Vec<String> =
-                ["bride_photo", "groom_photo", "music_url", "cover_photo"].iter().map(|c| s(c)).filter(|u| !u.is_empty()).collect();
+                ["bride_photo", "groom_photo", "music_url", "cover_photo", "payment_proof"].iter().map(|c| s(c)).filter(|u| !u.is_empty()).collect();
             files.extend(j.get("gallery").cloned().map(json::<Vec<String>>).unwrap_or_default());
             Purged { slug: s("slug"), files }
         })
@@ -781,7 +821,8 @@ pub async fn unpaid_minutes_left(pool: &Pool, inv_id: i64, hours: i64) -> Result
     let r = db_opt(&c,
         
             "SELECT GREATEST(0, EXTRACT(EPOCH FROM (created_at + make_interval(hours => $2::int) - NOW())) / 60)::BIGINT
-             FROM invitations WHERE id = $1 AND status = 'menunggu_pembayaran' AND NOT is_demo",
+             FROM invitations WHERE id = $1 AND status = 'menunggu_pembayaran' AND NOT is_demo
+               AND to_jsonb(invitations) ->> 'payment_proof_at' IS NULL",
             &[&inv_id, &(hours as i32)],
         )
         .await?;

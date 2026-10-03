@@ -38,6 +38,11 @@ pub fn KelolaPage() -> impl IntoView {
     let slug = move || params.read().get("slug").unwrap_or_default();
     let key = move || query.read().get("key").unwrap_or_default();
     let baru = move || query.read().get("baru").is_some();
+    // Hasil kirim bukti transfer (POST /kelola/{slug}/bukti → ?ok= / ?galat=).
+    let notice = move || {
+        let q = query.read();
+        q.get("galat").map(|m| (false, m)).or_else(|| q.get("ok").map(|m| (true, m)))
+    };
     let tema = move || query.read().get("tema");
 
     let add = ServerAction::<AddGuest>::new();
@@ -51,7 +56,7 @@ pub fn KelolaPage() -> impl IntoView {
         <Title text=concat!("Kelola Undangan — ", crate::brand!()) />
         <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
             {move || dash.get().map(|r| match r {
-                Ok(d) => Either::Left(view! { <Dashboard d=d baru=baru() add=add del=del /> }),
+                Ok(d) => Either::Left(view! { <Dashboard d=d baru=baru() notice=notice() add=add del=del /> }),
                 Err(e) => Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }),
             })}
         </Suspense>
@@ -59,7 +64,7 @@ pub fn KelolaPage() -> impl IntoView {
 }
 
 #[component]
-fn Dashboard(d: Dashboard, baru: bool, add: ServerAction<AddGuest>, del: ServerAction<DeleteGuest>) -> impl IntoView {
+fn Dashboard(d: Dashboard, baru: bool, notice: Option<(bool, String)>, add: ServerAction<AddGuest>, del: ServerAction<DeleteGuest>) -> impl IntoView {
     let inv = d.inv.clone();
     let s = d.stats.clone();
     // Kunci terverifikasi dari server (cookie) — untuk aksi & tautan yang disalin.
@@ -142,9 +147,11 @@ fn Dashboard(d: Dashboard, baru: bool, add: ServerAction<AddGuest>, del: ServerA
                     // URL tak lagi memuat kunci → tautan khusus bisa disalin dari sini
                     // (untuk membuka Kelola di HP/laptop lain).
                     {(!inv.is_demo).then(|| view! {
-                        <button type="button" class="btn btn--outline btn--sm" title="Tautan rahasia untuk membuka Kelola di perangkat lain"
+                        // HP: ikon saja (teks ≥720px) — kalau tidak, menimpa nama pasangan di header.
+                        <button type="button" class="btn btn--outline btn--sm" title="Salin tautan rahasia untuk membuka Kelola di perangkat lain"
+                            aria-label="Salin Tautan Kelola"
                             data-copy=move || format!("{}{}", origin.get(), kl_copy.clone()) data-copied="Tautan kelola tersalin — simpan baik-baik">
-                            <Icon name="key" />"Salin Tautan Kelola"
+                            <Icon name="key" /><span class="hide-sm">"Salin Tautan Kelola"</span>
                         </button>
                     })}
                     <a class="btn btn--soft btn--sm" href=base_link.clone() target="_blank"><Icon name="visibility" />"Lihat Undangan"</a>
@@ -173,8 +180,9 @@ fn Dashboard(d: Dashboard, baru: bool, add: ServerAction<AddGuest>, del: ServerA
                             </div>
                             <p class="totals__grand"><span>"Total Pembayaran"</span><b>{rupiah(d.total_price)}</b></p>
                             <p class="muted small">"Status: menunggu pembayaran. Undangan TERKUNCI untuk tamu sampai admin mengkonfirmasi pembayaran — Anda tetap bisa melihat pratinjaunya."</p>
+                            <a class="btn btn--primary" href="#bayar"><Icon name="account_balance_wallet" />"Lanjut ke Pembayaran"</a>
                             {(!wa.is_empty()).then(|| view! {
-                                <a class="btn btn--primary" href=wa target="_blank" rel="noopener"><Icon name="chat" />"Konfirmasi Pembayaran via WhatsApp"</a>
+                                <a class="btn btn--soft btn--sm" href=wa target="_blank" rel="noopener"><Icon name="chat" />"Tanya Admin via WhatsApp"</a>
                             })}
                         </section>
                     }
@@ -191,13 +199,18 @@ fn Dashboard(d: Dashboard, baru: bool, add: ServerAction<AddGuest>, del: ServerA
                                 <b>"Undangan masih terkunci — menunggu konfirmasi pembayaran"</b>
                                 <p class="small">
                                     "Tamu yang membuka tautan hanya melihat \"Undangan belum aktif\". "
-                                    <b>{format!("Bila belum dikonfirmasi admin dalam {}", durasi(m))}</b>
-                                    ", undangan beserta semua foto & lagu yang diunggah DIHAPUS otomatis."
+                                    <b>{format!("Bila bukti transfer belum dikirim dalam {}", durasi(m))}</b>
+                                    ", undangan beserta semua foto & lagu yang diunggah DIHAPUS otomatis. Setelah bukti dikirim, undangan aman menunggu verifikasi admin."
                                 </p>
                                 <a class="btn btn--soft btn--sm" href=preview target="_blank"><Icon name="visibility" />"Lihat Pratinjau (khusus Anda)"</a>
                             </div>
                         </section>
                     }
+                })}
+
+                {inv.is_locked().then(|| view! {
+                    <PaymentCard slug=inv.slug.clone() key=key.clone() total=d.total_price pay=d.payment.clone()
+                        proof=d.payment_proof.clone() notice=notice.clone() admin_wa=d.admin_wa.clone() />
                 })}
 
                 <section class="card card--soft dash-head">
@@ -301,6 +314,71 @@ fn Dashboard(d: Dashboard, baru: bool, add: ServerAction<AddGuest>, del: ServerA
                 </section>
             </main>
         </div>
+    }
+}
+
+/// Langkah pembayaran (satu-satunya cara: transfer ke rekening Konten
+/// `pembayaran`) + unggah bukti → POST /kelola/{slug}/bukti (form biasa,
+/// jalan tanpa WASM) → server menyimpan gambar & mengirim WA ke admin.
+#[component]
+fn PaymentCard(
+    slug: String,
+    key: String,
+    total: i64,
+    pay: crate::web::konten::Pembayaran,
+    proof: Option<(String, String)>,
+    notice: Option<(bool, String)>,
+    admin_wa: String,
+) -> impl IntoView {
+    let nomor_salin: String = pay.nomor.chars().filter(|c| c.is_ascii_digit()).collect();
+    let sudah = proof.is_some();
+    let tanya = (!admin_wa.is_empty()).then(|| {
+        let msg = format!("Halo admin, saya ada kendala pembayaran undangan /u/{slug}.");
+        format!("https://wa.me/{admin_wa}?text={}", fmt::url_encode(&msg))
+    });
+    view! {
+        <section class="card pay-card" id="bayar">
+            <h2><Icon name="account_balance_wallet" />"Pembayaran"</h2>
+            {notice.map(|(ok, m)| view! { <p class=if ok { "notice notice--ok" } else { "notice notice--err" }>{m}</p> })}
+            <p class="totals__grand"><span>"Total yang harus ditransfer"</span><b>{rupiah(total)}</b></p>
+            <div class="pay-card__acc">
+                <small>{format!("Transfer ke {}", pay.metode)}</small>
+                <b class="pay-card__no">{pay.nomor.clone()}</b>
+                <span>{format!("a/n {}", pay.atas_nama)}</span>
+                <button type="button" class="btn btn--outline btn--sm" data-copy=nomor_salin data-copied="Nomor tujuan tersalin">
+                    <Icon name="content_copy" />"Salin Nomor"
+                </button>
+            </div>
+            <ol class="pay-card__steps">
+                <li>{format!("Transfer {} ke {} di atas (a/n {}).", rupiah(total), pay.metode, pay.atas_nama)}</li>
+                <li>"Ambil tangkapan layar bukti transfer yang berhasil."</li>
+                <li>"Unggah gambarnya di bawah — admin menerima notifikasi WhatsApp & mengaktifkan undangan Anda."</li>
+            </ol>
+            {(!pay.catatan.is_empty()).then(|| view! { <p class="muted small">{pay.catatan.clone()}</p> })}
+            {proof.map(|(url, ago)| view! {
+                <div class="pay-card__done">
+                    <Icon name="hourglass_top" />
+                    <span><b>"Bukti terkirim"</b>{format!(" {ago} — menunggu verifikasi admin. Undangan tidak akan dihapus otomatis.")}</span>
+                    {(!url.is_empty()).then(|| { let href = url.clone(); view! {
+                        <a href=href target="_blank" rel="noopener"><img src=url alt="Bukti transfer yang dikirim" loading="lazy" /></a>
+                    } })}
+                </div>
+            })}
+            <form class="pay-card__form" method="post" action=format!("/kelola/{slug}/bukti") enctype="multipart/form-data">
+                <input type="hidden" name="key" value=key />
+                <label class="pay-card__file">
+                    <Icon name="photo_camera" />
+                    <span>"Pilih gambar bukti transfer (JPG/PNG, maks 5 MB)"</span>
+                    <input type="file" name="bukti" accept="image/jpeg,image/png,image/webp" required />
+                </label>
+                <button class="btn btn--primary" type="submit">
+                    <Icon name="send" />{if sudah { "Kirim Ulang Bukti" } else { "Kirim Bukti Transfer" }}
+                </button>
+            </form>
+            {tanya.map(|href| view! {
+                <a class="btn btn--soft btn--sm" href=href target="_blank" rel="noopener"><Icon name="chat" />"Ada kendala? Chat admin"</a>
+            })}
+        </section>
     }
 }
 

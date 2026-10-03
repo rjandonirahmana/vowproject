@@ -324,6 +324,12 @@ pub struct Dashboard {
     /// Hiasan melayang tema undangan (dashboard ikut bernuansa tema).
     #[serde(default)]
     pub float_deco: String,
+    /// Rekening tujuan transfer (Konten `pembayaran`).
+    #[serde(default)]
+    pub payment: crate::web::konten::Pembayaran,
+    /// Bukti transfer yang sudah dikirim: (URL gambar — bisa '', "x lalu").
+    #[serde(default)]
+    pub payment_proof: Option<(String, String)>,
     /// Kunci Kelola yang sudah terverifikasi (dari cookie) — URL tak lagi
     /// memuatnya, jadi dashboard menampilkannya agar tautan khusus bisa disalin.
     #[serde(default)]
@@ -374,8 +380,14 @@ pub struct AdminInv {
     pub is_demo: bool,
     /// "2026-09-30 14:05"
     pub created: String,
-    /// Menit sebelum dihapus otomatis (hanya pesanan belum dibayar).
+    /// Menit sebelum dihapus otomatis (hanya pesanan belum dibayar & belum kirim bukti).
     pub minutes_left: Option<i64>,
+    /// URL gambar bukti transfer ('' = belum ada / tanpa RustFS).
+    #[serde(default)]
+    pub payment_proof: String,
+    /// Kapan bukti dikirim ("2026-10-03 14:05"); '' = belum.
+    #[serde(default)]
+    pub proof_at: String,
 }
 
 /// Tema + jumlah undangan yang memakainya (untuk /admin/tema).
