@@ -1,0 +1,22 @@
+/* Kilau emas — bintang empat sudut keemasan (benang songket) berkilau di
+   tempat sambil berputar pelan, tersebar di seluruh layar. */
+{a} i { top: calc(var(--i) * 7% + 3%); left: calc(var(--x, 50) * 1%); width: 14px; height: 14px; background: var(--foil, var(--gold-light));
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  animation: fdx-glint calc(2.6s + var(--x, 50) * .03s) ease-in-out infinite; animation-delay: calc(var(--i) * -.83s); }
+{a} i:nth-child(n+10) { display: block; }
+{a} i:nth-child(1) { --x: 8; }
+{a} i:nth-child(2) { --x: 62; }
+{a} i:nth-child(3) { --x: 30; }
+{a} i:nth-child(4) { --x: 88; }
+{a} i:nth-child(5) { --x: 15; }
+{a} i:nth-child(6) { --x: 72; }
+{a} i:nth-child(7) { --x: 45; }
+{a} i:nth-child(8) { --x: 92; }
+{a} i:nth-child(9) { --x: 5; }
+{a} i:nth-child(10) { --x: 55; }
+{a} i:nth-child(11) { --x: 25; }
+{a} i:nth-child(12) { --x: 80; }
+{a} i:nth-child(13) { --x: 38; }
+{a} i:nth-child(14) { --x: 66; }
+{a} i:nth-child(odd) { width: 9px; height: 9px; }
+@keyframes fdx-glint { 0%, 100% { opacity: 0; transform: scale(.2) rotate(0); } 50% { opacity: .95; transform: scale(1) rotate(90deg); } }

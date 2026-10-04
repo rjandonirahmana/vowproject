@@ -215,6 +215,8 @@ async fn main() -> Result<()> {
         .layer(tower_http::compression::CompressionLayer::new())
         // Tautan Kelola ?key= / pratinjau ?k= → cookie HttpOnly + 303 ke URL bersih.
         .layer(axum::middleware::from_fn(undangan::server::owner::exchange))
+        // Demo lama /u/anindita-raditya → /u/yona-doni (301).
+        .layer(axum::middleware::from_fn(security::legacy_demo))
         .layer(axum::middleware::from_fn(security::csrf))
         .layer(axum::middleware::from_fn(security::headers))
         .layer(axum::Extension(security::DevMode(dev)))

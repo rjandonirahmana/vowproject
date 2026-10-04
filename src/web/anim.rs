@@ -5,8 +5,11 @@
 //!   * PENGATURAN (`spec`): angka & pilihan yang dijepit ke rentang aman lalu
 //!     diubah jadi CSS di sini — untuk admin non-teknis.
 //!   * CSS LANJUTAN (`css`): CSS mentah dengan penanda `{a}` = kelas akar
-//!     animasi (`.gate--slug` / `.float-deco--slug`); untuk scroll berupa
-//!     deklarasi variabel `--rv-*`. Animasi bawaan memakai cara ini.
+//!     animasi (`.gate--slug` / `.float-deco--slug` / `.rvs--slug`). Scroll
+//!     boleh berupa deklarasi variabel `--rv-*` saja (ditempel ke tema), ATAU
+//!     aturan lengkap ber-`{a}` — "koreografi": gerak berbeda per jenis elemen
+//!     (judul, teks, foto, kartu). Akar undangan selalu berkelas `rvs--{scroll}`.
+//!     Animasi bawaan memakai cara ini.
 //! Hasilnya dilayani di /tema.css; tema memakai animasi lewat kuncinya (= slug)
 //! di kolom open_anim / scroll_anim / float_deco.
 //!
@@ -141,6 +144,7 @@ impl AnimInfo {
     pub fn root_class(&self) -> String {
         match self.kind.as_str() {
             "hiasan" => format!(".float-deco--{}", self.slug),
+            "scroll" => format!(".rvs--{}", self.slug),
             _ => format!(".gate--{}", self.slug),
         }
     }
@@ -237,7 +241,8 @@ pub const KEY_MAX: usize = 40;
 /// Periksa CSS lanjutan. Bukan parser CSS penuh — cukup mencegah keluar dari
 /// `<style>`/stylesheet & pemuatan luar: tanpa `<`, `@import`, `expression(`,
 /// `javascript:`; kurung kurawal seimbang. Buka/hiasan wajib memakai `{a}`
-/// (agar hanya menyentuh animasinya sendiri); scroll hanya deklarasi.
+/// (agar hanya menyentuh animasinya sendiri); scroll = deklarasi saja, atau
+/// aturan lengkap ber-`{a}` (koreografi).
 pub fn sanitize_css(kind: &str, css: &str) -> Result<String, String> {
     let css = css.trim().replace("\r\n", "\n");
     if css.is_empty() {
@@ -255,9 +260,9 @@ pub fn sanitize_css(kind: &str, css: &str) -> Result<String, String> {
             return Err(format!("CSS tidak boleh memuat \"{bad}\"."));
         }
     }
-    if kind == "scroll" {
+    if kind == "scroll" && !css.contains("{a}") {
         if css.contains('{') || css.contains('}') || css.contains('@') {
-            return Err("Gerak scroll hanya berisi deklarasi variabel, mis. --rv-from:translateY(28px);".into());
+            return Err("Gerak scroll berisi deklarasi variabel (mis. --rv-from:translateY(28px);) atau aturan lengkap yang memakai {a}.".into());
         }
         return Ok(if css.ends_with(';') { css } else { format!("{css};") });
     }
@@ -283,9 +288,15 @@ pub fn sanitize_css(kind: &str, css: &str) -> Result<String, String> {
     Ok(css)
 }
 
-/// Deklarasi `--rv-*` gerak scroll (ditempel ke variabel tema).
+/// Gerak scroll berbentuk aturan lengkap (koreografi), bukan deklarasi saja.
+pub fn is_rules(a: &AnimInfo) -> bool {
+    a.kind == "scroll" && a.css.contains("{a}")
+}
+
+/// Deklarasi `--rv-*` gerak scroll (ditempel ke variabel tema). Koreografi →
+/// kosong (aturannya ikut `css`).
 pub fn scroll_vars_of(a: &AnimInfo) -> String {
-    if a.kind != "scroll" {
+    if a.kind != "scroll" || is_rules(a) {
         return String::new();
     }
     if a.css.trim().is_empty() {
@@ -295,9 +306,10 @@ pub fn scroll_vars_of(a: &AnimInfo) -> String {
     }
 }
 
-/// CSS untuk satu animasi buka / hiasan. Scroll → lewat `scroll_vars_of`.
+/// CSS untuk satu animasi buka / hiasan / koreografi scroll. Scroll
+/// deklarasi → lewat `scroll_vars_of`.
 pub fn css(a: &AnimInfo) -> String {
-    if !super::fmt::is_slug(&a.slug, KEY_MAX) || a.slug == NONE || a.kind == "scroll" {
+    if !super::fmt::is_slug(&a.slug, KEY_MAX) || a.slug == NONE || (a.kind == "scroll" && !is_rules(a)) {
         return String::new();
     }
     if !a.css.trim().is_empty() {
@@ -563,6 +575,24 @@ pub fn builtins() -> Vec<AnimInfo> {
         b("hiasan", "kelopak", "Kelopak bunga berguguran", CSS_KELOPAK, 10),
         b("hiasan", "kupu", "Kupu-kupu beterbangan", CSS_KUPU, 20),
         b("hiasan", "bintang", "Kerlip bintang", CSS_BINTANG, 30),
+        // Koreografi tema unggulan (CSS di web/gerak/, aset mask di
+        // public/img/tema/gerak/ dari scripts/gerak/build.py).
+        b("buka", "gebyok-ukir", "Gebyok ukir: sampul tergulir, pintu berayun, menembus kusen", include_str!("gerak/buka-gebyok-ukir.css"), 50),
+        b("buka", "taman-daun", "Taman: rimbun daun tersibak, daun beterbangan", include_str!("gerak/buka-taman-daun.css"), 51),
+        b("buka", "galaksi", "Galaksi: tersedot ke langit, warp bintang, portal cahaya", include_str!("gerak/buka-galaksi.css"), 52),
+        b("buka", "candi-bentar", "Candi bentar: gapura terbelah, matahari terbit", include_str!("gerak/buka-candi-bentar.css"), 53),
+        b("buka", "pagelaran-wayang", "Pagelaran wayang: kelir menyala, gunungan dikebutkan, tokoh masuk", include_str!("gerak/buka-pagelaran-wayang.css"), 49),
+        b("buka", "tenun-songket", "Tenun songket: helai kain diurai kiri-kanan", include_str!("gerak/buka-tenun-songket.css"), 54),
+        b("scroll", "bayang", "Koreografi Bayang wayang (dari bayangan, tokoh masuk kiri-kanan, judul menyala)", include_str!("gerak/scroll-bayang.css"), 79),
+        b("scroll", "keraton", "Koreografi Keraton (judul zoom, mempelai kiri-kanan, ikon berputar)", include_str!("gerak/scroll-keraton.css"), 80),
+        b("scroll", "mekar", "Koreografi Mekar (judul merapat, foto terbuka bundar, kartu kelopak)", include_str!("gerak/scroll-mekar.css"), 81),
+        b("scroll", "kosmik", "Koreografi Kosmik (dari samar, judul menyala, mempelai berbalik)", include_str!("gerak/scroll-kosmik.css"), 82),
+        b("scroll", "ombak", "Koreografi Ombak (mengayun kiri-kanan, judul memantul, foto 3D)", include_str!("gerak/scroll-ombak.css"), 83),
+        b("scroll", "tenun", "Koreografi Tenun (tersingkap seperti benang, foto tirai)", include_str!("gerak/scroll-tenun.css"), 84),
+        b("hiasan", "daun-gugur", "Daun gugur berputar 3D", include_str!("gerak/hiasan-daun-gugur.css"), 40),
+        b("hiasan", "kunang", "Kunang-kunang & bintang jatuh", include_str!("gerak/hiasan-kunang.css"), 41),
+        b("hiasan", "burung", "Kawanan burung terbang melintas", include_str!("gerak/hiasan-burung.css"), 43),
+        b("hiasan", "kilau-emas", "Kilau emas berkelip", include_str!("gerak/hiasan-kilau-emas.css"), 42),
     ]
 }
 
@@ -610,9 +640,10 @@ mod tests {
         // Semua bawaan lolos pemeriksaan & menghasilkan CSS untuk kelasnya sendiri.
         for a in builtins() {
             assert!(sanitize_css(&a.kind, &a.css).is_ok(), "{}/{}", a.kind, a.slug);
-            if a.kind == "scroll" {
+            if a.kind == "scroll" && !is_rules(&a) {
                 assert!(scroll_vars_of(&a).starts_with("--rv-"));
             } else {
+                assert!(a.css.len() <= CSS_MAX, "{} terlalu panjang", a.slug);
                 let c = css(&a);
                 assert!(c.contains(&a.root_class()) && !c.contains("{a}"), "{}", a.slug);
             }
@@ -625,6 +656,10 @@ mod tests {
         assert!(sanitize_css("buka", "{a}{color:red").is_err());
         assert!(sanitize_css("scroll", "--rv-from:none}body{display:none").is_err());
         assert_eq!(sanitize_css("scroll", "--rv-from:none").unwrap(), "--rv-from:none;");
+        // Koreografi scroll: aturan lengkap ber-{a} → kelas .rvs--slug, tanpa variabel tema.
+        let k = builtin("scroll", "keraton").unwrap();
+        assert!(is_rules(&k) && scroll_vars_of(&k).is_empty() && css(&k).contains(".rv-on .rvs--keraton [data-rv]"));
+        assert!(css(&builtin("scroll", "naik").unwrap()).is_empty());
         // Baris DB menimpa bawaan dengan kunci sama; bawaan yang tak ada ditambahkan.
         let edited = AnimInfo { name: "Tirai Emas".into(), ..builtin("buka", "tirai").unwrap() };
         let all = merge(vec![edited]);

@@ -12,7 +12,7 @@ use crate::web::components::*;
 use crate::web::fmt::rupiah;
 use crate::web::icons::Icon;
 use crate::web::model::Invitation;
-use crate::web::themes::{DEMO_SONG, SONGS};
+use crate::web::themes::{DEMO_SLUG, DEMO_SONG, SONGS};
 use crate::web::skin::ThemeInfo;
 
 use super::{ErrorCard, SiteFooter, SiteHeader};
@@ -43,11 +43,11 @@ pub fn TemaPage() -> impl IntoView {
                     <div class="demo-bar">
                         <span class="chip chip--live"><i class="dot dot--live"></i>"Live Interactive Preview"</span>
                         <span class="chip chip--soft">{if t.listed { t.name.clone() } else { format!("{} • Tema privat", t.name) }}</span>
-                        <a class="btn btn--soft btn--sm demo-bar__full" href=format!("/u/anindita-raditya?tema={}", t.slug) target="_blank" rel="noopener">
+                        <a class="btn btn--soft btn--sm demo-bar__full" href=format!("/u/{}?tema={}", DEMO_SLUG, t.slug) target="_blank" rel="noopener">
                             <Icon name="open_in_new" />
                             "Coba Demo Layar Penuh"
                         </a>
-                        <a class="btn btn--soft btn--sm" href=format!("/kelola/anindita-raditya?key=demo&tema={}", t.slug) target="_blank" rel="noopener">
+                        <a class="btn btn--soft btn--sm" href=format!("/kelola/{}?key=demo&tema={}", DEMO_SLUG, t.slug) target="_blank" rel="noopener">
                             <Icon name="dashboard" />
                             "Demo Dashboard"
                         </a>
@@ -62,7 +62,7 @@ pub fn TemaPage() -> impl IntoView {
                             <FloatDeco kind=t.float_deco.clone() />
                             <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
                                 {move || demo.get().map(|r| match r {
-                                    Ok(inv) => Either::Left(view! { <PreviewInvitation inv=Invitation { theme: slug.clone(), ..inv } anim=anim.clone() /> }),
+                                    Ok(inv) => Either::Left(view! { <PreviewInvitation inv=Invitation { theme: slug.clone(), ..inv } anim=anim.clone() scroll=t.scroll_anim.clone() /> }),
                                     Err(e) => Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }),
                                 })}
                             </Suspense>
@@ -107,11 +107,11 @@ pub fn TemaPage() -> impl IntoView {
 /// Undangan lengkap dalam satu gulungan (versi desktop dari tab Sampul →
 /// Acara → RSVP), dirender dengan tema yang sedang dipratinjau.
 #[component]
-fn PreviewInvitation(inv: Invitation, anim: String) -> impl IntoView {
+fn PreviewInvitation(inv: Invitation, anim: String, scroll: String) -> impl IntoView {
     let resepsi = inv.events.last().cloned();
     let names = format!("{} & {}", inv.bride_nick, inv.groom_nick);
     view! {
-        <div class=format!("inv inv--embed th-{}", inv.theme)>
+        <div class=format!("inv inv--embed th-{}{}", inv.theme, scroll_class(&scroll))>
             <div class="inv__glow" aria-hidden="true"></div>
             // Gerbang: sampul + tamu + tombol buka. Isi di bawahnya baru bisa
             // di-scroll setelah dibuka (skrip global: data-demo-open → .is-open).
@@ -119,6 +119,7 @@ fn PreviewInvitation(inv: Invitation, anim: String) -> impl IntoView {
                 <div class="gate__panel gate__panel--l" aria-hidden="true"></div>
                 <div class="gate__panel gate__panel--r" aria-hidden="true"></div>
                 <div class="gate__orn" aria-hidden="true"></div>
+                <GateFx />
                 <div class="gate__content">
                     <section class="hero cover orn-host">
                         <Ornamen bagian="sampul" />

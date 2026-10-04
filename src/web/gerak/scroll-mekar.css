@@ -1,0 +1,15 @@
+/* Mekar — isi "mekar" seperti bunga: judul merapat dari huruf renggang &
+   samar, foto terbuka dari lingkaran kecil di tengah, mempelai mekar memantul,
+   kartu terbuka seperti kelopak (rotasi 3D dari atas), ikon berputar mekar. */
+{a} { --rv-stagger: 160; }
+.rv-on {a} [data-rv] { transition: opacity 1.2s ease, transform 1.3s cubic-bezier(.2, .7, .2, 1), filter 1.2s ease, letter-spacing 1.4s ease, clip-path 1.6s cubic-bezier(.3, .6, .2, 1); }
+.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateY(24px) scale(.92); filter: none; }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: none; letter-spacing: .35em; filter: blur(6px); }
+.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv] { clip-path: circle(80% at 50% 50%); }
+.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { opacity: 1; transform: scale(1.12); clip-path: circle(0% at 50% 50%); }
+.rv-on {a} .couple > .person[data-rv] { transition-timing-function: ease, cubic-bezier(.34, 1.56, .64, 1); }
+.rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { transform: scale(.6) rotate(-6deg); }
+.rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { transform: scale(.6) rotate(6deg); }
+.rv-on {a} :is(.card, .event):not(.person)[data-rv] { transform-origin: top center; }
+.rv-on {a} :is(.card, .event):not(.person)[data-rv]:not(.is-in) { transform: perspective(800px) rotateX(22deg) translateY(30px); }
+.rv-on {a} :is(.intro__icon, .couple__amp)[data-rv]:not(.is-in) { transform: scale(0) rotate(-120deg); }

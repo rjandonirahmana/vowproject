@@ -38,6 +38,23 @@ pub fn is_demo_preview(path: &str, query: &str) -> bool {
         && query.split('&').any(|kv| kv == "pv=1")
 }
 
+/// Tautan demo lama `/u|/kelola/{OLD_DEMO_SLUG}…` → alamat demo baru (query ikut).
+fn legacy_demo_target(path: &str, query: Option<&str>) -> Option<String> {
+    use crate::web::themes::{DEMO_SLUG, OLD_DEMO_SLUG};
+    ["/u/", "/kelola/"].into_iter().find_map(|base| {
+        let rest = path.strip_prefix(base)?.strip_prefix(OLD_DEMO_SLUG)?;
+        (rest.is_empty() || rest.starts_with('/')).then(|| format!("{base}{DEMO_SLUG}{rest}{}", query.map(|q| format!("?{q}")).unwrap_or_default()))
+    })
+}
+
+/// Middleware: demo lama sudah tersebar (WA, banner) → 301 ke demo baru.
+pub async fn legacy_demo(req: Request, next: Next) -> Response {
+    match legacy_demo_target(req.uri().path(), req.uri().query()) {
+        Some(to) => (StatusCode::MOVED_PERMANENTLY, [(header::LOCATION, to)]).into_response(),
+        None => next.run(req).await,
+    }
+}
+
 fn is_private(path: &str) -> bool {
     path.starts_with("/u/") || path.starts_with("/kelola/") || path == "/admin" || path.starts_with("/admin/") || path == "/buat"
 }
@@ -282,8 +299,11 @@ mod tests {
         assert!(c.contains("'nonce-abc123'") && c.contains("'wasm-unsafe-eval'") && c.contains("frame-ancestors 'self'"));
         assert!(!c.contains("ws:"));
         assert!(csp("x", true).contains("ws:"));
-        assert!(is_demo_preview("/u/anindita-raditya", "tema=jawa&pv=1") && is_demo_preview("/u/anindita-raditya/acara", "pv=1"));
-        assert!(!is_demo_preview("/u/anindita-raditya", "tema=jawa") && !is_demo_preview("/u/budi-ani-x1", "pv=1") && !is_demo_preview("/u/anindita-raditya-x", "pv=1"));
+        assert!(is_demo_preview("/u/yona-doni", "tema=jawa&pv=1") && is_demo_preview("/u/yona-doni/acara", "pv=1"));
+        assert!(!is_demo_preview("/u/yona-doni", "tema=jawa") && !is_demo_preview("/u/budi-ani-x1", "pv=1") && !is_demo_preview("/u/yona-doni-x", "pv=1"));
+        assert_eq!(legacy_demo_target("/u/anindita-raditya/acara", Some("tema=x")).as_deref(), Some("/u/yona-doni/acara?tema=x"));
+        assert_eq!(legacy_demo_target("/kelola/anindita-raditya", None).as_deref(), Some("/kelola/yona-doni"));
+        assert!(legacy_demo_target("/u/anindita-raditya-k7f3", None).is_none() && legacy_demo_target("/tema", None).is_none());
         assert!(is_private("/u/ani?g=AB12") && is_private("/kelola/ani") && is_private("/admin/akun") && !is_private("/paket"));
     }
 }

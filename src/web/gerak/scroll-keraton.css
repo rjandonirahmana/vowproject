@@ -1,0 +1,34 @@
+/* Keraton — gerak ala undangan premium Jawa, meniru takaran everlove
+   (Elementor + Animate.css, diukur langsung): SEDIKIT elemen bergerak, jenis
+   gerak per PERAN, jeda tetap per peran (bukan bergiliran otomatis), durasi
+   ±1,25 dtk, tanpa blur/filter. Urutan dalam satu bagian:
+     label (turun) 150ms → judul (zoom in) 300ms → foto/mempelai 500ms
+     → teks & kartu (naik) 700ms → ikon (berputar masuk) 900ms.
+   Elemen lain cukup memudar pelan. Ruangan (portal) hanya 3: pintu ke
+   Mempelai, dimensi ke Galeri, gapura ke Acara ("-" = tanpa portal). */
+{a} { --rv-stagger: 0; --ruang-urut: "pintu - dimensi gapura -"; --gate-burst: none; }
+/* Kartu kaca tembus pandang (tanpa backdrop blur — ringan di HP). */
+{a} { --card-glass: color-mix(in srgb, var(--card) 62%, transparent); --card-blur: none; }
+.rv-on {a} [data-rv] { --rv-delay: 100ms; transition: opacity .9s ease, transform 1.25s cubic-bezier(.2, .7, .2, 1); }
+.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateY(26px); filter: none; }
+/* fadeInDown — label kecil di atas judul */
+.rv-on {a} :is(.eyebrow, .cover__eyebrow, .script)[data-rv] { --rv-delay: 150ms; }
+.rv-on {a} :is(.eyebrow, .cover__eyebrow, .script)[data-rv]:not(.is-in) { transform: translateY(-30px); }
+/* zoomIn — judul bagian & nama */
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv] { --rv-delay: 300ms; transition: opacity .7s ease, transform 1.25s cubic-bezier(.2, .8, .3, 1.06); }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: scale(.3); }
+/* zoomIn — foto */
+.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv] { --rv-delay: 500ms; }
+.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { transform: scale(.55); }
+.rv-on {a} .gallery__item[data-rv]:nth-child(even) { --rv-delay: 650ms; }
+/* mempelai masuk dari kiri & kanan (fadeInLeft / fadeInRight) */
+.rv-on {a} .couple > .person:first-child[data-rv] { --rv-delay: 500ms; }
+.rv-on {a} .couple > .person:last-child[data-rv] { --rv-delay: 650ms; }
+.rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { transform: translateX(-60px); }
+.rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { transform: translateX(60px); }
+/* fadeInUp — teks & kartu */
+.rv-on {a} :is(.card, .event, p:not(.eyebrow, .script, .cover__eyebrow), .intro__text, .countdown, .story)[data-rv] { --rv-delay: 700ms; }
+.rv-on {a} :is(.card, .event, p:not(.eyebrow, .script, .cover__eyebrow), .intro__text, .countdown, .story)[data-rv]:not(.is-in) { transform: translateY(50px); }
+/* rotateIn — ikon kecil & tanda & */
+.rv-on {a} :is(.intro__icon, .couple__amp)[data-rv] { --rv-delay: 900ms; }
+.rv-on {a} :is(.intro__icon, .couple__amp)[data-rv]:not(.is-in) { transform: rotate(-120deg) scale(.5); }

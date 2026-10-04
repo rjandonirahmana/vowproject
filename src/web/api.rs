@@ -127,6 +127,7 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
             single: t.single_page(),
             open_anim: t.open_anim.clone(),
             float_deco: t.float_deco.clone(),
+            scroll_anim: t.scroll_anim.clone(),
             ornaments: t.ornaments.clone(),
         })
         .unwrap_or_default();

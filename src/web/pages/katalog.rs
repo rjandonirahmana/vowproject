@@ -315,7 +315,7 @@ pub fn ThemeCard(t: ThemeInfo, from: i64, #[prop(default = None)] anchor: Option
                 <div class="mini">
                     <p class="mini__eyebrow">"The Wedding Of"</p>
                     <Monogram initials="A&R" class="monogram--sm" />
-                    <p class="mini__names">"Anindita & Raditya"</p>
+                    <p class="mini__names">"Yona & Doni"</p>
                     <p class="mini__date">"Sabtu, 24 Oktober 2026"</p>
                     <span class="mini__btn">"Buka Undangan"</span>
                 </div>
@@ -347,8 +347,8 @@ pub fn ThemeCard(t: ThemeInfo, from: i64, #[prop(default = None)] anchor: Option
 
 #[component]
 fn LivePreview() -> impl IntoView {
-    let pria = RwSignal::new("Raditya".to_string());
-    let wanita = RwSignal::new("Anindita".to_string());
+    let pria = RwSignal::new("Doni".to_string());
+    let wanita = RwSignal::new("Yona".to_string());
     let tanggal = RwSignal::new("2026-10-24".to_string());
     let initials = move || {
         format!("{}&{}", crate::web::model::initial(&wanita.get()), crate::web::model::initial(&pria.get()))

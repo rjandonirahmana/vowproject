@@ -1,0 +1,12 @@
+/* Kosmik — isi datang dari kedalaman langit: tiap elemen mendekat dari samar
+   (blur → fokus), judul menyala keemasan lalu meredup, foto berkilat cahaya,
+   mempelai berbalik 3D, kartu melayang dari jauh, ikon jatuh seperti bintang. */
+{a} { --rv-stagger: 180; }
+.rv-on {a} [data-rv] { transition: opacity 1.4s ease, transform 1.5s cubic-bezier(.16, .8, .24, 1), filter 1.4s ease, text-shadow 2.2s ease, letter-spacing 1.6s ease; }
+.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: scale(1.12); filter: blur(8px); }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: none; filter: blur(4px); letter-spacing: .2em; text-shadow: 0 0 26px var(--gold-c, #fed488), 0 0 50px var(--gold-c, #fed488); }
+.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { transform: scale(.85); filter: brightness(2.4) blur(6px); }
+.rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { transform: perspective(900px) rotateY(70deg); filter: none; }
+.rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { transform: perspective(900px) rotateY(-70deg); filter: none; }
+.rv-on {a} :is(.card, .event):not(.person)[data-rv]:not(.is-in) { transform: perspective(1000px) translateZ(-220px) translateY(40px); filter: none; }
+.rv-on {a} :is(.intro__icon, .couple__amp, .eyebrow)[data-rv]:not(.is-in) { transform: translateY(-80px) scale(2); filter: blur(3px) drop-shadow(0 0 10px var(--gold-c, #fed488)); }

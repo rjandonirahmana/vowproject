@@ -250,6 +250,22 @@ pub fn FloatDeco(kind: String) -> impl IntoView {
     })
 }
 
+/// Butir efek gerbang pembuka (helai songket, daun lepas, bintang warp, kabut…).
+/// Tersembunyi kecuali animasi buka memakainya (`{a} .gate__fx`).
+#[component]
+pub fn GateFx() -> impl IntoView {
+    view! {
+        <div class="gate__fx" aria-hidden="true">
+            {(0..12).map(|i| view! { <i style=format!("--i:{i}")></i> }).collect_view()}
+        </div>
+    }
+}
+
+/// Kelas akar koreografi scroll tema (`rvs--{kunci}`), kosong bila kunci tak sah.
+pub fn scroll_class(key: &str) -> String {
+    if crate::web::fmt::is_slug(key, crate::web::anim::KEY_MAX) { format!(" rvs--{key}") } else { String::new() }
+}
+
 #[component]
 pub fn EventCard(ev: Event, #[prop(optional_no_strip)] dress: Option<(String, Vec<DressColor>)>) -> impl IntoView {
     let is_resepsi = ev.kind == "resepsi";

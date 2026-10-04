@@ -307,7 +307,7 @@ pub fn PanduanPage() -> impl IntoView {
                 <p class="muted">"Tim kami siap membantu input data, import kontak tamu, hingga gladi bersih sebar link."</p>
                 <div class="info-cta__btns">
                     <ConsultButton text="Chat Admin di WhatsApp" />
-                    <a class="btn btn--soft" href="/u/anindita-raditya">"Lihat Undangan Demo"</a>
+                    <a class="btn btn--soft" href=format!("/u/{}", crate::web::themes::DEMO_SLUG)>"Lihat Undangan Demo"</a>
                 </div>
             </section>
         </InfoShell>

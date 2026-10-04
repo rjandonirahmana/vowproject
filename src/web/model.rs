@@ -100,6 +100,8 @@ pub struct InvSkin {
     pub open_anim: String,
     /// none | kelopak | kupu | bintang
     pub float_deco: String,
+    /// Kunci gerak scroll — akar undangan diberi kelas `rvs--{kunci}` (koreografi).
+    pub scroll_anim: String,
     /// Lapisan ornamen per bagian (web/ornamen.rs).
     pub ornaments: Vec<super::ornamen::Ornament>,
 }
@@ -152,7 +154,7 @@ impl Invitation {
     pub fn groom_first(&self) -> String {
         first_word(&self.groom_name)
     }
-    /// "Anindita & Raditya"
+    /// "Yona & Doni"
     pub fn couple(&self) -> String {
         format!("{} & {}", self.bride_first(), self.groom_first())
     }

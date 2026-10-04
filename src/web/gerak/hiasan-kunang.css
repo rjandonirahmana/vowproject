@@ -1,0 +1,10 @@
+/* Kunang & bintang jatuh — titik cahaya keemasan naik melayang sambil
+   berkedip; dua butir terakhir jadi bintang jatuh yang melintas sesekali. */
+{a} i { top: auto; bottom: -4%; left: calc(var(--i) * 7.4% + 2%); width: 5px; height: 5px; border-radius: 50%; background: var(--gold-c, #fed488); box-shadow: 0 0 10px 3px color-mix(in srgb, var(--gold-c, #fed488) 70%, transparent);
+  animation: fdx-rise calc(14s + var(--i) * 1.4s) ease-in-out infinite, fdx-blink calc(1.8s + var(--i) * .3s) ease-in-out infinite alternate; animation-delay: calc(var(--i) * -2.1s), 0s; }
+{a} i:nth-child(n+10) { display: block; }
+{a} i:nth-child(n+13) { top: 8%; bottom: auto; left: 70%; width: 120px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, #fff); box-shadow: none; opacity: 0; animation: fdx-shoot 9s ease-in infinite; animation-delay: 3s; }
+{a} i:nth-child(14) { top: 22%; left: 40%; animation-delay: 7.5s; animation-duration: 13s; }
+@keyframes fdx-rise { 0% { transform: translate(0, 0); } 33% { transform: translate(30px, -38vh); } 66% { transform: translate(-24px, -74vh); } 100% { transform: translate(10px, -110vh); } }
+@keyframes fdx-blink { from { opacity: .15; } to { opacity: 1; } }
+@keyframes fdx-shoot { 0%, 88% { opacity: 0; transform: rotate(-35deg) translateX(0); } 90% { opacity: 1; } 100% { opacity: 0; transform: rotate(-35deg) translateX(-420px); } }

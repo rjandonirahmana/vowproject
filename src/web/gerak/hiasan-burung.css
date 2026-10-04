@@ -1,0 +1,9 @@
+/* Burung — kawanan burung emas melintas pelan di langit atas sambil
+   mengepakkan sayap (ala undangan premium), tinggi & kecepatan beragam. */
+{a} i { top: calc(6% + var(--i) * 4.5%); left: -40px; width: 26px; height: 12px; opacity: .55;
+  background: var(--gold-light, #e3c27a); clip-path: polygon(0 10%, 30% 40%, 50% 70%, 70% 40%, 100% 10%, 72% 62%, 50% 100%, 28% 62%);
+  animation: fdx-fly calc(24s + var(--i) * 3s) linear infinite, fdx-flap calc(.5s + var(--i) * .04s) ease-in-out infinite alternate; animation-delay: calc(var(--i) * -3.7s), 0s; }
+{a} i:nth-child(n+5) { display: none; }
+{a} i:nth-child(odd) { width: 18px; height: 9px; opacity: .4; }
+@keyframes fdx-fly { 0% { translate: 0 0; } 50% { translate: 55vw -3vh; } 100% { translate: calc(100vw + 80px) 2vh; } }
+@keyframes fdx-flap { from { transform: scaleY(1); } to { transform: scaleY(.25); } }

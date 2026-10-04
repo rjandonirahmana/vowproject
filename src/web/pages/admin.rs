@@ -21,7 +21,7 @@ use crate::web::model::{AdminAnim, AdminSessionInfo, AdminTheme, AdminUser, ADMI
 use crate::web::skin::{
     self, ThemeInfo, FONTS, IMAGE_MODES, LAYOUTS, MOTION_PRESETS, ORNAMENTS, PAGE_MODES, PALETTES, SCRIPT_FONTS, TOKENS,
 };
-use crate::web::components::{FloatDeco, Ornamen, OrnLayer};
+use crate::web::components::{scroll_class, FloatDeco, GateFx, Ornamen, OrnLayer};
 use crate::web::ornamen::{self as orn, Ornament, GERAK_ELEMEN};
 
 /// Kerangka: cek sesi → form masuk / setup akun pertama, atau isi halaman +
@@ -219,7 +219,7 @@ pub fn AdminThemes() -> impl IntoView {
                                 <div class=format!("adm-tcard__art tcard__art th-{}", t.slug)>
                                     <div class="mini">
                                         <p class="mini__eyebrow">"The Wedding Of"</p>
-                                        <p class="mini__names">"Anindita & Raditya"</p>
+                                        <p class="mini__names">"Yona & Doni"</p>
                                         <span class="mini__btn">"Buka"</span>
                                     </div>
                                 </div>
@@ -678,9 +678,9 @@ fn ThemeForm(t: ThemeInfo, used: i64, is_new: bool, categories: Vec<String>, nua
                     // Tanpa key, Leptos memakai ulang elemen lama (kelas is-open &
                     // tanda animasi scroll dari skrip tetap menempel → tak ada yang diputar ulang).
                     <For
-                        each=move || { let (a, d) = draft.with(|t| (t.open_anim.clone(), t.float_deco.clone())); vec![(replay.get(), a, d)] }
+                        each=move || { let (a, d, sc) = draft.with(|t| (t.open_anim.clone(), t.float_deco.clone(), t.scroll_anim.clone())); vec![(replay.get(), a, d, sc)] }
                         key=|k| k.clone()
-                        children=move |(_, anim, deco)| {
+                        children=move |(_, anim, deco, scroll)| {
                         let gate = !anim.is_empty() && anim != "none";
                         let cover = || view! {
                             <section class="hero cover orn-host">
@@ -690,12 +690,12 @@ fn ThemeForm(t: ThemeInfo, used: i64, is_new: bool, categories: Vec<String>, nua
                                     <span class="arch-photo__clip"><img src="/img/layanan/mua-sesudah.jpg" alt="" /></span>
                                     <span class="arch-photo__frame" aria-hidden="true"></span>
                                 </div>
-                                <h1 class="cover__names">"Dita & Radit"</h1>
+                                <h1 class="cover__names">"Yona & Doni"</h1>
                                 <p class="hero__date"><Icon name="local_florist" />"Sabtu, 24 Oktober 2026"</p>
                             </section>
                         };
                         view! {
-                            <div class="inv inv--embed adm-prev" class:is-open=!gate>
+                            <div class=format!("inv inv--embed adm-prev{}", scroll_class(&scroll)) class:is-open=!gate>
                                 <div class="inv__glow" aria-hidden="true"></div>
                                 <FloatDeco kind=deco />
                                 {gate.then(|| view! {
@@ -703,6 +703,7 @@ fn ThemeForm(t: ThemeInfo, used: i64, is_new: bool, categories: Vec<String>, nua
                                         <div class="gate__panel gate__panel--l" aria-hidden="true"></div>
                                         <div class="gate__panel gate__panel--r" aria-hidden="true"></div>
                                         <div class="gate__orn" aria-hidden="true"></div>
+                                        <GateFx />
                                         <div class="gate__content">
                                             {cover()}
                                             <button type="button" class="btn btn--gold btn--lg gate__open" data-demo-open="1">
@@ -1004,7 +1005,7 @@ fn AnimForm(a: AnimInfo, used_by: Vec<String>, is_new: bool) -> impl IntoView {
         draft.with(|a| anim::sanitize_css(&a.kind, &a.css).err().or_else(|| a.css.trim().is_empty().then(|| "CSS masih kosong.".to_string())))
     };
     let css_help = match kind.as_str() {
-        "scroll" => "Isi deklarasi variabel saja (tanpa { }): --rv-from (posisi awal: transform), --rv-from-alt (elemen genap), --rv-filter, --rv-op (opasitas awal), --rv-dur (lama), --rv-origin.",
+        "scroll" => "Isi deklarasi variabel saja (tanpa { }): --rv-from (posisi awal: transform), --rv-from-alt (elemen genap), --rv-filter, --rv-op (opasitas awal), --rv-dur (lama), --rv-origin. ATAU koreografi lengkap dengan {a} (= akar undangan), mis. .rv-on {a} .section__title[data-rv]:not(.is-in) { transform: scale(.3); } — lihat bawaan \"keraton\".",
         "hiasan" => "Tulis {a} untuk kelas hiasan ini. Tiap butir = elemen i (14 buah, variabel --i = 0…13; standarnya 9 tampil). Keyframes siap pakai: fd-fall, fd-fly, fd-twinkle.",
         _ => "Tulis {a} untuk kelas sampul ini. Bagian: .gate__panel--l / .gate__panel--r (dua pintu), .gate__content (nama & tombol), .gate__orn (ornamen), {a}::before. Keadaan TERBUKA ditulis dengan pola: .inv-opened {a}:not(.gate--embed) X, .is-open > {a} X.",
     };
@@ -1177,8 +1178,9 @@ fn AnimForm(a: AnimInfo, used_by: Vec<String>, is_new: bool) -> impl IntoView {
                         let _ = n;
                         let deco = if kind_p == "hiasan" { pkey.clone() } else { "none".to_string() };
                         let gate = kind_p == "buka";
+                        let rvs = if kind_p == "scroll" { scroll_class(PREVIEW_SLUG) } else { String::new() };
                         view! {
-                            <div class="inv inv--embed adm-prev" class:is-open=move || open.get()>
+                            <div class=format!("inv inv--embed adm-prev{rvs}") class:is-open=move || open.get()>
                                 <div class="inv__glow" aria-hidden="true"></div>
                                 <FloatDeco kind=deco />
                                 {gate.then(|| view! {
@@ -1186,10 +1188,11 @@ fn AnimForm(a: AnimInfo, used_by: Vec<String>, is_new: bool) -> impl IntoView {
                                         <div class="gate__panel gate__panel--l" aria-hidden="true"></div>
                                         <div class="gate__panel gate__panel--r" aria-hidden="true"></div>
                                         <div class="gate__orn" aria-hidden="true"></div>
+                                        <GateFx />
                                         <div class="gate__content">
                                             <section class="hero cover">
                                                 <p class="script cover__eyebrow">"The Wedding Of"</p>
-                                                <h1 class="cover__names">"Dita & Radit"</h1>
+                                                <h1 class="cover__names">"Yona & Doni"</h1>
                                                 <p class="hero__date"><Icon name="local_florist" />"Sabtu, 24 Oktober 2026"</p>
                                             </section>
                                             <button type="button" class="btn btn--gold btn--lg gate__open" data-demo-open="1">
@@ -1201,7 +1204,7 @@ fn AnimForm(a: AnimInfo, used_by: Vec<String>, is_new: bool) -> impl IntoView {
                                 <div class="inv__main">
                                     <section class="hero cover">
                                         <p class="script cover__eyebrow">"The Wedding Of"</p>
-                                        <h1 class="cover__names">"Dita & Radit"</h1>
+                                        <h1 class="cover__names">"Yona & Doni"</h1>
                                     </section>
                                     <section class="quote card">
                                         <span class="quote__mark">"99"</span>
@@ -2008,7 +2011,7 @@ fn OrnSample(bag: String) -> impl IntoView {
                 <p class="eyebrow eyebrow--center">"Kedua Mempelai"</p>
                 <h2 class="section__title">"Insan yang Menyatukan Janji"</h2>
                 <div class="couple">
-                    {["Anindita", "Raditya"].into_iter().map(|n| view! {
+                    {["Yona", "Doni"].into_iter().map(|n| view! {
                         <article class="person card">
                             <div class="arch-photo arch-photo--person">
                                 <span class="arch-photo__clip"><span class="person__initial">{n[..1].to_string()}</span></span>
@@ -2078,7 +2081,7 @@ fn OrnSample(bag: String) -> impl IntoView {
                     <span class="arch-photo__clip"><img src="/img/layanan/mua-sesudah.jpg" alt="" /></span>
                     <span class="arch-photo__frame" aria-hidden="true"></span>
                 </div>
-                <h1 class="cover__names">"Dita & Radit"</h1>
+                <h1 class="cover__names">"Yona & Doni"</h1>
                 <p class="hero__date"><Icon name="local_florist" />"Sabtu, 24 Oktober 2026"<Icon name="local_florist" /></p>
             </section>
         }.into_any(),

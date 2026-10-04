@@ -168,7 +168,7 @@ fn dekor_body(k: Konten) -> impl IntoView {
                     title="Jadwalkan Konsultasi & Booking Tanggal"
                     lead="Penawaran resmi dan jadwal survey kami kirim via WhatsApp."
                     nama_label="Nama calon pengantin / keluarga"
-                    nama_ph="Contoh: Anindita & Raditya"
+                    nama_ph="Contoh: Yona & Doni"
                     lokasi_label="Wilayah venue"
                     lokasi=DEKOR_WILAYAH
                     pakets=k.dekor_paket.clone()

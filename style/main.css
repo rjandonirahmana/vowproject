@@ -1561,6 +1561,62 @@ html:not(.inv-opened) .inv--gate .inv-top, html:not(.inv-opened) .inv--gate .bot
   /* Gerbang pembuka menutup separuh kanan saja — panel kiri tetap terlihat. */
   .inv--rail.inv--gate .gate { left: var(--right-x); right: auto; width: var(--half); z-index: var(--z-gate); }
 }
+/* ── Ruangan: tiap bagian undangan = ruangan yang dimasuki lewat portal ───
+ * Aktif bila koreografi tema menyetel --ruang-urut (mis. "pintu gapura dimensi
+ * lengkung"); global.js memasang .ruang.ruang--{jenis} sekali saat bagian
+ * masuk layar (gulir ke bawah), lalu membuangnya. Tak menghalangi klik/gulir.
+ * Warna: dinding = --ruang-dinding, kayu = --ruang-kayu, ukiran = --foil-deep. */
+.ruang { position: fixed; inset: 0; z-index: 15; pointer-events: none; overflow: hidden; perspective: 1000px;
+  --rd: var(--ruang-dinding, color-mix(in srgb, var(--bg) 82%, #000)); --rk: var(--ruang-kayu, color-mix(in srgb, var(--gold-deep, #775a19) 32%, #2b1a0d)); }
+.ruang i { position: absolute; display: block; }
+@media (min-width: 1100px) { .inv--rail .ruang { left: var(--right-x); right: auto; width: var(--half); } }
+/* Portal sudah jadi tontonan utama — bagiannya cukup mendarat singkat. */
+.ruang-masuk { animation: ruang-masuk .7s cubic-bezier(.2, .8, .2, 1) .5s both; }
+@keyframes ruang-masuk { from { transform: scale(.96); opacity: .4; } }
+/* Pintu: kusen ukir + dua daun pintu membuka, lalu ditembus. */
+.ruang--pintu .ruang__a { inset: 0; z-index: 2; background: var(--rk); filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .4));
+  -webkit-mask: url("/img/tema/gerak/gebyok-mahkota.svg") top center / 100% auto no-repeat, linear-gradient(#000 0 0) left / 11% 100% no-repeat, linear-gradient(#000 0 0) right / 11% 100% no-repeat;
+  mask: url("/img/tema/gerak/gebyok-mahkota.svg") top center / 100% auto no-repeat, linear-gradient(#000 0 0) left / 11% 100% no-repeat, linear-gradient(#000 0 0) right / 11% 100% no-repeat;
+  animation: ruang-frame 1.5s cubic-bezier(.5, 0, .7, .4) both; }
+.ruang--pintu .ruang__a::after { content: ""; position: absolute; inset: 0; background: var(--foil-deep, var(--gold));
+  -webkit-mask: url("/img/tema/gerak/gebyok-mahkota-ukir.svg") top center / 100% auto no-repeat, url("/img/tema/gerak/gebyok-tiang.svg") left 1% top / 9% auto repeat-y, url("/img/tema/gerak/gebyok-tiang.svg") right 1% top / 9% auto repeat-y;
+  mask: url("/img/tema/gerak/gebyok-mahkota-ukir.svg") top center / 100% auto no-repeat, url("/img/tema/gerak/gebyok-tiang.svg") left 1% top / 9% auto repeat-y, url("/img/tema/gerak/gebyok-tiang.svg") right 1% top / 9% auto repeat-y; }
+.ruang--pintu .ruang__b, .ruang--pintu .ruang__c { top: 0; bottom: 0; width: 39%; z-index: 1; background: var(--rk);
+  box-shadow: inset 0 0 0 6px var(--gold), inset 0 0 0 9px var(--rk), inset 0 0 0 11px var(--gold-light), inset 0 0 40px rgba(0, 0, 0, .5); }
+.ruang--pintu .ruang__b::after, .ruang--pintu .ruang__c::after { content: ""; position: absolute; inset: 24% 14px auto; height: 50%; background: var(--foil-deep, var(--gold));
+  -webkit-mask: url("/img/tema/gerak/gebyok-tumpal.svg") center / contain no-repeat; mask: url("/img/tema/gerak/gebyok-tumpal.svg") center / contain no-repeat; }
+.ruang--pintu .ruang__b { left: 11%; transform-origin: left center; animation: ruang-daun-l 1.5s ease both; }
+.ruang--pintu .ruang__c { right: 11%; transform-origin: right center; animation: ruang-daun-r 1.5s ease both; }
+@keyframes ruang-frame { 0% { opacity: 0; transform: scale(1.12); } 14% { opacity: 1; transform: scale(1); } 45% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.4); opacity: 0; } }
+@keyframes ruang-daun-l { 0% { opacity: 0; transform: rotateY(0); } 14% { opacity: 1; transform: rotateY(0); } 55% { transform: rotateY(-102deg); opacity: 1; } 75%, 100% { transform: rotateY(-102deg); opacity: 0; } }
+@keyframes ruang-daun-r { 0% { opacity: 0; transform: rotateY(0); } 14% { opacity: 1; transform: rotateY(0); } 55% { transform: rotateY(102deg); opacity: 1; } 75%, 100% { transform: rotateY(102deg); opacity: 0; } }
+/* Gapura: dua belahan candi bentar bergeser menjauh sambil membesar. */
+.ruang--gapura .ruang__a { inset: 0; background: radial-gradient(circle at 50% 62%, color-mix(in srgb, var(--gold-c, #fed488) 70%, transparent), transparent 45%); animation: ruang-sinar 1.4s ease both; }
+.ruang--gapura .ruang__b, .ruang--gapura .ruang__c { top: 0; bottom: 0; width: 50%; background: linear-gradient(180deg, color-mix(in srgb, var(--rk) 75%, var(--gold)), var(--rk));
+  -webkit-mask: url("/img/tema/gerak/candi-bentar.svg") right bottom / contain no-repeat; mask: url("/img/tema/gerak/candi-bentar.svg") right bottom / contain no-repeat; filter: drop-shadow(4px 0 10px rgba(0, 0, 0, .35)); }
+.ruang--gapura .ruang__b { left: 0; animation: ruang-gapura 1.4s cubic-bezier(.5, 0, .3, 1) both; }
+.ruang--gapura .ruang__c { right: 0; scale: -1 1; animation: ruang-gapura 1.4s cubic-bezier(.5, 0, .3, 1) both; }
+@keyframes ruang-gapura { 0% { opacity: 0; transform: translate(-16%, 12%); } 20% { opacity: 1; transform: translateX(-16%); } 45% { transform: translateX(-16%); } 100% { transform: translateX(-90%) scale(1.5); opacity: .2; } }
+@keyframes ruang-sinar { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(2); } }
+/* Lengkung: dinding berjendela lengkung yang dilalui (ditembus). */
+.ruang--lengkung .ruang__a { left: 50%; top: 50%; width: 74%; height: 70%; translate: -50% -50%; border-radius: 999px 999px 18px 18px;
+  box-shadow: 0 0 0 4px var(--gold), 0 0 0 9px var(--rd), 0 0 0 11px var(--gold-light), 0 0 0 200vmax var(--rd); animation: ruang-lengkung 1.3s cubic-bezier(.55, 0, .7, .3) both; }
+.ruang--lengkung .ruang__b { left: 50%; top: 9%; width: 54px; aspect-ratio: 300 / 470; translate: -50% 0; background: var(--foil-deep, var(--gold));
+  -webkit-mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat; mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat; animation: ruang-lengkung 1.3s cubic-bezier(.55, 0, .7, .3) both; transform-origin: 50% 400%; }
+@keyframes ruang-lengkung { 0% { opacity: 0; transform: scale(.85); } 18% { opacity: 1; transform: scale(1); } 40% { transform: scale(1); } 100% { transform: scale(4); opacity: 0; } }
+/* Dimensi: gunungan berputar di tengah lalu membuka lubang cahaya — pindah ke
+   "dimensi" ruangan lain. */
+.ruang--dimensi .ruang__a { left: 50%; top: 50%; width: 0; height: 0; border-radius: 50%; z-index: 0;
+  box-shadow: 0 0 0 3px var(--gold-light), 0 0 24px 8px var(--gold-c, #fed488), 0 0 0 200vmax var(--rd); animation: ruang-lubang 1.5s cubic-bezier(.6, 0, .3, 1) both; }
+.ruang--dimensi .ruang__b { left: 50%; top: 50%; width: min(46vw, 210px); aspect-ratio: 300 / 470; translate: -50% -55%; background: var(--foil-deep, var(--gold));
+  -webkit-mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat; mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat;
+  z-index: 2; filter: drop-shadow(0 0 14px var(--gold-c, #fed488)); animation: ruang-kayon 1.5s cubic-bezier(.5, 0, .4, 1) both; }
+.ruang--dimensi .ruang__c { inset: 0; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--gold) 22%, transparent) 0 6deg, transparent 6deg 18deg); -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%); mask: radial-gradient(circle, #000 20%, transparent 70%); animation: ruang-pusar 1.5s ease both; }
+/* Ukuran (bukan scale) yang dianimasikan: bayangan 200vmax = dinding tetap menutup layar sampai lubang membesar. */
+@keyframes ruang-lubang { 0% { opacity: 0; width: 0; height: 0; margin: 0; } 12% { opacity: 1; } 45% { width: 0; height: 0; margin: 0; } 100% { width: 300vmax; height: 300vmax; margin: -150vmax; } }
+@keyframes ruang-kayon { 0% { opacity: 0; transform: scale(.3) rotateY(0); } 15% { opacity: 1; } 55% { transform: scale(1) rotateY(540deg); opacity: 1; } 100% { transform: scale(2.6) rotateY(720deg); opacity: 0; } }
+@keyframes ruang-pusar { 0% { opacity: 0; transform: rotate(0) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: rotate(160deg) scale(2.2); } }
+
 /* Gerbang: tombol "Buka Undangan" harus terlihat tanpa scroll di layar pendek. */
 .gate .arch-photo--cover { width: min(240px, 64vw, 27vh); }
 @media (max-height: 940px) {
@@ -1586,6 +1642,9 @@ html:not(.inv-opened) .inv--gate .inv-top, html:not(.inv-opened) .inv--gate .bot
 /* Hiasan bawaan memakai 9 elemen; animasi kustom mengatur jumlahnya di /tema.css. */
 .float-deco i:nth-child(n+10) { display: none; }
 .gate__orn { display: none; }
+/* Butir efek pembuka (GateFx) — hanya tampil bila animasi buka memakainya. */
+.gate__fx { display: none; position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.gate__fx i { position: absolute; display: block; }
 
 /* ── Admin: animasi kustom (/admin/animasi) ─────────────────────────────── */
 .adm-anims { margin-bottom: 16px; }

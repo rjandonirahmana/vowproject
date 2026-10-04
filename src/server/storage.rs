@@ -145,14 +145,14 @@ impl StorageService {
     }
 
     /// Foto dengan jalur terbaca: `foto/{folder}/{nama}.webp`
-    /// (mis. foto/anindita-raditya-k7f3x9m2/sampul.webp).
+    /// (mis. foto/yona-doni-k7f3x9m2/sampul.webp).
     pub async fn upload_image_as(&self, data: Vec<u8>, dir: &str, name: &str, ukuran: Ukuran) -> anyhow::Result<String> {
         let (data, mime, ext) = Self::prepare_image(data, ukuran).await?;
         self.put_key(&format!("foto/{}/{}.{ext}", path_part(dir, "undangan"), file_stem(name, "foto")), mime, data).await
     }
 
     /// Lagu unggahan pembeli: `musik/{undangan}/{nama-berkas-asli}.{ext}`
-    /// (mis. musik/anindita-raditya-k7f3x9m2/TULUS-Teman-Hidup.mp3).
+    /// (mis. musik/yona-doni-k7f3x9m2/TULUS-Teman-Hidup.mp3).
     pub async fn upload_audio_as(&self, data: Vec<u8>, dir: &str, file_name: &str) -> anyhow::Result<String> {
         if data.len() > MAX_AUDIO {
             anyhow::bail!("Lagu maksimal {} MB", MAX_AUDIO / 1024 / 1024);

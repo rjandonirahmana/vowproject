@@ -56,12 +56,12 @@
       burst(el);
       var emb=el.closest('.inv--embed'); if(emb) emb.classList.add('is-open');
       var ph=el.closest('.demo-phone, .adm-preview__inv'); if(ph) ph.scrollTop=0;
-      play(); setTimeout(rvScan, 700); return;
+      play(); holdReveal(gateReveal(emb && emb.querySelector('.gate'))); return;
     }
     if(el.hasAttribute('data-open')){
       burst(el); play(); d.documentElement.classList.add('inv-opened');
       if(d.querySelector('.gate')) window.scrollTo(0,0);
-      setTimeout(rvScan, 700);
+      holdReveal(gateReveal(d.querySelector('.gate:not(.gate--embed)')));
     }
     if(el.dataset.music==='toggle'){ var a=audio(); if(a&&!a.paused) pause(); else play(); }
     if(el.hasAttribute('data-song')){
@@ -84,6 +84,9 @@
   // Semburan kelopak & kilau emas dari tombol "Buka Undangan".
   function burst(el){
     if(calm) return;
+    // Koreografi bisa mematikan semburan (--gate-burst: none), mis. tema keraton.
+    var g=el.closest('.inv') || d.querySelector('.inv');
+    if(g && getComputedStyle(g).getPropertyValue('--gate-burst').trim()==='none') return;
     var r=el.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
     var box=d.createElement('div'); box.className='burst'; box.setAttribute('aria-hidden','true');
     for(var i=0;i<40;i++){
@@ -95,6 +98,14 @@
     d.body.appendChild(box); setTimeout(function(){ box.remove(); }, 1900);
   }
   function rvScan(){ if(window.__rvScan) window.__rvScan(); }
+  // Kapan isi mulai dianimasikan setelah gerbang dibuka (ms): adegan pembuka
+  // yang panjang (mis. pintu gebyok) menyetel --gate-reveal agar isi tak
+  // "habis" teranimasi di balik pintu.
+  function gateReveal(g){ var v=g && parseInt(getComputedStyle(g).getPropertyValue('--gate-reveal'),10); return v>0 ? v : 700; }
+  // Isi di balik gerbang langsung ditandai (tersembunyi, tak sempat terlihat
+  // sebelum waktunya) tapi animasi masuknya baru diputar setelah `ms`.
+  var revealAt=0;
+  function holdReveal(ms){ revealAt=Date.now()+ms; rvScan(); }
   function pad(n){ return (n<10?'0':'')+n; }
   function tick(){
     if(d.hidden) return;
@@ -307,8 +318,16 @@
       es.forEach(function(e){
         if(!e.isIntersecting) return;
         var el=e.target;
-        if(el.dataset.rv){ var step=parseInt(getComputedStyle(el).getPropertyValue('--rv-stagger'),10)||90; el.style.transitionDelay=Math.min(k++, step>150?8:6)*step+'ms'; }
-        el.classList.add('is-in'); io.unobserve(el); watched.delete(el);
+        if(el.dataset.rv){
+          // Jeda per PERAN (--rv-delay dari koreografi, mis. label 150ms → judul
+          // 300ms → foto 500ms) lebih terarah daripada giliran urutan masuk IO.
+          var cs=getComputedStyle(el), rd=cs.getPropertyValue('--rv-delay').trim(), ms;
+          if(rd) ms=rd; else { var step=parseInt(cs.getPropertyValue('--rv-stagger'),10); if(isNaN(step)) step=90; ms=Math.min(k++, step>150?8:6)*step+'ms'; }
+          el.style.transitionDelay=ms; el.style.setProperty('--rv-d', ms);
+        }
+        var wait=revealAt-Date.now();
+        if(wait>0) setTimeout(function(){ el.classList.add('is-in'); }, wait); else el.classList.add('is-in');
+        io.unobserve(el); watched.delete(el);
       });
     }, {rootMargin:'0px 0px -6% 0px'});
     // Elemen yang diamati tapi sudah hilang (pindah halaman sebelum terlihat)
@@ -341,6 +360,40 @@
     window.__rvScan=scan;
     scan();
     onDom(scan);
+    // Ruangan: bila koreografi tema menyetel --ruang-urut, tiap bagian ber-
+    // ornamen (mempelai, kisah, galeri, acara, RSVP) jadi "ruangan" — saat
+    // pertama dimasuki sambil menggulir ke bawah, portalnya (pintu / gapura /
+    // lengkung / dimensi) diputar sekali di atas layar lalu dibuang.
+    // Hanya undangan sungguhan (bukan pratinjau katalog / demo tertanam).
+    if(!PV){
+      var ruangBusy=0, prevY=window.scrollY, goingDown=true;
+      var ruangIO=new IntersectionObserver(function(es){
+        es.forEach(function(e){
+          if(!e.isIntersecting) return;
+          var el=e.target; ruangIO.unobserve(el);
+          if(!goingDown || e.boundingClientRect.top<0 || Date.now()<ruangBusy || !el.isConnected) return;
+          ruangBusy=Date.now()+1100;
+          var inv=el.closest('.inv'), p=d.createElement('div');
+          p.className='ruang ruang--'+el.dataset.ruang; p.setAttribute('aria-hidden','true');
+          p.innerHTML='<i class="ruang__a"></i><i class="ruang__b"></i><i class="ruang__c"></i>';
+          inv.appendChild(p); el.classList.add('ruang-masuk');
+          setTimeout(function(){ p.remove(); }, 1700);
+        });
+      }, {rootMargin:'0px 0px -38% 0px'});
+      var ruangScan=function(){
+        var inv=d.querySelector('.inv:not(.inv--embed)'); if(!inv) return;
+        if(d.querySelector('.gate:not(.gate--embed)') && !d.documentElement.classList.contains('inv-opened')) return;
+        var seq=getComputedStyle(inv).getPropertyValue('--ruang-urut').replace(/["']/g,'').trim(); if(!seq) return;
+        var list=seq.split(/\s+/), n=0;
+        inv.querySelectorAll('.orn-host:not(.cover)').forEach(function(s){
+          if(s.closest('.gate')) return;
+          if(!s.dataset.ruang){ s.dataset.ruang=list[n % list.length]; if(s.dataset.ruang!=='-') ruangIO.observe(s); }
+          n++;
+        });
+      };
+      ruangScan(); onDom(ruangScan);
+      addEventListener('scroll', function(){ var y=window.scrollY, dy=y-prevY; if(Math.abs(dy)>8){ goingDown=dy>0; prevY=y; } }, {passive:true});
+    }
   }
   // Posisi scroll per halaman (navigasi SPA Leptos). Bawaan browser memulihkan
   // posisi lama SEBELUM halaman baru selesai dirender → halaman tema yang

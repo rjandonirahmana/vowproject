@@ -329,6 +329,12 @@ pub const MOTION_PRESETS: &[(&str, &str, &str, &str, &str, &str)] = &[
     ("modern", "Modern Bersih", "Sampul memudar, isi pudar lembut, tanpa hiasan", "pudar", "pudar", "none"),
     ("malam", "Malam Gala", "Sampul memudar, isi dari samar ke jelas, bintang", "pudar", "blur", "bintang"),
     ("klasik", "Klasik Tanpa Pembuka", "Mode tab biasa, isi naik perlahan", "none", "naik", "none"),
+    ("wayang", "Pagelaran Wayang", "Kelir menyala, gunungan dikebutkan, isi muncul dari bayangan, kunang-kunang", "pagelaran-wayang", "bayang", "kunang"),
+    ("gebyok", "Pendopo Gebyok", "Sampul tergulir, pintu gebyok berayun & ditembus, koreografi keraton, kelopak gugur", "gebyok-ukir", "keraton", "kelopak"),
+    ("taman", "Taman Botani", "Rimbun daun tersibak, isi mekar, daun gugur berputar", "taman-daun", "mekar", "daun-gugur"),
+    ("galaksi", "Langit Galaksi", "Warp bintang & portal cahaya, isi dari kedalaman, kunang-kunang", "galaksi", "kosmik", "kunang"),
+    ("pura", "Gerbang Pura", "Candi bentar terbelah, isi mengayun seperti ombak, kupu-kupu", "candi-bentar", "ombak", "kupu"),
+    ("songket", "Tenun Songket", "Helai songket diurai, isi tersingkap seperti benang, kilau emas", "tenun-songket", "tenun", "kilau-emas"),
 ];
 
 impl ThemeInfo {

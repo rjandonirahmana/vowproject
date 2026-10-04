@@ -110,8 +110,9 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
     let og_image = inv.cover_photo.split('#').next().unwrap_or("").to_string();
     // inv--rail: tata letak desktop ≥1100px (panel sampul kiri + kolom kanan).
     let root_class = format!(
-        "inv inv--rail th-{}{}{}",
+        "inv inv--rail th-{}{}{}{}",
         inv.theme,
+        scroll_class(&skin.scroll_anim),
         if single { " inv--single" } else { "" },
         if single && !skin.open_anim.is_empty() && skin.open_anim != "none" { " inv--gate" } else { "" }
     );
@@ -325,6 +326,7 @@ pub fn SampulPage() -> impl IntoView {
                 <div class="gate__panel gate__panel--l" aria-hidden="true"></div>
                 <div class="gate__panel gate__panel--r" aria-hidden="true"></div>
                 <div class="gate__orn" aria-hidden="true"></div>
+                <GateFx />
                 <div class="gate__content">
                     <Cover />
                     <GuestCard />

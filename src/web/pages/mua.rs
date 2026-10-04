@@ -186,7 +186,7 @@ fn mua_body(k: Konten) -> impl IntoView {
                     title="Formulir Pra-Reservasi Tanggal"
                     lead="Isi singkat, penawaran resmi, katalog busana, dan konfirmasi jadwal MUA kami kirim via WhatsApp."
                     nama_label="Nama lengkap calon pengantin"
-                    nama_ph="Contoh: Roro Anindita"
+                    nama_ph="Contoh: Roro Yona"
                     lokasi_label="Lokasi acara"
                     lokasi=MUA_LOKASI
                     pakets=k.mua_paket.clone()

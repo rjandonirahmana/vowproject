@@ -1,0 +1,16 @@
+/* Ombak — gerak mengayun seperti nyiur & ombak pantai Bali: isi datang
+   bergantian dari kiri & kanan sambil sedikit miring lalu memantul, judul jatuh
+   memantul, foto berputar 3D bergantian, kartu terayun dari pojok bawah. */
+{a} { --rv-stagger: 200; }
+.rv-on {a} [data-rv] { transition: opacity 1.1s ease, transform 1.3s cubic-bezier(.25, 1.25, .5, 1), filter 1s ease; }
+.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateX(-50px) rotate(-2deg); filter: none; }
+.rv-on {a} [data-rv]:nth-child(even):not(.is-in) { transform: translateX(50px) rotate(2deg); }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv] { transition-timing-function: ease, cubic-bezier(.3, 1.6, .5, 1); }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: translateY(-60px); }
+.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { transform: perspective(800px) rotateY(32deg) scale(.88); }
+.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:nth-child(even):not(.is-in) { transform: perspective(800px) rotateY(-32deg) scale(.88); }
+.rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { transform: translateX(-70px) rotate(-8deg); }
+.rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { transform: translateX(70px) rotate(8deg); }
+.rv-on {a} :is(.card, .event):not(.person)[data-rv] { transform-origin: 0 100%; }
+.rv-on {a} :is(.card, .event):not(.person)[data-rv]:not(.is-in) { transform: rotate(-5deg) translateY(50px); }
+.rv-on {a} :is(.intro__icon, .couple__amp)[data-rv]:not(.is-in) { transform: rotate(-30deg) scale(.5); }

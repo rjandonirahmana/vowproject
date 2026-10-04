@@ -1,0 +1,8 @@
+/* Daun gugur — daun sage & hijau tua jatuh sambil berputar 3D (bukan cuma
+   berputar datar), tiap daun beda ukuran & kecepatan. */
+{a} i { width: 16px; height: 9px; border-radius: 0 100% 0 100%; opacity: .8;
+  background: linear-gradient(135deg, var(--sage, var(--primary)), var(--primary)); box-shadow: inset 0 0 0 .5px rgba(255, 255, 255, .25);
+  animation: fdx-leaf calc(10s + var(--i) * 1.1s) linear infinite; animation-delay: calc(var(--i) * -2.3s); }
+{a} i:nth-child(3n+1) { width: 22px; height: 11px; }
+{a} i:nth-child(3n) { background: linear-gradient(135deg, var(--gold-light), var(--sage, var(--primary))); }
+@keyframes fdx-leaf { 0% { transform: translate(0, 0) rotateX(0) rotateZ(0); } 25% { transform: translate(40px, 28vh) rotateX(180deg) rotateZ(60deg); } 50% { transform: translate(-10px, 56vh) rotateX(360deg) rotateZ(150deg); } 75% { transform: translate(36px, 84vh) rotateX(540deg) rotateZ(210deg); } 100% { transform: translate(0, 114vh) rotateX(720deg) rotateZ(300deg); } }

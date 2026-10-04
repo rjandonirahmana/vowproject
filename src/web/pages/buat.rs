@@ -100,7 +100,7 @@ pub fn BuatPage() -> impl IntoView {
                             <Icon name="lock" />
                             <span>
                                 <b>"Tautan undangan dibuat otomatis & acak"</b>
-                                " — nama kedua mempelai + kunci rahasia, contoh "<code>"/u/anindita-raditya-k7f3x9m2"</code>". Kunci acak membuat tautan tak bisa ditebak dan tak mungkin sama dengan pasangan lain walau namanya sama. Hanya orang yang Anda kirimi tautan yang bisa membukanya."
+                                " — nama kedua mempelai + kunci rahasia, contoh "<code>"/u/yona-doni-k7f3x9m2"</code>". Kunci acak membuat tautan tak bisa ditebak dan tak mungkin sama dengan pasangan lain walau namanya sama. Hanya orang yang Anda kirimi tautan yang bisa membukanya."
                             </span>
                         </div>
                         <Suspense fallback=|| view! { <p class="muted small">"Memuat tema…"</p> }>

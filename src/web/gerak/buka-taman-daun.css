@@ -1,0 +1,40 @@
+/* Taman Daun — sampul dibingkai rimbun dedaunan dua lapis yang bergoyang
+   pelan; saat dibuka rimbun tersibak ke kiri-kanan (lapis depan lebih cepat =
+   paralaks), daun-daun lepas beterbangan, lalu isi undangan "mekar".
+   Daun gelap = --primary, daun terang = --sage. */
+{a} { --gate-reveal: 900; }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0; background: var(--bg-illus, none) center / cover no-repeat, radial-gradient(90% 60% at 50% 45%, var(--card), var(--bg)); transition: opacity .9s ease .55s; }
+{a} .gate__content { z-index: 3; }
+{a} :is(.cover__names, .cover__eyebrow, .hero__date) { text-shadow: 0 0 10px var(--bg), 0 0 3px var(--bg); }
+{a} .cover__eyebrow { animation: tm-bloom 1.1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: tm-bloom 1.4s cubic-bezier(.2, .8, .2, 1) .5s both; }
+{a} .cover__names { animation: tm-bloom 1.2s ease .9s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: tm-rise 1.1s ease 1.2s both; }
+{a} .gate__open { animation: tm-rise 1s ease 1.5s both, gate-pulse 2.4s ease-in-out 2.5s infinite; }
+/* Dua rimbun daun di tepi kiri & kanan (kanan = cermin). */
+{a} .gate__panel { top: -4%; bottom: -4%; width: 32%; z-index: 2; background: none; box-shadow: none; pointer-events: none; animation: tm-sway 7s ease-in-out infinite alternate; }
+{a} .gate__panel--l { left: -10%; transform-origin: 0 100%; }
+{a} .gate__panel--r { right: -10%; left: auto; transform-origin: 100% 100%; scale: -1 1; animation-delay: -3.5s; }
+{a} .gate__panel::before, {a} .gate__panel::after { content: ""; position: absolute; inset: 0; opacity: 1; transition: transform 1.5s cubic-bezier(.6, 0, .25, 1) .15s; }
+{a} .gate__panel::before { background: linear-gradient(170deg, var(--primary), color-mix(in srgb, var(--primary) 70%, #000));
+  -webkit-mask: url("/img/tema/gerak/rimbun-2.svg") left center / auto 100% no-repeat; mask: url("/img/tema/gerak/rimbun-2.svg") left center / auto 100% no-repeat; filter: drop-shadow(4px 6px 10px rgba(0, 0, 0, .25)); }
+{a} .gate__panel::after { background: linear-gradient(200deg, var(--sage, var(--primary)), color-mix(in srgb, var(--sage, var(--primary)) 60%, var(--gold-light)));
+  -webkit-mask: url("/img/tema/gerak/rimbun-1.svg") left top / auto 100% no-repeat; mask: url("/img/tema/gerak/rimbun-1.svg") left top / auto 100% no-repeat; translate: -14% 2%; }
+/* Daun lepas: 12 butir, tersebar di tepi, ikut terbang saat dibuka. */
+{a} .gate__fx { display: block; z-index: 2; }
+{a} .gate__fx i { width: 26px; height: 12px; border-radius: 0 100% 0 100%; background: linear-gradient(135deg, var(--sage, var(--primary)), var(--primary)); opacity: 0;
+  left: calc(var(--side) + var(--i) * 1.3%); top: calc(6% + var(--i) * 7.6%); --side: 2%; rotate: calc(var(--i) * 47deg); }
+{a} .gate__fx i:nth-child(even) { --side: 74%; }
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.3s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(1.08); filter: blur(6px); transition: opacity .6s ease, transform .9s ease, filter .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__panel, .is-open > {a} .gate__panel { animation: none; transition: transform 1.6s cubic-bezier(.6, 0, .25, 1) .1s, opacity .6s 1.3s; opacity: 0; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--l, .is-open > {a} .gate__panel--l { transform: translateX(-105%) rotate(-16deg); }
+.inv-opened {a}:not(.gate--embed) .gate__panel--r, .is-open > {a} .gate__panel--r { transform: translateX(-105%) rotate(-16deg); }
+.inv-opened {a}:not(.gate--embed) .gate__panel::after, .is-open > {a} .gate__panel::after { transform: translateX(-40%) rotate(-8deg); }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: tm-fly calc(1.4s + var(--i) * .07s) cubic-bezier(.2, .6, .3, 1) calc(var(--i) * .04s) both; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i:nth-child(even), .is-open > {a} .gate__fx i:nth-child(even) { --dir: 1; }
+@keyframes tm-sway { from { rotate: -1.6deg; } to { rotate: 1.8deg; } }
+@keyframes tm-bloom { from { opacity: 0; transform: scale(.7); filter: blur(8px); } }
+@keyframes tm-rise { from { opacity: 0; transform: translateY(36px); } }
+@keyframes tm-fly { 0% { opacity: 0; transform: none; } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--dir, -1) * (120px + var(--i) * 14px)), calc(-60px + var(--i) * 22px)) rotate(calc(var(--dir, -1) * 540deg)); } }

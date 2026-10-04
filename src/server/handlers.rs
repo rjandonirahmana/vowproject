@@ -38,7 +38,7 @@ pub const INVITATION_KEY_LEN: usize = 8;
 /// Foto galeri maksimal per undangan (tiap foto ≤ MAX_IMAGE).
 pub const MAX_GALLERY: usize = 6;
 
-/// Tautan /u/{nama-wanita}-{nama-pria}-{kunci}, mis. "anindita-raditya-k7f3x9m2".
+/// Tautan /u/{nama-wanita}-{nama-pria}-{kunci}, mis. "yona-doni-k7f3x9m2".
 /// Nama = kata pertama tiap mempelai (terbaca & mudah dikenali tamu); kunci
 /// acak menjamin unik & tak bisa ditebak walau nama pasangan sama.
 pub fn new_invitation_id(bride: &str, groom: &str) -> String {
@@ -419,8 +419,8 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for _ in 0..5_000 {
             // Nama pasangan SAMA → tautan tetap berbeda.
-            let id = new_invitation_id("Anindita Kirana, S.Ds.", "Raditya Pratama");
-            let key = id.strip_prefix("anindita-raditya-").expect("awalan nama");
+            let id = new_invitation_id("Yona", "Doni");
+            let key = id.strip_prefix("yona-doni-").expect("awalan nama");
             assert_eq!(key.len(), INVITATION_KEY_LEN);
             // Tanpa karakter mirip (0/o, 1/l) agar aman diketik ulang.
             assert!(key.chars().all(|c| (c.is_ascii_lowercase() || c.is_ascii_digit()) && !"0o1l".contains(c)));

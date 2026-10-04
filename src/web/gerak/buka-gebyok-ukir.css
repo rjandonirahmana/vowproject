@@ -1,0 +1,52 @@
+/* Gebyok Ukir — ala undangan premium Jawa (referensi everlove):
+   1) sampul tergulir ke atas, kusen gebyok ukir naik dari bawah,
+   2) dua daun pintu berayun membuka (3D),
+   3) "kamera" menembus kusen (membesar & memudar) → isi undangan.
+   Warna kayu = cokelat tua bernuansa --gold-deep, ukiran = --foil-deep (ikut tema). */
+{a} { --gate-reveal: 2100; perspective: 1100px; --gb-wood: color-mix(in srgb, var(--gold-deep, #775a19) 32%, #2b1a0d); }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0; background: var(--bg-illus, none) center / cover no-repeat, radial-gradient(120% 70% at 50% 0%, var(--surface-low), var(--bg)); }
+{a} .gate__content { z-index: 3; }
+/* Kartu tamu tembus pandang agar hiasan sampul (wayang, pohon) tetap terlihat. */
+{a} .guest { background: color-mix(in srgb, var(--card) 52%, transparent); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+/* Masuk saat halaman dimuat: eyebrow turun, foto & nama "zoom in", sisanya naik. */
+{a} .cover__eyebrow { animation: gb-down 1s cubic-bezier(.2, .7, .2, 1) .2s both; }
+{a} .arch-photo, {a} .hero__seal { animation: gb-zoom 1.2s cubic-bezier(.2, .8, .25, 1.15) .45s both; }
+{a} .cover__names { animation: gb-zoom 1.1s cubic-bezier(.2, .8, .25, 1.15) .9s both; }
+{a} .hero__date, {a} .cover .pill { animation: gb-up 1s ease 1.2s both; }
+{a} .guest { animation: gb-up 1.1s ease 1.4s both; }
+{a} .gate__open { animation: gb-up 1s ease 1.7s both, gate-pulse 2.4s ease-in-out 2.7s infinite; }
+/* Kusen: mahkota ukir di atas, tiang di kiri-kanan, ambang di bawah. */
+{a} .gate__orn { display: block; position: absolute; inset: 0; z-index: 2; pointer-events: none; visibility: hidden; filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .35)); transform-origin: 50% 46%; }
+{a} .gate__orn::before, {a} .gate__orn::after { content: ""; position: absolute; inset: 0; }
+{a} .gate__orn::before {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--gb-wood) 78%, #000), var(--gb-wood) 12%, color-mix(in srgb, var(--gb-wood) 85%, var(--gold)) 50%, var(--gb-wood) 88%, color-mix(in srgb, var(--gb-wood) 78%, #000));
+  -webkit-mask: url("/img/tema/gerak/gebyok-mahkota.svg") top center / 100% auto no-repeat, linear-gradient(#000 0 0) left top / 12% 100% no-repeat, linear-gradient(#000 0 0) right top / 12% 100% no-repeat, linear-gradient(#000 0 0) bottom / 100% 4% no-repeat;
+  mask: url("/img/tema/gerak/gebyok-mahkota.svg") top center / 100% auto no-repeat, linear-gradient(#000 0 0) left top / 12% 100% no-repeat, linear-gradient(#000 0 0) right top / 12% 100% no-repeat, linear-gradient(#000 0 0) bottom / 100% 4% no-repeat;
+}
+{a} .gate__orn::after {
+  background: var(--foil-deep, linear-gradient(135deg, #8a6a2a, #e8c877 50%, #7a5a1a));
+  -webkit-mask: url("/img/tema/gerak/gebyok-mahkota-ukir.svg") top center / 100% auto no-repeat, url("/img/tema/gerak/gebyok-tiang.svg") left 1.5% top / 9% auto repeat-y, url("/img/tema/gerak/gebyok-tiang.svg") right 1.5% top / 9% auto repeat-y;
+  mask: url("/img/tema/gerak/gebyok-mahkota-ukir.svg") top center / 100% auto no-repeat, url("/img/tema/gerak/gebyok-tiang.svg") left 1.5% top / 9% auto repeat-y, url("/img/tema/gerak/gebyok-tiang.svg") right 1.5% top / 9% auto repeat-y;
+}
+/* Daun pintu: kayu + bingkai emas berlapis + tumpal ukir + kisi + gagang. */
+{a} .gate__panel { top: 0; bottom: 4%; width: 38.5%; z-index: 1; visibility: hidden; box-shadow: inset 0 0 0 7px var(--gold), inset 0 0 0 10px color-mix(in srgb, var(--gb-wood) 70%, #000), inset 0 0 0 12px var(--gold-light), inset 0 0 40px rgba(0, 0, 0, .45);
+  background: radial-gradient(circle at var(--knob) 56%, var(--gold-light) 0 6px, var(--gold-deep) 7px 9px, transparent 10px), linear-gradient(180deg, color-mix(in srgb, var(--gb-wood) 85%, #000), var(--gb-wood) 30%, color-mix(in srgb, var(--gb-wood) 80%, #000)); }
+{a} .gate__panel--l { left: 11.5%; transform-origin: left center; --knob: calc(100% - 22px); }
+{a} .gate__panel--r { right: 11.5%; left: auto; transform-origin: right center; --knob: 22px; }
+{a} .gate__panel::before { content: ""; position: absolute; inset: 14px; opacity: .35; background: var(--gold-light);
+  -webkit-mask: url("/img/tema/gerak/kisi.svg") center / 22px 22px repeat; mask: url("/img/tema/gerak/kisi.svg") center / 22px 22px repeat; }
+{a} .gate__panel::after { inset: 22% 14px auto; height: 52%; opacity: 1; background: var(--foil-deep, var(--gold));
+  -webkit-mask: url("/img/tema/gerak/gebyok-tumpal.svg") center / contain no-repeat; mask: url("/img/tema/gerak/gebyok-tumpal.svg") center / contain no-repeat; }
+/* ── Dibuka ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 3.3s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { transform: translateY(-100%); transition: transform 1s cubic-bezier(.65, 0, .35, 1); }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: translateY(-105%); transition: transform 1s cubic-bezier(.65, 0, .35, 1), opacity .3s .8s; }
+.inv-opened {a}:not(.gate--embed) .gate__orn, .is-open > {a} .gate__orn { visibility: visible; animation: gb-rise 1s cubic-bezier(.65, 0, .35, 1) both, gb-through 1.1s cubic-bezier(.55, 0, .7, .4) 2.2s forwards; }
+.inv-opened {a}:not(.gate--embed) .gate__panel, .is-open > {a} .gate__panel { visibility: visible; opacity: 0; animation: gb-rise 1s cubic-bezier(.65, 0, .35, 1) both; transition: rotate 1.25s cubic-bezier(.45, 0, .25, 1) 1.15s, opacity .5s 2.15s; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--l, .is-open > {a} .gate__panel--l { rotate: y -104deg; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--r, .is-open > {a} .gate__panel--r { rotate: y 104deg; }
+@keyframes gb-rise { from { translate: 0 100%; } }
+@keyframes gb-through { to { transform: scale(3.4); opacity: 0; } }
+@keyframes gb-down { from { opacity: 0; transform: translateY(-40px); } }
+@keyframes gb-up { from { opacity: 0; transform: translateY(50px); } }
+@keyframes gb-zoom { from { opacity: 0; transform: scale(.3); } }

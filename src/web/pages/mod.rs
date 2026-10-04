@@ -38,8 +38,8 @@ pub fn SiteHeader(#[prop(optional)] active: &'static str) -> impl IntoView {
     let demo_href = move || {
         let path = loc.pathname.get();
         match path.strip_prefix("/tema/").map(|s| s.trim_end_matches('/')).filter(|s| crate::web::skin::is_slug(s)) {
-            Some(slug) => format!("/u/anindita-raditya?tema={slug}"),
-            None => "/u/anindita-raditya".to_string(),
+            Some(slug) => format!("/u/{}?tema={slug}", crate::web::themes::DEMO_SLUG),
+            None => format!("/u/{}", crate::web::themes::DEMO_SLUG),
         }
     };
     view! {
@@ -48,7 +48,7 @@ pub fn SiteHeader(#[prop(optional)] active: &'static str) -> impl IntoView {
                 <Monogram initials=crate::web::BRAND_MONOGRAM class="monogram--xs" />
                 <span>
                     <b>{crate::brand!()}</b>
-                    <small>"Botanical Invitation Atelier"</small>
+                    <small>"part of tresno mulyo group"</small>
                 </span>
             </a>
             <nav class="site-top__nav" aria-label="Navigasi utama">
@@ -141,8 +141,9 @@ pub fn SiteFooter() -> impl IntoView {
     let tema = move || {
         loc.pathname.get().strip_prefix("/tema/").map(|s| s.trim_end_matches('/').to_string()).filter(|s| crate::web::skin::is_slug(s))
     };
-    let demo_u = move || tema().map(|t| format!("/u/anindita-raditya?tema={t}")).unwrap_or_else(|| "/u/anindita-raditya".into());
-    let demo_kelola = move || tema().map(|t| format!("/kelola/anindita-raditya?key=demo&tema={t}")).unwrap_or_else(|| "/kelola/anindita-raditya?key=demo".into());
+    let demo = crate::web::themes::DEMO_SLUG;
+    let demo_u = move || tema().map(|t| format!("/u/{demo}?tema={t}")).unwrap_or_else(|| format!("/u/{demo}"));
+    let demo_kelola = move || tema().map(|t| format!("/kelola/{demo}?key=demo&tema={t}")).unwrap_or_else(|| format!("/kelola/{demo}?key=demo"));
     view! {
         <footer class="site-foot">
             <div class="site-foot__grid">
