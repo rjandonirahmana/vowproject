@@ -261,6 +261,74 @@ pub fn GateFx() -> impl IntoView {
     }
 }
 
+/// Video latar tema sinema: video pasangan bila ada, kalau tidak video bawaan
+/// tema. Kosong = bukan tema sinema.
+pub fn bg_video_src(theme_video: &str, inv_video: &str) -> String {
+    if theme_video.is_empty() { String::new() } else if !inv_video.is_empty() { inv_video.to_string() } else { theme_video.to_string() }
+}
+
+/// Lapisan video latar penuh (tema sinema). TIDAK autoplay dari HTML — /app.js
+/// memutarnya setelah gerbang dibuka (atau langsung bila tanpa gerbang), dan
+/// melewatinya di mode hemat (html.motion-min) sehingga hanya poster tampil.
+#[component]
+pub fn BgVideo(src: String, #[prop(optional_no_strip)] poster: Option<String>) -> impl IntoView {
+    (!src.is_empty()).then(|| view! {
+        <div class="inv-video" aria-hidden="true">
+            <video src=src muted=true loop=true playsinline=true preload="none" poster=poster.unwrap_or_default() data-bgvideo="1" tabindex="-1"></video>
+            <div class="inv-video__shade"></div>
+        </div>
+    })
+}
+
+/// Video pembuka di dalam gerbang (animasi buka `video-pintu`): diputar
+/// sekali oleh /app.js saat "Buka Undangan"; gerbang ditutup setelah selesai.
+#[component]
+pub fn GateVideo(src: String) -> impl IntoView {
+    (!src.is_empty()).then(|| view! {
+        <video class="gate__video" src=src muted=true playsinline=true preload="auto" data-gatevideo="1" aria-hidden="true" tabindex="-1"></video>
+    })
+}
+
+/// Latar BERGERAK sampul (tema dengan video pembuka): potongan ulang video
+/// latar diputar di belakang foto & nama sebelum tamu menekan "Buka
+/// Undangan" — seperti slideshow bergerak di sampul undangan premium.
+/// Diputar /app.js (mode hemat → poster saja).
+#[component]
+pub fn GateBg(src: String, #[prop(optional_no_strip)] poster: Option<String>) -> impl IntoView {
+    (!src.is_empty()).then(|| view! {
+        <div class="gate__bg" aria-hidden="true">
+            <video src=src muted=true playsinline=true preload="auto" poster=poster.unwrap_or_default() data-gatebg="1" tabindex="-1"></video>
+        </div>
+    })
+}
+
+/// Poster video latar: video bawaan situs (/video/x.mp4) punya poster
+/// /video/x.jpg (frame akhir); video pasangan memakai foto sampul.
+pub fn video_poster(video: &str, cover: &str) -> String {
+    let base = video.split('#').next().unwrap_or("");
+    if base.starts_with("/video/") {
+        if let Some((stem, _)) = base.rsplit_once('.') {
+            return format!("{stem}.jpg");
+        }
+    }
+    cover.split('#').next().unwrap_or("").to_string()
+}
+
+/// Bagian "Video Prewedding" (tombol putar, bersuara — musik latar dijeda
+/// otomatis oleh /app.js saat video ini diputar).
+#[component]
+pub fn PreweddingVideo(src: String, #[prop(optional_no_strip)] poster: Option<String>) -> impl IntoView {
+    (!src.is_empty()).then(|| view! {
+        <section class="section orn-host video-sec">
+            <p class="eyebrow eyebrow--center">"Prewedding"</p>
+            <h2 class="section__title">"Video Prewedding"</h2>
+            <div class="video-frame card">
+                <video src=src controls=true playsinline=true preload="none" poster=poster.unwrap_or_default() data-prewed="1"></video>
+            </div>
+        </section>
+    })
+}
+
 /// Kelas akar koreografi scroll tema (`rvs--{kunci}`), kosong bila kunci tak sah.
 pub fn scroll_class(key: &str) -> String {
     if crate::web::fmt::is_slug(key, crate::web::anim::KEY_MAX) { format!(" rvs--{key}") } else { String::new() }

@@ -1,0 +1,30 @@
+/* Video Pintu — cara everlove: pembuka = VIDEO (bukan animasi CSS).
+   Sampul masuk ala Animate.css "slow" (2 dtk: zoomIn / fadeInUp). Saat dibuka
+   sampul naik cepat (0,4 dtk) memperlihatkan video pintu (theme.open_video)
+   yang diputar sekali; /app.js menandai gerbang .is-done saat video SELESAI
+   → gerbang hilang, frame akhirnya menyambung ke video latar. */
+{a} { --gate-reveal: 2600; }
+{a} .gate__video { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: var(--bg); visibility: hidden; }
+{a} .gate__panel { display: none; }
+{a} { background: var(--bg); }
+/* Sampul bergerak: video latar (potongan ulang) + selubung agar teks terbaca. */
+{a} .gate__bg { display: block; position: absolute; inset: 0; z-index: 1; }
+{a} .gate__bg video { width: 100%; height: 100%; object-fit: cover; display: block; }
+{a} .gate__bg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, .55), rgba(0, 0, 0, .25) 35%, rgba(0, 0, 0, .6)); }
+{a} .gate__video { z-index: 2; }
+{a} .gate__content { z-index: 3; }
+{a} .cover__eyebrow { animation: vp-zoom 2s ease .2s both; }
+{a} .arch-photo, {a} .hero__seal { animation: vp-zoom 2s ease .4s both; }
+{a} .cover__names { animation: vp-zoom 2s ease 1s both; }
+{a} .hero__date, {a} .cover .pill { animation: vp-up 2s ease 1.2s both; }
+{a} .guest { animation: vp-up 2s ease 1.4s both; }
+{a} .gate__open { animation: vp-zoom 2s ease 1.8s both, gate-pulse 2.4s ease-in-out 3.8s infinite; }
+/* Terbuka: tetap terlihat (video pintu berjalan) sampai .is-done. */
+.inv-opened {a}:not(.gate--embed):not(.is-done), .is-open > {a}:not(.is-done) { visibility: visible; transition: none; }
+.inv-opened {a}:not(.gate--embed).is-done, .is-open > {a}.is-done { visibility: hidden; transition: none; }
+/* Hanya selama video berjalan — anak ber-visibility:visible mengalahkan
+   gerbang yang sudah hidden, jadi WAJIB dibatasi :not(.is-done). */
+.inv-opened {a}:not(.gate--embed):not(.is-done) .gate__video, .is-open > {a}:not(.is-done) .gate__video { visibility: visible; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 1; transform: translateY(-112%); transition: transform .4s cubic-bezier(.6, 0, .4, 1); }
+@keyframes vp-zoom { 0% { opacity: 0; transform: scale3d(.3, .3, .3); } 50% { opacity: 1; } }
+@keyframes vp-up { from { opacity: 0; transform: translate3d(0, 100%, 0); } to { opacity: 1; transform: none; } }

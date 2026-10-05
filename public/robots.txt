@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
 Disallow: /kelola/
+Disallow: /admin
 Disallow: /api/
+Disallow: /layanan/wa
+
+Sitemap: https://ilyvowcraft.online/sitemap.xml

@@ -3,7 +3,6 @@
 //! sehingga jalan tanpa JS (form GET) dan bisa dibagikan sebagai tautan.
 
 use leptos::prelude::*;
-use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 
 use crate::web::components::{monogram_svg, Monogram};
@@ -14,6 +13,7 @@ use crate::web::skin::{ThemeInfo, PALETTES};
 use crate::web::konten::Konten;
 
 use super::{SiteFooter, SiteHeader};
+use crate::web::seo::{self, JsonLd, Seo};
 
 #[derive(Clone, Default, PartialEq)]
 struct Filter {
@@ -137,7 +137,12 @@ pub fn KatalogPage() -> impl IntoView {
     let nuansa = groups(|t| &t.nuansa);
 
     view! {
-        <Title text=concat!(crate::brand!(), " — Katalog Tema Undangan Pernikahan Digital") />
+        <Seo
+            title=concat!("Undangan Online Pernikahan — Elegan & Mudah | ", crate::brand!())
+            description="Buat undangan online pernikahan dalam 5 menit: tema adat Jawa & Nusantara, RSVP, buku tamu QR, amplop digital, musik & galeri. Coba gratis, bayar saat siap."
+            path="/"
+        />
+        <JsonLd data=seo::org_and_site() />
         <div class="site">
             <SiteHeader active="katalog" />
 
@@ -148,8 +153,8 @@ pub fn KatalogPage() -> impl IntoView {
 
             <section class="k-hero">
                 <span class="chip chip--soft"><Icon name="auto_awesome" />"Curated Atelier Collection 2026"</span>
-                <h1>"Eksplorasi Tema Undangan Digital "<em>"Impian"</em>" Pernikahan Anda"</h1>
-                <p>"Kurasi karya artisan berkelas dunia dengan sentuhan foil emas, tipografi adiluhung, serta adaptasi layar mobile dan tablet yang sempurna."</p>
+                <h1>"Undangan Online Pernikahan dengan Tema "<em>"Impian"</em>" Anda"</h1>
+                <p>"Undangan digital berkelas dengan tema adat Nusantara, sentuhan foil emas, dan animasi pembuka premium — tampil sempurna di HP, tablet, maupun desktop."</p>
                 <form class="searchbar" method="get" action="/#katalog">
                     <Icon name="search" />
                     <input name="q" placeholder="Cari tema: adat jawa, sage green, modern…" prop:value=move || filter.get().q />
@@ -296,6 +301,8 @@ pub fn KatalogPage() -> impl IntoView {
                 <div><Icon name="support_agent" /><b>"Dukungan WhatsApp 24/7"</b><p>"Tim admin siap membantu input data, import kontak tamu, hingga gladi bersih sebar link."</p></div>
                 <div><Icon name="favorite" /><b>"Masa Aktif Selamanya"</b><p>"Kisah cinta dan ucapan doa restu tamu tersimpan abadi tanpa biaya perpanjangan tahunan."</p></div>
             </section>
+
+            <UndanganOnlineInfo />
 
             <SiteFooter />
         </div>
@@ -482,4 +489,89 @@ fn BannerCarousel(items: Vec<crate::web::model::Banner>) -> impl IntoView {
             </section>
         }
     })
+}
+
+
+/// Konten SEO beranda (dirender di server, di luar Suspense katalog): apa itu
+/// undangan online, fitur, cara membuat, FAQ + data terstruktur Service &
+/// FAQPage. Teks FAQ = isi JSON-LD (Google mewajibkan sama dengan yang tampil).
+#[component]
+fn UndanganOnlineInfo() -> impl IntoView {
+    view! { <super::layanan::WithKonten view=undangan_online_info /> }
+}
+
+fn faq_items(k: &Konten) -> Vec<(&'static str, String)> {
+    let mut paket: Vec<String> = k.paket.iter().filter(|p| p.price > 0).map(|p| format!("{} {}", p.name, rupiah(p.price))).collect();
+    paket.truncate(4);
+    let harga = if paket.is_empty() {
+        "Sekali bayar tanpa biaya langganan — lihat halaman Paket & Harga.".to_string()
+    } else {
+        format!("Mulai {} sekali bayar tanpa biaya langganan: {}. Semua tema bisa dipakai di paket mana pun.", rupiah(k.min_price()), paket.join(", "))
+    };
+    vec![
+        ("Apa itu undangan online?", "Undangan online (undangan digital atau undangan website) adalah undangan pernikahan berbentuk halaman web yang dibagikan lewat tautan WhatsApp. Tamu bisa melihat detail akad & resepsi, peta lokasi, galeri foto, memutar musik, mengisi RSVP, dan mengirim doa langsung dari HP.".into()),
+        ("Berapa harga undangan online di ilyvowcraft?", harga),
+        ("Berapa lama membuat undangan online?", "Sekitar 5 menit: pilih tema, isi data mempelai dan acara, unggah foto serta lagu, lalu lihat pratinjaunya.".into()),
+        ("Apakah bisa dicoba gratis sebelum membayar?", "Bisa. Undangan dapat Anda pratinjau gratis; pembayaran dilakukan saat undangan sudah siap disebar ke tamu.".into()),
+        ("Fitur apa saja yang ada di undangan online ini?", "RSVP dan ucapan doa, buku tamu dengan QR check-in, amplop digital (nomor rekening), musik latar, galeri foto, hitung mundur, peta Google Maps, nama tamu personal di setiap tautan, serta animasi pembuka premium.".into()),
+        ("Apakah tersedia tema undangan adat Jawa dan daerah lain?", "Tersedia tema adat Nusantara — Jawa (wayang kulit, gebyok keraton), Minang, Bali, Sunda, Batak, Bugis, dan Dayak — serta tema botanical dan modern.".into()),
+    ]
+}
+
+fn undangan_online_info(k: Konten) -> impl IntoView {
+    let faqs = faq_items(&k);
+    let prices: Vec<i64> = k.paket.iter().map(|p| p.price).collect();
+    let ld_faq = seo::faq(&faqs);
+    const FITUR: &[(&str, &str, &str)] = &[
+        ("how_to_reg", "RSVP & Ucapan Doa", "Tamu konfirmasi kehadiran dan menulis doa restu; rekapnya langsung tampil di dasbor Anda."),
+        ("qr_code_2", "Buku Tamu & QR Check-in", "Setiap tamu punya QR; scan di pintu masuk untuk buku tamu digital yang rapi."),
+        ("account_balance_wallet", "Amplop Digital", "Cantumkan rekening atau dompet digital dengan tombol salin sekali sentuh."),
+        ("library_music", "Musik Latar & Galeri", "Putar lagu favorit dan tampilkan foto prewedding terbaik Anda."),
+        ("person", "Nama Tamu Personal", "Satu tautan per tamu — nama mereka tertulis di sampul undangan."),
+        ("auto_awesome", "Animasi Pembuka Premium", "Pintu gebyok, gapura, hingga pagelaran wayang yang membuka undangan dengan anggun."),
+    ];
+    view! {
+        <JsonLd data=seo::service(&prices) />
+        <JsonLd data=ld_faq />
+        <section class="seo-info" aria-labelledby="seo-info-title">
+            <div class="seo-info__intro">
+                <p class="eyebrow eyebrow--gold">"Undangan Digital"</p>
+                <h2 id="seo-info-title">"Undangan Online Pernikahan yang Elegan, Cepat & Mudah Dibagikan"</h2>
+                <p>
+                    {crate::brand!()}" adalah layanan undangan online pernikahan — dikenal juga sebagai undangan digital atau undangan website — "
+                    "dengan tema adat Nusantara dan desain premium. Cukup kirim satu tautan lewat WhatsApp, tamu langsung melihat detail akad & resepsi, "
+                    "lokasi Google Maps, galeri foto, dan mengisi RSVP dari HP. Hemat biaya cetak, ramah lingkungan, dan bisa diperbarui kapan saja."
+                </p>
+            </div>
+            <div class="seo-info__grid">
+                {FITUR.iter().map(|(ic, t, d)| view! {
+                    <article class="seo-info__card card">
+                        <Icon name=ic />
+                        <h3>{*t}</h3>
+                        <p>{*d}</p>
+                    </article>
+                }).collect_view()}
+            </div>
+            <div class="seo-info__steps">
+                <h2>"Cara Membuat Undangan Online"</h2>
+                <ol>
+                    <li><b>"Pilih tema"</b>" dari "<a href="/#katalog">"katalog tema undangan"</a>" — adat Jawa, Minang, Bali, hingga modern."</li>
+                    <li><b>"Isi data"</b>" mempelai, akad & resepsi, lalu unggah foto dan lagu."</li>
+                    <li><b>"Pratinjau gratis"</b>" dan sempurnakan sampai sesuai keinginan."</li>
+                    <li><b>"Bayar & sebar"</b>" tautan bernama tamu lewat WhatsApp — lihat "<a href="/paket">"paket & harga"</a>"."</li>
+                </ol>
+                <a class="btn btn--primary" href="/buat"><Icon name="edit" />"Buat Undangan Online Sekarang"</a>
+            </div>
+            <div class="seo-info__faq">
+                <h2>"Pertanyaan Seputar Undangan Online"</h2>
+                {faqs.into_iter().map(|(q, a)| view! {
+                    <details class="seo-faq card">
+                        <summary>{q}</summary>
+                        <p>{a}</p>
+                    </details>
+                }).collect_view()}
+                <p class="muted small">"Masih ada pertanyaan? Baca "<a href="/panduan">"panduan lengkap"</a>" atau coba "<a href=format!("/u/{}", crate::web::themes::DEMO_SLUG)>"contoh undangan online"</a>"."</p>
+            </div>
+        </section>
+    }
 }

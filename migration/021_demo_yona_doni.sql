@@ -26,5 +26,7 @@ UPDATE rsvps r SET message = replace(replace(replace(replace(r.message,
   FROM invitations i
  WHERE r.invitation_id = i.id AND i.slug = 'yona-doni' AND (r.message LIKE '%Dita%' OR r.message LIKE '%Radit%');
 
-UPDATE banners SET link = replace(link, '/u/anindita-raditya', '/u/yona-doni')
- WHERE link LIKE '/u/anindita-raditya%';
+-- Tautan banner ke demo memakai penanda {demo} (diisi DEMO_SLUG saat tampil,
+-- repo::banners_live) — rename demo berikutnya tak perlu menambal data.
+UPDATE banners SET link = regexp_replace(link, '^/u/(anindita-raditya|yona-doni)', '/u/{demo}')
+ WHERE link ~ '^/u/(anindita-raditya|yona-doni)(/|\?|$)';

@@ -1,0 +1,15 @@
+/* Everlove — resep gerak scroll undangan premium everlove, DIUKUR langsung
+   dari CSS-nya (kelas inv-*): transisi 1,5 dtk (ease), TANPA jeda bergiliran,
+   aktif saat elemen 150px di atas tepi bawah layar dan DIULANG saat digulir
+   naik-turun (--rv-repeat). Pemetaan peran:
+     teks, kartu, mempelai  → inv-atas    translateY(50%)
+     judul, foto, galeri    → inv-zoom-in scale(.9)
+     ikon & tanda "&"       → inv-rotate-in rotate(-180deg) ease-out
+   Tanpa portal ruangan & semburan; latar video tetap terang (selubung tipis). */
+{a} { --rv-stagger: 0; --rv-repeat: 1; --gate-burst: none; --card-glass: color-mix(in srgb, var(--card) 62%, transparent); --card-blur: none;
+  --video-shade: linear-gradient(180deg, rgba(0, 0, 0, .2), rgba(0, 0, 0, .06) 40%, rgba(0, 0, 0, .28)); }
+.rv-on {a} [data-rv] { --rv-delay: 0ms; transition: transform 1.5s, opacity 1.5s; }
+.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateY(50%); filter: none; }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name, .arch-photo, .gallery__item, .hero__seal, .video-frame)[data-rv]:not(.is-in) { transform: scale(.9); }
+.rv-on {a} :is(.intro__icon, .couple__amp)[data-rv] { transition: transform 1.5s ease-out, opacity 1.5s ease-out; }
+.rv-on {a} :is(.intro__icon, .couple__amp)[data-rv]:not(.is-in) { transform: rotate(-180deg); }

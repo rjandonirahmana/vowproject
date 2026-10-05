@@ -51,7 +51,9 @@ impl Form {
 pub const MAX_TEXT_FIELD: usize = 64 * 1024;
 const MAX_FIELD_NAME: usize = 64;
 const MAX_FIELDS: usize = 2_000;
-/// Berkas terbesar yang sah (lagu); validasi per jenis tetap di storage.rs.
+/// Input berkas video (satu-satunya yang boleh melebihi MAX_FILE).
+pub const VIDEO_FIELD: &str = "video_file";
+/// Berkas terbesar yang sah selain video (lagu); validasi per jenis di storage.rs.
 pub const MAX_FILE: usize = if super::storage::MAX_AUDIO > super::storage::MAX_IMAGE {
     super::storage::MAX_AUDIO
 } else {
@@ -100,7 +102,8 @@ pub async fn read(mut mp: Multipart, max_files: usize) -> Result<Form, ()> {
         match field.file_name().map(str::to_string) {
             Some(file_name) => {
                 let keep = f.files.len() < max_files;
-                let data = read_capped(&mut field, MAX_FILE, keep).await?;
+                let cap = if name == VIDEO_FIELD { super::storage::MAX_VIDEO } else { MAX_FILE };
+                let data = read_capped(&mut field, cap, keep).await?;
                 if !data.is_empty() && keep {
                     f.files.push(Upload { field: name, file_name, data });
                 }

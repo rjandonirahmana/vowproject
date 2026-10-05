@@ -129,6 +129,8 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
             float_deco: t.float_deco.clone(),
             scroll_anim: t.scroll_anim.clone(),
             ornaments: t.ornaments.clone(),
+            bg_video: t.bg_video.clone(),
+            open_video: t.open_video.clone(),
         })
         .unwrap_or_default();
     Ok(InvitationPage { inv: row.inv, guest, preview, skin })

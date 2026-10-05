@@ -12,7 +12,8 @@
 -- diisikan server sendiri saat start — file ini hanya memasang ke tema.
 -- gerak_judul/gerak_foto → 'ikut' agar koreografi yang mengatur judul & foto.
 -- melati-gugur/kamboja-gugur dari 009; bila tak ada → hiasan bawaan.
--- WAJIB setelah 013/014. Aman dijalankan ulang (hanya 5 tema ini).
+-- WAJIB setelah 013/014 & 017b. Tema yang geraknya sudah diubah admin
+-- (motion_locked) dilewati. Aman dijalankan ulang (hanya 5 tema ini).
 -- ═══════════════════════════════════════════════════════════════════════════
 
 UPDATE themes t
@@ -28,4 +29,4 @@ UPDATE themes t
     ('bali-frangipani',    'candi-bentar',  'ombak',   'kamboja-gugur', 'kupu',    TRUE),
     ('minang-songket',     'tenun-songket', 'tenun',   'kilau-emas',    'bintang', FALSE)
   ) AS v(slug, o, s, f, cadangan, kb)
- WHERE t.slug = v.slug;
+ WHERE t.slug = v.slug AND NOT t.motion_locked;

@@ -22,5 +22,6 @@ pub mod layanan;
 pub mod model;
 pub mod ornamen;
 pub mod pages;
+pub mod seo;
 pub mod skin;
 pub mod themes;

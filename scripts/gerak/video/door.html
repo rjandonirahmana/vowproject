@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;background:#000}
+:root{--bg:#16120c;--gold:#e3c27a;--gold-l:#f3dfa6;--gold-d:#a8792f;--wood:#3b2812;--foil:linear-gradient(135deg,#9c7330,#f1d78f 50%,#8a6424)}
+#v{position:relative;width:720px;height:1280px;overflow:hidden;background:var(--bg);perspective:1500px}
+.bg{position:absolute;inset:0;background:radial-gradient(90% 55% at 50% 30%,#2a2014,transparent 70%),url(w/latar.svg) center/720px auto,var(--bg)}
+.door{position:absolute;inset:0;animation:rise .8s cubic-bezier(.65,0,.35,1) both, through .32s cubic-bezier(.55,0,.75,.35) 1.63s forwards;transform-origin:50% 46%;perspective:1500px}
+.frame{position:absolute;inset:0;z-index:2;filter:drop-shadow(0 10px 22px rgba(0,0,0,.5))}
+.frame::before,.frame::after{content:"";position:absolute;inset:0}
+.frame::before{background:linear-gradient(90deg,#24170a,var(--wood) 12%,#4a3317 50%,var(--wood) 88%,#24170a);
+ -webkit-mask:url(g/gebyok-mahkota.svg) top center/100% auto no-repeat,linear-gradient(#000 0 0) left top/12% 100% no-repeat,linear-gradient(#000 0 0) right top/12% 100% no-repeat,linear-gradient(#000 0 0) bottom/100% 4% no-repeat}
+.frame::after{background:var(--foil);
+ -webkit-mask:url(g/gebyok-mahkota-ukir.svg) top center/100% auto no-repeat,url(g/gebyok-tiang.svg) left 1.5% top/9% auto repeat-y,url(g/gebyok-tiang.svg) right 1.5% top/9% auto repeat-y}
+.leaf{position:absolute;top:0;bottom:4%;width:38.5%;z-index:1;background:radial-gradient(circle at var(--k) 56%,var(--gold-l) 0 8px,var(--gold-d) 9px 12px,transparent 13px),linear-gradient(180deg,#24170a,var(--wood) 30%,#2a1b0b);
+ box-shadow:inset 0 0 0 9px var(--gold),inset 0 0 0 13px #24170a,inset 0 0 0 16px var(--gold-l),inset 0 0 60px rgba(0,0,0,.55)}
+.leaf::before{content:"";position:absolute;inset:20px;opacity:.35;background:var(--gold-l);-webkit-mask:url(g/kisi.svg) center/30px 30px repeat}
+.leaf::after{content:"";position:absolute;inset:22% 20px auto;height:52%;background:var(--foil);-webkit-mask:url(g/gebyok-tumpal.svg) center/contain no-repeat}
+.l{left:11.5%;transform-origin:left center;--k:calc(100% - 30px);animation:openl .5s cubic-bezier(.4,0,.3,1) .95s both}
+.r{right:11.5%;transform-origin:right center;--k:30px;animation:openr .5s cubic-bezier(.4,0,.3,1) .95s both}
+@keyframes rise{from{transform:translateY(100%)}}
+@keyframes openl{to{transform:rotateY(-108deg)}}
+@keyframes openr{to{transform:rotateY(108deg)}}
+@keyframes through{to{transform:scale(3.4);opacity:0}}
+.glow{position:absolute;left:50%;top:200px;width:600px;height:400px;margin-left:-300px;border-radius:50%;background:radial-gradient(closest-side,rgba(227,194,122,.16),transparent);opacity:.7}
+.vig{position:absolute;inset:0;box-shadow:inset 0 0 220px 60px rgba(0,0,0,.6);pointer-events:none;z-index:5}
+.light{position:absolute;left:50%;top:46%;width:300px;height:900px;margin:-450px 0 0 -150px;border-radius:50%;
+ background:radial-gradient(closest-side,rgba(255,236,190,.95),rgba(227,194,122,.45) 45%,transparent);opacity:0;animation:spill .9s ease-out .95s forwards}
+.dust i{position:absolute;width:4px;height:4px;border-radius:50%;background:#fff3cf;box-shadow:0 0 8px #ffe2a0;opacity:0;animation:dust 1.1s ease-out calc(1s + var(--i) * .03s) forwards}
+@keyframes spill{0%{opacity:0;transform:scale(.3,1)}60%{opacity:1}100%{opacity:.0;transform:scale(2.4,1.2)}}
+@keyframes dust{0%{opacity:0}30%{opacity:1}100%{opacity:0;transform:translate(calc((var(--i) - 6) * 22px),-160px)}}
+</style></head><body><div id="v"><div class="bg"></div><div class="glow"></div>
+<div class="light"></div><div class="dust"><i style="--i:0;left:30%;top:30%"></i><i style="--i:1;left:33%;top:67%"></i><i style="--i:2;left:37%;top:59%"></i><i style="--i:3;left:40%;top:51%"></i><i style="--i:4;left:43%;top:43%"></i><i style="--i:5;left:46%;top:35%"></i><i style="--i:6;left:50%;top:72%"></i><i style="--i:7;left:53%;top:64%"></i><i style="--i:8;left:56%;top:56%"></i><i style="--i:9;left:60%;top:48%"></i><i style="--i:10;left:63%;top:40%"></i><i style="--i:11;left:66%;top:32%"></i></div><div class="door"><div class="leaf l"></div><div class="leaf r"></div><div class="frame"></div></div>
+<div class="vig"></div></div></body></html>

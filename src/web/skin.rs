@@ -54,6 +54,12 @@ pub struct ThemeInfo {
     pub script_font: String,
     /// Ilustrasi latar penuh (tetap di belakang saat di-scroll).
     pub bg_image: String,
+    /// Video latar bawaan tema (mp4/webm). Tak kosong = tema SINEMA: video
+    /// diputar penuh di belakang isi; video prewedding pasangan menggantikannya.
+    pub bg_video: String,
+    /// Video pembuka (mp4) yang diputar sekali di gerbang saat "Buka Undangan"
+    /// (animasi buka `video-pintu`); kosong = gerbang memakai animasi CSS saja.
+    pub open_video: String,
     /// Bingkai PNG/SVG transparan di atas foto sampul & foto mempelai.
     pub frame_image: String,
     /// Hiasan bunga di tepi atas kartu.
@@ -334,6 +340,7 @@ pub const MOTION_PRESETS: &[(&str, &str, &str, &str, &str, &str)] = &[
     ("taman", "Taman Botani", "Rimbun daun tersibak, isi mekar, daun gugur berputar", "taman-daun", "mekar", "daun-gugur"),
     ("galaksi", "Langit Galaksi", "Warp bintang & portal cahaya, isi dari kedalaman, kunang-kunang", "galaksi", "kosmik", "kunang"),
     ("pura", "Gerbang Pura", "Candi bentar terbelah, isi mengayun seperti ombak, kupu-kupu", "candi-bentar", "ombak", "kupu"),
+    ("sinema", "Sinema Kenangan", "Sampul polaroid naik seperti layar bioskop, isi tenang di atas video latar", "layar-naik", "sinema", "none"),
     ("songket", "Tenun Songket", "Helai songket diurai, isi tersingkap seperti benang, kilau emas", "tenun-songket", "tenun", "kilau-emas"),
 ];
 
@@ -500,6 +507,8 @@ pub fn from_form(get: impl Fn(&str) -> String) -> Result<ThemeInfo, String> {
         created: 0,
         script_font: f.pick("script_font", SCRIPT_FONTS.iter().map(|x| x.0), ""),
         bg_image: img("bg_image")?,
+        bg_video: img("bg_video")?,
+        open_video: img("open_video")?,
         frame_image: img("frame_image")?,
         card_deco: img("card_deco")?,
         float_deco: anim_key(&f.raw("float_deco"), "none"),

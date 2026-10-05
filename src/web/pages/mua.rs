@@ -2,7 +2,7 @@
 //! Solo (desain Stitch "Layanan MUA Make Up Pengantin").
 
 use leptos::prelude::*;
-use leptos_meta::{Meta, Title};
+use crate::web::seo::Seo;
 
 use crate::web::icons::Icon;
 use crate::web::konten::{icon_line, Konten};
@@ -42,8 +42,7 @@ const ALASAN: &[(Poin, &str)] = &[
 #[component]
 pub fn MuaPage() -> impl IntoView {
     view! {
-        <Title text=concat!("MUA & Rias Pengantin Tawangmangu, Karanganyar & Solo — ", crate::brand!()) />
-        <Meta name="description" content="Tata rias pengantin profesional: Solo Putri, Basahan, Paes Ageng, hingga modern glowing bride. Tahan udara dingin Tawangmangu, bebas biaya transport Solo Raya." />
+        <Seo path="/mua" title=concat!("MUA & Rias Pengantin Tawangmangu, Karanganyar & Solo — ", crate::brand!()) description="Tata rias pengantin profesional: Solo Putri, Basahan, Paes Ageng, hingga modern glowing bride. Tahan udara dingin Tawangmangu, bebas biaya transport Solo Raya." />
         <div class="site">
             <SiteHeader active="mua" />
             <WithKonten view=mua_body />

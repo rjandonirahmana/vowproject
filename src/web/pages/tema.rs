@@ -4,7 +4,8 @@
 
 use leptos::either::Either;
 use leptos::prelude::*;
-use leptos_meta::Title;
+use leptos_meta::Meta;
+use crate::web::seo::{JsonLd, Seo};
 use leptos_router::hooks::use_params_map;
 
 use crate::web::api::{get_demo, get_konten, get_theme};
@@ -39,7 +40,15 @@ pub fn TemaPage() -> impl IntoView {
                 // animasi pembuka memakai efek "pudar".
                 let anim = if t.open_anim.is_empty() || t.open_anim == "none" { "pudar".to_string() } else { t.open_anim.clone() };
                 Either::Right(view! {
-                    <Title text=format!(concat!("{} — Demo Tema ", crate::brand!()), t.name) />
+                    <Seo
+                        title=format!(concat!("Tema Undangan Online {} — Demo Gratis | ", crate::brand!()), t.name)
+                        description=format!("Coba demo undangan online tema {}: {} Lengkap dengan RSVP, buku tamu QR, amplop digital & musik.", t.name, t.description.trim_end_matches('.').to_string() + ".")
+                        path=format!("/tema/{}", t.slug)
+                        image=t.image_url.clone()
+                    />
+                    // Tema privat (pesanan custom) tak boleh muncul di Google.
+                    {(!t.listed).then(|| view! { <Meta name="robots" content="noindex, nofollow" /> })}
+                    <JsonLd data=crate::web::seo::breadcrumb(&[("Beranda", "/"), ("Katalog Tema", "/#katalog"), (t.name.as_str(), format!("/tema/{}", t.slug).as_str())]) />
                     <div class="demo-bar">
                         <span class="chip chip--live"><i class="dot dot--live"></i>"Live Interactive Preview"</span>
                         <span class="chip chip--soft">{if t.listed { t.name.clone() } else { format!("{} • Tema privat", t.name) }}</span>
@@ -62,7 +71,7 @@ pub fn TemaPage() -> impl IntoView {
                             <FloatDeco kind=t.float_deco.clone() />
                             <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
                                 {move || demo.get().map(|r| match r {
-                                    Ok(inv) => Either::Left(view! { <PreviewInvitation inv=Invitation { theme: slug.clone(), ..inv } anim=anim.clone() scroll=t.scroll_anim.clone() /> }),
+                                    Ok(inv) => Either::Left(view! { <PreviewInvitation inv=Invitation { theme: slug.clone(), ..inv } anim=anim.clone() scroll=t.scroll_anim.clone() video=t.bg_video.clone() open_video=t.open_video.clone() /> }),
                                     Err(e) => Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }),
                                 })}
                             </Suspense>
@@ -107,12 +116,13 @@ pub fn TemaPage() -> impl IntoView {
 /// Undangan lengkap dalam satu gulungan (versi desktop dari tab Sampul →
 /// Acara → RSVP), dirender dengan tema yang sedang dipratinjau.
 #[component]
-fn PreviewInvitation(inv: Invitation, anim: String, scroll: String) -> impl IntoView {
+fn PreviewInvitation(inv: Invitation, anim: String, scroll: String, video: String, open_video: String) -> impl IntoView {
     let resepsi = inv.events.last().cloned();
     let names = format!("{} & {}", inv.bride_nick, inv.groom_nick);
     view! {
-        <div class=format!("inv inv--embed th-{}{}", inv.theme, scroll_class(&scroll))>
+        <div class=format!("inv inv--embed th-{}{}{}", inv.theme, scroll_class(&scroll), if video.is_empty() { "" } else { " inv--video" })>
             <div class="inv__glow" aria-hidden="true"></div>
+            <BgVideo src=video.clone() poster=Some(video_poster(&video, &inv.cover_photo)) />
             // Gerbang: sampul + tamu + tombol buka. Isi di bawahnya baru bisa
             // di-scroll setelah dibuka (skrip global: data-demo-open → .is-open).
             <div class=format!("gate gate--{anim} gate--embed")>
@@ -120,6 +130,8 @@ fn PreviewInvitation(inv: Invitation, anim: String, scroll: String) -> impl Into
                 <div class="gate__panel gate__panel--r" aria-hidden="true"></div>
                 <div class="gate__orn" aria-hidden="true"></div>
                 <GateFx />
+                {(!open_video.is_empty()).then(|| view! { <GateBg src=video.clone() poster=Some(video_poster(&video, "")) /> })}
+                <GateVideo src=open_video.clone() />
                 <div class="gate__content">
                     <section class="hero cover orn-host">
                         <Ornamen bagian="sampul" />

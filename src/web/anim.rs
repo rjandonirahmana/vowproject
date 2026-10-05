@@ -238,6 +238,49 @@ impl AnimSpec {
 
 pub const KEY_MAX: usize = 40;
 
+/// Asal (`https://host`) yang boleh dipakai `url(…)` di CSS lanjutan selain
+/// path lokal & `data:image/` — diisi server saat start (RustFS publik &
+/// SITE_URL). CSS ini disajikan ke SEMUA tamu: tanpa batas ini, satu akun admin
+/// yang bocor bisa memasang gambar pelacak dari domain luar.
+static URL_ORIGINS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+
+pub fn set_url_origins(v: Vec<String>) {
+    let _ = URL_ORIGINS.set(v.into_iter().filter(|o| !o.is_empty()).map(|o| o.to_ascii_lowercase()).collect());
+}
+
+/// `https://host[:port]` dari sebuah URL, atau None.
+pub fn origin_of(u: &str) -> Option<String> {
+    let rest = u.strip_prefix("https://").or_else(|| u.strip_prefix("http://"))?;
+    let host = rest.split(['/', '?', '#']).next().unwrap_or("");
+    (!host.is_empty()).then(|| format!("{}{}", &u[..u.len() - rest.len()], host).to_ascii_lowercase())
+}
+
+/// Periksa semua `url(…)`: path lokal, `data:image/`, atau asal milik sendiri.
+/// Pratinjau WASM (daftar asal tak diisi) menerima http(s) — server tetap
+/// memeriksa saat menyimpan dan saat merender /tema.css.
+fn check_css_urls(css: &str) -> Result<(), String> {
+    let low = css.to_ascii_lowercase();
+    let mut from = 0;
+    while let Some(i) = low[from..].find("url(") {
+        let start = from + i + 4;
+        let arg = low[start..].trim_start().trim_start_matches(['"', '\'']).trim_start();
+        let end = arg.find(['"', '\'', ')', ' ']).unwrap_or(arg.len());
+        let target = &arg[..end];
+        let ok = target.starts_with("data:image/")
+            || (target.starts_with('/') && !target.starts_with("//"))
+            || match (origin_of(target), URL_ORIGINS.get()) {
+                (Some(o), Some(list)) => list.iter().any(|x| *x == o),
+                (Some(_), None) => !cfg!(feature = "ssr"),
+                _ => false,
+            };
+        if !ok {
+            return Err(format!("url() hanya boleh berkas situs ini (/…), data:image, atau penyimpanan sendiri — bukan \"{target}\"."));
+        }
+        from = start;
+    }
+    Ok(())
+}
+
 /// Periksa CSS lanjutan. Bukan parser CSS penuh — cukup mencegah keluar dari
 /// `<style>`/stylesheet & pemuatan luar: tanpa `<`, `@import`, `expression(`,
 /// `javascript:`; kurung kurawal seimbang. Buka/hiasan wajib memakai `{a}`
@@ -260,6 +303,7 @@ pub fn sanitize_css(kind: &str, css: &str) -> Result<String, String> {
             return Err(format!("CSS tidak boleh memuat \"{bad}\"."));
         }
     }
+    check_css_urls(&css)?;
     if kind == "scroll" && !css.contains("{a}") {
         if css.contains('{') || css.contains('}') || css.contains('@') {
             return Err("Gerak scroll berisi deklarasi variabel (mis. --rv-from:translateY(28px);) atau aturan lengkap yang memakai {a}.".into());
@@ -582,8 +626,12 @@ pub fn builtins() -> Vec<AnimInfo> {
         b("buka", "galaksi", "Galaksi: tersedot ke langit, warp bintang, portal cahaya", include_str!("gerak/buka-galaksi.css"), 52),
         b("buka", "candi-bentar", "Candi bentar: gapura terbelah, matahari terbit", include_str!("gerak/buka-candi-bentar.css"), 53),
         b("buka", "pagelaran-wayang", "Pagelaran wayang: kelir menyala, gunungan dikebutkan, tokoh masuk", include_str!("gerak/buka-pagelaran-wayang.css"), 49),
+        b("buka", "layar-naik", "Layar naik: sampul polaroid terangkat seperti layar bioskop", include_str!("gerak/buka-layar-naik.css"), 55),
+        b("buka", "video-pintu", "Video pintu: video pembuka tema diputar sekali (cara everlove)", include_str!("gerak/buka-video-pintu.css"), 48),
         b("buka", "tenun-songket", "Tenun songket: helai kain diurai kiri-kanan", include_str!("gerak/buka-tenun-songket.css"), 54),
         b("scroll", "bayang", "Koreografi Bayang wayang (dari bayangan, tokoh masuk kiri-kanan, judul menyala)", include_str!("gerak/scroll-bayang.css"), 79),
+        b("scroll", "sinema", "Koreografi Sinema (untuk video latar: memudar naik tenang, kartu kaca gelap)", include_str!("gerak/scroll-sinema.css"), 85),
+        b("scroll", "everlove", "Koreografi Everlove (persis undangan premium: 1,5 dtk, serentak, terulang saat digulir)", include_str!("gerak/scroll-everlove.css"), 78),
         b("scroll", "keraton", "Koreografi Keraton (judul zoom, mempelai kiri-kanan, ikon berputar)", include_str!("gerak/scroll-keraton.css"), 80),
         b("scroll", "mekar", "Koreografi Mekar (judul merapat, foto terbuka bundar, kartu kelopak)", include_str!("gerak/scroll-mekar.css"), 81),
         b("scroll", "kosmik", "Koreografi Kosmik (dari samar, judul menyala, mempelai berbalik)", include_str!("gerak/scroll-kosmik.css"), 82),
@@ -655,6 +703,12 @@ mod tests {
         assert!(sanitize_css("buka", ".gate{color:red}").is_err());
         assert!(sanitize_css("buka", "{a}{color:red").is_err());
         assert!(sanitize_css("scroll", "--rv-from:none}body{display:none").is_err());
+        // url(): lokal & data:image boleh; domain luar ditolak (pelacak).
+        assert!(sanitize_css("buka", "{a}{background:url(\"/img/a.svg\")}").is_ok());
+        assert!(sanitize_css("buka", "{a}{background:url('data:image/svg+xml,%3Csvg/%3E')}").is_ok());
+        assert!(sanitize_css("buka", "{a}{background:url(https://evil.tld/t.png)}").is_err());
+        assert!(sanitize_css("buka", "{a}{background:URL( //evil.tld/t.png )}").is_err());
+        assert_eq!(origin_of("https://Image.Ulalaapi.store/undangan/x.webp").as_deref(), Some("https://image.ulalaapi.store"));
         assert_eq!(sanitize_css("scroll", "--rv-from:none").unwrap(), "--rv-from:none;");
         // Koreografi scroll: aturan lengkap ber-{a} → kelas .rvs--slug, tanpa variabel tema.
         let k = builtin("scroll", "keraton").unwrap();

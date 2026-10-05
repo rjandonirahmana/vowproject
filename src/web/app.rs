@@ -58,6 +58,7 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
                 <link rel="stylesheet" href=icon_font_href() />
                 // Tema dari DB: CSS variabel per tema + font judul yang dipakai tema.
                 {theme_links()}
+                {google_verification()}
                 {(!preview).then(|| view! {
                     <AutoReload options=options.clone() />
                     <HydrationScripts options=options.clone() />
@@ -71,6 +72,16 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
         </html>
     }
     .into_any()
+}
+
+/// Meta verifikasi Google Search Console dari env GOOGLE_SITE_VERIFICATION
+/// (kode dari Search Console → "Tag HTML"). Kosong → tak dipasang.
+#[cfg(feature = "ssr")]
+fn google_verification() -> Option<AnyView> {
+    let v = std::env::var("GOOGLE_SITE_VERIFICATION").ok()?;
+    let v = v.trim().to_string();
+    (!v.is_empty() && v.len() <= 100 && v.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+        .then(|| view! { <meta name="google-site-verification" content=v /> }.into_any())
 }
 
 /// `<link>` /tema.css (ber-versi) dan Google Fonts untuk font tema.
@@ -96,13 +107,9 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
-        <Title text=concat!(crate::brand!(), " — Undangan Pernikahan Digital") />
-        <Meta
-            name="description"
-            content="Undangan pernikahan digital beraroma botani & foil emas: RSVP, buku tamu, amplop digital, QR check-in, dan musik latar."
-        />
-        <Meta property="og:site_name" content=crate::brand!() />
-        <Meta property="og:type" content="website" />
+        // Judul cadangan saja; description/canonical/og ditulis tiap halaman
+        // publik lewat web::seo::Seo (dulu di sini → tag description ganda).
+        <Title text=concat!(crate::brand!(), " — Undangan Online Pernikahan") />
 
         <Router>
             <Routes fallback=NotFoundPage>

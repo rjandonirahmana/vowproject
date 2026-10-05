@@ -56,6 +56,7 @@ docker run -d \
   -e WAHA_API_KEY='...' \
   -e PAYMENT_NOTIFY_WA='6289635816942' \
   -e SITE_URL='https://ilyvowcraft.online' \
+  -e GOOGLE_SITE_VERIFICATION='' \
   `# Titik awal — ukur: docker stats --no-stream undangan, lalu beri ruang ~2x.` \
   --memory=256m \
   --memory-swap=256m \

@@ -5,7 +5,7 @@
 //! dan cek ketersediaan tautan ikut hidup.
 
 use leptos::prelude::*;
-use leptos_meta::Title;
+use crate::web::seo::Seo;
 use leptos_router::hooks::use_query_map;
 
 use std::ops::Not;
@@ -74,7 +74,8 @@ pub fn BuatPage() -> impl IntoView {
     };
 
     view! {
-        <Title text=concat!("Buat Undangan — ", crate::brand!()) />
+        <Seo path="/buat" title=concat!("Buat Undangan Online Pernikahan — Gratis Pratinjau | ", crate::brand!())
+            description="Isi data mempelai, acara, foto & lagu — undangan online Anda jadi dalam 5 menit. Pratinjau gratis, bayar saat siap disebar ke tamu." />
         <div class="site">
             <SiteHeader active="buat" />
             <ol class="steps">
@@ -274,6 +275,18 @@ pub fn BuatPage() -> impl IntoView {
                             <div class="preview-out" data-preview-out=""></div>
                         </div>
                         <crate::web::components::MusicSeek name="music_start" />
+                        <div data-preview-box="">
+                            <label class="upload">
+                                <Icon name="movie" />
+                                <span><b>"Video prewedding (opsional)"</b><small>"MP4 / MOV / WebM, maksimal 20 MB (±1 menit 720p). Tampil di bagian \"Video Prewedding\"; di tema Sinema jadi latar bergerak seluruh undangan. MP4 paling kompatibel."</small></span>
+                                <input type="file" name="video_file" accept="video/mp4,video/quicktime,video/webm" data-preview="video" data-max="20" />
+                            </label>
+                            <div class="preview-out" data-preview-out=""></div>
+                        </div>
+                        <label class="field">
+                            <span class="field__label">"…atau tautan langsung ke berkas video"</span>
+                            <input class="input" name="video_link" maxlength="300" placeholder="https://…/prewedding.mp4" />
+                        </label>
                         <label class="check"><input type="checkbox" name="music_autoplay" checked /><span>"Putar otomatis saat undangan dibuka"</span></label>
                         <label class="field">
                             <span class="field__label">"Ayat / Kutipan Doa Pembuka"</span>

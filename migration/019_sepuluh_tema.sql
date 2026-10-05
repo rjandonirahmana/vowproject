@@ -30,4 +30,4 @@ UPDATE themes t SET listed = TRUE, sort_order = v.n, updated_at = NOW()
 -- Tema pertama: Gunungan Wayang Kulit — koreografi pagelaran (bawaan web/anim.rs).
 UPDATE themes SET open_anim = 'pagelaran-wayang', scroll_anim = 'bayang', float_deco = 'kunang',
        gerak_judul = 'ikut', gerak_foto = 'ikut', ken_burns = TRUE, updated_at = NOW()
- WHERE slug = 'gunungan-wayang-kulit';
+ WHERE slug = 'gunungan-wayang-kulit' AND NOT motion_locked;

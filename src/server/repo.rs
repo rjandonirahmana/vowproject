@@ -430,6 +430,17 @@ pub struct NewInvitation {
     pub dress_colors: Value,
 }
 
+/// Simpan URL video prewedding. `Ok(false)` = kolom belum ada (migrasi 022
+/// belum dijalankan) → pemanggil membuang unggahannya.
+pub async fn set_invitation_video(pool: &Pool, slug: &str, url: &str) -> Result<bool> {
+    let c = pool.get().await?;
+    match db_exec(&c, "UPDATE invitations SET video_url = $2 WHERE slug = $1", &[&slug, &url]).await {
+        Ok(_) => Ok(true),
+        Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_COLUMN) => Ok(false),
+        Err(e) => Err(anyhow::Error::new(e).context("simpan video")),
+    }
+}
+
 pub async fn create_invitation(pool: &Pool, n: &NewInvitation) -> Result<()> {
     let c = pool.get().await?;
     let (b, g) = (&n.bride, &n.groom);
@@ -483,14 +494,19 @@ const THEME_COLS: &[&str] = &[
     "slug", "name", "category", "nuansa", "palette", "region", "description", "tags", "badge", "rating", "reviews",
     "layout", "ornament", "font", "tokens", "dark", "image_url", "image_mode", "listed", "sort_order",
     "script_font", "bg_image", "frame_image", "card_deco", "float_deco", "open_anim", "page_mode", "scroll_anim",
-    "gerak_judul", "gerak_foto", "ken_burns",
+    "gerak_judul", "gerak_foto", "ken_burns", "bg_video", "open_video",
 ];
+/// Kolom dari migrasi yang mungkin belum dijalankan (022) — upsert diulang
+/// tanpa kolom ini bila DB belum punya (admin tetap bisa menyimpan tema).
+const THEME_COLS_NEW: &[&str] = &["bg_video", "open_video"];
 
-fn upsert_theme_sql() -> &'static str {
-    static SQL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    SQL.get_or_init(|| {
-        let cols = THEME_COLS.join(", ");
-        let set: Vec<String> = THEME_COLS.iter().filter(|c| **c != "slug").map(|c| format!("{c} = EXCLUDED.{c}")).collect();
+fn upsert_theme_sql(with_new: bool) -> &'static str {
+    static FULL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    static OLD: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    (if with_new { &FULL } else { &OLD }).get_or_init(|| {
+        let cols: Vec<&str> = THEME_COLS.iter().copied().filter(|c| with_new || !THEME_COLS_NEW.contains(c)).collect();
+        let set: Vec<String> = cols.iter().filter(|c| **c != "slug").map(|c| format!("{c} = EXCLUDED.{c}")).collect();
+        let cols = cols.join(", ");
         format!(
             "INSERT INTO themes ({cols}) SELECT {cols} FROM jsonb_populate_record(NULL::themes, $1)
              ON CONFLICT (slug) DO UPDATE SET {}, updated_at = NOW()",
@@ -499,10 +515,39 @@ fn upsert_theme_sql() -> &'static str {
     })
 }
 
+/// Galat "kolom belum ada" (migrasi 017b belum dijalankan) → diabaikan.
+fn ignore_missing_column(r: PgResult<u64>, what: &str) -> Result<()> {
+    match r {
+        Ok(_) => Ok(()),
+        Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_COLUMN) => Ok(()),
+        Err(e) => Err(anyhow::Error::new(e).context(what.to_string())),
+    }
+}
+
 pub async fn upsert_theme(pool: &Pool, t: &crate::web::skin::ThemeInfo) -> Result<()> {
     let c = pool.get().await?;
+    // Admin mengubah gerak tema → kunci, agar migrasi seed berikutnya tak
+    // menimpanya (017b). Dicek SEBELUM upsert (membandingkan nilai lama).
+    ignore_missing_column(
+        db_exec(&c,
+            "UPDATE themes SET motion_locked = TRUE
+              WHERE slug = $1 AND NOT motion_locked
+                AND (open_anim, scroll_anim, float_deco, gerak_judul, gerak_foto, ken_burns)
+                    IS DISTINCT FROM ($2, $3, $4, $5, $6, $7)",
+            &[&t.slug, &t.open_anim, &t.scroll_anim, &t.float_deco, &t.gerak_judul, &t.gerak_foto, &t.ken_burns],
+        )
+        .await,
+        "kunci gerak tema",
+    )?;
     let json = serde_json::to_value(t)?;
-    db_exec(&c, upsert_theme_sql(), &[&json]).await.context("upsert theme")?;
+    match db_exec(&c, upsert_theme_sql(true), &[&json]).await {
+        Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_COLUMN) => {
+            db_exec(&c, upsert_theme_sql(false), &[&json]).await.context("upsert theme")?;
+        }
+        r => {
+            r.context("upsert theme")?;
+        }
+    }
     Ok(())
 }
 
@@ -940,7 +985,13 @@ pub async fn save_ornament(pool: &Pool, o: &crate::web::ornamen::Ornament) -> Re
         .await
     }
     .context("simpan ornamen")?;
-    Ok(row.get(0))
+    let id: i64 = row.get(0);
+    // Disunting/dibuat dari admin → bukan lagi seed (017b): seed ulang tak menyentuhnya.
+    ignore_missing_column(
+        db_exec(&c, "UPDATE theme_ornaments SET source = 'admin' WHERE id = $1 AND source <> 'admin'", &[&id]).await,
+        "tandai ornamen admin",
+    )?;
+    Ok(id)
 }
 
 pub async fn delete_ornament(pool: &Pool, theme: &str, id: i64) -> Result<()> {
@@ -1004,7 +1055,9 @@ pub async fn banners_live(pool: &Pool) -> Result<Vec<crate::web::model::Banner>>
         )
         .await
         .context("select banners")?;
-    Ok(rows.iter().map(banner_row).collect())
+    // `{demo}` di tautan = undangan demo saat ini (rename demo tak perlu ubah data).
+    let demo = crate::web::themes::DEMO_SLUG;
+    Ok(rows.iter().map(banner_row).map(|mut b| { b.link = b.link.replace("{demo}", demo); b }).collect())
 }
 
 pub async fn banners_all(pool: &Pool) -> Result<Vec<crate::web::model::Banner>> {

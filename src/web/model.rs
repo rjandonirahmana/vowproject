@@ -104,6 +104,10 @@ pub struct InvSkin {
     pub scroll_anim: String,
     /// Lapisan ornamen per bagian (web/ornamen.rs).
     pub ornaments: Vec<super::ornamen::Ornament>,
+    /// Video latar bawaan tema (kosong = bukan tema sinema).
+    pub bg_video: String,
+    /// Video pembuka di gerbang (kosong = animasi CSS saja).
+    pub open_video: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -145,6 +149,9 @@ pub struct Invitation {
     pub love_story: Vec<LoveStory>,
     /// Tautan siaran langsung (YouTube/Instagram/Zoom), https saja.
     pub live_url: String,
+    /// Video prewedding (unggahan RustFS / tautan .mp4/.webm). Tema sinema
+    /// memutarnya sebagai latar; semua tema menampilkan bagian "Video Prewedding".
+    pub video_url: String,
 }
 
 impl Invitation {

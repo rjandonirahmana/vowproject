@@ -4,7 +4,7 @@
 //! Teks privasi & syarat adalah draf umum — TINJAU sebelum situs dipublikasikan.
 
 use leptos::prelude::*;
-use leptos_meta::{Meta, Title};
+use crate::web::seo::Seo;
 
 use crate::web::api::get_contact;
 use crate::web::fmt::{self, rupiah};
@@ -20,11 +20,15 @@ fn InfoShell(
     title: &'static str,
     eyebrow: &'static str,
     lead: &'static str,
+    /// Path kanonik halaman (mis. "/paket").
+    path: &'static str,
+    /// Judul untuk Google (bawaan: "{title} — merek").
+    #[prop(optional)] seo_title: Option<&'static str>,
     children: Children,
 ) -> impl IntoView {
+    let full = seo_title.map(str::to_string).unwrap_or_else(|| format!(concat!("{} — ", crate::brand!()), title));
     view! {
-        <Title text=format!(concat!("{} — ", crate::brand!()), title) />
-        <Meta name="description" content=lead />
+        <Seo title=full description=lead path=path />
         <div class="site">
             <SiteHeader active=active />
             <section class="info-hero">
@@ -82,6 +86,8 @@ pub fn PaketPage() -> impl IntoView {
     view! {
         <InfoShell
             active="paket"
+            path="/paket"
+            seo_title=concat!("Paket & Harga Undangan Online Pernikahan | ", crate::brand!())
             title="Paket & Harga"
             eyebrow="Transparan & Fleksibel"
             lead="Satu kali bayar, tanpa biaya langganan. Semua tema katalog bisa dipakai di paket mana pun — coba & pratinjau gratis, bayar saat undangan siap disebar."
@@ -255,6 +261,8 @@ pub fn PanduanPage() -> impl IntoView {
     view! {
         <InfoShell
             active="panduan"
+            path="/panduan"
+            seo_title=concat!("Panduan Membuat Undangan Online Pernikahan | ", crate::brand!())
             title="Panduan Pasangan"
             eyebrow="Pusat Bantuan"
             lead="Dari memilih tema sampai check-in tamu di hari bahagia — semua langkahnya ada di sini."
@@ -345,6 +353,7 @@ pub fn PrivasiPage() -> impl IntoView {
     view! {
         <InfoShell
             active=""
+            path="/privasi"
             title="Kebijakan Privasi & Data Tamu"
             eyebrow="Berlaku sejak 29 September 2026"
             lead=concat!("Bagaimana ", crate::brand!(), " mengumpulkan, memakai, dan melindungi data pasangan serta tamu undangan.")
@@ -386,6 +395,7 @@ pub fn SyaratPage() -> impl IntoView {
     view! {
         <InfoShell
             active=""
+            path="/syarat"
             title="Syarat & Ketentuan Layanan"
             eyebrow="Berlaku sejak 29 September 2026"
             lead=concat!("Ketentuan penggunaan layanan undangan pernikahan digital ", crate::brand!(), ".")

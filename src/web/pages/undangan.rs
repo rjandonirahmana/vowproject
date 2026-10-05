@@ -109,10 +109,13 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
     // Pratinjau tautan WhatsApp memakai foto sampul bila ada.
     let og_image = inv.cover_photo.split('#').next().unwrap_or("").to_string();
     // inv--rail: tata letak desktop ≥1100px (panel sampul kiri + kolom kanan).
+    let video = bg_video_src(&skin.bg_video, &inv.video_url);
+    let poster = Some(video_poster(&video, &inv.cover_photo));
     let root_class = format!(
-        "inv inv--rail th-{}{}{}{}",
+        "inv inv--rail th-{}{}{}{}{}",
         inv.theme,
         scroll_class(&skin.scroll_anim),
+        if video.is_empty() { "" } else { " inv--video" },
         if single { " inv--single" } else { "" },
         if single && !skin.open_anim.is_empty() && skin.open_anim != "none" { " inv--gate" } else { "" }
     );
@@ -125,6 +128,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
         {(!og_image.is_empty()).then(|| view! { <Meta property="og:image" content=og_image.clone() /> })}
         <div class=root_class>
             <div class="inv__glow" aria-hidden="true"></div>
+            <BgVideo src=video.clone() poster=poster.clone() />
             <FloatDeco kind=skin.float_deco.clone() />
             // Desktop ≥1100px: layar terbagi dua — panel sampul tetap di kiri,
             // isi undangan di kanan (CSS .inv--rail). Di HP panel ini disembunyikan.
@@ -295,12 +299,16 @@ fn GuestCard() -> impl IntoView {
 /// Isi pembuka setelah sampul (dipakai mode tab & satu halaman).
 #[component]
 fn SampulExtras() -> impl IntoView {
-    let inv = ctx().page.inv;
+    let c = ctx();
+    let inv = c.page.inv;
+    // Video pasangan; undangan demo tema sinema memamerkan video bawaan tema.
+    let prewed = if !inv.video_url.is_empty() { inv.video_url.clone() } else if inv.is_demo { c.page.skin.bg_video.clone() } else { String::new() };
     view! {
         <Countdown target_ms=inv.countdown_target_ms() />
         <QuoteCard text=inv.quote_text.clone() source=inv.quote_source.clone() />
         <Couple inv=inv.clone() />
         <LoveStorySection items=inv.love_story.clone() />
+        <PreweddingVideo src=prewed poster=Some(inv.cover_photo.split('#').next().unwrap_or("").to_string()) />
         <Gallery photos=inv.gallery.clone() />
     }
 }
@@ -327,6 +335,12 @@ pub fn SampulPage() -> impl IntoView {
                 <div class="gate__panel gate__panel--r" aria-hidden="true"></div>
                 <div class="gate__orn" aria-hidden="true"></div>
                 <GateFx />
+                {(!c.page.skin.open_video.is_empty()).then(|| {
+                    let bg = c.page.skin.bg_video.clone();
+                    let poster = video_poster(&bg, "");
+                    view! { <GateBg src=bg poster=Some(poster) /> }
+                })}
+                <GateVideo src=c.page.skin.open_video.clone() />
                 <div class="gate__content">
                     <Cover />
                     <GuestCard />

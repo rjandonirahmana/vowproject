@@ -10,6 +10,10 @@
   var d=document, KEY='bgm-on';
   // "Kurangi animasi" dari sistem — dibaca sekali, dipakai semua fitur.
   var calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // HP lemah / hemat kuota: gerak berulang dimatikan lewat html.motion-min
+  // (main.css). deviceMemory dibulatkan browser (0.5,1,2,4,8) → <4 = ≤3 GB.
+  var conn=navigator.connection;
+  if((conn && conn.saveData) || (navigator.deviceMemory && navigator.deviceMemory<4)) d.documentElement.classList.add('motion-min');
   // Pratinjau tema di kartu katalog (iframe /u/…?pv=1): mode SENYAP — tanpa
   // musik, tanpa menulis sessionStorage (dipakai bersama tab induk), tanpa
   // pemulihan posisi; gerbang dibuka & halaman digulir otomatis (lihat bawah).
@@ -22,7 +26,17 @@
   function audio(){ return d.getElementById('bgm'); }
   function start(a){ var p=a.play(); if(p&&p.catch) p.catch(function(){}); }
   function sync(){ var a=audio(); d.documentElement.classList.toggle('bgm-playing', !!a && !a.paused); }
-  function play(){ if(PV) return; var a=audio(); if(!a||!a.getAttribute('src')) return; start(a); try{sessionStorage.setItem(KEY,'1')}catch(e){} }
+  // fade=true (tombol "Buka Undangan"): volume naik 0→1 dalam ±0,9 dtk.
+  // iOS mengabaikan volume (hanya-baca) — musik langsung penuh, tak apa.
+  function play(fade){
+    if(PV) return; var a=audio(); if(!a||!a.getAttribute('src')) return;
+    if(fade && a.paused){
+      a.volume=0; var t0=0;
+      var step=function(t){ if(!t0) t0=t; var k=Math.min(1,(t-t0)/900); a.volume=k*k; if(k<1 && !a.paused) requestAnimationFrame(step); else a.volume=1; };
+      requestAnimationFrame(step);
+    }
+    start(a); try{sessionStorage.setItem(KEY,'1')}catch(e){}
+  }
   function pause(){ var a=audio(); if(a) a.pause(); if(!PV) try{sessionStorage.setItem(KEY,'0')}catch(e){} }
   d.addEventListener('play', sync, true);
   d.addEventListener('pause', sync, true);
@@ -56,12 +70,15 @@
       burst(el);
       var emb=el.closest('.inv--embed'); if(emb) emb.classList.add('is-open');
       var ph=el.closest('.demo-phone, .adm-preview__inv'); if(ph) ph.scrollTop=0;
-      play(); holdReveal(gateReveal(emb && emb.querySelector('.gate'))); return;
+      play(true);
+      if(!openGate(emb && emb.querySelector('.gate'), emb)){ playBg(emb); holdReveal(gateReveal(emb && emb.querySelector('.gate'))); }
+      return;
     }
     if(el.hasAttribute('data-open')){
-      burst(el); play(); d.documentElement.classList.add('inv-opened');
+      burst(el); play(true); d.documentElement.classList.add('inv-opened');
       if(d.querySelector('.gate')) window.scrollTo(0,0);
-      holdReveal(gateReveal(d.querySelector('.gate:not(.gate--embed)')));
+      var g0=d.querySelector('.gate:not(.gate--embed)');
+      if(!openGate(g0, d)){ playBg(d); holdReveal(gateReveal(g0)); }
     }
     if(el.dataset.music==='toggle'){ var a=audio(); if(a&&!a.paused) pause(); else play(); }
     if(el.hasAttribute('data-song')){
@@ -98,14 +115,77 @@
     d.body.appendChild(box); setTimeout(function(){ box.remove(); }, 1900);
   }
   function rvScan(){ if(window.__rvScan) window.__rvScan(); }
+  // Video latar tema sinema (video[data-bgvideo], preload=none di HTML):
+  // diputar tanpa suara setelah gerbang dibuka; mode hemat → tak dimuat
+  // (poster saja). Dijeda saat tab tersembunyi, dilanjutkan saat kembali.
+  // Video berulang dari detik `#loop=` (atau dari awal): dipakai latar sampul.
+  function loopFrom(v, start){
+    var lf=/#loop=([\d.]+)/.exec(v.getAttribute('src')||''), at=lf ? parseFloat(lf[1]) : 0;
+    v.muted=true; v.loop=false;
+    var go=function(){ try{ v.currentTime=at; }catch(_){} var q=v.play(); if(q&&q.catch) q.catch(function(){}); };
+    v.addEventListener('ended', go);
+    if(start){ if(v.readyState>=1) go(); else v.addEventListener('loadedmetadata', go, {once:true}); }
+  }
+  function playGateBg(){
+    if(calm || d.documentElement.classList.contains('motion-min')) return;
+    d.querySelectorAll('video[data-gatebg]:not([data-gb])').forEach(function(v){ v.setAttribute('data-gb','1'); loopFrom(v, true); });
+  }
+  function playBg(root){
+    if(d.documentElement.classList.contains('motion-min')) return;
+    (root||d).querySelectorAll('video[data-bgvideo]').forEach(function(v){
+      v.muted=true; v.setAttribute('data-bv','1');
+      // `#loop=2.6` di src: bagian pembuka video tampil sekali, pengulangan
+      // mulai dari detik itu (frame akhir = frame detik itu).
+      var lf=/#loop=([\d.]+)/.exec(v.getAttribute('src')||'');
+      if(lf && !v.dataset.lf){ v.dataset.lf=lf[1]; v.loop=false; v.addEventListener('ended', function(){ try{ v.currentTime=parseFloat(v.dataset.lf); }catch(_){} var q=v.play(); if(q&&q.catch) q.catch(function(){}); }); }
+      if(v.preload!=='auto') v.preload='auto';
+      var p=v.play(); if(p&&p.catch) p.catch(function(){});
+    });
+  }
+  onDom(playGateBg); playGateBg();
+  onDom(function(){
+    // Tanpa gerbang (atau sudah dibuka): langsung putar video baru di halaman.
+    var g=d.querySelector('.gate:not(.gate--embed)');
+    var closed=g && (!d.documentElement.classList.contains('inv-opened') || (g.querySelector('video[data-gatevideo]') && !g.classList.contains('is-done')));
+    if(closed) return;
+    d.querySelectorAll('.inv:not(.inv--embed) video[data-bgvideo]:not([data-bv])').forEach(function(v){ playBg(v.parentNode); });
+  });
+  d.addEventListener('visibilitychange', function(){
+    d.querySelectorAll('video[data-bv]').forEach(function(v){ if(d.hidden) v.pause(); else { var p=v.play(); if(p&&p.catch) p.catch(function(){}); } });
+  });
+  // Video prewedding bersuara diputar → musik latar dijeda.
+  d.addEventListener('play', function(e){ var t=e.target; if(t && t.matches && t.matches('video[data-prewed]')) pause(); }, true);
   // Kapan isi mulai dianimasikan setelah gerbang dibuka (ms): adegan pembuka
   // yang panjang (mis. pintu gebyok) menyetel --gate-reveal agar isi tak
   // "habis" teranimasi di balik pintu.
   function gateReveal(g){ var v=g && parseInt(getComputedStyle(g).getPropertyValue('--gate-reveal'),10); return v>0 ? v : 700; }
   // Isi di balik gerbang langsung ditandai (tersembunyi, tak sempat terlihat
   // sebelum waktunya) tapi animasi masuknya baru diputar setelah `ms`.
-  var revealAt=0;
-  function holdReveal(ms){ revealAt=Date.now()+ms; rvScan(); }
+  var revealAt=0, held=[], heldTimer=0;
+  function flushHeld(){
+    heldTimer=0; var w=revealAt-Date.now();
+    if(w>0){ heldTimer=setTimeout(flushHeld, w); return; }
+    held.forEach(function(el){ el.classList.add('is-in'); }); held=[];
+  }
+  // Elemen yang masuk layar sebelum waktunya ditahan di `held`; jadwal bisa
+  // dimundurkan/dimajukan (gerbang video: ditahan sampai videonya selesai).
+  function revealNow(el){ if(revealAt>Date.now()){ held.push(el); if(!heldTimer) heldTimer=setTimeout(flushHeld, revealAt-Date.now()); } else el.classList.add('is-in'); }
+  function holdReveal(ms){ revealAt=Date.now()+ms; if(heldTimer) clearTimeout(heldTimer); heldTimer=setTimeout(flushHeld, Math.max(0, ms)); rvScan(); }
+  // Gerbang dengan video pembuka (video[data-gatevideo]): diputar sekali;
+  // gerbang ditutup (.is-done) setelah video SELESAI (bukan timer — sinyal
+  // lambat tak memotong pintu), lalu video latar diputar & isi dianimasikan
+  // --gate-reveal ms kemudian. Mode hemat / galat → langsung selesai.
+  function openGate(g, root){
+    var v=g && g.querySelector('video[data-gatevideo]'); if(!v) return false;
+    var done=false, fin=function(){ if(done) return; done=true; g.classList.add('is-done'); g.querySelectorAll('video[data-gatebg]').forEach(function(x){ x.pause(); }); playBg(root); holdReveal(gateReveal(g)); };
+    holdReveal(120000);
+    if(calm || d.documentElement.classList.contains('motion-min')){ fin(); return true; }
+    v.muted=true; try{ v.currentTime=0; }catch(_){}
+    v.addEventListener('ended', fin, {once:true}); v.addEventListener('error', fin, {once:true});
+    var pr=v.play(); if(pr&&pr.catch) pr.catch(fin);
+    setTimeout(fin, 12000);
+    return true;
+  }
   function pad(n){ return (n<10?'0':'')+n; }
   function tick(){
     if(d.hidden) return;
@@ -174,6 +254,12 @@
     if(max && f.size>max*1048576){ toast('Berkas terlalu besar (maks '+max+' MB)'); inp.value=''; return; }
     var url=URL.createObjectURL(f), rec={el:inp,url:url,targets:[]};
     blobs.push(rec);
+    if(inp.dataset.preview==='video'){
+      if(!out) return;
+      var v=d.createElement('video'); v.src=url; v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true; v.className='preview-video';
+      out.appendChild(v); var pv=v.play(); if(pv&&pv.catch) pv.catch(function(){});
+      return;
+    }
     if(inp.dataset.preview==='audio'){
       if(!out) return;
       var btn=d.createElement('button'); btn.type='button'; btn.className='song';
@@ -325,17 +411,28 @@
           if(rd) ms=rd; else { var step=parseInt(cs.getPropertyValue('--rv-stagger'),10); if(isNaN(step)) step=90; ms=Math.min(k++, step>150?8:6)*step+'ms'; }
           el.style.transitionDelay=ms; el.style.setProperty('--rv-d', ms);
         }
-        var wait=revealAt-Date.now();
-        if(wait>0) setTimeout(function(){ el.classList.add('is-in'); }, wait); else el.classList.add('is-in');
+        revealNow(el);
         io.unobserve(el); watched.delete(el);
       });
     }, {rootMargin:'0px 0px -6% 0px'});
     // Elemen yang diamati tapi sudah hilang (pindah halaman sebelum terlihat)
     // dilepas dari observer — tak ada elemen lama yang tertahan di memori.
     var watched=new Set();
-    var observe=function(el){ watched.add(el); io.observe(el); };
+    // Mode "terulang" (koreografi ber---rv-repeat:1, ala everlove): aktif
+    // saat elemen 150px di atas tepi bawah layar, dilepas lagi bila elemen
+    // kembali ke bawah → gerak diputar ulang tiap digulir naik-turun.
+    var ioRep=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(e.isIntersecting) revealNow(e.target);
+        else if(e.boundingClientRect.top>0) e.target.classList.remove('is-in');
+      });
+    }, {rootMargin:'0px 0px -150px 0px'});
+    var observe=function(el){
+      watched.add(el);
+      if(el.dataset.rv && getComputedStyle(el).getPropertyValue('--rv-repeat').trim()==='1') ioRep.observe(el); else io.observe(el);
+    };
     function scan(){
-      watched.forEach(function(el){ if(!el.isConnected){ io.unobserve(el); watched.delete(el); } });
+      watched.forEach(function(el){ if(!el.isConnected){ io.unobserve(el); ioRep.unobserve(el); watched.delete(el); } });
       if(!d.querySelector('.inv')) return;
       // Selama sampul/gerbang belum dibuka, jangan "habiskan" animasi isi yang
       // tersembunyi di baliknya — tunggu sampai dibuka.

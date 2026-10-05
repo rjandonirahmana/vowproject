@@ -7,17 +7,21 @@
 -- hemat (takaran everlove): hanya pohon yang bergoyang pelan; wayang & awan
 -- cukup masuk lalu diam.
 -- Ilustrasi: public/img/tema/wayang/ (scripts/gerak/wayang.py).
--- Ornamen lama tema ini DIGANTI seluruhnya. WAJIB setelah 019.
+-- Ornamen SEED lama tema ini diganti; milik admin dibiarkan. WAJIB setelah 019
+-- (dan 017b).
 -- ═══════════════════════════════════════════════════════════════════════════
 
 UPDATE themes SET open_anim = 'gebyok-ukir', scroll_anim = 'keraton', float_deco = 'burung', layout = 'klasik',
        bg_image = '/img/tema/wayang/latar.svg', gerak_judul = 'ikut', gerak_foto = 'ikut', ken_burns = TRUE, updated_at = NOW()
- WHERE slug = 'gunungan-wayang-kulit';
+ WHERE slug = 'gunungan-wayang-kulit' AND NOT motion_locked;
 
-DELETE FROM theme_ornaments WHERE theme = 'gunungan-wayang-kulit';
+-- Hanya ornamen SEED yang diganti. Tema yang sudah ditata admin (punya
+-- ornamen 'admin') dibiarkan UTUH — seed lama tak dihapus, seed baru tak ditambah.
+DELETE FROM theme_ornaments WHERE theme = 'gunungan-wayang-kulit' AND source = 'seed'
+   AND NOT EXISTS (SELECT 1 FROM theme_ornaments o WHERE o.theme = 'gunungan-wayang-kulit' AND o.source = 'admin');
 
-INSERT INTO theme_ornaments (theme, bagian, img, posisi, x, y, lebar, rotasi, cermin, masuk, jeda, durasi, gerak, kecepatan, depan, hp, opasitas, urutan)
-SELECT 'gunungan-wayang-kulit', v.bagian, '/img/tema/wayang/' || v.img, v.posisi, v.x, v.y, v.lebar, v.rotasi, v.cermin, v.masuk, v.jeda, v.durasi, v.gerak, v.kecepatan, v.depan, v.hp, v.opasitas, v.urutan
+INSERT INTO theme_ornaments (theme, bagian, img, posisi, x, y, lebar, rotasi, cermin, masuk, jeda, durasi, gerak, kecepatan, depan, hp, opasitas, urutan, source)
+SELECT 'gunungan-wayang-kulit', v.bagian, '/img/tema/wayang/' || v.img, v.posisi, v.x, v.y, v.lebar, v.rotasi, v.cermin, v.masuk, v.jeda, v.durasi, v.gerak, v.kecepatan, v.depan, v.hp, v.opasitas, v.urutan, 'seed'
   FROM (VALUES
     -- Sampul (tata letak klasik = tanpa kartu): sudut & awan di atas, pohon besar
     -- di kiri-kanan, pendopo samar di kaki, wayang ksatria & putri mengapit.
@@ -48,4 +52,6 @@ SELECT 'gunungan-wayang-kulit', v.bagian, '/img/tema/wayang/' || v.img, v.posisi
     ('rsvp',     'wayang-putri.svg',   'kanan-bawah', 26,  10, 24,  0, TRUE,  'geser-kanan', 600,1300, 'none',     6, FALSE, TRUE, 90, 200),
     ('rsvp',     'awan.svg',           'tengah-atas',  0, -30, 60,  0, FALSE, 'turun',      200, 1300, 'none',     6, FALSE, TRUE, 45, 210)
   ) AS v(bagian, img, posisi, x, y, lebar, rotasi, cermin, masuk, jeda, durasi, gerak, kecepatan, depan, hp, opasitas, urutan)
- WHERE EXISTS (SELECT 1 FROM themes t WHERE t.slug = 'gunungan-wayang-kulit');
+ WHERE EXISTS (SELECT 1 FROM themes t WHERE t.slug = 'gunungan-wayang-kulit')
+   -- tema yang sudah ditata admin (punya ornamen admin) tidak ditambahi seed
+   AND NOT EXISTS (SELECT 1 FROM theme_ornaments o WHERE o.theme = 'gunungan-wayang-kulit' AND o.source = 'admin');

@@ -7,7 +7,7 @@
 //! ulang estimasi dari query (web/layanan.rs `SeserahanInput`).
 
 use leptos::prelude::*;
-use leptos_meta::{Meta, Title};
+use crate::web::seo::Seo;
 
 use crate::web::fmt::rupiah;
 use crate::web::icons::Icon;
@@ -40,8 +40,7 @@ const LANGKAH: &[Poin] = &[
 #[component]
 pub fn SeserahanPage() -> impl IntoView {
     view! {
-        <Title text=concat!("Sewa Seserahan & Hantaran Tawangmangu – Solo — ", crate::brand!()) />
-        <Meta name="description" content="Sewa kotak seserahan akrilik, akrilik gold mirror, kayu jati ukir adat Jawa, dan rotan rustic. Jasa hias isi, bunga segar, antar-jemput Tawangmangu, Karanganyar & Solo Raya. Hitung biaya langsung." />
+        <Seo path="/seserahan" title=concat!("Sewa Seserahan & Hantaran Tawangmangu – Solo — ", crate::brand!()) description="Sewa kotak seserahan akrilik, akrilik gold mirror, kayu jati ukir adat Jawa, dan rotan rustic. Jasa hias isi, bunga segar, antar-jemput Tawangmangu, Karanganyar & Solo Raya. Hitung biaya langsung." />
         <div class="site">
             <SiteHeader active="seserahan" />
             <WithKonten view=seserahan_body />

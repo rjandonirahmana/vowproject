@@ -12,6 +12,9 @@ pub use super::gambar::Ukuran;
 
 pub const MAX_IMAGE: usize = 5 * 1024 * 1024;
 pub const MAX_AUDIO: usize = 6 * 1024 * 1024;
+/// Video prewedding (latar tema sinema). Dibatasi agar memori server aman —
+/// pembeli disarankan mengompres (±1 menit 720p ≈ 10–15 MB).
+pub const MAX_VIDEO: usize = 20 * 1024 * 1024;
 
 /// Validasi magic bytes — Content-Type dari klien tak dipercaya begitu saja.
 pub fn detect_image(data: &[u8]) -> Option<(&'static str, &'static str)> {
@@ -29,6 +32,16 @@ fn detect_audio(data: &[u8]) -> Option<(&'static str, &'static str)> {
         [0xFF, b, ..] if b & 0xE0 == 0xE0 => Some(("audio/mpeg", "mp3")),
         [_, _, _, _, b'f', b't', b'y', b'p', ..] => Some(("audio/mp4", "m4a")),
         [b'O', b'g', b'g', b'S', ..] => Some(("audio/ogg", "ogg")),
+        _ => None,
+    }
+}
+
+/// MP4/MOV (kotak `ftyp`) atau WebM (EBML). Content-Type klien tak dipercaya.
+pub fn detect_video(data: &[u8]) -> Option<(&'static str, &'static str)> {
+    match data {
+        [_, _, _, _, b'f', b't', b'y', b'p', b'q', b't', ..] => Some(("video/quicktime", "mov")),
+        [_, _, _, _, b'f', b't', b'y', b'p', ..] => Some(("video/mp4", "mp4")),
+        [0x1A, 0x45, 0xDF, 0xA3, ..] => Some(("video/webm", "webm")),
         _ => None,
     }
 }
@@ -161,6 +174,15 @@ impl StorageService {
         self.put_key(&format!("musik/{}/{}.{ext}", path_part(dir, "undangan"), file_stem(file_name, "lagu")), mime, data).await
     }
 
+    /// Video prewedding: `video/{undangan}/{nama-berkas}.{ext}`.
+    pub async fn upload_video_as(&self, data: Vec<u8>, dir: &str, file_name: &str) -> anyhow::Result<String> {
+        if data.len() > MAX_VIDEO {
+            anyhow::bail!("Video maksimal {} MB — kompres dulu (mis. 720p)", MAX_VIDEO / 1024 / 1024);
+        }
+        let (mime, ext) = detect_video(&data).ok_or_else(|| anyhow::anyhow!("Video harus MP4, MOV, atau WebM"))?;
+        self.put_key(&format!("video/{}/{}.{ext}", path_part(dir, "undangan"), file_stem(file_name, "prewedding")), mime, data).await
+    }
+
     /// Kunci objek dari URL publik unggahan KITA (tanpa fragmen #t=/#pos=).
     /// URL lain (lagu bawaan /music/…, gambar /img/…, situs luar) → None.
     pub fn key_of(&self, url: &str) -> Option<String> {
@@ -281,5 +303,9 @@ mod tests {
         assert!(detect_audio(b"ID3\x04\0\0").is_some());
         assert!(detect_image(&[0xFF, 0xD8, 0xFF, 0xE0]).is_some());
         assert!(detect_image(b"<svg").is_none());
+        assert_eq!(detect_video(b"\0\0\0\x20ftypisom\0\0").map(|v| v.1), Some("mp4"));
+        assert_eq!(detect_video(b"\0\0\0\x14ftypqt  \0\0").map(|v| v.1), Some("mov"));
+        assert_eq!(detect_video(&[0x1A, 0x45, 0xDF, 0xA3, 0x01]).map(|v| v.1), Some("webm"));
+        assert!(detect_video(b"<html>video").is_none());
     }
 }

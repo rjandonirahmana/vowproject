@@ -630,6 +630,18 @@ fn ThemeForm(t: ThemeInfo, used: i64, is_new: bool, categories: Vec<String>, nua
                             <small class="muted">{help}</small>
                         </div>
                     }).collect_view()}
+                    <label class="field adm-wide">
+                        <span class="field__label">"Video latar (tema sinema)"</span>
+                        <input class="input" name="bg_video" maxlength="500" value=t.bg_video.clone() placeholder="/video/… atau https://…/latar.mp4"
+                            on:input=set(|t, v| t.bg_video = v) />
+                        <small class="muted">"Diisi = video diputar penuh di belakang isi undangan (tanpa suara, berulang). Video prewedding pasangan otomatis menggantikannya. MP4 (H.264) paling kompatibel; WebM juga didukung. Akhiri URL dengan #loop=2.6 agar pengulangan mulai dari detik 2,6 (bagian pembuka video hanya tampil sekali)."</small>
+                    </label>
+                    <label class="field adm-wide">
+                        <span class="field__label">"Video pembuka (gerbang)"</span>
+                        <input class="input" name="open_video" maxlength="500" value=t.open_video.clone() placeholder="/video/…-buka.mp4"
+                            on:input=set(|t, v| t.open_video = v) />
+                        <small class="muted">"Diputar sekali saat tamu menekan \"Buka Undangan\" (pakai cara membuka \"Video pintu\"). Frame terakhirnya sebaiknya sama dengan frame pertama video latar agar sambungannya mulus."</small>
+                    </label>
                 </section>
 
                 <section class="card fsec">
@@ -1376,7 +1388,7 @@ fn BannerFields(b: crate::web::model::Banner) -> impl IntoView {
             <label class="field"><span class="field__label">"Subjudul (opsional, disembunyikan di HP)"</span>
                 <input class="input" name="sub" maxlength="300" value=b.sub.clone() /></label>
             <label class="field"><span class="field__label">"Tautan"</span>
-                <input class="input" name="link" maxlength="300" value=b.link.clone() placeholder="/buat, /dekorasi, /#katalog, atau https://…" /></label>
+                <input class="input" name="link" maxlength="300" value=b.link.clone() placeholder="/buat, /dekorasi, /#katalog, /u/{demo} (undangan demo), atau https://…" /></label>
             {img_field("img", "img_file", "Gambar desktop (wajib)", "Strip 2880×320 px (9:1), JPG/PNG/WebP maks 5 MB — unggahan masuk RustFS.", b.img.clone())}
             {img_field("img_hp", "img_hp_file", "Gambar HP (opsional)", "1080×405 px (8:3). Kosong = memakai gambar desktop.", b.img_hp.clone())}
             <div class="field-row field-row--3">

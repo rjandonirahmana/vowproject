@@ -75,7 +75,7 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     if let Err(secs) = state.create_limit.hit(&format!("buat:{}", security::client_ip(&headers))) {
         return back_with_error(&format!("Terlalu banyak pembuatan undangan dari jaringan ini. Coba lagi dalam {} menit.", secs.div_ceil(60)));
     }
-    let mut form = match super::form::read(mp, 4 + MAX_GALLERY).await {
+    let mut form = match super::form::read(mp, 5 + MAX_GALLERY).await {
         Ok(f) => f,
         Err(()) => return back_with_error("Unggahan terputus atau terlalu besar (foto maks 5 MB, lagu maks 6 MB)."),
     };
@@ -160,6 +160,33 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
                 discard_uploads(&state, &uploaded).await;
                 return back_with_error(&e.to_string());
             }
+        }
+    }
+
+    // Video prewedding (tema sinema): unggahan, atau tautan https langsung ke
+    // berkas .mp4/.webm milik pembeli.
+    let mut video_url = String::new();
+    if let Some(i) = files.iter().position(|u| u.field == super::form::VIDEO_FIELD) {
+        let up = files.swap_remove(i);
+        match state.storage.as_ref() {
+            None => tracing::warn!("buat: RustFS belum dikonfigurasi — video dilewati"),
+            Some(st) => match st.upload_video_as(up.data, &slug, &up.file_name).await {
+                Ok(url) => {
+                    uploaded.push(url.clone());
+                    video_url = url;
+                }
+                Err(e) => {
+                    discard_uploads(&state, &uploaded).await;
+                    return back_with_error(&e.to_string());
+                }
+            },
+        }
+    }
+    if video_url.is_empty() {
+        let link = get("video_link", 300);
+        let path = link.split(['?', '#']).next().unwrap_or("").to_ascii_lowercase();
+        if link.starts_with("https://") && crate::web::skin::is_safe_url(&link) && (path.ends_with(".mp4") || path.ends_with(".webm")) {
+            video_url = link;
         }
     }
 
@@ -336,6 +363,18 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         }
         return back_with_error("Gagal menyimpan undangan, coba lagi.");
     }
+    if !video_url.is_empty() {
+        match repo::set_invitation_video(&state.pool, &slug, &video_url).await {
+            Ok(true) => {}
+            Ok(false) => {
+                tracing::warn!(slug = %slug, "buat: kolom video_url belum ada (migrasi 022) — video dibuang");
+                if state.storage.as_ref().is_some_and(|st| st.key_of(&video_url).is_some()) {
+                    discard_uploads(&state, std::slice::from_ref(&video_url)).await;
+                }
+            }
+            Err(e) => tracing::error!(error = %format!("{e:#}"), "buat: simpan video"),
+        }
+    }
     tracing::info!(slug = %slug, total, "undangan baru dibuat");
     Redirect::to(&format!("/kelola/{slug}?key={manage_key}&baru=1")).into_response()
 }
@@ -459,6 +498,30 @@ pub async fn theme_css(Extension(state): Extension<Arc<AppState>>) -> Response {
         cat.css.clone(),
     )
         .into_response()
+}
+
+/// GET /sitemap.xml — halaman publik + demo tiap tema yang tampil di katalog +
+/// detail paket dekorasi. Dari cache AppState (tanpa query DB per request).
+pub async fn sitemap(Extension(state): Extension<Arc<AppState>>) -> Response {
+    use crate::web::seo::SITE_URL;
+    let cat = state.themes();
+    let konten = state.konten();
+    let mut urls: Vec<(String, &str, &str)> = [
+        ("/", "daily", "1.0"), ("/paket", "weekly", "0.9"), ("/buat", "monthly", "0.8"), ("/panduan", "monthly", "0.7"),
+        ("/cetak", "monthly", "0.6"), ("/dekorasi", "monthly", "0.6"), ("/mua", "monthly", "0.6"), ("/seserahan", "monthly", "0.6"),
+        ("/privasi", "yearly", "0.2"), ("/syarat", "yearly", "0.2"),
+    ]
+    .iter()
+    .map(|(p, f, pr)| (p.to_string(), *f, *pr))
+    .collect();
+    urls.extend(cat.list.iter().filter(|t| t.listed && crate::web::skin::is_slug(&t.slug)).map(|t| (format!("/tema/{}", t.slug), "weekly", "0.8")));
+    urls.extend(konten.dekor_paket.iter().filter(|p| crate::web::fmt::is_slug(&p.slug, 64)).map(|p| (format!("/dekorasi/{}", p.slug), "monthly", "0.5")));
+    let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
+    for (path, freq, prio) in urls {
+        xml.push_str(&format!("  <url><loc>{SITE_URL}{path}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>\n"));
+    }
+    xml.push_str("</urlset>\n");
+    ([(header::CONTENT_TYPE, "application/xml; charset=utf-8"), (header::CACHE_CONTROL, "public, max-age=3600")], xml).into_response()
 }
 
 /// GET /readyz — 200 bila Postgres menjawab, 503 bila tidak.
@@ -1095,7 +1158,8 @@ pub async fn admin_save_banner(
     if !b.img_hp.is_empty() && !crate::web::skin::is_safe_url(&b.img_hp) {
         return to(back, "galat", "Alamat gambar HP tidak valid.");
     }
-    if !b.link.is_empty() && !crate::web::skin::is_safe_url(&b.link) {
+    // `{demo}` = penanda undangan demo (diisi saat tampil, repo::banners_live).
+    if !b.link.is_empty() && !crate::web::skin::is_safe_url(&b.link.replace("{demo}", crate::web::themes::DEMO_SLUG)) {
         return to(back, "galat", "Tautan harus diawali / (halaman situs) atau https://.");
     }
     let dt_ok = |v: &str| v.is_empty() || (v.len() == 16 && fmt::parse_date(&v[..10]).is_some() && v.as_bytes()[10] == b'T');

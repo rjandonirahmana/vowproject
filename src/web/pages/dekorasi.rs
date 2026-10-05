@@ -2,7 +2,7 @@
 //! Tawangmangu – Solo Raya (desain Stitch "Vendor Dekorasi & Sound System").
 
 use leptos::prelude::*;
-use leptos_meta::{Meta, Title};
+use crate::web::seo::{JsonLd, Seo};
 
 use crate::web::icons::Icon;
 use crate::web::konten::{icon_line, Konten};
@@ -39,8 +39,7 @@ const SURVEY: &[Poin] = &[
 #[component]
 pub fn DekorasiPage() -> impl IntoView {
     view! {
-        <Title text=concat!("Dekorasi Pernikahan & Sound System Tawangmangu – Solo — ", crate::brand!()) />
-        <Meta name="description" content="Dekorasi pernikahan botanical, adat Jawa Solo, dan intimate villa lengkap dengan sound system & genset silent. Survey lokasi gratis Tawangmangu, Karanganyar, Solo Raya." />
+        <Seo path="/dekorasi" title=concat!("Dekorasi Pernikahan & Sound System Tawangmangu – Solo — ", crate::brand!()) description="Dekorasi pernikahan botanical, adat Jawa Solo, dan intimate villa lengkap dengan sound system & genset silent. Survey lokasi gratis Tawangmangu, Karanganyar, Solo Raya." />
         <div class="site">
             <SiteHeader active="dekorasi" />
             <WithKonten view=dekor_body />
@@ -231,9 +230,9 @@ fn DekorDetail(p: crate::web::konten::VendorPaket, others: Vec<crate::web::konte
     let note = if p.note.is_empty() { "Investasi".to_string() } else { p.note.clone() };
     let first = photos.with_value(|v| v.first().cloned().unwrap_or_default());
     view! {
-        <Title text=format!(concat!("{} — Dekorasi Pernikahan ", crate::brand!()), p.name) />
-        <Meta name="description" content=p.desc.clone() />
-        <Meta property="og:image" content=first />
+        <Seo title=format!(concat!("{} — Dekorasi Pernikahan ", crate::brand!()), p.name) description=p.desc.clone()
+            path=format!("/dekorasi/{}", p.slug) image=first />
+        <JsonLd data=crate::web::seo::breadcrumb(&[("Beranda", "/"), ("Dekorasi", "/dekorasi"), (p.name.as_str(), format!("/dekorasi/{}", p.slug).as_str())]) />
         <nav class="dd-crumb" aria-label="Lokasi halaman">
             <a href="/dekorasi"><Icon name="arrow_back" />"Dekorasi & Sound"</a>
             <span>"/"</span>

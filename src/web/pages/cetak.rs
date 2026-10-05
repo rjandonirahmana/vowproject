@@ -2,7 +2,7 @@
 //! cetak & ongkir (desain Stitch "Layanan Cetak Undangan Fisik").
 
 use leptos::prelude::*;
-use leptos_meta::{Meta, Title};
+use crate::web::seo::Seo;
 
 use crate::web::fmt::{ribuan, rupiah};
 use crate::web::icons::Icon;
@@ -42,8 +42,7 @@ const FINISHING: &[Poin] = &[
 #[component]
 pub fn CetakPage() -> impl IntoView {
     view! {
-        <Title text=concat!("Cetak Undangan Fisik Eksklusif — ", crate::brand!()) />
-        <Meta name="description" content="Cetak undangan pernikahan fisik: hardcover foil emas, akrilik, wax seal asli. Hitung estimasi harga & ongkir, kirim aman ke seluruh Indonesia." />
+        <Seo path="/cetak" title=concat!("Cetak Undangan Fisik Eksklusif — ", crate::brand!()) description="Cetak undangan pernikahan fisik: hardcover foil emas, akrilik, wax seal asli. Hitung estimasi harga & ongkir, kirim aman ke seluruh Indonesia." />
         <div class="site">
             <SiteHeader active="cetak" />
             <WithKonten view=cetak_body />

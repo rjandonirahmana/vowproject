@@ -25,9 +25,10 @@ use leptos::prelude::provide_context;
 use leptos_axum::{generate_route_list, LeptosRoutes};
 use undangan::server::{config::AppConfig, db::create_pool, handlers, migrate, security, state::{self, AppState}, storage::StorageService};
 
-/// Batas body formulir: foto mempelai (2) + sampul (1) + galeri + 1 lagu + 2 MB teks/overhead.
+/// Batas body formulir: foto mempelai (2) + sampul (1) + galeri + 1 lagu + 1 video + 2 MB teks/overhead.
 const MAX_FORM: usize = (3 + handlers::MAX_GALLERY) * undangan::server::storage::MAX_IMAGE
     + undangan::server::storage::MAX_AUDIO
+    + undangan::server::storage::MAX_VIDEO
     + 2 * 1024 * 1024;
 use undangan::web::app::{shell, App};
 
@@ -53,6 +54,10 @@ async fn main() -> Result<()> {
     let dev = matches!(leptos_options.env, leptos::config::Env::DEV);
 
     let cfg = AppConfig::from_env(&leptos_options.site_addr.to_string())?;
+    // url(…) di CSS animasi admin hanya boleh ke penyimpanan & situs sendiri.
+    undangan::web::anim::set_url_origins(
+        [&cfg.rustfs.public_url, &cfg.site_url].iter().filter_map(|u| undangan::web::anim::origin_of(u)).collect(),
+    );
 
     let pool_size = std::env::var("DB_POOL_SIZE").ok().and_then(|v| v.parse().ok()).filter(|n| *n > 0).unwrap_or(10);
     let pool = create_pool(&cfg.database_url, pool_size).await.context("gagal membuat pool Postgres")?;
@@ -153,6 +158,7 @@ async fn main() -> Result<()> {
         .route("/kelola/{slug}/bukti", axum::routing::post(handlers::upload_payment_proof))
         .route("/layanan/wa", axum::routing::get(handlers::layanan_wa))
         .route("/tema.css", axum::routing::get(handlers::theme_css))
+        .route("/sitemap.xml", axum::routing::get(handlers::sitemap))
         .route("/app.js", axum::routing::get(handlers::app_js))
         // healthz (di bawah) = proses hidup; readyz = siap melayani (DB menjawab).
         .route("/readyz", axum::routing::get(handlers::readyz))
