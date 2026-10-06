@@ -3,7 +3,7 @@
    sampul naik cepat (0,4 dtk) memperlihatkan video pintu (theme.open_video)
    yang diputar sekali; /app.js menandai gerbang .is-done saat video SELESAI
    → gerbang hilang, frame akhirnya menyambung ke video latar. */
-{a} { --gate-reveal: 2600; }
+{a} { --gate-reveal: 1400; }
 {a} .gate__video { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: var(--bg); visibility: hidden; }
 {a} .gate__panel { display: none; }
 {a} { background: var(--bg); }
