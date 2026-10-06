@@ -437,7 +437,13 @@
       // Selama sampul/gerbang belum dibuka, jangan "habiskan" animasi isi yang
       // tersembunyi di baliknya — tunggu sampai dibuka.
       var gateClosed = d.querySelector('.gate:not(.gate--embed)') && !d.documentElement.classList.contains('inv-opened');
-      d.querySelectorAll('.inv__main > *:not(.stack):not(.gate):not(.cover), .inv__isi > *, .inv__anchor > *, .inv .section > *:not(.gallery):not(.orn-layer), .inv .gallery > *, .inv .cover > *:not(.orn-layer), .inv .couple > .person, .inv--embed > *:not(.gate):not(.inv__glow)').forEach(function(el){
+      // Koreografi "dalam" (tema menyetel --rv-deep:1, mis. sekar ala everlove):
+      // isi kartu ikut beranimasi sendiri-sendiri — judul/tanggal/tombol kartu
+      // acara, kotak hitung mundur, tiap babak kisah, kartu rekening, ucapan.
+      var root=d.querySelector('.inv'), deep=root && getComputedStyle(root).getPropertyValue('--rv-deep').trim()==='1';
+      var sel='.inv__main > *:not(.stack):not(.gate):not(.cover), .inv__isi > *, .inv__anchor > *, .inv .section > *:not(.gallery):not(.orn-layer), .inv .gallery > *, .inv .cover > *:not(.orn-layer), .inv .couple > .person, .inv--embed > *:not(.gate):not(.inv__glow)';
+      if(deep) sel+=', .inv .countdown > *, .inv .quote > *, .inv .event > *, .inv .story > li, .inv .person > .arch-photo, .inv .person__body > *, .inv .gift .bank, .inv .wishes > *, .inv .rsvp-hero > *:not(.orn-layer)';
+      d.querySelectorAll(sel).forEach(function(el){
         if(el.dataset.rv) return;
         var emb=el.closest('.inv--embed');
         if(!emb && el.closest('.gate')) return;
@@ -457,6 +463,14 @@
     window.__rvScan=scan;
     scan();
     onDom(scan);
+    // Foto bergerak (.fg): animasi silang-pudar/Ken Burns hanya berjalan saat
+    // bingkainya terlihat — di luar layar dijeda (hemat baterai HP tamu).
+    var fgIO=new IntersectionObserver(function(es){
+      es.forEach(function(e){ e.target.classList.toggle('is-play', e.isIntersecting); });
+    }, {rootMargin:'80px 0px'});
+    var fgScan=function(){ d.querySelectorAll('.fg:not([data-fg-w])').forEach(function(el){ el.setAttribute('data-fg-w','1'); fgIO.observe(el); }); };
+    fgScan();
+    onDom(fgScan);
     // Ruangan: bila koreografi tema menyetel --ruang-urut, tiap bagian ber-
     // ornamen (mempelai, kisah, galeri, acara, RSVP) jadi "ruangan" — saat
     // pertama dimasuki sambil menggulir ke bawah, portalnya (pintu / gapura /

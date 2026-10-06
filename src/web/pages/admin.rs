@@ -2021,7 +2021,7 @@ fn OrnSample(bag: String) -> impl IntoView {
             <section class="section orn-host">
                 <Ornamen bagian="mempelai" />
                 <p class="eyebrow eyebrow--center">"Kedua Mempelai"</p>
-                <h2 class="section__title">"Insan yang Menyatukan Janji"</h2>
+                <h2 class="section__title">"Bride & Groom"</h2>
                 <div class="couple">
                     {["Yona", "Doni"].into_iter().map(|n| view! {
                         <article class="person card">
@@ -2067,7 +2067,7 @@ fn OrnSample(bag: String) -> impl IntoView {
                 <Ornamen bagian="acara" />
                 <span class="intro__icon"><Icon name="local_florist" /></span>
                 <p class="eyebrow eyebrow--gold">"Walimatul 'Ursy"</p>
-                <h1 class="section__title">"Rangkaian Hari Bahagia"</h1>
+                <h1 class="section__title">"Wedding Event"</h1>
                 <p class="intro__text">"Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Anda untuk merayakan ikatan suci kami:"</p>
             </section>
             <div class="event card">
@@ -2081,7 +2081,7 @@ fn OrnSample(bag: String) -> impl IntoView {
                 <Ornamen bagian="rsvp" />
                 <span class="intro__icon"><Icon name="favorite" /></span>
                 <p class="eyebrow eyebrow--gold">"Buku Tamu Digital"</p>
-                <h1 class="section__title">"Konfirmasi Kehadiran & Doa Restu"</h1>
+                <h1 class="section__title">"Wedding Wishes"</h1>
                 <p class="intro__text">"Kehadiran dan doa restu Anda merupakan kado terindah bagi kebahagiaan kami berdua."</p>
             </section>
         }.into_any(),

@@ -631,6 +631,7 @@ pub fn builtins() -> Vec<AnimInfo> {
         b("buka", "tenun-songket", "Tenun songket: helai kain diurai kiri-kanan", include_str!("gerak/buka-tenun-songket.css"), 54),
         b("scroll", "bayang", "Koreografi Bayang wayang (dari bayangan, tokoh masuk kiri-kanan, judul menyala)", include_str!("gerak/scroll-bayang.css"), 79),
         b("scroll", "sinema", "Koreografi Sinema (untuk video latar: memudar naik tenang, kartu kaca gelap)", include_str!("gerak/scroll-sinema.css"), 85),
+        b("scroll", "sekar", "Koreografi Sekar Kedhaton (ala everlove: panel taupe, foto kapsul berlili, isi kartu bergerak, diulang saat digulir)", include_str!("gerak/scroll-sekar.css"), 77),
         b("scroll", "everlove", "Koreografi Everlove (persis undangan premium: 1,5 dtk, serentak, terulang saat digulir)", include_str!("gerak/scroll-everlove.css"), 78),
         b("scroll", "keraton", "Koreografi Keraton (judul zoom, mempelai kiri-kanan, ikon berputar)", include_str!("gerak/scroll-keraton.css"), 80),
         b("scroll", "mekar", "Koreografi Mekar (judul merapat, foto terbuka bundar, kartu kelopak)", include_str!("gerak/scroll-mekar.css"), 81),

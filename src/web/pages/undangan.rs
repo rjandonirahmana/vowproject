@@ -255,7 +255,7 @@ fn short_name(nick: &str, full: &str) -> String {
 #[component]
 fn Cover() -> impl IntoView {
     let inv = ctx().page.inv;
-    let names = format!("{} & {}", short_name(&inv.bride_nick, &inv.bride_name), short_name(&inv.groom_nick, &inv.groom_name));
+    let names = couple_names(&inv);
     let photo = inv.cover_photo.clone();
     view! {
         <section class="hero cover orn-host" id="sampul">
@@ -266,7 +266,7 @@ fn Cover() -> impl IntoView {
             } else {
                 view! {
                     <div class="arch-photo arch-photo--cover">
-                        <span class="arch-photo__clip"><img src=photo.clone() alt=names.clone() style=crate::web::fmt::photo_style(&photo) fetchpriority="high" /></span>
+                        <span class="arch-photo__clip"><FotoGerak photos=cover_photos(&inv) alt=names.clone() priority=true /></span>
                         <span class="arch-photo__frame" aria-hidden="true"></span>
                     </div>
                 }.into_any()
@@ -304,10 +304,10 @@ fn SampulExtras() -> impl IntoView {
     // Video pasangan; undangan demo tema sinema memamerkan video bawaan tema.
     let prewed = if !inv.video_url.is_empty() { inv.video_url.clone() } else if inv.is_demo { c.page.skin.bg_video.clone() } else { String::new() };
     view! {
-        <Countdown target_ms=inv.countdown_target_ms() />
+        <Countdown target_ms=inv.countdown_target_ms() date=inv.date_label() calendar=inv.calendar_link() photos=save_date_photos(&inv) />
         <QuoteCard text=inv.quote_text.clone() source=inv.quote_source.clone() />
         <Couple inv=inv.clone() />
-        <LoveStorySection items=inv.love_story.clone() />
+        <LoveStorySection items=inv.love_story.clone() photos=inv.gallery.iter().skip(1).cloned().collect() />
         <PreweddingVideo src=prewed poster=Some(inv.cover_photo.split('#').next().unwrap_or("").to_string()) />
         <Gallery photos=inv.gallery.clone() />
     }
@@ -316,16 +316,9 @@ fn SampulExtras() -> impl IntoView {
 #[component]
 pub fn SampulPage() -> impl IntoView {
     let c = ctx();
-    let inv = c.page.inv.clone();
     let single = c.page.skin.single;
     let anim = c.page.skin.open_anim.clone();
     let gate = single && !anim.is_empty() && anim != "none";
-    let calendar = view! {
-        <a class="btn btn--soft btn--block" href=inv.calendar_link() target="_blank" rel="noopener">
-            <Icon name="calendar_add_on" />
-            "Simpan ke Google Calendar"
-        </a>
-    };
     let opening = if gate {
         // Sampul = gerbang layar penuh; tombol membuka tirai (skrip global:
         // data-open → html.inv-opened) sekaligus memutar musik.
@@ -349,7 +342,6 @@ pub fn SampulPage() -> impl IntoView {
                     </button>
                 </div>
             </div>
-            <div class="stack">{calendar}</div>
         }
         .into_any()
     } else if single {
@@ -358,7 +350,6 @@ pub fn SampulPage() -> impl IntoView {
             <GuestCard />
             <div class="stack">
                 <a href="#isi" class="btn btn--gold btn--block btn--lg" data-open="1"><Icon name="drafts" />"Buka Undangan & Putar Musik"</a>
-                {calendar}
             </div>
         }
         .into_any()
@@ -371,7 +362,6 @@ pub fn SampulPage() -> impl IntoView {
                     <Icon name="drafts" />
                     "Buka Undangan & Putar Musik"
                 </A>
-                {calendar}
             </div>
         }
         .into_any()
@@ -406,10 +396,10 @@ fn AcaraBody(countdown: bool) -> impl IntoView {
             <Ornamen bagian="acara" />
             <span class="intro__icon"><Icon name="local_florist" /></span>
             <p class="eyebrow eyebrow--gold">"Walimatul 'Ursy"</p>
-            <h1 class="section__title">"Rangkaian Hari Bahagia"</h1>
+            <h1 class="section__title">"Wedding Event"</h1>
             <p class="intro__text">"Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Anda untuk merayakan ikatan suci kami:"</p>
         </section>
-        {countdown.then(|| view! { <Countdown target_ms=inv.countdown_target_ms() title="Menghitung Hari Bahagia" /> })}
+        {countdown.then(|| view! { <Countdown target_ms=inv.countdown_target_ms() title="Menghitung Hari Bahagia" date=inv.date_label() calendar=inv.calendar_link() /> })}
         {inv.events.clone().into_iter().enumerate().map(|(i, ev)| {
             // Dress code ditempel di acara terakhir (biasanya resepsi).
             let d = (i + 1 == n).then(|| dress.clone());
@@ -466,7 +456,7 @@ fn RsvpBody() -> impl IntoView {
             <Ornamen bagian="rsvp" />
             <span class="intro__icon"><Icon name="favorite" /></span>
             <p class="eyebrow eyebrow--gold">"Buku Tamu Digital"</p>
-            <h1 class="section__title">"Konfirmasi Kehadiran & Doa Restu"</h1>
+            <h1 class="section__title">"Wedding Wishes"</h1>
             <p class="intro__text">"Kehadiran dan doa restu Anda merupakan kado terindah bagi kebahagiaan kami berdua."</p>
         </section>
         {inv.is_demo.then(|| view! {
@@ -493,6 +483,32 @@ fn RsvpBody() -> impl IntoView {
         })}
         <GiftSection inv=inv.clone() guest=prefill />
         <WishList slug=inv.slug.clone() refresh=refresh />
+        <TerimaKasih photos=closing_photos(&inv) names=couple_names(&inv) />
+    }
+}
+
+fn couple_names(inv: &Invitation) -> String {
+    format!("{} & {}", short_name(&inv.bride_nick, &inv.bride_name), short_name(&inv.groom_nick, &inv.groom_name))
+}
+
+/// Sampul: foto sampul lalu foto galeri pertama (silang-pudar, ala everlove).
+fn cover_photos(inv: &Invitation) -> Vec<String> {
+    std::iter::once(inv.cover_photo.clone()).chain(inv.gallery.first().cloned()).collect()
+}
+
+/// Save The Date: foto galeri ke-3 & ke-4 (galeri pendek → sampul).
+fn save_date_photos(inv: &Invitation) -> Vec<String> {
+    let g: Vec<String> = inv.gallery.iter().skip(2).take(2).cloned().collect();
+    if g.is_empty() { vec![inv.cover_photo.clone()] } else { g }
+}
+
+/// Penutup: dua foto galeri terakhir (galeri ke-2.. dipakai love story lebih
+/// dulu); galeri kosong → foto sampul saja.
+fn closing_photos(inv: &Invitation) -> Vec<String> {
+    match inv.gallery.len() {
+        0 => vec![inv.cover_photo.clone()],
+        1 => vec![inv.gallery[0].clone()],
+        n => inv.gallery[n - 2..].to_vec(),
     }
 }
 

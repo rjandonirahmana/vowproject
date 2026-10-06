@@ -77,20 +77,37 @@ pub fn Monogram(#[prop(into)] initials: String, #[prop(into, optional)] caption:
 // ── Potongan undangan ──────────────────────────────────────────────────────
 
 #[component]
-pub fn Countdown(target_ms: i64, #[prop(optional)] title: &'static str) -> impl IntoView {
+pub fn Countdown(
+    target_ms: i64,
+    #[prop(optional)] title: &'static str,
+    /// Tanggal acara ("Sabtu, 24 Oktober 2026") di bawah judul kaligrafi.
+    #[prop(optional)] date: String,
+    /// Tautan Google Calendar — tombol "Simpan Tanggal" (ala everlove).
+    #[prop(optional)] calendar: String,
+    /// Foto pasangan di atas judul (bingkai + foto bergerak, ala everlove).
+    #[prop(optional)] photos: Vec<String>,
+) -> impl IntoView {
+    let has_photo = photos.iter().any(|p| !p.is_empty());
     let title = if title.is_empty() { "Menuju Hari Bahagia" } else { title };
     view! {
         <div class="countdown card card--soft" data-countdown=target_ms.to_string()>
-            <p class="eyebrow eyebrow--gold">
-                <Icon name="hourglass_top" />
-                {title}
-            </p>
+            {has_photo.then(|| view! {
+                <div class="countdown__photo"><FotoGerak photos=photos.clone() alt="Foto pasangan".to_string() /></div>
+            })}
+            <p class="eyebrow eyebrow--gold eyebrow--center">{title}</p>
+            <h2 class="script countdown__title">"Save The Date"</h2>
+            {(!date.is_empty()).then(|| view! { <p class="countdown__date">{date}</p> })}
             <div class="countdown__grid">
                 <div class="countdown__tile"><b data-cd="d">"0"</b><span>"Hari"</span></div>
                 <div class="countdown__tile"><b data-cd="h">"00"</b><span>"Jam"</span></div>
                 <div class="countdown__tile"><b data-cd="m">"00"</b><span>"Menit"</span></div>
                 <div class="countdown__tile"><b data-cd="s">"00"</b><span>"Detik"</span></div>
             </div>
+            {(!calendar.is_empty()).then(|| view! {
+                <a class="btn btn--outline btn--sm countdown__cal" href=calendar target="_blank" rel="noopener">
+                    <Icon name="calendar_add_on" />"Simpan Tanggal"
+                </a>
+            })}
         </div>
     }
 }
@@ -121,7 +138,7 @@ pub fn Couple(inv: Invitation) -> impl IntoView {
                         {if photo.is_empty() {
                             Either::Left(view! { <span class="person__initial">{init}</span> })
                         } else {
-                            Either::Right(view! { <img src=photo.clone() alt=name.clone() loading="lazy" decoding="async" style=fmt::photo_style(&photo) /> })
+                            Either::Right(view! { <FotoGerak photos=vec![photo.clone()] alt=name.clone() /> })
                         }}
                     </span>
                     <span class="arch-photo__frame" aria-hidden="true"></span>
@@ -145,7 +162,7 @@ pub fn Couple(inv: Invitation) -> impl IntoView {
         <section class="section orn-host">
             <Ornamen bagian="mempelai" />
             <p class="eyebrow eyebrow--center">"Kedua Mempelai"</p>
-            <h2 class="section__title">"Insan yang Menyatukan Janji"</h2>
+            <h2 class="section__title">"Bride & Groom"</h2>
             <div class="couple">
                 {person("Mempelai Wanita", inv.bride_nick, inv.bride_name, inv.bride_degree, inv.bride_parents, inv.bride_ig, inv.bride_photo)}
                 <span class="couple__amp" aria-hidden="true">"&"</span>
@@ -155,9 +172,40 @@ pub fn Couple(inv: Invitation) -> impl IntoView {
     }
 }
 
-/// Kisah cinta dalam garis waktu.
+/// Foto bergerak ala everlove: 1–3 foto bertumpuk dalam satu bingkai — tiap
+/// foto tampil 1 dtk lalu silang-pudar 3 dtk ke foto berikutnya sambil Ken
+/// Burns zoom-in (satu foto = Ken Burns saja). CSS murni (`.fg` di main.css);
+/// global.js hanya menjeda animasi saat bingkai di luar layar. Foto ke-2 dst.
+/// `loading=lazy` → tak ikut dimuat sebelum bingkainya mendekati layar.
 #[component]
-pub fn LoveStorySection(items: Vec<LoveStory>) -> impl IntoView {
+pub fn FotoGerak(photos: Vec<String>, alt: String, #[prop(optional)] priority: bool) -> impl IntoView {
+    let photos: Vec<String> = photos.into_iter().filter(|p| !p.is_empty()).take(3).collect();
+    let n = photos.len();
+    view! {
+        <span class="fg" data-fg=n.to_string()>
+            {photos.into_iter().enumerate().map(|(i, src)| {
+                let first = i == 0;
+                view! {
+                    <img
+                        class="fg__img"
+                        src=src.clone()
+                        alt=if first { alt.clone() } else { String::new() }
+                        aria-hidden=(!first).then_some("true")
+                        loading=if first && priority { "eager" } else { "lazy" }
+                        fetchpriority=if first && priority { "high" } else { "auto" }
+                        decoding="async"
+                        style=format!("--fg-i:{i};{}", fmt::photo_style(&src))
+                    />
+                }
+            }).collect_view()}
+        </span>
+    }
+}
+
+/// Kisah cinta dalam garis waktu. Babak tanpa foto sendiri memakai `photos`
+/// (galeri pasangan) bergiliran — seperti everlove: satu foto per babak.
+#[component]
+pub fn LoveStorySection(items: Vec<LoveStory>, #[prop(optional)] photos: Vec<String>) -> impl IntoView {
     (!items.is_empty()).then(|| {
         view! {
             <section class="section orn-host">
@@ -165,16 +213,21 @@ pub fn LoveStorySection(items: Vec<LoveStory>) -> impl IntoView {
                 <p class="eyebrow eyebrow--center">"Perjalanan Kami"</p>
                 <h2 class="section__title">"Love Story"</h2>
                 <ol class="story card">
-                    {items.into_iter().map(|it| view! {
+                    {items.into_iter().enumerate().map(|(i, it)| {
+                        let img = if it.img.is_empty() { photos.get(i).cloned().unwrap_or_default() } else { it.img.clone() };
+                        view! {
                         <li class="story__item">
                             <span class="story__dot" aria-hidden="true"><Icon name="favorite" /></span>
                             <div>
+                                {(!img.is_empty()).then(|| view! {
+                                    <div class="story__photo"><FotoGerak photos=vec![img.clone()] alt=it.title.clone() /></div>
+                                })}
                                 {(!it.year.is_empty()).then(|| view! { <span class="story__year">{it.year.clone()}</span> })}
                                 <h3>{it.title.clone()}</h3>
                                 <p>{it.text.clone()}</p>
                             </div>
                         </li>
-                    }).collect_view()}
+                    }}).collect_view()}
                 </ol>
             </section>
         }
@@ -341,20 +394,28 @@ pub fn EventCard(ev: Event, #[prop(optional_no_strip)] dress: Option<(String, Ve
     let date = ev.date_label();
     let time = ev.time_label();
     let sessions = ev.sessions.clone();
+    // "Sabtu, 24 Oktober 2026" → hari / tanggal / bulan tahun (blok tanggal
+    // ala undangan cetak); format lain → satu baris tanggal biasa.
+    let parts = date.split_once(", ").and_then(|(day, rest)| {
+        let (num, month) = rest.split_once(' ')?;
+        Some((day.to_string(), num.to_string(), month.to_string()))
+    });
     view! {
         <article class=if is_resepsi { "event card event--resepsi" } else { "event card" }>
-            <div class="event__top">
-                <span class=if is_resepsi { "chip chip--gold" } else { "chip" }>
-                    <Icon name=if is_resepsi { "celebration" } else { "auto_stories" } />
-                    {ev.badge.clone()}
-                </span>
-                <span class="event__tag">{ev.tag.clone()}</span>
-            </div>
+            <p class="event__badge">{ev.badge.clone()}</p>
             <h3 class="event__title">{ev.title.clone()}</h3>
-            <p class="event__meta">
-                <Icon name="calendar_month" />
-                <span>{date}</span>
-            </p>
+            {match parts {
+                Some((day, num, month)) => Either::Left(view! {
+                    <div class="event__date">
+                        <span class="script event__day">{day}</span>
+                        <b class="event__num">{num}</b>
+                        <span class="event__month">{month}</span>
+                    </div>
+                }),
+                None => Either::Right(view! {
+                    <p class="event__meta"><Icon name="calendar_month" /><span>{date}</span></p>
+                }),
+            }}
             {if sessions.is_empty() {
                 Either::Left(view! { <p class="event__time">{time}</p> })
             } else {
@@ -437,6 +498,27 @@ pub fn GuestGuide() -> impl IntoView {
                     <div><b>{t}</b><p>{d}</p></div>
                 </div>
             }).collect_view()}
+        </section>
+    }
+}
+
+/// Penutup "Terima Kasih" (bagian terakhir undangan, ala everlove): foto
+/// bergerak berbingkai lengkung + salam penutup dari kedua mempelai.
+#[component]
+pub fn TerimaKasih(photos: Vec<String>, names: String) -> impl IntoView {
+    let has_photo = photos.iter().any(|p| !p.is_empty());
+    view! {
+        <section class="section thanks">
+            {has_photo.then(|| view! {
+                <div class="arch-photo arch-photo--thanks">
+                    <span class="arch-photo__clip"><FotoGerak photos=photos.clone() alt=names.clone() /></span>
+                    <span class="arch-photo__frame" aria-hidden="true"></span>
+                </div>
+            })}
+            <h2 class="script thanks__title">"Terima Kasih"</h2>
+            <p class="thanks__text">"Merupakan suatu kebahagiaan dan kehormatan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu kepada kami."</p>
+            <p class="thanks__by">"Kami yang berbahagia"</p>
+            <p class="script thanks__names">{names}</p>
         </section>
     }
 }

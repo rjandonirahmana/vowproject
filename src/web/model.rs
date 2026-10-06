@@ -88,6 +88,8 @@ pub struct LoveStory {
     pub year: String,
     pub title: String,
     pub text: String,
+    /// Foto babak ini (opsional; kosong → diambil bergiliran dari galeri).
+    pub img: String,
 }
 
 /// Pengaturan tampilan dari tema (server mengisinya dari katalog tema).

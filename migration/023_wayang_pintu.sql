@@ -15,6 +15,11 @@
 -- Bawaan di-seed ON CONFLICT DO NOTHING → perubahan src/web/gerak/*.css tak
 -- sampai ke DB tanpa file ini.
 -- ═══════════════════════════════════════════════════════════════════════════
+-- Kolom video tema (dari 022) — ditambahkan di sini juga agar file ini tetap
+-- jalan walau 022 belum dijalankan.
+ALTER TABLE themes ADD COLUMN IF NOT EXISTS bg_video   TEXT NOT NULL DEFAULT '';
+ALTER TABLE themes ADD COLUMN IF NOT EXISTS open_video TEXT NOT NULL DEFAULT '';
+
 UPDATE animations SET css = $css$
 /* Everlove — resep gerak scroll undangan premium everlove, DIUKUR langsung
    dari CSS-nya (kelas inv-*): transisi 1,5 dtk (ease), TANPA jeda bergiliran,

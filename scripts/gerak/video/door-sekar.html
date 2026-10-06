@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+/* Video pembuka tema Sekar Kedhaton (720×1280, 3,8 dtk) — turunan door.html
+   (wayang) berpalet gading–taupe: gebyok kayu muda berukir, bunga sekar
+   terbelah di sambungan, di baliknya taman terang; akhir = latar krem
+   (frame awal scene-sekar.html).
+   0,0–0,9  kusen gebyok naik; gunungan emas di sambungan kedua daun pintu
+   0,9–1,6  gunungan berkilau, cahaya blencong merembes lewat celah
+   1,6–2,9  daun pintu berayun KE DALAM (menjauhi penonton) — gunungan terbelah
+   2,4–3,7  kamera melangkah masuk menembus kusen; akhir = frame awal video latar
+   Arah ayunan: engsel kiri rotateY(+), engsel kanan rotateY(−) → tepi bebas
+   menjauh (z negatif). Tanda sebaliknya membuat pintu terayun KELUAR. */
+html,body{margin:0;background:#000}
+:root{--bg:#f4efe6;--gold:#a8916b;--gold-l:#efe4cd;--gold-d:#6e5a3f;--wood:#cdb894;--foil:linear-gradient(135deg,#7a6547,#d9c7a2 50%,#6e5a3f)}
+#v{position:relative;width:720px;height:1280px;overflow:hidden;background:var(--bg)}
+.bg{position:absolute;inset:0;background:radial-gradient(90% 55% at 50% 30%,#ffffff,transparent 70%),var(--bg)}
+.glow{position:absolute;left:50%;top:200px;width:600px;height:400px;margin-left:-300px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.7),transparent);opacity:.7}
+
+/* Ruang di balik pintu: kelir diterangi blencong + bayang gunungan. */
+.inner{position:absolute;left:11.5%;right:11.5%;top:9%;bottom:4%;overflow:hidden;transform-origin:50% 46%;
+ animation:in-rise .9s cubic-bezier(.65,0,.35,1) both,in-push 1.2s cubic-bezier(.5,0,.75,0) 2.4s both,in-out .7s ease-in-out 3.0s forwards}
+.inner::before{content:"";position:absolute;inset:0;background:radial-gradient(70% 55% at 50% 42%,#ffffff,#f6efe2 45%,#d9c9a8 80%,#b9a27c)}
+.shadow{position:absolute;left:-30%;right:-30%;top:18%;height:70%;opacity:.5;background:url(s/pohon-1.svg) left top/50% auto no-repeat,url(s/pohon-2.svg) right top/50% auto no-repeat;transform-origin:50% 90%;animation:sway 2.2s ease-in-out .6s both}
+.joglo{position:absolute;left:8%;right:8%;bottom:6%;height:24%;opacity:.55;background:url(s/pendopo.svg) center bottom/contain no-repeat}
+.dust i{position:absolute;width:5px;height:5px;border-radius:50%;background:#c7b0d8;box-shadow:0 0 8px #fff;opacity:0;
+ animation:dust 1.6s ease-out calc(1.7s + var(--i) * .05s) both}
+
+/* Kusen + daun pintu. Perspektif di .door, daun berputar di dalamnya. */
+.door{position:absolute;inset:0;perspective:1400px;perspective-origin:50% 46%;transform-origin:50% 46%;
+ animation:rise .9s cubic-bezier(.65,0,.35,1) both,through 1.2s cubic-bezier(.5,0,.75,0) 2.4s forwards}
+.frame{position:absolute;inset:0;z-index:2;filter:drop-shadow(0 10px 22px rgba(0,0,0,.5))}
+.frame::before,.frame::after{content:"";position:absolute;inset:0}
+.frame::before{background:linear-gradient(90deg,#a08a66,var(--wood) 12%,#e3d5b8 50%,var(--wood) 88%,#a08a66);
+ -webkit-mask:url(g/gebyok-mahkota.svg) top center/100% auto no-repeat,linear-gradient(#000 0 0) left top/12% 100% no-repeat,linear-gradient(#000 0 0) right top/12% 100% no-repeat,linear-gradient(#000 0 0) bottom/100% 4% no-repeat}
+.frame::after{background:var(--foil);
+ -webkit-mask:url(g/gebyok-mahkota-ukir.svg) top center/100% auto no-repeat,url(g/gebyok-tiang.svg) left 1.5% top/9% auto repeat-y,url(g/gebyok-tiang.svg) right 1.5% top/9% auto repeat-y}
+.leaf{position:absolute;top:0;bottom:4%;width:38.5%;z-index:1;overflow:hidden;
+ background:radial-gradient(circle at var(--k) 64%,var(--gold-l) 0 8px,var(--gold-d) 9px 12px,transparent 13px),linear-gradient(180deg,#b9a27c,var(--wood) 30%,#bfa883);
+ box-shadow:inset 0 0 0 9px var(--gold),inset 0 0 0 13px #e9dcc2,inset 0 0 0 16px var(--gold-d),inset 0 0 60px rgba(95,76,52,.35)}
+.leaf::before{content:"";position:absolute;inset:20px;opacity:.28;background:var(--gold-d);-webkit-mask:url(g/kisi.svg) center/30px 30px repeat}
+/* Bayangan saat daun menjauh dari cahaya penonton. */
+.leaf::after{content:"";position:absolute;inset:0;background:#5f4c34;opacity:0;animation:dim 1.3s ease-in 1.6s forwards}
+.l{left:11.5%;transform-origin:left center;--k:calc(100% - 30px);animation:open-l 1.3s cubic-bezier(.45,0,.2,1) 1.6s both}
+.r{right:11.5%;transform-origin:right center;--k:30px;animation:open-r 1.3s cubic-bezier(.45,0,.2,1) 1.6s both}
+/* Gunungan utuh di sambungan; tiap daun membawa separuhnya. */
+.gn{position:absolute;top:30%;width:280px;height:280px;z-index:1}
+.l .gn{right:-140px} .r .gn{left:-140px}
+.gn b{position:absolute;inset:0;background:url(s/lili.svg) center/contain no-repeat;
+ filter:drop-shadow(0 0 0 transparent);animation:gn-in .8s cubic-bezier(.2,.8,.3,1.2) .6s both}
+.gn b::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,250,225,.95) 50%,transparent 65%) 0 0/300% 100% no-repeat;
+ background-position:120% 0;animation:shine .8s ease-in-out 1.05s both}
+
+/* Cahaya yang merembes lalu meluap dari celah pintu (di depan daun). */
+.light{position:absolute;left:50%;top:46%;width:300px;height:1000px;margin:-500px 0 0 -150px;border-radius:50%;z-index:3;mix-blend-mode:screen;
+ background:radial-gradient(closest-side,rgba(255,255,255,.98),rgba(255,248,235,.6) 45%,transparent);opacity:0;transform:scaleX(.04);
+ animation:seam .5s ease-out 1.15s forwards,spill 1.4s ease-in-out 1.6s forwards}
+.vig{position:absolute;inset:0;box-shadow:inset 0 0 220px 60px rgba(140,123,95,.25);pointer-events:none;z-index:5}
+
+@keyframes rise{from{transform:translateY(100%)}}
+@keyframes in-rise{from{transform:translateY(100%)}}
+@keyframes gn-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+@keyframes shine{to{background-position:-120% 0}}
+@keyframes sway{0%{transform:rotate(-7deg) scale(.9);opacity:0}40%{opacity:.55;transform:rotate(5deg)}75%{transform:rotate(-2deg)}100%{transform:none;opacity:.55}}
+/* Membuka: sedikit "klik" (2°) lalu terayun ke dalam hingga 84°. */
+@keyframes open-l{0%{transform:rotateY(0)}12%{transform:rotateY(4deg)}22%{transform:rotateY(2deg)}100%{transform:rotateY(84deg)}}
+@keyframes open-r{0%{transform:rotateY(0)}12%{transform:rotateY(-4deg)}22%{transform:rotateY(-2deg)}100%{transform:rotateY(-84deg)}}
+@keyframes dim{to{opacity:.35}}
+@keyframes seam{to{opacity:.9}}
+@keyframes spill{0%{transform:scaleX(.04);opacity:.9}55%{transform:scale(1.6,1.05);opacity:1}100%{transform:scale(2.6,1.3);opacity:0}}
+@keyframes dust{0%{opacity:0;transform:none}25%{opacity:1}100%{opacity:0;transform:translate(calc((var(--i) - 7) * 34px),calc(var(--y) * 1px)) scale(2.4)}}
+@keyframes through{to{transform:scale(3.6);opacity:0}}
+@keyframes in-push{to{transform:scale(1.9)}}
+@keyframes in-out{to{opacity:0}}
+</style></head><body><div id="v"><div class="bg"></div><div class="glow"></div>
+<div class="inner"><div class="shadow"></div><div class="joglo"></div>
+<div class="dust"><i style="--i:0;--y:-120;left:22%;top:34%"></i><i style="--i:1;--y:90;left:30%;top:62%"></i><i style="--i:2;--y:-60;left:36%;top:48%"></i><i style="--i:3;--y:140;left:41%;top:70%"></i><i style="--i:4;--y:-160;left:45%;top:28%"></i><i style="--i:5;--y:40;left:48%;top:55%"></i><i style="--i:6;--y:-90;left:51%;top:40%"></i><i style="--i:7;--y:120;left:54%;top:66%"></i><i style="--i:8;--y:-140;left:57%;top:31%"></i><i style="--i:9;--y:60;left:61%;top:58%"></i><i style="--i:10;--y:-50;left:66%;top:45%"></i><i style="--i:11;--y:150;left:70%;top:72%"></i><i style="--i:12;--y:-110;left:76%;top:36%"></i><i style="--i:13;--y:80;left:80%;top:60%"></i></div>
+</div>
+<div class="door"><div class="leaf l"><div class="gn"><b></b></div></div><div class="leaf r"><div class="gn"><b></b></div></div><div class="frame"></div><div class="light"></div></div>
+<div class="vig"></div></div></body></html>
