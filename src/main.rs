@@ -156,6 +156,7 @@ async fn main() -> Result<()> {
         .route("/buat/kirim", axum::routing::post(handlers::create_invitation))
         .route("/kelola/{slug}/tamu.csv", axum::routing::get(handlers::export_guests))
         .route("/kelola/{slug}/bukti", axum::routing::post(handlers::upload_payment_proof))
+        .route("/u/{slug}/story/kirim", axum::routing::post(handlers::post_story))
         .route("/layanan/wa", axum::routing::get(handlers::layanan_wa))
         .route("/tema.css", axum::routing::get(handlers::theme_css))
         .route("/sitemap.xml", axum::routing::get(handlers::sitemap))

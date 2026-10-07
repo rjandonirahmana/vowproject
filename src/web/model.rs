@@ -273,6 +273,32 @@ pub struct Wish {
     pub ago: String,
 }
 
+/// Story foto seorang tamu (satu per nomor HP per undangan).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct StoryItem {
+    pub id: i64,
+    pub name: String,
+    pub photo: String,
+    /// Kunci `STORY_FILTERS` ("normal" = tanpa filter).
+    pub filter: String,
+    pub caption: String,
+    pub ago: String,
+}
+
+/// Filter foto story — sama dengan pembuat story e-ticketing (CSS `.sf-{kunci}`).
+pub const STORY_FILTERS: &[(&str, &str)] = &[
+    ("normal", "Normal"),
+    ("clarendon", "Cerah"),
+    ("gingham", "Hangat"),
+    ("moon", "Monokrom"),
+    ("lark", "Lark"),
+    ("reyes", "Reyes"),
+    ("juno", "Juno"),
+    ("slumber", "Slumber"),
+    ("crema", "Crema"),
+    ("ludwig", "Ludwig"),
+];
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct WishPage {
     pub total: i64,
@@ -482,4 +508,19 @@ pub struct Banner {
     pub selesai: String,
     /// Admin: tayang | terjadwal | berakhir | nonaktif.
     pub status: String,
+}
+
+#[cfg(test)]
+mod story_tests {
+    use super::STORY_FILTERS;
+
+    /// Tiap filter story punya aturan CSS `.sf-{kunci}` (thumbnail, kisi,
+    /// penampil memakai kelas yang sama) — filter baru tanpa CSS = foto polos.
+    #[test]
+    fn semua_filter_story_punya_css() {
+        let css = include_str!("../../style/main.css");
+        for (k, _) in STORY_FILTERS {
+            assert!(css.contains(&format!(".sf-{k} {{")), "CSS .sf-{k} belum ada");
+        }
+    }
 }

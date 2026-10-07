@@ -11,7 +11,7 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::hooks::{use_params_map, use_query_map};
 
-use crate::web::api::{get_dashboard, AddGuest, CheckIn, DeleteGuest, MarkSent};
+use crate::web::api::{get_dashboard, list_stories, AddGuest, CheckIn, DeleteGuest, DeleteStory, MarkSent};
 use crate::web::components::{err_msg, wa_share_text, Monogram, FloatDeco};
 use crate::web::fmt::{self, rupiah, rupiah_ringkas};
 use crate::web::icons::Icon;
@@ -299,6 +299,8 @@ fn Dashboard(d: Dashboard, baru: bool, notice: Option<(bool, String)>, add: Serv
                     }
                 </section>
 
+                <StoryModeration slug=inv.slug.clone() key=key.clone() demo=inv.is_demo />
+
                 <section class="card activity">
                     <div class="guests__head">
                         <h2><Icon name="notifications_active" />"Aktivitas Real-Time"</h2>
@@ -574,5 +576,57 @@ pub fn ScanPage() -> impl IntoView {
         </div>
         } }}
         </Suspense>
+    }
+}
+
+/// Story tamu (tab Story undangan) — pemilik bisa menghapus yang tak pantas.
+#[component]
+fn StoryModeration(slug: String, key: String, demo: bool) -> impl IntoView {
+    let del = ServerAction::<DeleteStory>::new();
+    let stories = Resource::new(
+        {
+            let slug = slug.clone();
+            move || (slug.clone(), del.version().get())
+        },
+        |(slug, _)| list_stories(slug),
+    );
+    view! {
+        <section class="card story-mod" id="story">
+            <div class="guests__head">
+                <h2><Icon name="photo_camera" />"Story Tamu"</h2>
+                <a class="muted small" href=format!("/u/{slug}/story") target="_blank" rel="noopener">"Lihat tab Story"</a>
+            </div>
+            {move || del.value().get().and_then(|r| r.err()).map(|e| view! { <p class="notice notice--err">{err_msg(&e)}</p> })}
+            <Suspense fallback=|| view! { <p class="muted">"Memuat story…"</p> }>
+                {move || stories.get().map(|r| {
+                    let list = r.unwrap_or_default();
+                    if list.is_empty() {
+                        return Either::Left(view! { <p class="muted">"Belum ada story dari tamu."</p> });
+                    }
+                    Either::Right(view! {
+                        <div class="story-mod__grid">
+                            {list.into_iter().map(|s| {
+                                let (slug, key) = (slug.clone(), key.clone());
+                                let id = s.id;
+                                view! {
+                                    <figure class="story-mod__item">
+                                        <img class=format!("sf-{}", s.filter) src=s.photo alt="" loading="lazy" decoding="async" />
+                                        <figcaption><b>{s.name}</b><small>{s.ago}</small></figcaption>
+                                        {(!demo).then(|| view! {
+                                            <button type="button" class="icon-btn icon-btn--sm story-mod__del" aria-label="Hapus story"
+                                                on:click=move |_| {
+                                                    if confirm("Hapus story tamu ini?") { del.dispatch(DeleteStory { slug: slug.clone(), key: key.clone(), id }); }
+                                                }>
+                                                <Icon name="delete" />
+                                            </button>
+                                        })}
+                                    </figure>
+                                }
+                            }).collect_view()}
+                        </div>
+                    })
+                })}
+            </Suspense>
+        </section>
     }
 }

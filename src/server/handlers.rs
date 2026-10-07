@@ -1525,3 +1525,90 @@ mod bukti_tests {
         assert!(c.contains("149"), "{c}");
     }
 }
+
+/// POST multipart dari tab Story: kunci spesial (dari WA) + SATU foto →
+/// RustFS foto/{slug}/story-….webp + baris invitation_stories. Hanya gambar
+/// (JPEG/PNG/WebP, dicek dari isi berkas) — video ditolak. Satu nomor = satu
+/// story per undangan; kunci baru ditandai terpakai setelah story tersimpan.
+pub async fn post_story(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(slug): Path<String>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    let base = format!("/u/{}/story", fmt::key(&slug));
+    if let Err(secs) = state.write_limit.hit(&format!("story:{}:{slug}", security::client_ip(&headers))) {
+        return to(&base, "galat", &format!("Terlalu banyak unggahan. Coba lagi dalam {} menit.", secs.div_ceil(60)));
+    }
+    let Ok(mut form) = super::form::read(mp, 1).await else {
+        return to(&base, "galat", "Unggahan terputus atau terlalu besar (foto maks 5 MB).");
+    };
+    // Kembali ke tab Story dengan query tamu yang sama (?to= / ?g=), bukan URL lain.
+    let back = Some(form.raw("back")).filter(|b| b.starts_with(&base) && !b.contains(['\r', '\n', '#'])).unwrap_or(base.clone());
+    let row = match repo::invitation(&state.pool, &slug).await {
+        Ok(Some(r)) => r,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Undangan tidak ditemukan").into_response(),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "story: muat undangan");
+            return to(&back, "galat", "Server sedang sibuk, coba lagi sebentar.");
+        }
+    };
+    if row.inv.is_demo {
+        return to(&back, "galat", "Ini undangan demo — story contoh saja.");
+    }
+    if row.inv.is_locked() {
+        return to(&back, "galat", "Undangan ini belum diaktifkan.");
+    }
+    let phone = fmt::wa_number(&form.raw("phone"));
+    let key: String = form.raw("key").chars().filter(|c| c.is_ascii_digit()).collect();
+    if phone.is_empty() || key.len() != 6 {
+        return to(&back, "galat", "Masukkan kunci 6 digit yang dikirim ke WhatsApp Anda.");
+    }
+    let (key_id, name) = match repo::check_story_key(&state.pool, row.id, &phone, &auth::token_hash(&key)).await {
+        Ok(Some(k)) => k,
+        Ok(None) => return to(&back, "galat", "Kunci salah atau sudah kedaluwarsa. Minta kunci baru bila perlu."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "story: cek kunci (sudah menjalankan migration/026_story.sql?)");
+            return to(&back, "galat", "Server sedang sibuk, coba lagi sebentar.");
+        }
+    };
+    let Some(up) = form.take_file("foto") else {
+        return to(&back, "galat", "Pilih satu foto untuk story Anda.");
+    };
+    if up.data.len() > super::storage::MAX_IMAGE {
+        return to(&back, "galat", "Foto maksimal 5 MB.");
+    }
+    if super::storage::detect_image(&up.data).is_none() {
+        return to(&back, "galat", "Story hanya boleh FOTO (JPEG/PNG/WebP) — video tidak didukung.");
+    }
+    let Some(st) = state.storage.as_ref() else {
+        tracing::error!(slug = %slug, "story: RustFS belum dikonfigurasi");
+        return to(&back, "galat", "Unggah foto belum tersedia di server ini.");
+    };
+    let filter = form.raw("filter");
+    let filter = if crate::web::model::STORY_FILTERS.iter().any(|(k, _)| *k == filter) { filter } else { "normal".to_string() };
+    let caption = form.get("caption", 150);
+    let tail: String = phone.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();
+    let obj = format!("story-{tail}-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
+    let url = match st.upload_image_as(up.data, &row.inv.slug, &obj, super::storage::Ukuran::Foto).await {
+        Ok(u) => u,
+        Err(e) => return to(&back, "galat", &e.to_string()),
+    };
+    match repo::insert_story(&state.pool, row.id, &phone, &name, &url, &filter, &caption).await {
+        Ok(true) => {}
+        Ok(false) => {
+            discard_uploads(&state, std::slice::from_ref(&url)).await;
+            return to(&back, "galat", "Nomor ini sudah membuat story di undangan ini (1 nomor = 1 story).");
+        }
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "story: simpan");
+            discard_uploads(&state, std::slice::from_ref(&url)).await;
+            return to(&back, "galat", "Gagal menyimpan story, coba lagi.");
+        }
+    }
+    if let Err(e) = repo::use_story_key(&state.pool, key_id).await {
+        tracing::warn!(error = %format!("{e:#}"), "story: tandai kunci terpakai");
+    }
+    tracing::info!(slug = %row.inv.slug, "story tamu baru");
+    to(&back, "ok", "Story Anda sudah tayang! Terima kasih telah berbagi momen.")
+}

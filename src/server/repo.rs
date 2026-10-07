@@ -1118,3 +1118,94 @@ pub async fn move_banner(pool: &Pool, id: i64, up: bool) -> Result<()> {
     tx.commit().await?;
     Ok(())
 }
+
+// ── Story tamu (migrasi 026) ───────────────────────────────────────────────
+
+/// Story undangan, terbaru dulu.
+pub async fn stories(pool: &Pool, inv_id: i64) -> Result<Vec<StoryItem>> {
+    let c = pool.get().await?;
+    let rows = db_rows(&c,
+        "SELECT id, name, photo_url, filter, caption, EXTRACT(EPOCH FROM NOW() - created_at)::BIGINT AS age
+           FROM invitation_stories WHERE invitation_id = $1 ORDER BY created_at DESC LIMIT 200",
+        &[&inv_id]).await.context("muat story (sudah menjalankan migration/026_story.sql?)")?;
+    Ok(rows
+        .iter()
+        .map(|r| StoryItem {
+            id: r.get("id"),
+            name: r.get("name"),
+            photo: r.get("photo_url"),
+            filter: r.get("filter"),
+            caption: r.get("caption"),
+            ago: lalu(r.get("age")),
+        })
+        .collect())
+}
+
+/// Nomor ini sudah punya story di undangan ini?
+pub async fn story_phone_taken(pool: &Pool, inv_id: i64, phone: &str) -> Result<bool> {
+    let c = pool.get().await?;
+    Ok(db_opt(&c, "SELECT 1 FROM invitation_stories WHERE invitation_id = $1 AND phone = $2", &[&inv_id, &phone])
+        .await?
+        .is_some())
+}
+
+/// Jumlah kunci yang diminta nomor ini dalam 1 jam terakhir (batas kirim WA).
+pub async fn story_keys_recent(pool: &Pool, inv_id: i64, phone: &str) -> Result<i64> {
+    let c = pool.get().await?;
+    Ok(db_row(&c,
+        "SELECT COUNT(*) FROM story_keys WHERE invitation_id = $1 AND phone = $2 AND created_at > NOW() - INTERVAL '1 hour'",
+        &[&inv_id, &phone]).await?.get(0))
+}
+
+pub async fn insert_story_key(pool: &Pool, inv_id: i64, phone: &str, name: &str, key_hash: &str) -> Result<()> {
+    let c = pool.get().await?;
+    db_exec(&c,
+        "INSERT INTO story_keys (invitation_id, phone, name, key_hash) VALUES ($1, $2, $3, $4)",
+        &[&inv_id, &phone, &name, &key_hash]).await?;
+    Ok(())
+}
+
+/// Cocokkan kunci terbaru yang belum dipakai & belum kedaluwarsa. Cocok →
+/// `Some(nama)` (belum ditandai terpakai — baru setelah story tersimpan, agar
+/// unggahan yang gagal tak menghanguskan kunci). Salah → percobaan +1; kunci
+/// mati setelah 5 kali salah.
+pub async fn check_story_key(pool: &Pool, inv_id: i64, phone: &str, key_hash: &str) -> Result<Option<(i64, String)>> {
+    let c = pool.get().await?;
+    let Some(r) = db_opt(&c,
+        "SELECT id, key_hash, name FROM story_keys
+          WHERE invitation_id = $1 AND phone = $2 AND used_at IS NULL AND expires_at > NOW() AND attempts < 5
+          ORDER BY created_at DESC LIMIT 1",
+        &[&inv_id, &phone]).await? else { return Ok(None) };
+    let id: i64 = r.get("id");
+    let stored: String = r.get("key_hash");
+    if crate::server::auth::same_hash(&stored, key_hash) {
+        Ok(Some((id, r.get("name"))))
+    } else {
+        db_exec(&c, "UPDATE story_keys SET attempts = attempts + 1 WHERE id = $1", &[&id]).await?;
+        Ok(None)
+    }
+}
+
+pub async fn use_story_key(pool: &Pool, key_id: i64) -> Result<()> {
+    let c = pool.get().await?;
+    db_exec(&c, "UPDATE story_keys SET used_at = NOW() WHERE id = $1", &[&key_id]).await?;
+    Ok(())
+}
+
+/// Simpan story; `false` bila nomor ini sudah punya story (UNIQUE).
+pub async fn insert_story(pool: &Pool, inv_id: i64, phone: &str, name: &str, photo: &str, filter: &str, caption: &str) -> Result<bool> {
+    let c = pool.get().await?;
+    let n = db_exec(&c,
+        "INSERT INTO invitation_stories (invitation_id, phone, name, photo_url, filter, caption)
+         VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (invitation_id, phone) DO NOTHING",
+        &[&inv_id, &phone, &name, &photo, &filter, &caption]).await?;
+    Ok(n == 1)
+}
+
+/// Hapus story (pemilik undangan) → URL foto lama untuk dihapus dari RustFS.
+pub async fn delete_story(pool: &Pool, inv_id: i64, id: i64) -> Result<Option<String>> {
+    let c = pool.get().await?;
+    Ok(db_opt(&c,
+        "DELETE FROM invitation_stories WHERE invitation_id = $1 AND id = $2 RETURNING photo_url",
+        &[&inv_id, &id]).await?.map(|r| r.get(0)))
+}

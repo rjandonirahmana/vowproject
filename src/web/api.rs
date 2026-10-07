@@ -244,6 +244,87 @@ pub async fn confirm_gift(
 }
 
 /// Nomor WA admin (62…) untuk tombol konsultasi; kosong bila tak diset.
+// ── Story tamu ─────────────────────────────────────────────────────────────
+
+/// Story undangan untuk tab "Story". Tabel belum dimigrasi → daftar kosong.
+#[server]
+pub async fn list_stories(slug: String) -> Result<Vec<StoryItem>, ServerFnError> {
+    use srv::*;
+    let st = state()?;
+    let row = load(&slug).await?;
+    if row.inv.is_locked() {
+        return Ok(Vec::new());
+    }
+    match repo::stories(&st.pool, row.id).await {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            tracing::warn!(error = %format!("{e:#}"), "story: daftar");
+            Ok(Vec::new())
+        }
+    }
+}
+
+/// Langkah 1 menambah story: nomor WhatsApp tamu → kunci spesial 6 digit
+/// dikirim lewat WAHA (hanya hash yang disimpan, berlaku 15 menit). Satu
+/// nomor = satu story per undangan; maks 3 kunci per nomor per jam.
+#[server]
+pub async fn request_story_key(slug: String, name: String, phone: String) -> Result<String, ServerFnError> {
+    use srv::*;
+    let st = state()?;
+    let row = load(&slug).await?;
+    if row.inv.is_demo {
+        return Err(ServerFnError::new("Ini undangan demo — story contoh saja. Pesan undangan untuk mengaktifkan story tamu."));
+    }
+    deny_locked(&row)?;
+    let name = clean(&name, 60);
+    if name.is_empty() {
+        return Err(ServerFnError::new("Nama wajib diisi."));
+    }
+    let phone = crate::web::fmt::wa_number(&phone);
+    if phone.is_empty() {
+        return Err(ServerFnError::new("Nomor WhatsApp tidak valid (contoh: 0812 3456 7890)."));
+    }
+    let Some(waha) = st.waha.clone() else {
+        return Err(ServerFnError::new("Layanan WhatsApp belum aktif — story belum bisa ditambahkan."));
+    };
+    limit_write(&st, "storykey", &slug).await?;
+    if repo::story_phone_taken(&st.pool, row.id, &phone).await.map_err(internal)? {
+        return Err(ServerFnError::new("Nomor ini sudah membuat story di undangan ini (1 nomor = 1 story)."));
+    }
+    if repo::story_keys_recent(&st.pool, row.id, &phone).await.map_err(internal)? >= 3 {
+        return Err(ServerFnError::new("Kunci sudah dikirim 3 kali dalam 1 jam terakhir. Cek WhatsApp Anda atau coba lagi nanti."));
+    }
+    let key = {
+        use rand::Rng;
+        format!("{:06}", rand::rng().random_range(0..1_000_000u32))
+    };
+    repo::insert_story_key(&st.pool, row.id, &phone, &name, &crate::server::auth::token_hash(&key)).await.map_err(internal)?;
+    let text = format!(
+        "Halo {name}! 👋\n\nKunci spesial untuk menambahkan story di undangan pernikahan *{}*:\n\n*{key}*\n\nBerlaku 15 menit, hanya untuk nomor ini. Jangan bagikan ke orang lain.",
+        row.inv.couple()
+    );
+    if let Err(e) = waha.send_text(&crate::server::waha::chat_id(&phone), &text).await {
+        tracing::error!(slug = %slug, error = %format!("{e:#}"), "story: kirim kunci WA gagal");
+        return Err(ServerFnError::new("Gagal mengirim WhatsApp. Pastikan nomor aktif di WhatsApp lalu coba lagi."));
+    }
+    Ok(phone)
+}
+
+/// Pemilik undangan menghapus story tamu (dari Kelola).
+#[server]
+pub async fn delete_story(slug: String, key: String, id: i64) -> Result<(), ServerFnError> {
+    use srv::*;
+    let st = state()?;
+    let row = load_owned(&slug, &key).await?;
+    deny_demo(&row)?;
+    if let Some(url) = repo::delete_story(&st.pool, row.id, id).await.map_err(internal)? {
+        if let Some(s) = st.storage.as_ref() {
+            let _ = s.delete_url(&url).await;
+        }
+    }
+    Ok(())
+}
+
 #[server]
 pub async fn get_contact() -> Result<String, ServerFnError> {
     Ok(srv::state()?.admin_wa.clone())

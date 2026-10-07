@@ -10,7 +10,7 @@ use leptos_meta::{Meta, Title};
 use leptos_router::components::{Outlet, A};
 use leptos_router::hooks::{use_location, use_params_map, use_query_map};
 
-use crate::web::api::get_invitation;
+use crate::web::api::{get_invitation, list_stories, RequestStoryKey};
 use crate::web::components::*;
 use crate::web::icons::{qr_svg, Icon};
 use crate::web::model::*;
@@ -86,7 +86,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
     provide_ornaments(ctx.page.skin.ornaments.clone());
     let inv = ctx.page.inv.clone();
     let loc = use_location();
-    let tabs = [("", "Sampul", "favorite"), ("/acara", "Acara", "event_available"), ("/rsvp", "Doa & RSVP", "mark_email_read")];
+    let tabs = [("", "Sampul", "favorite"), ("/acara", "Acara", "event_available"), ("/rsvp", "Doa & RSVP", "mark_email_read"), ("/story", "Story", "photo_camera")];
     let base = format!("/u/{}", inv.slug);
     let tab_label = {
         let base = base.clone();
@@ -95,6 +95,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
             match p.strip_prefix(&base).unwrap_or("") {
                 "/acara" => "Acara",
                 "/rsvp" => "Doa dan RSVP",
+                "/story" => "Story Tamu",
                 _ => "Sampul",
             }
         }
@@ -211,14 +212,28 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
             </main>
             <nav class="bottom-nav" aria-label="Navigasi undangan">
                 {if single {
-                    // Satu halaman: navigasi = lompat ke bagian.
-                    [("#sampul", "Sampul", "favorite"), ("#acara", "Acara", "event_available"), ("#rsvp", "Doa & RSVP", "mark_email_read")]
-                        .into_iter()
-                        .map(|(href, label, icon)| view! {
-                            <a href=href class="bottom-nav__item"><span class="ms" aria-hidden="true">{icon}</span><span>{label}</span></a>
-                        })
-                        .collect_view()
-                        .into_any()
+                    // Satu halaman: navigasi = lompat ke bagian. Dari tab Story
+                    // (halaman terpisah) jangkar dibawa ke halaman utama.
+                    let home = ctx.href("");
+                    let on_story = move || loc.pathname.get().trim_end_matches('/').ends_with("/story");
+                    view! {
+                        {[("#sampul", "Sampul", "favorite"), ("#acara", "Acara", "event_available"), ("#rsvp", "Doa & RSVP", "mark_email_read")]
+                            .into_iter()
+                            .map(|(hash, label, icon)| {
+                                let home = home.clone();
+                                view! {
+                                    <a href=move || if on_story() { format!("{home}{hash}") } else { hash.to_string() } class="bottom-nav__item">
+                                        <span class="ms" aria-hidden="true">{icon}</span><span>{label}</span>
+                                    </a>
+                                }
+                            })
+                            .collect_view()}
+                        <A href=ctx.href("/story") attr:class="bottom-nav__item" class:is-active=on_story>
+                            <span class="ms" aria-hidden="true">"photo_camera"</span>
+                            <span>"Story"</span>
+                        </A>
+                    }
+                    .into_any()
                 } else {
                     tabs.into_iter().map(|(tab, label, icon)| view! {
                         <A href=ctx.href(tab) attr:class="bottom-nav__item" class:is-active=active(tab)>
@@ -509,6 +524,150 @@ fn closing_photos(inv: &Invitation) -> Vec<String> {
         0 => vec![inv.cover_photo.clone()],
         1 => vec![inv.gallery[0].clone()],
         n => inv.gallery[n - 2..].to_vec(),
+    }
+}
+
+// ── Tab 4: Story tamu ──────────────────────────────────────────────────────
+
+/// Story tamu ala Instagram (penampil = global.js, sama perilakunya dengan
+/// story e-ticketing). Menambah story: nomor WA → kunci spesial via WA →
+/// kunci + SATU foto (POST multipart /u/{slug}/story/kirim, jalan tanpa WASM).
+#[component]
+pub fn StoryPage() -> impl IntoView {
+    let c = ctx();
+    let inv = c.page.inv.clone();
+    let slug = inv.slug.clone();
+    let query = use_query_map();
+    let notice = move || {
+        let q = query.read();
+        q.get("ok").map(|m| (true, m)).or_else(|| q.get("galat").map(|m| (false, m)))
+    };
+    let stories = Resource::new({
+        let slug = slug.clone();
+        move || slug.clone()
+    }, list_stories);
+    // Galat dari unggahan (redirect ?galat=) → formulir langsung terbuka.
+    let show_add = RwSignal::new(query.read_untracked().get("galat").is_some());
+    let req = ServerAction::<RequestStoryKey>::new();
+    // Nomor hasil normalisasi server (62…) → langkah 2.
+    let phone = move || req.value().get().and_then(|r| r.ok());
+    let req_err = move || req.value().get().and_then(|r| r.err()).map(|e| err_msg(&e));
+    let back = c.href("/story");
+    let action = format!("/u/{}/story/kirim", inv.slug);
+    let demo = inv.is_demo;
+    let (slug_in, name_in) = (inv.slug.clone(), c.to.clone());
+    view! {
+        <section class="section story-hero orn-host">
+            <Ornamen bagian="rsvp" />
+            <span class="intro__icon"><Icon name="photo_camera" /></span>
+            <p class="eyebrow eyebrow--gold eyebrow--center">"Momen Para Tamu"</p>
+            <h1 class="section__title">"Guest Stories"</h1>
+            <p class="intro__text">"Bagikan satu foto terbaikmu untuk kedua mempelai — semua tamu bisa melihatnya seperti story."</p>
+        </section>
+        {move || notice().map(|(ok, m)| view! {
+            <p class=if ok { "notice notice--ok" } else { "notice notice--err" }>{m}</p>
+        })}
+        <Suspense fallback=|| view! { <div class="story-bar"><div class="story-item"><div class="story-shim-ring"></div></div></div> }>
+            {move || stories.get().map(|r| {
+                let list = r.unwrap_or_default();
+                let json = serde_json::to_string(&list).unwrap_or_else(|_| "[]".into()).replace("</", "<\\/");
+                let n = list.len();
+                view! {
+                    <div class="story-bar" data-story-slug=slug.clone()>
+                        <div class="story-item">
+                            <button type="button" class="story-add-btn" on:click=move |_| show_add.update(|v| *v = !*v) aria-label="Tambah story">
+                                <span class="story-avatar-ring story-avatar-ring--add"><span class="story-avatar-inner"><Icon name="add" /></span></span>
+                                <span class="story-username story-username--add">"Story Anda"</span>
+                            </button>
+                        </div>
+                        {list.iter().enumerate().map(|(i, s)| view! {
+                            <div class="story-item">
+                                <button type="button" class="story-user-btn" data-story-open=i.to_string() data-story-id=s.id.to_string() aria-label=format!("Lihat story {}", s.name)>
+                                    <span class="story-avatar-ring"><img class=format!("story-avatar-img sf-{}", s.filter) src=s.photo.clone() alt="" loading="lazy" decoding="async" /></span>
+                                    <span class="story-username">{s.name.clone()}</span>
+                                </button>
+                            </div>
+                        }).collect_view()}
+                    </div>
+                    {if n == 0 {
+                        Either::Left(view! { <p class="muted center story-empty">"Belum ada story. Jadilah tamu pertama yang berbagi momen!"</p> })
+                    } else {
+                        Either::Right(view! {
+                            <div class="story-grid">
+                                {list.into_iter().enumerate().map(|(i, s)| view! {
+                                    <button type="button" class="story-tile" data-story-open=i.to_string() data-story-id=s.id.to_string()>
+                                        <img class=format!("sf-{}", s.filter) src=s.photo alt=format!("Story {}", s.name) loading="lazy" decoding="async" />
+                                        <span class="story-tile__who"><b>{s.name}</b><small>{s.ago}</small></span>
+                                    </button>
+                                }).collect_view()}
+                            </div>
+                        })
+                    }}
+                    <script type="application/json" id="story-data" inner_html=json></script>
+                }
+            })}
+        </Suspense>
+
+        <section class="card story-add" class:is-open=move || show_add.get() id="tambah-story">
+            <h2 class="story-add__title"><Icon name="add_photo_alternate" />"Tambah Story"</h2>
+            {demo.then(|| view! { <p class="notice notice--info">"Ini undangan demo — story di atas hanya contoh."</p> })}
+            <ol class="story-steps">
+                <li class:is-done=move || phone().is_some()>"Nomor WhatsApp"</li>
+                <li class:is-on=move || phone().is_some()>"Kunci & Foto"</li>
+            </ol>
+            {move || phone().is_none().then(|| {
+                let (slug_in, name_in) = (slug_in.clone(), name_in.clone());
+                view! {
+                <ActionForm action=req attr:class="story-form">
+                    <input type="hidden" name="slug" value=slug_in />
+                    <label class="field">
+                        <span class="field__label">"Nama Anda"</span>
+                        <input class="input" name="name" required maxlength="60" value=name_in placeholder="Nama yang tampil di story" />
+                    </label>
+                    <label class="field">
+                        <span class="field__label">"Nomor WhatsApp"</span>
+                        <input class="input" name="phone" type="tel" inputmode="tel" required maxlength="20" placeholder="0812 3456 7890" />
+                    </label>
+                    <p class="muted small">"Kami kirim kunci spesial 6 digit ke WhatsApp ini. Satu nomor hanya bisa membuat satu story."</p>
+                    {move || req_err().map(|e| view! { <p class="notice notice--err">{e}</p> })}
+                    <button class="btn btn--primary btn--block" type="submit" disabled=move || req.pending().get()>
+                        <Icon name="send" />
+                        {move || if req.pending().get() { "Mengirim kunci…" } else { "Kirim Kunci ke WhatsApp" }}
+                    </button>
+                </ActionForm>
+                }
+            })}
+            {move || phone().map(|p| view! {
+                <form class="story-form" method="post" action=action.clone() enctype="multipart/form-data">
+                    <input type="hidden" name="phone" value=p.clone() />
+                    <input type="hidden" name="back" value=back.clone() />
+                    <p class="notice notice--ok">{format!("Kunci sudah dikirim ke WhatsApp +{p}.")}</p>
+                    <label class="field">
+                        <span class="field__label">"Kunci Spesial (6 digit)"</span>
+                        <input class="input story-key" name="key" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="••••••" />
+                    </label>
+                    <label class="story-pick">
+                        <img class="story-pick__img sf-normal" data-story-preview alt="" hidden />
+                        <span class="story-pick__hint"><Icon name="photo_camera" /><b>"Pilih satu foto"</b><small>"JPEG / PNG / WebP, maks 5 MB — video tidak bisa"</small></span>
+                        <input type="file" name="foto" accept="image/jpeg,image/png,image/webp" required data-story-file />
+                    </label>
+                    <div class="story-filters" role="radiogroup" aria-label="Filter foto">
+                        {STORY_FILTERS.iter().map(|(k, label)| view! {
+                            <label class="story-filter">
+                                <input type="radio" name="filter" value=*k checked=*k == "normal" data-story-filter />
+                                <span class=format!("story-filter__thumb sf-{k}")></span>
+                                <small>{*label}</small>
+                            </label>
+                        }).collect_view()}
+                    </div>
+                    <label class="field">
+                        <span class="field__label">"Keterangan (opsional)"</span>
+                        <input class="input" name="caption" maxlength="150" placeholder="Tulis ucapan singkat…" />
+                    </label>
+                    <button class="btn btn--primary btn--block" type="submit"><Icon name="cloud_upload" />"Terbitkan Story"</button>
+                </form>
+            })}
+        </section>
     }
 }
 

@@ -20,7 +20,7 @@ use super::pages::{
     mua::MuaPage,
     seserahan::SeserahanPage,
     tema::TemaPage,
-    undangan::{AcaraPage, InvitationLayout, RsvpPage, SampulPage},
+    undangan::{AcaraPage, InvitationLayout, RsvpPage, SampulPage, StoryPage},
     NotFoundPage,
 };
 
@@ -144,6 +144,7 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("") view=SampulPage />
                     <Route path=path!("acara") view=AcaraPage />
                     <Route path=path!("rsvp") view=RsvpPage />
+                    <Route path=path!("story") view=StoryPage />
                 </ParentRoute>
                 <Route path=path!("/kelola/:slug") view=KelolaPage ssr=SsrMode::Async />
                 <Route path=path!("/kelola/:slug/scan") view=ScanPage />

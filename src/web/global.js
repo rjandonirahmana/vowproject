@@ -700,6 +700,196 @@
       }, {passive:true});
     }
   }
+  // ── Story tamu (tab Story) ────────────────────────────────────────────
+  // Penampil ala story e-ticketing/Instagram: progress 5 dtk (mulai setelah
+  // foto termuat), tap kiri = mundur / kanan = maju, tahan = jeda, geser
+  // kiri-kanan = kubus 3D pindah tamu, tarik ke bawah = tutup, ←/→/Esc.
+  // Data dari <script id="story-data"> (JSON dari server). Hanya foto.
+  (function(){
+    var DUR=5000, AXIS=12, COMMIT=0.25, FLICK=0.55, CLOSE_PX=130, HOLD_MS=220;
+    var S=null;
+    function list(){ var el=d.getElementById('story-data'); try{ return el ? JSON.parse(el.textContent||'[]') : []; }catch(_){ return []; } }
+    function seenKey(){ var b=d.querySelector('[data-story-slug]'); return 'ily_story_seen_'+(b ? b.getAttribute('data-story-slug') : ''); }
+    function seen(){ try{ return JSON.parse(localStorage.getItem(seenKey())||'[]'); }catch(_){ return []; } }
+    function markSeen(id){
+      var a=seen(); if(a.indexOf(id)<0){ a.push(id); try{ localStorage.setItem(seenKey(), JSON.stringify(a.slice(-300))); }catch(_){} }
+      d.querySelectorAll('[data-story-id="'+id+'"]').forEach(function(b){ b.classList.add('is-seen'); });
+    }
+    function paintSeen(){ var a=seen(); d.querySelectorAll('[data-story-id]').forEach(function(b){ b.classList.toggle('is-seen', a.indexOf(+b.getAttribute('data-story-id'))>=0); }); }
+    onDom(paintSeen);
+    function el(tag, cls, html){ var e=d.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
+    function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function fcls(f){ return 'sf-'+(/^[a-z]+$/.test(f||'') ? f : 'normal'); }
+    var X_SVG='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    function face(it, side){
+      var f=el('div','sv-face-neighbor '+side);
+      f.innerHTML='<img class="sv-media '+fcls(it.filter)+'" src="'+esc(it.photo)+'" alt=""><div class="sv-face-scrim"></div>'+
+        '<div class="sv-face-id"><div class="sv-avatar-ring sv-face-avatar"><img class="sv-avatar '+fcls(it.filter)+'" src="'+esc(it.photo)+'" alt=""></div><span class="sv-face-username">'+esc(it.name)+'</span></div>';
+      return f;
+    }
+    function open(i){
+      var items=list(); if(!items.length) return;
+      close(true);
+      var root=el('div','sv-portal');
+      root.innerHTML='<div class="sv-backdrop"></div><div class="sv-scene"><div class="sv-cube"><div class="sv-container">'+
+        '<div class="sv-progress-row"><div class="sv-seg"><div class="sv-seg-fill"></div></div></div>'+
+        '<div class="sv-header"><div class="sv-header-left"><div class="sv-avatar-ring"><img class="sv-avatar" alt=""></div>'+
+        '<div class="sv-user-info"><span class="sv-username"></span><span class="sv-meta"></span></div></div>'+
+        '<div class="sv-header-right"><button type="button" class="sv-close-btn" aria-label="Tutup story">'+X_SVG+'</button></div></div>'+
+        '<div class="sv-media-area"><div class="sv-img-shell sv-img-loading"><div class="sv-shimmer"></div><img class="sv-media" alt="" draggable="false"></div></div>'+
+        '<p class="sv-caption"></p></div></div></div>';
+      d.body.appendChild(root);
+      d.documentElement.classList.add('sv-open');
+      S={items:items, i:-1, root:root, scene:root.querySelector('.sv-scene'), cube:root.querySelector('.sv-cube'), box:root.querySelector('.sv-container'),
+         bd:root.querySelector('.sv-backdrop'), fill:root.querySelector('.sv-seg-fill'), img:root.querySelector('.sv-media-area .sv-media'),
+         shell:root.querySelector('.sv-img-shell'), raf:0, start:0, elapsed:0, paused:false, ready:false, settling:false, drag:null};
+      S.bd.addEventListener('click', function(){ close(); });
+      root.querySelector('.sv-close-btn').addEventListener('click', function(e){ e.stopPropagation(); close(); });
+      root.querySelector('.sv-close-btn').addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+      S.img.addEventListener('load', function(){ if(!S) return; S.shell.classList.remove('sv-img-loading'); S.img.classList.add('sv-img-visible'); S.ready=true; S.start=performance.now()-S.elapsed; tick(); });
+      S.img.addEventListener('error', function(){ if(S){ S.ready=true; S.start=performance.now(); tick(); } });
+      S.box.addEventListener('pointerdown', down);
+      S.box.addEventListener('pointermove', move);
+      S.box.addEventListener('pointerup', up);
+      S.box.addEventListener('pointercancel', up);
+      show(i);
+    }
+    function show(i){
+      if(!S) return;
+      if(i<0) i=0;
+      if(i>=S.items.length){ close(); return; }
+      var it=S.items[i]; S.i=i; S.elapsed=0; S.ready=false;
+      cancelAnimationFrame(S.raf); S.fill.style.transform='scaleX(0)';
+      S.shell.classList.add('sv-img-loading'); S.img.classList.remove('sv-img-visible');
+      S.img.className='sv-media '+fcls(it.filter);
+      S.img.src=it.photo;
+      var av=S.root.querySelector('.sv-avatar'); av.src=it.photo; av.className='sv-avatar '+fcls(it.filter);
+      S.root.querySelector('.sv-username').textContent=it.name;
+      S.root.querySelector('.sv-meta').textContent=it.ago||'';
+      var cap=S.root.querySelector('.sv-caption'); cap.textContent=it.caption||''; cap.hidden=!it.caption;
+      if(S.img.complete && S.img.naturalWidth){ S.shell.classList.remove('sv-img-loading'); S.img.classList.add('sv-img-visible'); S.ready=true; S.start=performance.now(); tick(); }
+      markSeen(it.id);
+      var nx=S.items[i+1]; if(nx){ var p=new Image(); p.src=nx.photo; }
+    }
+    function tick(){
+      if(!S) return;
+      cancelAnimationFrame(S.raf);
+      S.raf=requestAnimationFrame(function step(now){
+        if(!S || !S.ready) return;
+        if(S.paused){ S.start=now-S.elapsed; S.raf=requestAnimationFrame(step); return; }
+        S.elapsed=now-S.start;
+        var k=Math.min(1, S.elapsed/DUR); S.fill.style.transform='scaleX('+k+')';
+        if(k>=1){ show(S.i+1); return; }
+        S.raf=requestAnimationFrame(step);
+      });
+    }
+    function close(now){
+      if(!S) return;
+      cancelAnimationFrame(S.raf);
+      var r=S.root; S=null;
+      d.documentElement.classList.remove('sv-open');
+      if(now){ r.remove(); return; }
+      r.classList.add('is-closing'); setTimeout(function(){ r.remove(); }, 200);
+    }
+    function settle(fn, ms){ S.settling=true; setTimeout(function(){ if(!S) return; S.settling=false; fn(); }, ms); }
+    function down(e){
+      if(!S || S.settling || e.button!==0) return;
+      S.drag={x:e.clientX, y:e.clientY, t:performance.now(), lx:e.clientX, ly:e.clientY, lt:performance.now(), axis:null, id:e.pointerId};
+      S.paused=true;
+      var w=S.cube.offsetWidth; S.w=w||400; S.h=S.cube.offsetHeight||800; S.cube.style.setProperty('--sv-w', S.w+'px');
+    }
+    function move(e){
+      if(!S || !S.drag || S.settling) return;
+      var g=S.drag, dx=e.clientX-g.x, dy=e.clientY-g.y;
+      g.lx=e.clientX; g.ly=e.clientY; g.lt=performance.now();
+      if(!g.axis && (Math.abs(dx)>AXIS || Math.abs(dy)>AXIS)){
+        g.axis = Math.abs(dx)>Math.abs(dy) ? 'h' : (dy>0 ? 'down' : 'up');
+        if(g.axis==='h'){
+          try{ S.box.setPointerCapture(g.id); }catch(_){}
+          S.cube.classList.add('is-3d');
+          var pv=S.items[S.i-1], nx=S.items[S.i+1];
+          if(pv) S.cube.insertBefore(face(pv,'sv-face-prev'), S.box);
+          if(nx) S.cube.appendChild(face(nx,'sv-face-next'));
+        }
+      }
+      if(g.axis==='h'){
+        e.preventDefault();
+        var deg=dx/S.w*90; if(deg>0 && S.i===0) deg*=0.25;
+        deg=Math.max(-90, Math.min(90, deg));
+        S.cube.style.transition='none';
+        S.cube.style.transform='translateZ(calc(var(--sv-w) / -2)) rotateY('+deg.toFixed(3)+'deg)';
+      } else if(g.axis==='down'){
+        e.preventDefault();
+        var dd=Math.max(0, dy), sc=Math.max(0.75, 1-dd/S.h*0.25);
+        S.scene.style.transition='none';
+        S.scene.style.transform='translateX(-50%) translateY('+dd.toFixed(1)+'px) scale('+sc.toFixed(4)+')';
+        S.scene.style.borderRadius='18px';
+        S.bd.style.opacity=Math.max(0.2, 1-dd/600).toFixed(3);
+      }
+    }
+    function resetCube(){
+      if(!S) return;
+      S.cube.style.transition=''; S.cube.style.transform=''; S.cube.classList.remove('is-3d');
+      S.cube.querySelectorAll('.sv-face-neighbor').forEach(function(f){ f.remove(); });
+    }
+    function up(e){
+      if(!S || !S.drag || S.settling) return;
+      var g=S.drag; S.drag=null; S.paused=false;
+      try{ if(S.box.hasPointerCapture(g.id)) S.box.releasePointerCapture(g.id); }catch(_){}
+      var dx=g.lx-g.x, dy=g.ly-g.y, dt=Math.max(1, g.lt-g.t);
+      if(g.axis==='h'){
+        var commit=Math.abs(dx)>S.w*COMMIT || (Math.abs(dx/dt)>FLICK && Math.abs(dx)>40), next=dx<0;
+        if(commit && (next || S.i>0)){
+          S.cube.style.transition='transform .26s cubic-bezier(.2,.8,.25,1)';
+          S.cube.style.transform='translateZ(calc(var(--sv-w) / -2)) rotateY('+(next?-90:90)+'deg)';
+          settle(function(){ resetCube(); show(S.i+(next?1:-1)); }, 280);
+        } else {
+          S.cube.style.transition='transform .22s cubic-bezier(.2,.8,.25,1)';
+          S.cube.style.transform='translateZ(calc(var(--sv-w) / -2)) rotateY(0deg)';
+          settle(resetCube, 240);
+        }
+      } else if(g.axis==='down'){
+        if(dy>CLOSE_PX || (dy/dt>FLICK && dy>60)){
+          S.scene.style.transition='transform .24s ease-in, opacity .24s ease-in';
+          S.scene.style.transform='translateX(-50%) translateY(70vh) scale(.7)'; S.scene.style.opacity='0';
+          S.bd.style.transition='opacity .24s ease-in'; S.bd.style.opacity='0';
+          settle(function(){ close(true); }, 240);
+        } else {
+          S.scene.style.transition='transform .22s cubic-bezier(.2,.8,.25,1), border-radius .22s ease';
+          S.scene.style.transform='translateX(-50%)'; S.scene.style.borderRadius='0px';
+          S.bd.style.transition='opacity .2s ease'; S.bd.style.opacity='1';
+          settle(function(){ ['transition','transform','borderRadius','opacity'].forEach(function(k){ S.scene.style[k]=''; S.bd.style[k]=''; }); }, 240);
+        }
+      } else if(!g.axis && dt<HOLD_MS){
+        // Tap: sepertiga kiri = mundur, sisanya = maju (perilaku Instagram).
+        var r=S.box.getBoundingClientRect();
+        if(g.x-r.left < r.width*0.33) show(S.i-1 < 0 ? 0 : S.i-1); else show(S.i+1);
+      }
+    }
+    d.addEventListener('click', function(e){
+      var b=e.target.closest && e.target.closest('[data-story-open]'); if(!b) return;
+      e.preventDefault(); open(+b.getAttribute('data-story-open'));
+    });
+    d.addEventListener('keydown', function(e){
+      if(!S) return;
+      if(e.key==='Escape') close();
+      else if(e.key==='ArrowRight') show(S.i+1);
+      else if(e.key==='ArrowLeft') show(Math.max(0, S.i-1));
+    });
+    d.addEventListener('visibilitychange', function(){ if(S) S.paused=d.hidden; });
+    // Formulir: pratinjau foto (blob lokal, tak diunggah sebelum dikirim) + filter.
+    d.addEventListener('change', function(e){
+      var t=e.target;
+      if(t.matches && t.matches('[data-story-file]')){
+        var f=t.files && t.files[0], pv=t.closest('form').querySelector('[data-story-preview]'); if(!pv) return;
+        if(pv.dataset.blob) URL.revokeObjectURL(pv.dataset.blob);
+        if(f && /^image\/(jpeg|png|webp)$/.test(f.type)){ var u=URL.createObjectURL(f); pv.dataset.blob=u; pv.src=u; pv.hidden=false; }
+        else { pv.hidden=true; pv.removeAttribute('src'); if(f){ t.value=''; alert('Story hanya boleh foto JPEG/PNG/WebP — video tidak bisa.'); } }
+      } else if(t.matches && t.matches('[data-story-filter]')){
+        var p2=t.closest('form').querySelector('[data-story-preview]'); if(p2) p2.className='story-pick__img sf-'+t.value;
+      }
+    });
+  })();
   new MutationObserver(function(){ if(!domPending){ domPending=true; requestAnimationFrame(runDom); } })
     .observe(d.body, {childList:true, subtree:true, attributes:true, attributeFilter:['data-load-more']});
   // Tamu yang sudah membuka undangan di tab ini: lanjutkan musik saat pindah halaman penuh.
