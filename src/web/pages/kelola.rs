@@ -11,8 +11,8 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::hooks::{use_params_map, use_query_map};
 
-use crate::web::api::{get_dashboard, list_stories, AddGuest, CheckIn, DeleteGuest, DeleteStory, MarkSent};
-use crate::web::components::{err_msg, wa_share_text, Monogram, FloatDeco};
+use crate::web::api::{get_dashboard, owner_stories, AddGuest, CheckIn, DeleteGuest, DeleteStory, MarkSent};
+use crate::web::components::{err_msg, wa_share_text, Monogram, FloatDeco, StoryPager};
 use crate::web::fmt::{self, rupiah, rupiah_ringkas};
 use crate::web::icons::Icon;
 use crate::web::model::*;
@@ -579,54 +579,82 @@ pub fn ScanPage() -> impl IntoView {
     }
 }
 
-/// Story tamu (tab Story undangan) — pemilik bisa menghapus yang tak pantas.
+/// Story tamu (tab Story undangan) — hanya pemegang kunci Kelola (pembeli
+/// undangan). Berhalaman (STORY_PER_PAGE); hapus = permanen (baris + foto).
 #[component]
 fn StoryModeration(slug: String, key: String, demo: bool) -> impl IntoView {
     let del = ServerAction::<DeleteStory>::new();
+    let page = RwSignal::new(1i64);
     let stories = Resource::new(
         {
-            let slug = slug.clone();
-            move || (slug.clone(), del.version().get())
+            let (slug, key) = (slug.clone(), key.clone());
+            move || (slug.clone(), key.clone(), page.get(), del.version().get())
         },
-        |(slug, _)| list_stories(slug),
+        |(slug, key, page, _)| owner_stories(slug, key, page),
     );
+    // Hasil hapus dari penampil (POST /kelola/{slug}/story/hapus → ?story_ok=/story_galat=).
+    let query = leptos_router::hooks::use_query_map();
+    let story_notice = move || {
+        let q = query.read();
+        q.get("story_galat").map(|m| (false, m)).or_else(|| q.get("story_ok").map(|m| (true, m)))
+    };
+    let del_url = format!("/kelola/{slug}/story/hapus");
     view! {
         <section class="card story-mod" id="story">
             <div class="guests__head">
                 <h2><Icon name="photo_camera" />"Story Tamu"</h2>
                 <a class="muted small" href=format!("/u/{slug}/story") target="_blank" rel="noopener">"Lihat tab Story"</a>
             </div>
+            <p class="muted small">"Ketuk story untuk melihatnya. Story yang kurang pas bisa Anda hapus permanen (foto ikut terhapus) — dari tombol 🗑 di kartu atau di dalam penampil. Pembuat story juga bisa menghapus story-nya sendiri."</p>
+            {move || story_notice().map(|(ok, m)| view! { <p class=if ok { "notice notice--ok" } else { "notice notice--err" }>{m}</p> })}
             {move || del.value().get().and_then(|r| r.err()).map(|e| view! { <p class="notice notice--err">{err_msg(&e)}</p> })}
-            <Suspense fallback=|| view! { <p class="muted">"Memuat story…"</p> }>
-                {move || stories.get().map(|r| {
-                    let list = r.unwrap_or_default();
-                    if list.is_empty() {
-                        return Either::Left(view! { <p class="muted">"Belum ada story dari tamu."</p> });
-                    }
-                    Either::Right(view! {
-                        <div class="story-mod__grid">
-                            {list.into_iter().map(|s| {
-                                let (slug, key) = (slug.clone(), key.clone());
-                                let id = s.id;
-                                view! {
-                                    <figure class="story-mod__item">
-                                        <img class=format!("sf-{}", s.filter) src=s.photo alt="" loading="lazy" decoding="async" />
-                                        <figcaption><b>{s.name}</b><small>{s.ago}</small></figcaption>
-                                        {(!demo).then(|| view! {
-                                            <button type="button" class="icon-btn icon-btn--sm story-mod__del" aria-label="Hapus story"
+            <Transition fallback=|| view! { <p class="muted">"Memuat story…"</p> }>
+                {move || stories.get().map(|r| match r {
+                    Err(e) => Either::Left(view! { <p class="notice notice--err">{err_msg(&e)}</p> }),
+                    Ok(pg) => Either::Right({
+                        let (cur, pages, total) = (pg.page, pg.pages, pg.total);
+                        // Data penampil story (global.js) untuk halaman ini: nomor pengirim
+                        // tersamar ikut tampil di header penampil (hanya untuk pengelola).
+                        let json = serde_json::to_string(&pg.items.iter().map(|s| serde_json::json!({
+                            "id": s.id, "name": s.name, "photo": s.photo, "filter": s.filter,
+                            "caption": s.caption, "ago": format!("{} • {}", s.phone, s.ago),
+                        })).collect::<Vec<_>>()).unwrap_or_else(|_| "[]".into()).replace("</", "<\\/");
+                        let (del_url, key_attr) = (del_url.clone(), key.clone());
+                        view! {
+                            <script type="application/json" id="story-data" inner_html=json
+                                data-owner=(!demo).then_some("1") data-del-owner=del_url data-key=key_attr></script>
+                            {(total == 0).then(|| view! { <p class="muted">"Belum ada story dari tamu."</p> })}
+                            <div class="story-mod__grid">
+                                {pg.items.into_iter().enumerate().map(|(i, s)| {
+                                    let (slug, key) = (slug.clone(), key.clone());
+                                    let id = s.id;
+                                    let label = format!("Lihat story {}", s.name);
+                                    view! {
+                                        <figure class="story-mod__item" data-story-open=i.to_string() role="button" tabindex="0" aria-label=label>
+                                            <img class=format!("sf-{}", s.filter) src=s.photo alt="" loading="lazy" decoding="async" />
+                                            <figcaption>
+                                                <b>{s.name}</b>
+                                                <small class="muted">{s.phone}</small>
+                                                <small>{s.ago}</small>
+                                            </figcaption>
+                                            // Tombol hapus jelas di tiap kartu (selalu tampil; demo = nonaktif).
+                                            <button type="button" class="btn btn--sm story-mod__hapus"
+                                                title=if demo { "Dashboard demo — story contoh tidak bisa dihapus" } else { "Hapus story ini permanen" }
+                                                disabled=move || demo || del.pending().get()
                                                 on:click=move |_| {
-                                                    if confirm("Hapus story tamu ini?") { del.dispatch(DeleteStory { slug: slug.clone(), key: key.clone(), id }); }
+                                                    if confirm("Hapus story tamu ini secara permanen? Foto ikut terhapus.") { del.dispatch(DeleteStory { slug: slug.clone(), key: key.clone(), id }); }
                                                 }>
-                                                <Icon name="delete" />
+                                                <Icon name="delete" />"Hapus"
                                             </button>
-                                        })}
-                                    </figure>
-                                }
-                            }).collect_view()}
-                        </div>
-                    })
+                                        </figure>
+                                    }
+                                }).collect_view()}
+                            </div>
+                            {(total > 0).then(|| view! { <StoryPager page=page cur=cur pages=pages total=total per=STORY_PER_PAGE anchor="story" /> })}
+                        }
+                    }),
                 })}
-            </Suspense>
+            </Transition>
         </section>
     }
 }

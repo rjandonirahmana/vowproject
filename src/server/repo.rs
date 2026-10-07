@@ -226,7 +226,9 @@ pub async fn guests(pool: &Pool, inv_id: i64) -> Result<Vec<GuestRow>> {
              FROM guests g
              LEFT JOIN rsvps r ON r.guest_id = g.id
              WHERE g.invitation_id = $1
-             ORDER BY g.created_at DESC, g.id DESC",
+             ORDER BY g.created_at DESC, g.id DESC
+             -- Batas aman: dashboard memuat seluruh daftar ke memori (server & WASM).
+             LIMIT 5000",
             &[&inv_id],
         )
         .await?;
@@ -801,6 +803,17 @@ pub async fn create_session(pool: &Pool, token_hash: &str, user_id: i64, days: i
 
 /// Hapus sesi kedaluwarsa — dijalankan tugas latar (server/cleanup.rs),
 /// jadi tabel tetap bersih walau lama tak ada yang login.
+/// Kunci story (migrasi 026) yang sudah terpakai / kedaluwarsa > 1 hari —
+/// tanpa ini tabel tumbuh terus (satu baris per permintaan kunci). Tabel
+/// belum ada → 0.
+pub async fn purge_story_keys(pool: &Pool) -> Result<u64> {
+    let c = pool.get().await?;
+    if db_opt(&c, "SELECT to_regclass('story_keys')::TEXT", &[]).await?.and_then(|r| r.get::<_, Option<String>>(0)).is_none() {
+        return Ok(0);
+    }
+    Ok(db_exec(&c, "DELETE FROM story_keys WHERE expires_at < NOW() - INTERVAL '1 day'", &[]).await?)
+}
+
 pub async fn purge_expired_sessions(pool: &Pool) -> Result<u64> {
     let c = pool.get().await?;
     Ok(db_exec(&c, "DELETE FROM admin_sessions WHERE expires_at < NOW()", &[]).await?)
@@ -1121,13 +1134,15 @@ pub async fn move_banner(pool: &Pool, id: i64, up: bool) -> Result<()> {
 
 // ── Story tamu (migrasi 026) ───────────────────────────────────────────────
 
-/// Story undangan, terbaru dulu.
-pub async fn stories(pool: &Pool, inv_id: i64) -> Result<Vec<StoryItem>> {
+/// Story undangan, terbaru dulu. `my_hash` = SHA-256 token cookie pembuat
+/// (perangkat ini) → `mine`. Kolom token (028) dibaca lewat jsonb.
+pub async fn stories(pool: &Pool, inv_id: i64, my_hash: &str) -> Result<Vec<StoryItem>> {
     let c = pool.get().await?;
     let rows = db_rows(&c,
-        "SELECT id, name, photo_url, filter, caption, EXTRACT(EPOCH FROM NOW() - created_at)::BIGINT AS age
-           FROM invitation_stories WHERE invitation_id = $1 ORDER BY created_at DESC LIMIT 200",
-        &[&inv_id]).await.context("muat story (sudah menjalankan migration/026_story.sql?)")?;
+        "SELECT id, name, photo_url, filter, caption, EXTRACT(EPOCH FROM NOW() - created_at)::BIGINT AS age,
+                ($2 <> '' AND COALESCE(to_jsonb(s) ->> 'owner_token_hash', '') = $2) AS mine
+           FROM invitation_stories s WHERE invitation_id = $1 ORDER BY created_at DESC LIMIT 200",
+        &[&inv_id, &my_hash]).await.context("muat story (sudah menjalankan migration/026_story.sql?)")?;
     Ok(rows
         .iter()
         .map(|r| StoryItem {
@@ -1137,8 +1152,47 @@ pub async fn stories(pool: &Pool, inv_id: i64) -> Result<Vec<StoryItem>> {
             filter: r.get("filter"),
             caption: r.get("caption"),
             ago: lalu(r.get("age")),
+            mine: r.get("mine"),
         })
         .collect())
+}
+
+fn story_mod_row(r: &Row) -> StoryMod {
+    StoryMod {
+        id: r.get("id"),
+        name: r.get("name"),
+        photo: r.get("photo_url"),
+        filter: r.get("filter"),
+        caption: r.get("caption"),
+        ago: lalu(r.get("age")),
+        phone: mask_phone(r.get::<_, &str>("phone")),
+        slug: r.get("slug"),
+        couple: format!("{} & {}", r.get::<_, String>("bride_name"), r.get::<_, String>("groom_name")),
+    }
+}
+
+/// Satu halaman moderasi. `inv_id` = undangan tertentu (Kelola) atau semua
+/// (admin, `q` = cari slug / nama pengirim). `page` mulai 1.
+pub async fn stories_page(pool: &Pool, inv_id: Option<i64>, q: &str, page: i64) -> Result<StoryModPage> {
+    let c = pool.get().await?;
+    let q = q.replace(['%', '_'], "");
+    let like = format!("%{q}%");
+    let inv = inv_id.unwrap_or(0);
+    // Tipe parameter WAJIB eksplisit: tanpa cast Postgres menebak `$1 = 0`
+    // sebagai int4 → i64 dari Rust ditolak ("cannot convert … int4").
+    let filter = "($1::BIGINT = 0 OR s.invitation_id = $1::BIGINT) AND ($2::TEXT = '' OR i.slug ILIKE $3::TEXT OR s.name ILIKE $3::TEXT)";
+    let total: i64 = db_row(&c,
+        &format!("SELECT COUNT(*) FROM invitation_stories s JOIN invitations i ON i.id = s.invitation_id WHERE {filter}"),
+        &[&inv, &q, &like]).await.context("hitung story")?.get(0);
+    let pages = ((total + STORY_PER_PAGE - 1) / STORY_PER_PAGE).max(1);
+    let page = page.clamp(1, pages);
+    let rows = db_rows(&c,
+        &format!("SELECT s.id, s.name, s.photo_url, s.filter, s.caption, s.phone, i.slug, i.bride_name, i.groom_name,
+                         EXTRACT(EPOCH FROM NOW() - s.created_at)::BIGINT AS age
+                    FROM invitation_stories s JOIN invitations i ON i.id = s.invitation_id
+                   WHERE {filter} ORDER BY s.created_at DESC, s.id DESC LIMIT $4::BIGINT OFFSET $5::BIGINT"),
+        &[&inv, &q, &like, &STORY_PER_PAGE, &((page - 1) * STORY_PER_PAGE)]).await.context("halaman story")?;
+    Ok(StoryModPage { items: rows.iter().map(story_mod_row).collect(), total, page, pages })
 }
 
 /// Nomor ini sudah punya story di undangan ini?
@@ -1193,13 +1247,47 @@ pub async fn use_story_key(pool: &Pool, key_id: i64) -> Result<()> {
 }
 
 /// Simpan story; `false` bila nomor ini sudah punya story (UNIQUE).
-pub async fn insert_story(pool: &Pool, inv_id: i64, phone: &str, name: &str, photo: &str, filter: &str, caption: &str) -> Result<bool> {
+pub async fn insert_story(pool: &Pool, inv_id: i64, phone: &str, name: &str, photo: &str, filter: &str, caption: &str, token_hash: &str) -> Result<bool> {
     let c = pool.get().await?;
     let n = db_exec(&c,
-        "INSERT INTO invitation_stories (invitation_id, phone, name, photo_url, filter, caption)
-         VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (invitation_id, phone) DO NOTHING",
-        &[&inv_id, &phone, &name, &photo, &filter, &caption]).await?;
-    Ok(n == 1)
+        "INSERT INTO invitation_stories (invitation_id, phone, name, photo_url, filter, caption, owner_token_hash)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (invitation_id, phone) DO NOTHING",
+        &[&inv_id, &phone, &name, &photo, &filter, &caption, &token_hash]).await;
+    match n {
+        Ok(n) => Ok(n == 1),
+        // Sebelum migrasi 028 (kolom token belum ada) → simpan tanpa token.
+        Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_COLUMN) => Ok(db_exec(&c,
+            "INSERT INTO invitation_stories (invitation_id, phone, name, photo_url, filter, caption)
+             VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (invitation_id, phone) DO NOTHING",
+            &[&inv_id, &phone, &name, &photo, &filter, &caption]).await? == 1),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Hapus permanen oleh PEMBUAT dari perangkatnya (token cookie cocok) → URL foto.
+pub async fn delete_story_by_token(pool: &Pool, inv_id: i64, id: i64, token_hash: &str) -> Result<Option<String>> {
+    if token_hash.is_empty() {
+        return Ok(None);
+    }
+    let c = pool.get().await?;
+    Ok(db_opt(&c,
+        "DELETE FROM invitation_stories s WHERE invitation_id = $1 AND id = $2
+           AND COALESCE(to_jsonb(s) ->> 'owner_token_hash', '') = $3 RETURNING photo_url",
+        &[&inv_id, &id, &token_hash]).await?.map(|r| r.get(0)))
+}
+
+/// Hapus permanen oleh PEMBUAT dari perangkat lain (sudah lolos kunci WA).
+pub async fn delete_story_by_phone(pool: &Pool, inv_id: i64, phone: &str) -> Result<Option<String>> {
+    let c = pool.get().await?;
+    Ok(db_opt(&c,
+        "DELETE FROM invitation_stories WHERE invitation_id = $1 AND phone = $2 RETURNING photo_url",
+        &[&inv_id, &phone]).await?.map(|r| r.get(0)))
+}
+
+/// Hapus permanen oleh ADMIN (story undangan mana pun) → URL foto.
+pub async fn delete_story_admin(pool: &Pool, id: i64) -> Result<Option<String>> {
+    let c = pool.get().await?;
+    Ok(db_opt(&c, "DELETE FROM invitation_stories WHERE id = $1 RETURNING photo_url", &[&id]).await?.map(|r| r.get(0)))
 }
 
 /// Hapus story (pemilik undangan) → URL foto lama untuk dihapus dari RustFS.
@@ -1208,4 +1296,84 @@ pub async fn delete_story(pool: &Pool, inv_id: i64, id: i64) -> Result<Option<St
     Ok(db_opt(&c,
         "DELETE FROM invitation_stories WHERE invitation_id = $1 AND id = $2 RETURNING photo_url",
         &[&inv_id, &id]).await?.map(|r| r.get(0)))
+}
+
+// ── Pustaka lagu (migrasi 027) ─────────────────────────────────────────────
+
+const SONG_COLS: &str = "id, title, artist, duration, tag, url, aktif, urutan";
+
+fn song_row(r: &Row) -> Song {
+    Song {
+        id: r.get("id"),
+        title: r.get("title"),
+        artist: r.get("artist"),
+        duration: r.get("duration"),
+        tag: r.get("tag"),
+        url: r.get("url"),
+        aktif: r.get("aktif"),
+        urutan: r.get("urutan"),
+    }
+}
+
+/// `only_active` = pilihan pengantin di /buat; semua = halaman admin.
+pub async fn songs(pool: &Pool, only_active: bool) -> Result<Vec<Song>> {
+    let c = pool.get().await?;
+    let sql = if only_active {
+        "SELECT id, title, artist, duration, tag, url, aktif, urutan FROM songs WHERE aktif ORDER BY urutan, id"
+    } else {
+        "SELECT id, title, artist, duration, tag, url, aktif, urutan FROM songs ORDER BY urutan, id"
+    };
+    let rows = db_rows(&c, sql, &[]).await.context("muat lagu (sudah menjalankan migration/027_pustaka_lagu.sql?)")?;
+    Ok(rows.iter().map(song_row).collect())
+}
+
+/// Lagu AKTIF berdasarkan id (pilihan pemesan diverifikasi ulang di server).
+pub async fn active_song(pool: &Pool, id: i64) -> Result<Option<Song>> {
+    let c = pool.get().await?;
+    let sql = format!("SELECT {SONG_COLS} FROM songs WHERE id = $1 AND aktif");
+    Ok(db_opt(&c, &sql, &[&id]).await?.as_ref().map(song_row))
+}
+
+/// Simpan (id 0 = baru, urutan di akhir) → id.
+pub async fn save_song(pool: &Pool, s: &Song) -> Result<i64> {
+    let c = pool.get().await?;
+    let r = if s.id == 0 {
+        db_row(&c,
+            "INSERT INTO songs (title, artist, duration, tag, url, aktif, urutan)
+             VALUES ($1, $2, $3, $4, $5, $6, (SELECT COALESCE(MAX(urutan), 0) + 10 FROM songs)) RETURNING id",
+            &[&s.title, &s.artist, &s.duration, &s.tag, &s.url, &s.aktif]).await?
+    } else {
+        db_row(&c,
+            "UPDATE songs SET title = $2, artist = $3, duration = $4, tag = $5, url = $6, aktif = $7 WHERE id = $1 RETURNING id",
+            &[&s.id, &s.title, &s.artist, &s.duration, &s.tag, &s.url, &s.aktif]).await?
+    };
+    Ok(r.get(0))
+}
+
+/// Hapus dari pustaka → (url lama, masih dipakai undangan?). Berkas hanya
+/// boleh dihapus dari RustFS bila tak ada undangan yang memakainya.
+pub async fn delete_song(pool: &Pool, id: i64) -> Result<Option<(String, bool)>> {
+    let c = pool.get().await?;
+    let Some(r) = db_opt(&c, "DELETE FROM songs WHERE id = $1 RETURNING url", &[&id]).await? else { return Ok(None) };
+    let url: String = r.get(0);
+    let used = db_opt(&c, "SELECT 1 FROM invitations WHERE split_part(music_url, '#', 1) = $1 LIMIT 1", &[&url]).await?.is_some();
+    Ok(Some((url, used)))
+}
+
+/// Tukar urutan dengan tetangga atas/bawah (lalu rapikan 10, 20, …).
+pub async fn move_song(pool: &Pool, id: i64, up: bool) -> Result<()> {
+    let mut c = pool.get().await?;
+    let tx = c.transaction().await?;
+    let mut ids: Vec<i64> = tx.query("SELECT id FROM songs ORDER BY urutan, id FOR UPDATE", &[]).await?.iter().map(|r| r.get(0)).collect();
+    if let Some(i) = ids.iter().position(|&x| x == id) {
+        let j = if up { i.checked_sub(1) } else { (i + 1 < ids.len()).then_some(i + 1) };
+        if let Some(j) = j {
+            ids.swap(i, j);
+        }
+    }
+    for (n, sid) in ids.iter().enumerate() {
+        tx.execute("UPDATE songs SET urutan = $2 WHERE id = $1", &[sid, &(((n + 1) * 10) as i32)]).await?;
+    }
+    tx.commit().await?;
+    Ok(())
 }

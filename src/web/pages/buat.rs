@@ -4,20 +4,21 @@
 //! tetap jalan tanpa WASM. Setelah hydrate, ringkasan harga, pratinjau mini,
 //! dan cek ketersediaan tautan ikut hidup.
 
+use leptos::either::Either;
 use leptos::prelude::*;
 use crate::web::seo::Seo;
 use leptos_router::hooks::use_query_map;
 
 use std::ops::Not;
 
-use crate::web::api::{get_konten, get_theme, list_themes};
+use crate::web::api::{get_contact, get_theme, list_songs, list_themes};
 use crate::web::components::monogram_svg;
 use crate::web::fmt::{self, rupiah};
 use crate::web::icons::Icon;
 use crate::web::model::initial;
 use crate::web::skin::{ThemeInfo, DEFAULT_THEME};
 use crate::web::konten::Konten;
-use crate::web::themes::{PAYMENT_METHODS, QUOTES, SONGS};
+use crate::web::themes::{PAYMENT_METHODS, QUOTES};
 
 use super::{SiteFooter, SiteHeader};
 
@@ -46,7 +47,7 @@ pub fn BuatPage() -> impl IntoView {
     );
     let package = RwSignal::new(qget("paket"));
     // Harga, paket & add-on dari konten admin (server menghitung ulang saat kirim).
-    let konten = Resource::new(|| (), |_| get_konten());
+    let konten = super::use_konten();
     let k = move || konten.get().and_then(|r| r.ok()).unwrap_or_default();
     let addons = RwSignal::new(Vec::<String>::new());
     let coupon = RwSignal::new(String::new());
@@ -55,6 +56,9 @@ pub fn BuatPage() -> impl IntoView {
     let date = RwSignal::new(qget("tanggal"));
     let venue = RwSignal::new(String::new());
     let galat = qget("galat");
+    // Musik latar HANYA dari pustaka admin; lagu lain diminta lewat WA admin.
+    let songs = Resource::new(|| (), |_| list_songs());
+    let contact = Resource::new(|| (), |_| get_contact());
 
     // Tanda "sudah hydrate" untuk skrip global: draf isian (bila server menolak
     // kiriman sebelumnya) baru dipulihkan setelah sinyal halaman siap, supaya
@@ -252,28 +256,50 @@ pub fn BuatPage() -> impl IntoView {
                     </section>
 
                     // ── D. Musik & doa ──
-                    <section class="card fsec">
+                    <section class="card fsec" id="musik">
                         <FsecHead icon="music_note" title="Media Audio & Untaian Doa" sub="Lagu latar pemikat suasana dan kata mutiara sakral" tag="Bagian D" />
                         <p class="field__label">"Pilihan Musik Latar"</p>
-                        <div class="songs">
-                            {SONGS.iter().enumerate().map(|(i, s)| view! {
-                                <label class="song song--radio">
-                                    <input type="radio" name="music_preset" value=s.slug checked=i == 0 />
-                                    <span class="song__meta"><b>{s.title}</b><small>{format!("{} • {}", s.artist, s.duration)}</small></span>
-                                    <span class="song__play" data-song=s.url() data-title=s.title title="Dengarkan">
-                                        <Icon name="play_arrow" class="when-idle" /><Icon name="pause" class="when-playing" />
-                                    </span>
-                                </label>
-                            }).collect_view()}
-                        </div>
-                        <div data-preview-box="">
-                            <label class="upload">
-                                <Icon name="cloud_upload" />
-                                <span><b>"Upload lagu MP3 sendiri"</b><small>"Format .mp3 / .m4a, maksimal 6 MB — menggantikan pilihan di atas. Bisa langsung didengar; baru diunggah saat pesanan dikirim."</small></span>
-                                <input type="file" name="music_file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg" data-preview="audio" data-max="6" />
-                            </label>
-                            <div class="preview-out" data-preview-out=""></div>
-                        </div>
+                        <p class="muted small">"Pilih dari pustaka lagu kami (tekan ▶ untuk mendengar). Lagu tak ada di daftar? Minta ke admin — kami tambahkan ke pustaka."</p>
+                        <Suspense fallback=|| view! { <p class="muted small">"Memuat daftar lagu…"</p> }>
+                            {move || songs.get().map(|r| {
+                                let list = r.unwrap_or_default();
+                                if list.is_empty() {
+                                    return Either::Left(view! { <p class="notice notice--info">"Pustaka lagu belum diisi admin — undangan tanpa musik dulu, bisa diminta ke admin."</p> });
+                                }
+                                Either::Right(view! {
+                                    <div class="songs">
+                                        {list.into_iter().enumerate().map(|(i, s)| view! {
+                                            <label class="song song--radio">
+                                                <input type="radio" name="music_song" value=s.id.to_string() checked=i == 0 />
+                                                <span class="song__meta">
+                                                    <b>{s.title.clone()}</b>
+                                                    <small>{s.meta()}</small>
+                                                </span>
+                                                {(!s.tag.is_empty()).then(|| view! { <span class="chip chip--gold chip--xs">{s.tag.clone()}</span> })}
+                                                <span class="song__play" data-song=s.url.clone() data-title=s.title.clone() title="Dengarkan">
+                                                    <Icon name="play_arrow" class="when-idle" /><Icon name="pause" class="when-playing" />
+                                                </span>
+                                            </label>
+                                        }).collect_view()}
+                                        <label class="song song--radio">
+                                            <input type="radio" name="music_song" value="0" />
+                                            <span class="song__meta"><b>"Tanpa musik"</b><small>"Bisa ditambahkan nanti lewat admin"</small></span>
+                                        </label>
+                                    </div>
+                                })
+                            })}
+                        </Suspense>
+                        <Suspense fallback=|| ()>
+                            {move || contact.get().and_then(|r| r.ok()).filter(|w| !w.is_empty()).map(|wa| {
+                                let msg = "Halo admin, saya ingin request lagu untuk musik latar undangan: (judul – penyanyi)";
+                                view! {
+                                    <a class="btn btn--soft btn--sm song-request" target="_blank" rel="noopener"
+                                        href=format!("https://wa.me/{wa}?text={}", crate::web::fmt::url_encode(msg))>
+                                        <Icon name="library_music" />"Request lagu ke admin"
+                                    </a>
+                                }
+                            })}
+                        </Suspense>
                         <crate::web::components::MusicSeek name="music_start" />
                         <div data-preview-box="">
                             <label class="upload">

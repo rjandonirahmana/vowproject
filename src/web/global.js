@@ -22,6 +22,13 @@
   // (dijadwalkan sekali per frame, bukan per mutasi).
   var domTasks=[], domPending=false;
   function onDom(fn){ domTasks.push(fn); }
+  // Observer yang mengamati elemen halaman: elemen yang hilang dari DOM
+  // (pindah halaman SPA) dilepas di sapuan onDom — tanpa ini IO menahan node
+  // terputus beserta seluruh subpohonnya (gambar, video) di memori.
+  var tracked=[];
+  function track(io, el){ var t=tracked.find(function(x){ return x.io===io; }); if(!t){ t={io:io, els:new Set()}; tracked.push(t); } t.els.add(el); io.observe(el); }
+  function untrack(io, el){ io.unobserve(el); tracked.forEach(function(t){ if(t.io===io) t.els.delete(el); }); }
+  onDom(function(){ tracked.forEach(function(t){ t.els.forEach(function(el){ if(!el.isConnected){ t.io.unobserve(el); t.els.delete(el); } }); }); });
   function runDom(){ domPending=false; domTasks.forEach(function(fn){ fn(); }); }
   function audio(){ return d.getElementById('bgm'); }
   function start(a){ var p=a.play(); if(p&&p.catch) p.catch(function(){}); }
@@ -75,9 +82,13 @@
       return;
     }
     if(el.hasAttribute('data-open')){
-      burst(el); play(true); d.documentElement.classList.add('inv-opened');
+      // Gerbang yang benar-benar dibuka tamu = `data-live`. Gerbang lain yang
+      // dirender ulang SETELAH undangan pernah dibuka di tab ini (kembali dari
+      // tab Story / Acara, muat ulang) disembunyikan CSS `.inv-seen` — pintu
+      // & video pembuka tak diputar lagi.
+      var g0=d.querySelector('.gate:not(.gate--embed)'); if(g0) g0.setAttribute('data-live','1');
+      burst(el); play(true); d.documentElement.classList.add('inv-opened','inv-seen');
       if(d.querySelector('.gate')) window.scrollTo(0,0);
-      var g0=d.querySelector('.gate:not(.gate--embed)');
       if(!openGate(g0, d)){ playBg(d); holdReveal(gateReveal(g0)); }
     }
     if(el.dataset.music==='toggle'){ var a=audio(); if(a&&!a.paused) pause(); else play(); }
@@ -128,8 +139,23 @@
   }
   function playGateBg(){
     if(calm || d.documentElement.classList.contains('motion-min')) return;
-    d.querySelectorAll('video[data-gatebg]:not([data-gb])').forEach(function(v){ v.setAttribute('data-gb','1'); loopFrom(v, true); });
+    var seen=d.documentElement.classList.contains('inv-seen');
+    d.querySelectorAll('video[data-gatebg]:not([data-gb])').forEach(function(v){
+      v.setAttribute('data-gb','1');
+      // Gerbang lama yang dilewati (.inv-seen) tak perlu memuat videonya.
+      if(seen && !v.closest('[data-live]')) return;
+      loopFrom(v, true);
+    });
   }
+  // Undangan sudah dibuka di tab ini → gerbang baru dilewati, jadi video latar
+  // isi diputar langsung (tak menunggu pintu).
+  onDom(function(){
+    if(!d.documentElement.classList.contains('inv-seen')) return;
+    var opening=d.querySelector('.gate[data-live]:not(.is-done)');
+    if(!opening && d.querySelector('video[data-bgvideo]:not([data-bv])')) playBg(d);
+    // Pintu yang sedang diputar ditinggal (pindah tab) → jangan tahan animasi isi.
+    if(!opening && revealAt>Date.now()) holdReveal(0);
+  });
   function playBg(root){
     if(d.documentElement.classList.contains('motion-min')) return;
     (root||d).querySelectorAll('video[data-bgvideo]').forEach(function(v){
@@ -204,9 +230,18 @@
     var det=new BarcodeDetector({formats:['qr_code']}), last='', busy=false;
     navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(function(stream){
       v.srcObject=stream; v.play(); b.hidden=true; v.hidden=false;
-      (function loop(){
-        if(!d.body.contains(v)){ stream.getTracks().forEach(function(t){t.stop()}); return; }
-        if(!busy && v.readyState>=2){
+      var stopped=false, stop=function(){
+        if(stopped) return; stopped=true;
+        stream.getTracks().forEach(function(t){ t.stop(); }); v.srcObject=null; v.hidden=true; b.hidden=false;
+        window.removeEventListener('pagehide', stop);
+      };
+      window.addEventListener('pagehide', stop);
+      var next=0;
+      (function loop(t){
+        if(stopped) return;
+        if(!d.body.contains(v)){ stop(); return; }
+        if(!busy && v.readyState>=2 && (t||0)>=next){
+          next=(t||0)+150;
           busy=true;
           det.detect(v).then(function(codes){
             busy=false;
@@ -468,7 +503,7 @@
     var fgIO=new IntersectionObserver(function(es){
       es.forEach(function(e){ e.target.classList.toggle('is-play', e.isIntersecting); });
     }, {rootMargin:'80px 0px'});
-    var fgScan=function(){ d.querySelectorAll('.fg:not([data-fg-w])').forEach(function(el){ el.setAttribute('data-fg-w','1'); fgIO.observe(el); }); };
+    var fgScan=function(){ d.querySelectorAll('.fg:not([data-fg-w])').forEach(function(el){ el.setAttribute('data-fg-w','1'); track(fgIO, el); }); };
     fgScan();
     onDom(fgScan);
     // Ruangan: bila koreografi tema menyetel --ruang-urut, tiap bagian ber-
@@ -481,7 +516,7 @@
       var ruangIO=new IntersectionObserver(function(es){
         es.forEach(function(e){
           if(!e.isIntersecting) return;
-          var el=e.target; ruangIO.unobserve(el);
+          var el=e.target; untrack(ruangIO, el);
           if(!goingDown || e.boundingClientRect.top<0 || Date.now()<ruangBusy || !el.isConnected) return;
           ruangBusy=Date.now()+1100;
           var inv=el.closest('.inv'), p=d.createElement('div');
@@ -498,7 +533,7 @@
         var list=seq.split(/\s+/), n=0;
         inv.querySelectorAll('.orn-host:not(.cover)').forEach(function(s){
           if(s.closest('.gate')) return;
-          if(!s.dataset.ruang){ s.dataset.ruang=list[n % list.length]; if(s.dataset.ruang!=='-') ruangIO.observe(s); }
+          if(!s.dataset.ruang){ s.dataset.ruang=list[n % list.length]; if(s.dataset.ruang!=='-') track(ruangIO, s); }
           n++;
         });
       };
@@ -627,7 +662,7 @@
     var pvStop=function(){
       clearTimeout(pvTimer);
       if(!pvCur) return;
-      var f=pvCur.querySelector('iframe'); if(f) f.remove();
+      var f=pvCur.querySelector('iframe'); if(f){ try{ f.src='about:blank'; }catch(_){} f.remove(); }
       if(pvCur.parentNode) pvCur.parentNode.classList.remove('is-pv');
       pvCur=null;
     };
@@ -643,6 +678,7 @@
       f.src=h.getAttribute('data-pv');
       h.appendChild(f);
     };
+    onDom(function(){ if(pvCur && !pvCur.isConnected) pvStop(); });
     // Iframe memberi tahu begitu HTML-nya terurai (lebih cepat dari onload).
     window.addEventListener('message', function(e){
       if(e.origin!==location.origin || !e.data || e.data.pv!=='ready' || !pvCur) return;
@@ -661,13 +697,13 @@
       };
       var pfIO=new IntersectionObserver(function(es){
         es.forEach(function(e){
-          if(!e.isIntersecting) return; pfIO.unobserve(e.target);
+          if(!e.isIntersecting) return; untrack(pfIO, e.target);
           var u=e.target.getAttribute('data-pv'); if(u && !pfDone.has(u)){ pfDone.add(u); pfQ.push(u); }
         });
         pfNext();
       }, {rootMargin:'150px 0px'});
       var pfSeen=new WeakSet();
-      var pfWatch=function(){ d.querySelectorAll('.tcard__pv[data-pv]').forEach(function(h){ if(!pfSeen.has(h)){ pfSeen.add(h); pfIO.observe(h); } }); };
+      var pfWatch=function(){ d.querySelectorAll('.tcard__pv[data-pv]').forEach(function(h){ if(!pfSeen.has(h)){ pfSeen.add(h); track(pfIO, h); } }); };
       var pfStart=function(){ pfWatch(); onDom(pfWatch); };
       // Setelah halaman sendiri selesai dimuat — prefetch tak berebut dengan katalog.
       if(d.readyState==='complete') setTimeout(pfStart, 300); else window.addEventListener('load', function(){ setTimeout(pfStart, 300); });
@@ -700,6 +736,11 @@
       }, {passive:true});
     }
   }
+  // Formulir berbahaya (hapus permanen): <form data-confirm="Pesan?">.
+  d.addEventListener('submit', function(e){
+    var f=e.target; if(!f.matches || !f.matches('form[data-confirm]')) return;
+    if(!confirm(f.getAttribute('data-confirm'))){ e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
   // ── Story tamu (tab Story) ────────────────────────────────────────────
   // Penampil ala story e-ticketing/Instagram: progress 5 dtk (mulai setelah
   // foto termuat), tap kiri = mundur / kanan = maju, tahan = jeda, geser
@@ -716,10 +757,25 @@
       d.querySelectorAll('[data-story-id="'+id+'"]').forEach(function(b){ b.classList.add('is-seen'); });
     }
     function paintSeen(){ var a=seen(); d.querySelectorAll('[data-story-id]').forEach(function(b){ b.classList.toggle('is-seen', a.indexOf(+b.getAttribute('data-story-id'))>=0); }); }
-    onDom(paintSeen);
+    // Penampil hidup di <body> (di luar akar Leptos): halaman Story ditinggal
+    // (Back / pindah tab SPA) → tutup, agar gulir tak terkunci & foto dilepas.
+    onDom(function(){ paintSeen(); if(S && !d.getElementById('story-data')) close(true); });
+    window.addEventListener('popstate', function(){ if(S) close(true); });
     function el(tag, cls, html){ var e=d.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
     function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
     function fcls(f){ return 'sf-'+(/^[a-z]+$/.test(f||'') ? f : 'normal'); }
+    var DEL_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+    // Hapus story milik perangkat ini (cookie pembuat) — POST biasa ke server.
+    // Pengelola undangan (Kelola): data-owner → boleh menghapus SEMUA story.
+    function delMine(id){
+      var src=d.getElementById('story-data'); if(!src) return;
+      var owner=src.getAttribute('data-owner')==='1';
+      if(!confirm(owner ? 'Hapus story tamu ini secara permanen? Foto ikut terhapus.' : 'Hapus story Anda secara permanen?')) return;
+      var f=d.createElement('form'); f.method='post'; f.action=owner ? src.getAttribute('data-del-owner') : src.getAttribute('data-del');
+      var fields=owner ? [['id', id], ['key', src.getAttribute('data-key')||'']] : [['id', id], ['back', src.getAttribute('data-back')||'']];
+      fields.forEach(function(kv){ var i=d.createElement('input'); i.type='hidden'; i.name=kv[0]; i.value=kv[1]; f.appendChild(i); });
+      close(true); d.body.appendChild(f); f.submit();
+    }
     var X_SVG='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     function face(it, side){
       var f=el('div','sv-face-neighbor '+side);
@@ -735,7 +791,7 @@
         '<div class="sv-progress-row"><div class="sv-seg"><div class="sv-seg-fill"></div></div></div>'+
         '<div class="sv-header"><div class="sv-header-left"><div class="sv-avatar-ring"><img class="sv-avatar" alt=""></div>'+
         '<div class="sv-user-info"><span class="sv-username"></span><span class="sv-meta"></span></div></div>'+
-        '<div class="sv-header-right"><button type="button" class="sv-close-btn" aria-label="Tutup story">'+X_SVG+'</button></div></div>'+
+        '<div class="sv-header-right"><button type="button" class="sv-del-btn" aria-label="Hapus story saya" hidden>'+DEL_SVG+'</button><button type="button" class="sv-close-btn" aria-label="Tutup story">'+X_SVG+'</button></div></div>'+
         '<div class="sv-media-area"><div class="sv-img-shell sv-img-loading"><div class="sv-shimmer"></div><img class="sv-media" alt="" draggable="false"></div></div>'+
         '<p class="sv-caption"></p></div></div></div>';
       d.body.appendChild(root);
@@ -746,6 +802,9 @@
       S.bd.addEventListener('click', function(){ close(); });
       root.querySelector('.sv-close-btn').addEventListener('click', function(e){ e.stopPropagation(); close(); });
       root.querySelector('.sv-close-btn').addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+      var del=root.querySelector('.sv-del-btn');
+      del.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+      del.addEventListener('click', function(e){ e.stopPropagation(); if(S) delMine(S.items[S.i].id); });
       S.img.addEventListener('load', function(){ if(!S) return; S.shell.classList.remove('sv-img-loading'); S.img.classList.add('sv-img-visible'); S.ready=true; S.start=performance.now()-S.elapsed; tick(); });
       S.img.addEventListener('error', function(){ if(S){ S.ready=true; S.start=performance.now(); tick(); } });
       S.box.addEventListener('pointerdown', down);
@@ -767,6 +826,9 @@
       S.root.querySelector('.sv-username').textContent=it.name;
       S.root.querySelector('.sv-meta').textContent=it.ago||'';
       var cap=S.root.querySelector('.sv-caption'); cap.textContent=it.caption||''; cap.hidden=!it.caption;
+      var src=d.getElementById('story-data'), mine=(src && src.getAttribute('data-mine')||'').split(',');
+      var owner=!!src && src.getAttribute('data-owner')==='1';
+      S.root.querySelector('.sv-del-btn').hidden=!owner && mine.indexOf(String(it.id))<0;
       if(S.img.complete && S.img.naturalWidth){ S.shell.classList.remove('sv-img-loading'); S.img.classList.add('sv-img-visible'); S.ready=true; S.start=performance.now(); tick(); }
       markSeen(it.id);
       var nx=S.items[i+1]; if(nx){ var p=new Image(); p.src=nx.photo; }
@@ -868,7 +930,14 @@
     }
     d.addEventListener('click', function(e){
       var b=e.target.closest && e.target.closest('[data-story-open]'); if(!b) return;
+      // Tombol/form di dalam kartu (hapus) bukan "buka story".
+      var inner=e.target.closest('button, form, a'); if(inner && inner!==b && b.contains(inner)) return;
       e.preventDefault(); open(+b.getAttribute('data-story-open'));
+    });
+    // Kartu non-tombol (figure role=button di Kelola): Enter / spasi = buka.
+    d.addEventListener('keydown', function(e){
+      if((e.key!=='Enter' && e.key!==' ') || !e.target.matches || !e.target.matches('[data-story-open][role=button]')) return;
+      e.preventDefault(); open(+e.target.getAttribute('data-story-open'));
     });
     d.addEventListener('keydown', function(e){
       if(!S) return;
@@ -878,12 +947,17 @@
     });
     d.addEventListener('visibilitychange', function(){ if(S) S.paused=d.hidden; });
     // Formulir: pratinjau foto (blob lokal, tak diunggah sebelum dikirim) + filter.
+    // URL blob dilepas saat diganti, formulirnya hilang (SPA), atau tab ditinggal.
+    var blobPv=new Set();
+    var dropPv=function(all){ blobPv.forEach(function(pv){ if(all || !pv.isConnected){ URL.revokeObjectURL(pv.dataset.blob); delete pv.dataset.blob; blobPv.delete(pv); } }); };
+    onDom(function(){ if(blobPv.size) dropPv(false); });
+    window.addEventListener('pagehide', function(){ dropPv(true); });
     d.addEventListener('change', function(e){
       var t=e.target;
       if(t.matches && t.matches('[data-story-file]')){
         var f=t.files && t.files[0], pv=t.closest('form').querySelector('[data-story-preview]'); if(!pv) return;
-        if(pv.dataset.blob) URL.revokeObjectURL(pv.dataset.blob);
-        if(f && /^image\/(jpeg|png|webp)$/.test(f.type)){ var u=URL.createObjectURL(f); pv.dataset.blob=u; pv.src=u; pv.hidden=false; }
+        if(pv.dataset.blob){ URL.revokeObjectURL(pv.dataset.blob); blobPv.delete(pv); }
+        if(f && /^image\/(jpeg|png|webp)$/.test(f.type)){ var u=URL.createObjectURL(f); pv.dataset.blob=u; pv.src=u; pv.hidden=false; blobPv.add(pv); }
         else { pv.hidden=true; pv.removeAttribute('src'); if(f){ t.value=''; alert('Story hanya boleh foto JPEG/PNG/WebP — video tidak bisa.'); } }
       } else if(t.matches && t.matches('[data-story-filter]')){
         var p2=t.closest('form').querySelector('[data-story-preview]'); if(p2) p2.className='story-pick__img sf-'+t.value;
@@ -893,5 +967,5 @@
   new MutationObserver(function(){ if(!domPending){ domPending=true; requestAnimationFrame(runDom); } })
     .observe(d.body, {childList:true, subtree:true, attributes:true, attributeFilter:['data-load-more']});
   // Tamu yang sudah membuka undangan di tab ini: lanjutkan musik saat pindah halaman penuh.
-  try{ if(!PV && sessionStorage.getItem(KEY)==='1'){ d.documentElement.classList.add('inv-opened'); var a=audio(); if(a&&a.dataset.autoplay!=='false') play(); } }catch(e){}
+  try{ if(!PV && sessionStorage.getItem(KEY)==='1'){ d.documentElement.classList.add('inv-opened','inv-seen'); var a=audio(); if(a&&a.dataset.autoplay!=='false') play(); } }catch(e){}
 })();

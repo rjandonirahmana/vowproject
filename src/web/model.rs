@@ -273,6 +273,32 @@ pub struct Wish {
     pub ago: String,
 }
 
+/// Lagu di pustaka musik admin (migrasi 027) — satu-satunya sumber musik latar.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Song {
+    pub id: i64,
+    pub title: String,
+    pub artist: String,
+    pub duration: String,
+    pub tag: String,
+    pub url: String,
+    pub aktif: bool,
+    pub urutan: i32,
+}
+
+impl Song {
+    /// "Tulus • 03:42" / "Tulus".
+    pub fn meta(&self) -> String {
+        match (self.artist.is_empty(), self.duration.is_empty()) {
+            (false, false) => format!("{} • {}", self.artist, self.duration),
+            (false, true) => self.artist.clone(),
+            (true, false) => self.duration.clone(),
+            (true, true) => String::new(),
+        }
+    }
+}
+
 /// Story foto seorang tamu (satu per nomor HP per undangan).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct StoryItem {
@@ -283,6 +309,56 @@ pub struct StoryItem {
     pub filter: String,
     pub caption: String,
     pub ago: String,
+    /// Story milik perangkat ini (cookie pembuat cocok) → boleh dihapus sendiri.
+    #[serde(default)]
+    pub mine: bool,
+}
+
+/// Hasil permintaan kunci story: nomor 62… + apakah nomor ini SUDAH punya
+/// story (kunci lalu dipakai untuk menghapusnya, bukan membuat).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct StoryKey {
+    pub phone: String,
+    pub has_story: bool,
+}
+
+/// Baris moderasi story (Kelola / admin): + nomor tersamar & undangannya.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct StoryMod {
+    pub id: i64,
+    pub name: String,
+    pub photo: String,
+    pub filter: String,
+    pub caption: String,
+    pub ago: String,
+    /// "0812•••7890" — cukup untuk mengenali pengirim, tak membocorkan nomor.
+    pub phone: String,
+    pub slug: String,
+    pub couple: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct StoryModPage {
+    pub items: Vec<StoryMod>,
+    pub total: i64,
+    /// Halaman (mulai 1) & jumlah halaman.
+    pub page: i64,
+    pub pages: i64,
+}
+
+/// Jumlah story per halaman moderasi.
+pub const STORY_PER_PAGE: i64 = 12;
+
+/// "6281234567890" → "0812•••7890".
+pub fn mask_phone(p: &str) -> String {
+    let local = match p.strip_prefix("62") { Some(r) => format!("0{r}"), None => p.to_string() };
+    let n = local.chars().count();
+    if n < 8 {
+        return local;
+    }
+    let head: String = local.chars().take(4).collect();
+    let tail: String = local.chars().skip(n - 4).collect();
+    format!("{head}•••{tail}")
 }
 
 /// Filter foto story — sama dengan pembuat story e-ticketing (CSS `.sf-{kunci}`).
@@ -516,6 +592,13 @@ mod story_tests {
 
     /// Tiap filter story punya aturan CSS `.sf-{kunci}` (thumbnail, kisi,
     /// penampil memakai kelas yang sama) — filter baru tanpa CSS = foto polos.
+    #[test]
+    fn nomor_pengirim_disamarkan() {
+        assert_eq!(super::mask_phone("6281234567890"), "0812•••7890");
+        assert_eq!(super::mask_phone("620000000001"), "0000•••0001");
+        assert_eq!(super::mask_phone("123"), "123");
+    }
+
     #[test]
     fn semua_filter_story_punya_css() {
         let css = include_str!("../../style/main.css");

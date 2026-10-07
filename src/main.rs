@@ -157,6 +157,9 @@ async fn main() -> Result<()> {
         .route("/kelola/{slug}/tamu.csv", axum::routing::get(handlers::export_guests))
         .route("/kelola/{slug}/bukti", axum::routing::post(handlers::upload_payment_proof))
         .route("/u/{slug}/story/kirim", axum::routing::post(handlers::post_story))
+        .route("/u/{slug}/story/hapus-saya", axum::routing::post(handlers::delete_my_story))
+        .route("/u/{slug}/story/hapus", axum::routing::post(handlers::delete_story_with_key))
+        .route("/kelola/{slug}/story/hapus", axum::routing::post(handlers::owner_delete_story))
         .route("/layanan/wa", axum::routing::get(handlers::layanan_wa))
         .route("/tema.css", axum::routing::get(handlers::theme_css))
         .route("/sitemap.xml", axum::routing::get(handlers::sitemap))
@@ -178,6 +181,8 @@ async fn main() -> Result<()> {
         .route("/admin/ornamen/{aksi}", axum::routing::post(handlers::admin_ornament_action))
         .route("/admin/banner/simpan", axum::routing::post(handlers::admin_save_banner))
         .route("/admin/banner/{aksi}", axum::routing::post(handlers::admin_banner_action))
+        .route("/admin/lagu/simpan", axum::routing::post(handlers::admin_save_song))
+        .route("/admin/lagu/{aksi}", axum::routing::post(handlers::admin_song_action))
         .route("/admin/undangan/simpan", axum::routing::post(handlers::admin_update_invitation))
         .route("/admin/undangan/kunci", axum::routing::post(handlers::admin_reset_key))
         // 2 foto + 1 lagu + teks — diturunkan dari batas unggahan di storage.rs.

@@ -21,6 +21,36 @@ use super::components::Monogram;
 use super::konten;
 use super::icons::Icon;
 
+/// Wadah SATU Resource `get_konten()` per halaman (SSR) / per sesi tab (klien).
+/// Dulu tiap komponen (`WithKonten`, katalog, tema, …) membuat Resource
+/// sendiri → beranda mengambil, menanam ke HTML, & mendeserialisasi Konten
+/// (±20 KB) TIGA kali. Resource dibuat malas oleh pemakai pertama di bawah
+/// owner `App`, jadi tetap hidup & dipakai ulang komponen lain / halaman lain.
+#[derive(Clone)]
+pub struct KontenSlot {
+    res: StoredValue<Option<Resource<Result<konten::Konten, ServerFnError>>>>,
+    owner: Owner,
+}
+
+pub fn provide_konten_slot() {
+    if let Some(owner) = Owner::current() {
+        provide_context(KontenSlot { res: StoredValue::new(None), owner });
+    }
+}
+
+/// Konten situs bersama (lihat `KontenSlot`).
+pub fn use_konten() -> Resource<Result<konten::Konten, ServerFnError>> {
+    let Some(slot) = use_context::<KontenSlot>() else {
+        return Resource::new(|| (), |_| super::api::get_konten());
+    };
+    if let Some(r) = slot.res.get_value() {
+        return r;
+    }
+    let r = slot.owner.with(|| Resource::new(|| (), |_| super::api::get_konten()));
+    slot.res.set_value(Some(r));
+    r
+}
+
 #[component]
 pub fn SiteHeader(#[prop(optional)] active: &'static str) -> impl IntoView {
     let links = [

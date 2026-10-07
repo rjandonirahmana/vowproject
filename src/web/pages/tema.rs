@@ -8,12 +8,12 @@ use leptos_meta::Meta;
 use crate::web::seo::{JsonLd, Seo};
 use leptos_router::hooks::use_params_map;
 
-use crate::web::api::{get_demo, get_konten, get_theme};
+use crate::web::api::{get_contact, get_demo, get_theme, list_songs};
 use crate::web::components::*;
 use crate::web::fmt::rupiah;
 use crate::web::icons::Icon;
 use crate::web::model::Invitation;
-use crate::web::themes::{DEMO_SLUG, DEMO_SONG, SONGS};
+use crate::web::themes::DEMO_SLUG;
 use crate::web::skin::ThemeInfo;
 
 use super::{ErrorCard, SiteFooter, SiteHeader};
@@ -24,7 +24,7 @@ pub fn TemaPage() -> impl IntoView {
     let slug = move || params.read().get("tema").unwrap_or_default();
     let demo = Resource::new(|| (), |_| get_demo());
     let theme = Resource::new(slug, get_theme);
-    let konten = Resource::new(|| (), |_| get_konten());
+    let konten = super::use_konten();
     let from = move || konten.get().and_then(|r| r.ok()).map(|k| k.min_price()).unwrap_or(0);
     view! {
         <div class="site">
@@ -192,58 +192,63 @@ fn PreviewInvitation(inv: Invitation, anim: String, scroll: String, video: Strin
 
 #[component]
 fn MusicPanel() -> impl IntoView {
-    // Lagu demo dulu (terpilih), lalu lagu bawaan yang bisa dipilih saat memesan.
-    let first = &DEMO_SONG;
-    let songs: Vec<&'static crate::web::themes::Song> = std::iter::once(&DEMO_SONG).chain(SONGS.iter()).collect();
+    // Pustaka lagu admin (sama dengan pilihan di /buat); lagu pertama terpilih.
+    let songs = Resource::new(|| (), |_| list_songs());
+    let contact = Resource::new(|| (), |_| get_contact());
     view! {
         <section class="card side-card music">
             <div class="side-card__head">
                 <div>
                     <span class="chip chip--gold chip--xs">"Pengaturan Musik Aktif"</span>
                     <h3>"Musik Latar Pernikahan"</h3>
-                    <p class="muted small">"Atur lagu pembuka saat tamu membuka undangan digital Anda secara interaktif."</p>
+                    <p class="muted small">"Pilih dari pustaka lagu kami saat memesan. Lagu belum ada? Minta ke admin."</p>
                 </div>
                 <button type="button" class="icon-btn disc" data-music="toggle" aria-label="Putar / jeda"><Icon name="music_note" /></button>
             </div>
-            <p class="eyebrow">{format!("Daftar Lagu • {} pilihan", songs.len())}</p>
-            <div class="songs">
-                {songs.into_iter().enumerate().map(|(i, s)| view! {
-                    <button type="button" class="song" class:is-active=i == 0 data-song=s.url() data-title=format!("{} – {}", s.title, s.artist)>
-                        <span class="song__play"><Icon name="play_arrow" class="when-idle" /><Icon name="pause" class="when-playing" /></span>
-                        <span class="song__meta">
-                            <b>{s.title}</b>
-                            <small>{if s.duration.is_empty() { s.artist.to_string() } else { format!("{} • {}", s.artist, s.duration) }}</small>
-                        </span>
-                        {(!s.tag.is_empty()).then(|| view! { <span class="tag">{s.tag}</span> })}
-                    </button>
-                }).collect_view()}
-            </div>
-            <div class="now-playing">
-                <span class="disc-art"><Icon name="album" /></span>
-                <div>
-                    <small class="eyebrow eyebrow--gold">"Sedang Dipilih"</small>
-                    <b data-now-playing="">{format!("{} – {}", first.title, first.artist)}</b>
-                </div>
-                <button type="button" class="icon-btn icon-btn--dark" data-music="toggle" aria-label="Putar / jeda">
-                    <Icon name="play_arrow" class="when-idle" />
-                    <Icon name="pause" class="when-playing" />
-                </button>
-            </div>
-            <div data-preview-box="">
-                <label class="upload">
-                    <Icon name="library_music" />
-                    <span><b>"Coba lagu Anda sendiri"</b><small>"MP3/M4A maks 6 MB — diputar langsung di browser, tidak diunggah, terhapus saat Anda keluar."</small></span>
-                    <input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg" data-preview="audio" data-max="6" />
-                </label>
-                <div class="preview-out" data-preview-out=""></div>
-            </div>
+            <Suspense fallback=|| view! { <p class="muted small">"Memuat daftar lagu…"</p> }>
+                {move || songs.get().map(|r| {
+                    let list = r.unwrap_or_default();
+                    let first = list.first().cloned().unwrap_or_default();
+                    view! {
+                        <p class="eyebrow">{format!("Pustaka Lagu • {} pilihan", list.len())}</p>
+                        <div class="songs">
+                            {list.into_iter().enumerate().map(|(i, s)| view! {
+                                <button type="button" class="song" class:is-active=i == 0 data-song=s.url.clone() data-title=format!("{} – {}", s.title, s.artist)>
+                                    <span class="song__play"><Icon name="play_arrow" class="when-idle" /><Icon name="pause" class="when-playing" /></span>
+                                    <span class="song__meta"><b>{s.title.clone()}</b><small>{s.meta()}</small></span>
+                                    {(!s.tag.is_empty()).then(|| view! { <span class="tag">{s.tag.clone()}</span> })}
+                                </button>
+                            }).collect_view()}
+                        </div>
+                        <div class="now-playing">
+                            <span class="disc-art"><Icon name="album" /></span>
+                            <div>
+                                <small class="eyebrow eyebrow--gold">"Sedang Dipilih"</small>
+                                <b data-now-playing="">{if first.title.is_empty() { "—".to_string() } else { format!("{} – {}", first.title, first.artist) }}</b>
+                            </div>
+                            <button type="button" class="icon-btn icon-btn--dark" data-music="toggle" aria-label="Putar / jeda">
+                                <Icon name="play_arrow" class="when-idle" />
+                                <Icon name="pause" class="when-playing" />
+                            </button>
+                        </div>
+                        <MusicAudio url=first.url looped=true />
+                    }
+                })}
+            </Suspense>
             <MusicSeek />
             <ul class="prefs">
                 <li><Icon name="check_circle" /><span><b>"Autoplay saat undangan dibuka"</b><small>"Musik mulai ketika tamu mengetuk tombol buka undangan."</small></span></li>
                 <li><Icon name="check_circle" /><span><b>"Ulangi musik terus-menerus"</b><small>"Lagu kembali ke awal setelah selesai."</small></span></li>
-                <li><Icon name="check_circle" /><span><b>"Upload MP3 sendiri"</b><small>"Maks. 6 MB saat mengisi formulir pemesanan."</small></span></li>
+                <li><Icon name="check_circle" /><span><b>"Lagu dari pustaka admin"</b><small>"Belum ada lagu favorit Anda? Request — kami tambahkan."</small></span></li>
             </ul>
-            <MusicAudio url=first.url() looped=true />
+            <Suspense fallback=|| ()>
+                {move || contact.get().and_then(|r| r.ok()).filter(|w| !w.is_empty()).map(|wa| view! {
+                    <a class="btn btn--soft btn--sm btn--block song-request" target="_blank" rel="noopener"
+                        href=format!("https://wa.me/{wa}?text={}", crate::web::fmt::url_encode("Halo admin, saya ingin request lagu untuk musik latar undangan: (judul – penyanyi)"))>
+                        <Icon name="library_music" />"Request lagu ke admin"
+                    </a>
+                })}
+            </Suspense>
         </section>
     }
 }

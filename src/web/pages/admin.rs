@@ -12,7 +12,7 @@ use leptos_meta::{Meta, Title};
 use leptos_router::hooks::{use_params_map, use_query_map};
 
 use crate::web::anim::{self, AnimInfo, AnimSpec};
-use crate::web::api::{admin_accounts, admin_animations, admin_banners, admin_invitations, admin_konten_meta, admin_session, admin_themes, get_konten, get_theme};
+use crate::web::api::{admin_accounts, admin_animations, admin_banners, admin_invitations, admin_konten_meta, admin_session, admin_songs, admin_stories, admin_themes, get_konten, get_theme, AdminDeleteStory};
 use crate::web::components::Monogram;
 use crate::web::fmt::rupiah;
 use crate::web::icons::Icon;
@@ -55,6 +55,8 @@ fn AdminShell(
                                 <a href="/admin/tema" class:is-active=active == "tema"><Icon name="palette" />"Tema"</a>
                                 <a href="/admin/animasi" class:is-active=active == "animasi"><Icon name="animation" />"Animasi"</a>
                                 <a href="/admin/banner" class:is-active=active == "banner"><Icon name="view_carousel" />"Banner"</a>
+                                <a href="/admin/lagu" class:is-active=active == "lagu"><Icon name="library_music" />"Lagu"</a>
+                                <a href="/admin/story" class:is-active=active == "story"><Icon name="photo_camera" />"Story"</a>
                                 <a href="/admin/konten" class:is-active=active == "konten"><Icon name="edit_note" />"Konten & Harga"</a>
                                 {admin.then(|| view! {
                                     <a href="/admin/undangan" class:is-active=active == "undangan"><Icon name="shopping_bag" />"Pesanan"</a>
@@ -2197,4 +2199,180 @@ fn OrnFields(o: RwSignal<Ornament>, ui: OrnUi) -> impl IntoView {
             </div>
         </form>
     }
+}
+
+// ── Pustaka lagu (migrasi 027) ─────────────────────────────────────────────
+
+/// Satu-satunya sumber musik latar undangan: pengantin memilih dari daftar ini
+/// di /buat; permintaan lagu baru datang lewat WhatsApp admin.
+#[component]
+pub fn AdminLagu() -> impl IntoView {
+    let list = Resource::new(|| (), |_| admin_songs());
+    view! {
+        <AdminShell active="lagu" title="Pustaka Lagu">
+            <div class="adm-head">
+                <h1 class="adm-h1">"Pustaka Lagu"</h1>
+                <a class="btn btn--soft btn--sm" href="/buat#musik" target="_blank"><Icon name="visibility" />"Lihat di formulir pesan"</a>
+            </div>
+            <div class="adm-anim-help">
+                <p>"Musik latar undangan HANYA dari daftar ini — pengantin tidak bisa mengunggah lagu sendiri. Lagu yang diminta lewat WhatsApp ditambahkan di sini."</p>
+                <p class="muted small">"MP3/M4A/OGG maks 6 MB (±128 kbps). Nonaktifkan untuk menyembunyikan dari pemesan baru; undangan yang sudah memakainya tetap berbunyi."</p>
+            </div>
+            <Suspense fallback=|| ()>
+                {move || list.get().map(|r| match r {
+                    Err(e) => view! { <p class="notice notice--err">{crate::web::components::err_msg(&e)}</p> }.into_any(),
+                    Ok(items) => {
+                        let n = items.len();
+                        view! {
+                            <div class="adm-songs">
+                                {items.into_iter().enumerate().map(|(i, s)| view! { <SongRow s=s pos=i total=n /> }).collect_view()}
+                                <details class="card adm-song adm-song--new" open=n == 0>
+                                    <summary><Icon name="add" />"Tambah lagu"</summary>
+                                    <SongFields s=crate::web::model::Song { aktif: true, ..Default::default() } />
+                                </details>
+                            </div>
+                            <audio id="bgm" preload="none"></audio>
+                        }
+                        .into_any()
+                    }
+                })}
+            </Suspense>
+        </AdminShell>
+    }
+}
+
+#[component]
+fn SongRow(s: crate::web::model::Song, pos: usize, total: usize) -> impl IntoView {
+    let id = s.id.to_string();
+    view! {
+        <article class="card adm-song" id=format!("lagu-{}", s.id) class:is-off=!s.aktif>
+            <div class="adm-song__head">
+                <button type="button" class="icon-btn song__play" data-song=s.url.clone() data-title=s.title.clone() aria-label="Dengarkan">
+                    <Icon name="play_arrow" class="when-idle" /><Icon name="pause" class="when-playing" />
+                </button>
+                <span class="adm-song__meta">
+                    <b>{s.title.clone()}</b>
+                    <small>{s.meta()}</small>
+                </span>
+                {(!s.tag.is_empty()).then(|| view! { <span class="chip chip--gold chip--xs">{s.tag.clone()}</span> })}
+                <span class=if s.aktif { "status status--hadir" } else { "status" }>{if s.aktif { "Aktif" } else { "Nonaktif" }}</span>
+                <span class="adm-banner__move">
+                    <form method="post" action="/admin/lagu/urut">
+                        <input type="hidden" name="id" value=id.clone() /><input type="hidden" name="arah" value="naik" />
+                        <button class="icon-btn" type="submit" disabled=pos == 0 aria-label="Naikkan urutan"><Icon name="arrow_upward" /></button>
+                    </form>
+                    <form method="post" action="/admin/lagu/urut">
+                        <input type="hidden" name="id" value=id.clone() /><input type="hidden" name="arah" value="turun" />
+                        <button class="icon-btn" type="submit" disabled=pos + 1 == total aria-label="Turunkan urutan"><Icon name="arrow_downward" /></button>
+                    </form>
+                </span>
+            </div>
+            <details>
+                <summary>"Sunting"</summary>
+                <SongFields s=s.clone() />
+                <form method="post" action="/admin/lagu/hapus" class="adm-banner__del">
+                    <input type="hidden" name="id" value=id />
+                    <button class="btn btn--sm adm-btn-danger" type="submit"><Icon name="delete" />"Hapus dari pustaka"</button>
+                </form>
+            </details>
+        </article>
+    }
+}
+
+#[component]
+fn SongFields(s: crate::web::model::Song) -> impl IntoView {
+    let new = s.id == 0;
+    view! {
+        <form class="adm-banner__form" method="post" action="/admin/lagu/simpan" enctype="multipart/form-data">
+            <input type="hidden" name="id" value=s.id.to_string() />
+            <div class="field-row">
+                <label class="field"><span class="field__label">"Judul"</span>
+                    <input class="input" name="title" required maxlength="120" value=s.title.clone() placeholder="Teman Hidup" /></label>
+                <label class="field"><span class="field__label">"Penyanyi / keterangan"</span>
+                    <input class="input" name="artist" maxlength="120" value=s.artist.clone() placeholder="Tulus" /></label>
+            </div>
+            <div class="field-row">
+                <label class="field"><span class="field__label">"Durasi (opsional)"</span>
+                    <input class="input" name="duration" maxlength="8" value=s.duration.clone() placeholder="03:42" /></label>
+                <label class="field"><span class="field__label">"Label (opsional)"</span>
+                    <input class="input" name="tag" maxlength="30" value=s.tag.clone() placeholder="Terpopuler / Tradisional" /></label>
+            </div>
+            <div class="field adm-wide">
+                <span class="field__label">{if new { "Berkas lagu (wajib)" } else { "Ganti berkas lagu (opsional)" }}</span>
+                <input class="input" type="file" name="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg" />
+                <input class="input" name="url" maxlength="500" value=s.url.clone() placeholder="…atau alamat https://…/lagu.mp3" />
+                <small class="muted">"Unggahan masuk RustFS musik/pustaka/ dan menggantikan alamat di atas."</small>
+            </div>
+            <label class="check"><input type="checkbox" name="aktif" value="1" checked=s.aktif /><span>"Aktif — tampil di pilihan pemesan"</span></label>
+            <button class="btn btn--primary btn--sm" type="submit"><Icon name="cloud_upload" />{if new { "Tambah ke pustaka" } else { "Simpan" }}</button>
+        </form>
+    }
+}
+
+// ── Moderasi story tamu (semua undangan) ───────────────────────────────────
+
+#[component]
+pub fn AdminStory() -> impl IntoView {
+    let del = ServerAction::<AdminDeleteStory>::new();
+    let q = RwSignal::new(String::new());
+    let page = RwSignal::new(1i64);
+    let list = Resource::new(move || (q.get(), page.get(), del.version().get()), |(q, page, _)| admin_stories(q, page));
+    view! {
+        <AdminShell active="story" title="Story Tamu">
+            <div class="adm-head">
+                <h1 class="adm-h1">"Story Tamu"</h1>
+            </div>
+            <div class="adm-anim-help">
+                <p>"Semua story foto tamu dari seluruh undangan, terbaru dulu. Hapus = permanen (baris & foto di RustFS)."</p>
+                <p class="muted small">"Pembuat story & pengelola undangan (Kelola) juga bisa menghapus story."</p>
+            </div>
+            <input class="input" type="search" placeholder="Cari slug undangan / nama pengirim…"
+                prop:value=move || q.get()
+                on:input=move |ev| { q.set(event_target_value(&ev)); page.set(1); } />
+            {move || del.value().get().and_then(|r| r.err()).map(|e| view! { <p class="notice notice--err">{crate::web::components::err_msg(&e)}</p> })}
+            <Transition fallback=|| ()>
+                {move || list.get().map(|r| match r {
+                    Err(e) => view! { <p class="notice notice--err">{crate::web::components::err_msg(&e)}</p> }.into_any(),
+                    Ok(pg) => {
+                        let (cur, pages, total) = (pg.page, pg.pages, pg.total);
+                        view! {
+                            <div class="story-mod__grid adm-stories">
+                                {pg.items.into_iter().map(|s| {
+                                    let id = s.id;
+                                    view! {
+                                        <figure class="story-mod__item">
+                                            <a href=format!("/u/{}/story", s.slug) target="_blank" rel="noopener">
+                                                <img class=format!("sf-{}", s.filter) src=s.photo alt="" loading="lazy" decoding="async" />
+                                            </a>
+                                            <figcaption>
+                                                <b>{s.name}</b>
+                                                <small class="muted">{s.phone}</small>
+                                                <small>{format!("{} • {}", s.couple, s.ago)}</small>
+                                            </figcaption>
+                                            <button type="button" class="icon-btn icon-btn--sm story-mod__del" aria-label="Hapus story permanen"
+                                                disabled=move || del.pending().get()
+                                                on:click=move |_| { if confirm_del() { del.dispatch(AdminDeleteStory { id }); } }>
+                                                <Icon name="delete" />
+                                            </button>
+                                        </figure>
+                                    }
+                                }).collect_view()}
+                            </div>
+                            {(total > 0).then(|| view! { <crate::web::components::StoryPager page=page cur=cur pages=pages total=total per=crate::web::model::STORY_PER_PAGE /> })}
+                        }
+                        .into_any()
+                    }
+                })}
+            </Transition>
+        </AdminShell>
+    }
+}
+
+fn confirm_del() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        return web_sys::window().and_then(|w| w.confirm_with_message("Hapus story ini secara permanen? Foto ikut terhapus.").ok()).unwrap_or(false);
+    }
+    #[allow(unreachable_code)]
+    false
 }

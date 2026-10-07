@@ -255,7 +255,10 @@ pub async fn list_stories(slug: String) -> Result<Vec<StoryItem>, ServerFnError>
     if row.inv.is_locked() {
         return Ok(Vec::new());
     }
-    match repo::stories(&st.pool, row.id).await {
+    // TANPA membaca cookie: daftar ini ikut SSR (Resource diserialisasi untuk
+    // hydrate) — `extract()` di sini membuat render SSR pertama galat & hydrate
+    // kadang tak cocok. Tanda "story saya" lewat `my_stories` (klien saja).
+    match repo::stories(&st.pool, row.id, "").await {
         Ok(v) => Ok(v),
         Err(e) => {
             tracing::warn!(error = %format!("{e:#}"), "story: daftar");
@@ -264,11 +267,26 @@ pub async fn list_stories(slug: String) -> Result<Vec<StoryItem>, ServerFnError>
     }
 }
 
+/// Id story milik perangkat ini (cookie HttpOnly `ily_s_{slug}` pembuat).
+/// Dipanggil dari klien (LocalResource) — bukan bagian render SSR.
+#[server]
+pub async fn my_stories(slug: String) -> Result<Vec<i64>, ServerFnError> {
+    use srv::*;
+    let st = state()?;
+    let headers: axum::http::HeaderMap = leptos_axum::extract().await?;
+    let Some(token) = crate::server::handlers::story_token(&headers, &slug) else { return Ok(Vec::new()) };
+    let row = load(&slug).await?;
+    Ok(repo::stories(&st.pool, row.id, &crate::server::auth::token_hash(&token))
+        .await
+        .map(|v| v.into_iter().filter(|s| s.mine).map(|s| s.id).collect())
+        .unwrap_or_default())
+}
+
 /// Langkah 1 menambah story: nomor WhatsApp tamu → kunci spesial 6 digit
 /// dikirim lewat WAHA (hanya hash yang disimpan, berlaku 15 menit). Satu
 /// nomor = satu story per undangan; maks 3 kunci per nomor per jam.
 #[server]
-pub async fn request_story_key(slug: String, name: String, phone: String) -> Result<String, ServerFnError> {
+pub async fn request_story_key(slug: String, name: String, phone: String) -> Result<StoryKey, ServerFnError> {
     use srv::*;
     let st = state()?;
     let row = load(&slug).await?;
@@ -288,9 +306,9 @@ pub async fn request_story_key(slug: String, name: String, phone: String) -> Res
         return Err(ServerFnError::new("Layanan WhatsApp belum aktif — story belum bisa ditambahkan."));
     };
     limit_write(&st, "storykey", &slug).await?;
-    if repo::story_phone_taken(&st.pool, row.id, &phone).await.map_err(internal)? {
-        return Err(ServerFnError::new("Nomor ini sudah membuat story di undangan ini (1 nomor = 1 story)."));
-    }
+    // Nomor yang sudah punya story tetap dikirimi kunci — untuk MENGHAPUS
+    // story-nya (dari perangkat mana pun); 1 nomor tetap = 1 story.
+    let has_story = repo::story_phone_taken(&st.pool, row.id, &phone).await.map_err(internal)?;
     if repo::story_keys_recent(&st.pool, row.id, &phone).await.map_err(internal)? >= 3 {
         return Err(ServerFnError::new("Kunci sudah dikirim 3 kali dalam 1 jam terakhir. Cek WhatsApp Anda atau coba lagi nanti."));
     }
@@ -299,15 +317,51 @@ pub async fn request_story_key(slug: String, name: String, phone: String) -> Res
         format!("{:06}", rand::rng().random_range(0..1_000_000u32))
     };
     repo::insert_story_key(&st.pool, row.id, &phone, &name, &crate::server::auth::token_hash(&key)).await.map_err(internal)?;
+    let tujuan = if has_story { "menghapus story Anda" } else { "menambahkan story" };
     let text = format!(
-        "Halo {name}! 👋\n\nKunci spesial untuk menambahkan story di undangan pernikahan *{}*:\n\n*{key}*\n\nBerlaku 15 menit, hanya untuk nomor ini. Jangan bagikan ke orang lain.",
+        "Halo {name}! 👋\n\nKunci spesial untuk {tujuan} di undangan pernikahan *{}*:\n\n*{key}*\n\nBerlaku 15 menit, hanya untuk nomor ini. Jangan bagikan ke orang lain.",
         row.inv.couple()
     );
     if let Err(e) = waha.send_text(&crate::server::waha::chat_id(&phone), &text).await {
         tracing::error!(slug = %slug, error = %format!("{e:#}"), "story: kirim kunci WA gagal");
         return Err(ServerFnError::new("Gagal mengirim WhatsApp. Pastikan nomor aktif di WhatsApp lalu coba lagi."));
     }
-    Ok(phone)
+    Ok(StoryKey { phone, has_story })
+}
+
+/// Moderasi story di Kelola (hanya pemegang kunci Kelola = pembeli undangan).
+#[server]
+pub async fn owner_stories(slug: String, key: String, page: i64) -> Result<StoryModPage, ServerFnError> {
+    use srv::*;
+    let st = state()?;
+    let row = load_owned(&slug, &key).await?;
+    repo::stories_page(&st.pool, Some(row.id), "", page).await.map_err(|e| {
+        tracing::error!(error = %format!("{e:#}"), "kelola: story");
+        ServerFnError::new("Daftar story gagal dimuat — coba muat ulang halaman.")
+    })
+}
+
+/// Moderasi story SEMUA undangan (admin).
+#[server]
+pub async fn admin_stories(q: String, page: i64) -> Result<StoryModPage, ServerFnError> {
+    let (st, _) = require_admin(false).await?;
+    srv::repo::stories_page(&st.pool, None, &q, page).await.map_err(|e| {
+        tracing::error!(error = %format!("{e:#}"), "admin: story");
+        ServerFnError::new("Daftar story gagal dimuat — lihat log server.")
+    })
+}
+
+/// Admin menghapus story permanen (baris + foto RustFS).
+#[server]
+pub async fn admin_delete_story(id: i64) -> Result<(), ServerFnError> {
+    let (st, _) = require_admin(false).await?;
+    if let Some(url) = srv::repo::delete_story_admin(&st.pool, id).await.map_err(srv::internal)? {
+        if let Some(s) = st.storage.as_ref() {
+            let _ = s.delete_url(&url).await;
+        }
+        tracing::info!(id, "admin: story dihapus");
+    }
+    Ok(())
 }
 
 /// Pemilik undangan menghapus story tamu (dari Kelola).
@@ -487,6 +541,26 @@ pub async fn admin_banners() -> Result<Vec<Banner>, ServerFnError> {
     srv::repo::banners_all(&st.pool).await.map_err(|e| {
         tracing::error!(error = %format!("{e:#}"), "admin: banners");
         ServerFnError::new("Tabel banner belum ada — jalankan migration/011_banner.sql.")
+    })
+}
+
+/// Pustaka musik untuk pengantin (/buat) & panel musik demo tema: hanya lagu
+/// aktif. Tabel belum dimigrasi → daftar kosong.
+#[server]
+pub async fn list_songs() -> Result<Vec<Song>, ServerFnError> {
+    let st = srv::state()?;
+    Ok(srv::repo::songs(&st.pool, true).await.unwrap_or_else(|e| {
+        tracing::warn!(error = %format!("{e:#}"), "pustaka lagu");
+        Vec::new()
+    }))
+}
+
+#[server]
+pub async fn admin_songs() -> Result<Vec<Song>, ServerFnError> {
+    let (st, _) = require_admin(false).await?;
+    srv::repo::songs(&st.pool, false).await.map_err(|e| {
+        tracing::error!(error = %format!("{e:#}"), "admin: lagu");
+        ServerFnError::new("Tabel lagu belum ada — jalankan migration/027_pustaka_lagu.sql.")
     })
 }
 

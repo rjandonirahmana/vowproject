@@ -21,6 +21,17 @@ pub struct Form {
     /// Semua nilai untuk input yang muncul berulang (mis. centang `addon`).
     pub multi: HashMap<String, Vec<String>>,
     pub files: Vec<Upload>,
+    /// Slot antrean unggahan berisi berkas, dipegang selama handler masih
+    /// memegang formulir ini (lihat `upload_slots`).
+    _slot: Option<tokio::sync::OwnedSemaphorePermit>,
+}
+
+/// Maksimal 3 formulir BERKAS dibaca bersamaan. Satu formulir bisa ±40 MB di
+/// memori (galeri + lagu + video); tanpa antrean, beberapa pemesan serentak di
+/// VPS 2 GB langsung menekan swap/OOM. Yang lain menunggu (body belum dibaca).
+fn upload_slots() -> std::sync::Arc<tokio::sync::Semaphore> {
+    static S: std::sync::OnceLock<std::sync::Arc<tokio::sync::Semaphore>> = std::sync::OnceLock::new();
+    S.get_or_init(|| std::sync::Arc::new(tokio::sync::Semaphore::new(3))).clone()
 }
 
 impl Form {
@@ -75,6 +86,9 @@ async fn read_capped(field: &mut axum::extract::multipart::Field<'_>, max: usize
             buf.extend_from_slice(&chunk);
         }
     }
+    // Vec tumbuh berlipat dua: video 20 MB bisa berkapasitas 32 MB selama
+    // seluruh request. Pangkas ke ukuran sebenarnya.
+    buf.shrink_to_fit();
     Ok(buf)
 }
 
@@ -82,6 +96,9 @@ async fn read_capped(field: &mut axum::extract::multipart::Field<'_>, max: usize
 /// atau batas per bagian di atas.
 pub async fn read(mut mp: Multipart, max_files: usize) -> Result<Form, ()> {
     let mut f = Form::default();
+    if max_files > 0 {
+        f._slot = upload_slots().acquire_owned().await.ok();
+    }
     let mut count = 0usize;
     loop {
         let field = match mp.next_field().await {

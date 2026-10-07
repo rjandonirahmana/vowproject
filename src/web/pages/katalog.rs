@@ -8,7 +8,7 @@ use leptos_router::hooks::use_query_map;
 use crate::web::components::{monogram_svg, Monogram};
 use crate::web::fmt::{self, rupiah};
 use crate::web::icons::Icon;
-use crate::web::api::{get_konten, list_themes};
+use crate::web::api::list_themes;
 use crate::web::skin::{ThemeInfo, PALETTES};
 use crate::web::konten::Konten;
 
@@ -84,7 +84,7 @@ pub fn KatalogPage() -> impl IntoView {
         }
     });
     let themes = Resource::new(|| (), |_| list_themes());
-    let konten = Resource::new(|| (), |_| get_konten());
+    let konten = super::use_konten();
     // Banner beranda (tabel banners, /admin/banner).
     let banners = Resource::new(|| (), |_| crate::web::api::get_banners());
     let from = move || konten.get().and_then(|r| r.ok()).map(|k| k.min_price()).unwrap_or(0);

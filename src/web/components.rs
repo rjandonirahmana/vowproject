@@ -768,3 +768,89 @@ pub fn MusicSeek(#[prop(optional)] name: &'static str) -> impl IntoView {
         </div>
     }
 }
+
+/// Nomor halaman yang ditampilkan; `0` = elipsis. ≤ 7 halaman → semua.
+/// Lebih → 1 … (cur-1) cur (cur+1) … akhir, dan elipsis HANYA bila
+/// menyembunyikan ≥ 2 nomor (satu nomor yang terselip ditampilkan saja).
+pub fn page_numbers(cur: i64, pages: i64) -> Vec<i64> {
+    if pages <= 7 {
+        return (1..=pages).collect();
+    }
+    let lo = (cur - 1).clamp(2, pages - 1);
+    let hi = (cur + 1).clamp(2, pages - 1);
+    // Tepi: tetap 5 nomor tengah supaya lebar navigasi tak melompat-lompat.
+    let (lo, hi) = if cur <= 4 { (2, 5) } else if cur >= pages - 3 { (pages - 4, pages - 1) } else { (lo, hi) };
+    let mut out = vec![1];
+    if lo > 2 {
+        out.push(0);
+    }
+    out.extend(lo..=hi);
+    if hi < pages - 1 {
+        out.push(0);
+    }
+    out.push(pages);
+    out
+}
+
+/// Navigasi halaman daftar story (Kelola & admin): ‹ 1 … 4 5 6 … 12 › +
+/// "Menampilkan 13–24 dari 35 story". Pindah halaman → gulir ke `anchor`.
+#[component]
+pub fn StoryPager(page: RwSignal<i64>, cur: i64, pages: i64, total: i64, per: i64, #[prop(optional)] anchor: &'static str) -> impl IntoView {
+    let go = move |p: i64| {
+        page.set(p);
+        #[cfg(target_arch = "wasm32")]
+        if !anchor.is_empty() {
+            if let Some(el) = web_sys::window().and_then(|w| w.document()).and_then(|d| d.get_element_by_id(anchor)) {
+                el.scroll_into_view();
+            }
+        }
+        let _ = anchor;
+    };
+    // Dihitung di luar view!: `>=` di atribut makro dibaca sebagai penutup tag.
+    let (at_start, at_end) = (cur <= 1, cur >= pages);
+    let from = if total == 0 { 0 } else { (cur - 1) * per + 1 };
+    let to = (cur * per).min(total);
+    view! {
+        <div class="pager">
+            <p class="pager__info">{format!("Menampilkan {from}–{to} dari {total} story")}</p>
+            {(pages > 1).then(|| view! {
+                <nav class="pager__nav" aria-label="Halaman">
+                    <button type="button" class="pager__btn" disabled=at_start on:click=move |_| go(cur - 1) aria-label="Halaman sebelumnya"><Icon name="chevron_left" /></button>
+                    {page_numbers(cur, pages).into_iter().map(|p| if p == 0 {
+                        view! { <span class="pager__gap">"…"</span> }.into_any()
+                    } else {
+                        view! {
+                            <button type="button" class="pager__btn" class:is-on=p == cur aria-current=(p == cur).then_some("page") on:click=move |_| go(p)>{p.to_string()}</button>
+                        }.into_any()
+                    }).collect_view()}
+                    <button type="button" class="pager__btn" disabled=at_end on:click=move |_| go(cur + 1) aria-label="Halaman berikutnya"><Icon name="chevron_right" /></button>
+                </nav>
+            })}
+        </div>
+    }
+}
+
+#[cfg(test)]
+mod pager_tests {
+    #[test]
+    fn nomor_halaman_dengan_elipsis() {
+        assert_eq!(super::page_numbers(1, 1), vec![1]);
+        assert_eq!(super::page_numbers(1, 4), vec![1, 2, 3, 4], "4 halaman: semua tampil, tanpa …");
+        assert_eq!(super::page_numbers(3, 7), vec![1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(super::page_numbers(1, 12), vec![1, 2, 3, 4, 5, 0, 12]);
+        assert_eq!(super::page_numbers(6, 12), vec![1, 0, 5, 6, 7, 0, 12]);
+        assert_eq!(super::page_numbers(12, 12), vec![1, 0, 8, 9, 10, 11, 12]);
+        // Elipsis tak pernah menyembunyikan satu nomor saja.
+        for pages in 1..40 {
+            for cur in 1..=pages {
+                let v = super::page_numbers(cur, pages);
+                assert!(v.contains(&cur) && v[0] == 1 && *v.last().unwrap() == pages, "{cur}/{pages}: {v:?}");
+                for w in v.windows(3) {
+                    if w[1] == 0 {
+                        assert!(w[2] - w[0] > 2, "{cur}/{pages}: … hanya menutupi satu nomor {v:?}");
+                    }
+                }
+            }
+        }
+    }
+}

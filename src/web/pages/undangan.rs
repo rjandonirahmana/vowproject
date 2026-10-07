@@ -10,7 +10,7 @@ use leptos_meta::{Meta, Title};
 use leptos_router::components::{Outlet, A};
 use leptos_router::hooks::{use_location, use_params_map, use_query_map};
 
-use crate::web::api::{get_invitation, list_stories, RequestStoryKey};
+use crate::web::api::{get_invitation, list_stories, my_stories, RequestStoryKey};
 use crate::web::components::*;
 use crate::web::icons::{qr_svg, Icon};
 use crate::web::model::*;
@@ -547,12 +547,38 @@ pub fn StoryPage() -> impl IntoView {
         move || slug.clone()
     }, list_stories);
     // Galat dari unggahan (redirect ?galat=) → formulir langsung terbuka.
+    // Story milik perangkat ini — diambil di klien setelah hydrate (cookie
+    // HttpOnly; tak boleh mempengaruhi markup SSR).
+    // Sinyal biasa (bukan Resource): dibaca di dalam <Suspense> tanpa membuat
+    // SSR menunggu — Effect hanya berjalan di klien.
+    let mine_ids = RwSignal::new(Vec::<i64>::new());
+    Effect::new({
+        let slug = slug.clone();
+        move |_| {
+            let slug = slug.clone();
+            leptos::task::spawn_local(async move {
+                if let Ok(v) = my_stories(slug).await {
+                    mine_ids.set(v);
+                }
+            });
+        }
+    });
+    let is_mine = move |id: i64| mine_ids.with(|v| v.contains(&id));
+    // "41,57" — dibaca penampil (global.js) untuk tombol hapus story sendiri.
+    let mine_attr = move || {
+        let ids: Vec<String> = mine_ids.with(|v| v.iter().map(|i| i.to_string()).collect());
+        ids.join(",")
+    };
     let show_add = RwSignal::new(query.read_untracked().get("galat").is_some());
     let req = ServerAction::<RequestStoryKey>::new();
     // Nomor hasil normalisasi server (62…) → langkah 2.
     let phone = move || req.value().get().and_then(|r| r.ok());
+    let del_action = format!("/u/{}/story/hapus", inv.slug);
+    let mine_action = format!("/u/{}/story/hapus-saya", inv.slug);
     let req_err = move || req.value().get().and_then(|r| r.err()).map(|e| err_msg(&e));
     let back = c.href("/story");
+    // Salinan per closure (masing-masing `move`).
+    let (back_grid, back_del) = (back.clone(), back.clone());
     let action = format!("/u/{}/story/kirim", inv.slug);
     let demo = inv.is_demo;
     let (slug_in, name_in) = (inv.slug.clone(), c.to.clone());
@@ -594,16 +620,27 @@ pub fn StoryPage() -> impl IntoView {
                     } else {
                         Either::Right(view! {
                             <div class="story-grid">
-                                {list.into_iter().enumerate().map(|(i, s)| view! {
-                                    <button type="button" class="story-tile" data-story-open=i.to_string() data-story-id=s.id.to_string()>
-                                        <img class=format!("sf-{}", s.filter) src=s.photo alt=format!("Story {}", s.name) loading="lazy" decoding="async" />
-                                        <span class="story-tile__who"><b>{s.name}</b><small>{s.ago}</small></span>
-                                    </button>
-                                }).collect_view()}
+                                {list.into_iter().enumerate().map(|(i, s)| {
+                                    let id = s.id;
+                                    let (mine_action, back) = (mine_action.clone(), back_grid.clone());
+                                    view! {
+                                    <div class="story-tile-wrap">
+                                        <button type="button" class="story-tile" data-story-open=i.to_string() data-story-id=s.id.to_string()>
+                                            <img class=format!("sf-{}", s.filter) src=s.photo alt=format!("Story {}", s.name) loading="lazy" decoding="async" />
+                                            <span class="story-tile__who"><b>{s.name}</b><small>{s.ago}</small></span>
+                                            <span class="story-tile__mine" class:is-on=move || is_mine(id)>"Story Anda"</span>
+                                        </button>
+                                        <form method="post" action=mine_action class="story-tile__del" class:is-on=move || is_mine(id) data-confirm="Hapus story Anda secara permanen?">
+                                            <input type="hidden" name="id" value=id.to_string() />
+                                            <input type="hidden" name="back" value=back />
+                                            <button type="submit" class="icon-btn icon-btn--sm" aria-label="Hapus story saya"><Icon name="delete" /></button>
+                                        </form>
+                                    </div>
+                                }}).collect_view()}
                             </div>
                         })
                     }}
-                    <script type="application/json" id="story-data" inner_html=json></script>
+                    <script type="application/json" id="story-data" inner_html=json data-del=mine_action.clone() data-back=back_grid.clone() data-mine=mine_attr></script>
                 }
             })}
         </Suspense>
@@ -637,7 +674,19 @@ pub fn StoryPage() -> impl IntoView {
                 </ActionForm>
                 }
             })}
-            {move || phone().map(|p| view! {
+            {move || phone().filter(|k| k.has_story).map(|k| view! {
+                <form class="story-form" method="post" action=del_action.clone() data-confirm="Hapus story Anda secara permanen?">
+                    <input type="hidden" name="phone" value=k.phone.clone() />
+                    <input type="hidden" name="back" value=back_del.clone() />
+                    <p class="notice notice--info">{format!("Nomor +{} sudah punya story di undangan ini. Kunci sudah dikirim ke WhatsApp — masukkan untuk MENGHAPUS story Anda (setelah itu bisa membuat yang baru).", k.phone)}</p>
+                    <label class="field">
+                        <span class="field__label">"Kunci Spesial (6 digit)"</span>
+                        <input class="input story-key" name="key" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="••••••" />
+                    </label>
+                    <button class="btn btn--danger btn--block" type="submit"><Icon name="delete" />"Hapus Story Saya Permanen"</button>
+                </form>
+            })}
+            {move || phone().filter(|k| !k.has_story).map(|k| k.phone).map(|p| view! {
                 <form class="story-form" method="post" action=action.clone() enctype="multipart/form-data">
                     <input type="hidden" name="phone" value=p.clone() />
                     <input type="hidden" name="back" value=back.clone() />

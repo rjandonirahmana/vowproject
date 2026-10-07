@@ -93,7 +93,14 @@ pub fn optimasi_sync(data: &[u8], max_side: u32) -> anyhow::Result<Option<Hasil>
     img.apply_orientation(orientasi);
 
     let (w, h) = (img.width(), img.height());
-    if w.max(h) > max_side {
+    // Foto sangat besar (HP 48 MP = 8000×6000): Lanczos3 langsung membuat
+    // perantara f32 RGBA lebar-asli × tinggi-baru (±150 MB). Perkecil dulu
+    // dengan `thumbnail` (rata-rata kotak, integer, tanpa perantara besar) ke
+    // 2× target, baru Lanczos3 — hasil tetap tajam, puncak memori ±⅓-nya.
+    if w.max(h) > max_side * 2 {
+        img = img.thumbnail(max_side * 2, max_side * 2);
+    }
+    if img.width().max(img.height()) > max_side {
         img = img.resize(max_side, max_side, FilterType::Lanczos3);
     }
     let (w, h) = (img.width(), img.height());
@@ -146,6 +153,15 @@ mod tests {
             assert_eq!(out.get_pixel(10, 10)[3], 0);
             assert_eq!(out.get_pixel(700, 10)[3], 255);
         }
+    }
+
+    #[test]
+    fn foto_raksasa_lewat_jalur_dua_tahap() {
+        // 7000×5000 > 2×1600 → thumbnail dulu, lalu Lanczos3; rasio tetap.
+        let asli = foto_jpeg(7000, 5000);
+        let h = optimasi_sync(&asli, Ukuran::Foto.max_side()).unwrap().expect("harus lebih kecil");
+        let img = image::load_from_memory(&h.data).unwrap();
+        assert_eq!((img.width(), img.height()), (1600, 1143));
     }
 
     #[test]

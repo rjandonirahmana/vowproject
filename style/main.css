@@ -1217,7 +1217,8 @@ select.input {
 
 .guide,
 .add-guest,
-.activity {
+.activity,
+.story-mod {
     padding: 18px;
     display: flex;
     flex-direction: column;
@@ -6461,6 +6462,12 @@ html:not(.inv-opened) body:has(.gate:not(.gate--embed)) {
     visibility: hidden;
     transition: visibility 0s 1.5s;
 }
+/* Undangan sudah dibuka di tab ini (global.js): gerbang yang dirender ulang
+ * — kembali dari tab Story/Acara, muat ulang — langsung tak tampil. Yang
+ * sedang dibuka tamu ditandai data-live dan tetap memutar animasinya. */
+.inv-seen .gate:not(.gate--embed):not([data-live]) {
+    display: none !important;
+}
 .inv-opened .gate:not(.gate--embed) .gate__content,
 .is-open > .gate--embed .gate__content {
     opacity: 0;
@@ -8756,9 +8763,10 @@ html:has(.inv--video:not(.inv--embed)) body {
  * Semua warna dari token tema → 10 tema ikut berubah tanpa data baru.
  * ════════════════════════════════════════════════════════════════════════ */
 
-/* ── Chrome HP ── */
+/* ── Chrome HP (hanya halaman undangan = .inv--rail; dashboard Kelola juga
+ * memakai .inv tapi header-nya tetap header biasa) ── */
 @media (max-width: 1099px) {
-    .inv:not(.inv--embed) > .inv-top {
+    .inv.inv--rail > .inv-top {
         position: fixed;
         top: auto;
         left: auto;
@@ -8770,14 +8778,14 @@ html:has(.inv--video:not(.inv--embed)) body {
         backdrop-filter: none;
         pointer-events: none;
     }
-    .inv:not(.inv--embed) > .inv-top .inv-top__brand {
+    .inv.inv--rail > .inv-top .inv-top__brand {
         display: none;
     }
-    .inv:not(.inv--embed) > .inv-top .inv-top__actions {
+    .inv.inv--rail > .inv-top .inv-top__actions {
         flex-direction: column;
         pointer-events: auto;
     }
-    .inv:not(.inv--embed) > .inv-top .icon-btn {
+    .inv.inv--rail > .inv-top .icon-btn {
         width: 44px;
         height: 44px;
         background: color-mix(in srgb, var(--card) 86%, transparent);
@@ -8787,10 +8795,10 @@ html:has(.inv--video:not(.inv--embed)) body {
         box-shadow: var(--shadow-lg);
     }
     /* Tombol Kelola (demo) sudah ada di nav bawah — jangan dobel. */
-    .inv:not(.inv--embed) > .inv-top .icon-btn--dark {
+    .inv.inv--rail > .inv-top .icon-btn--dark {
         display: none;
     }
-    .inv > .inv__main {
+    .inv.inv--rail > .inv__main {
         padding-top: 18px;
     }
 }
@@ -9269,9 +9277,50 @@ html:has(.inv--video:not(.inv--embed)) body {
 .story-filter small { font-size: 10.5px; color: var(--ink-2); }
 
 /* Kelola: moderasi story */
-.story-mod__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+/* Kartu moderasi: thumbnail ±150px (HP 3 kolom, desktop lebar 6–8 kolom) —
+ * dulu 1fr di kartu lebar = 4 foto raksasa sepenuh layar. */
+.story-mod__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 30%), 1fr)); gap: 14px 12px; }
+.story-mod > p.muted { margin: 0; }
+/* Kelola: story dalam SATU baris yang digeser ke kanan (snap per kartu);
+ * baris menembus padding kartu agar kartu terakhir tak terpotong rapat. */
+.story-mod .story-mod__grid {
+    display: flex;
+    gap: 12px;
+    margin: 0 -18px;
+    padding: 2px 18px 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 18px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+.story-mod .story-mod__item {
+    flex: 0 0 clamp(118px, 30vw, 160px);
+    scroll-snap-align: start;
+    cursor: pointer;
+}
+.story-mod__item img { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.story-mod__item:hover img { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); }
+.story-mod__item:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 12px; }
+.story-mod__hapus {
+    width: 100%;
+    margin-top: 8px;
+    justify-content: center;
+    gap: 4px;
+    color: #b3261e;
+    background: #fff;
+    border: 1px solid rgba(179, 38, 30, 0.35);
+}
+.story-mod__hapus:hover:not(:disabled) { background: #b3261e; color: #fff; border-color: #b3261e; }
+.story-mod__hapus:disabled { opacity: 0.45; cursor: not-allowed; }
+.story-mod__hapus .ms { font-size: 16px; }
+.story-mod .story-mod__grid::-webkit-scrollbar { height: 6px; }
+.story-mod .story-mod__grid::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--line); }
+.story-mod .pager { margin-top: 6px; }
 .story-mod__item { position: relative; margin: 0; }
-.story-mod__item img { width: 100%; aspect-ratio: 9 / 14; object-fit: cover; border-radius: 12px; }
+.story-mod__item img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 12px; margin-bottom: 6px; }
+.story-mod__item figcaption b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .story-mod__item figcaption { display: flex; flex-direction: column; font-size: 12px; }
 .story-mod__item figcaption small { color: var(--muted); }
 .story-mod__del { position: absolute; top: 6px; right: 6px; background: rgba(255, 255, 255, 0.92); color: #b3261e; }
@@ -9322,6 +9371,29 @@ html.sv-open, html.sv-open body { overflow: hidden; }
 .sv-meta { font-size: 11px; letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.75); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
 .sv-close-btn { display: flex; flex-shrink: 0; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 50%; color: #fff; background: rgba(0, 0, 0, 0.45); cursor: pointer; }
 .sv-close-btn:hover { background: rgba(0, 0, 0, 0.65); }
+.sv-del-btn { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 50%; color: #ffb4ab; background: rgba(0, 0, 0, 0.45); cursor: pointer; }
+.sv-del-btn[hidden] { display: none; }
+.story-tile-wrap { position: relative; }
+.story-tile-wrap .story-tile { width: 100%; }
+.story-tile__mine:not(.is-on), .story-tile__del:not(.is-on) { display: none; }
+.story-tile__mine { position: absolute; top: 8px; left: 8px; padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; color: var(--on-primary); background: var(--primary); }
+.story-tile__del { position: absolute; top: 6px; right: 6px; margin: 0; }
+.story-tile__del .icon-btn { background: rgba(255, 255, 255, 0.92); color: #b3261e; }
+.btn--danger { background: #b3261e; color: #fff; border-color: #b3261e; }
+.pager { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; }
+.pager__info { margin: 0; font-size: 12.5px; color: var(--muted); }
+.pager__nav { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
+.pager__btn {
+    display: inline-grid; place-items: center; min-width: 36px; height: 36px; padding: 0 8px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink);
+    font-weight: 600; font-size: 13.5px; cursor: pointer;
+}
+.pager__btn:hover:not(:disabled) { border-color: var(--gold); }
+.pager__btn.is-on { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.pager__btn:disabled { opacity: 0.4; cursor: default; }
+.pager__gap { min-width: 20px; text-align: center; color: var(--muted); }
+#story { scroll-margin-top: 80px; }
+.story-mod__item figcaption .muted { font-size: 11px; }
 .sv-media-area { position: relative; flex: 1; overflow: hidden; cursor: pointer; }
 .sv-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .sv-img-shell { position: absolute; inset: 0; overflow: hidden; }

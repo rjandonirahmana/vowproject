@@ -192,7 +192,7 @@ fn dekor_body(k: Konten) -> impl IntoView {
 #[component]
 pub fn DekorasiDetailPage() -> impl IntoView {
     let params = leptos_router::hooks::use_params_map();
-    let k = Resource::new(|| (), |_| crate::web::api::get_konten());
+    let k = super::use_konten();
     view! {
         <div class="site">
             <SiteHeader active="dekorasi" />

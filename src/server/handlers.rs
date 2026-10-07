@@ -139,19 +139,15 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     // Semua yang sudah terunggah — dihapus lagi bila langkah berikutnya gagal
     // (tanpa ini objek yatim menumpuk di RustFS).
     let mut uploaded: Vec<String> = Vec::new();
-    for (key, nama) in [("bride_photo", "mempelai-wanita"), ("groom_photo", "mempelai-pria"), ("cover_photo", "sampul"), ("music_file", "")] {
+    // Musik TIDAK diunggah pemesan (migrasi 027): hanya dari pustaka admin.
+    for (key, nama) in [("bride_photo", "mempelai-wanita"), ("groom_photo", "mempelai-pria"), ("cover_photo", "sampul")] {
         let Some(i) = files.iter().position(|u| u.field == key) else { continue };
         let up = files.swap_remove(i);
         let Some(st) = state.storage.as_ref() else {
             tracing::warn!(field = key, "buat: RustFS belum dikonfigurasi — unggahan dilewati");
             continue;
         };
-        let res = if key == "music_file" {
-            st.upload_audio_as(up.data, &slug, &up.file_name).await
-        } else {
-            st.upload_image_as(up.data, &slug, nama, super::storage::Ukuran::Foto).await
-        };
-        match res {
+        match st.upload_image_as(up.data, &slug, nama, super::storage::Ukuran::Foto).await {
             Ok(url) => {
                 uploaded.push(url.clone());
                 urls.insert(key, url);
@@ -283,13 +279,17 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         }
     }
 
-    // ── Musik: unggahan menang atas pilihan bawaan ──
-    let (music_title, music_artist, mut music_url) = match urls.remove("music_file") {
-        Some(url) => ("Lagu Pilihan Mempelai".to_string(), String::new(), url),
-        None => match themes::song(&get("music_preset", 40)) {
-            Some(s) => (s.title.to_string(), s.artist.to_string(), s.url()),
-            None => (String::new(), String::new(), String::new()),
-        },
+    // ── Musik: HANYA dari pustaka admin (diverifikasi ulang: harus lagu aktif) ──
+    let song = match get("music_song", 20).parse::<i64>() {
+        Ok(id) => repo::active_song(&state.pool, id).await.unwrap_or_else(|e| {
+            tracing::warn!(error = %format!("{e:#}"), "buat: pustaka lagu");
+            None
+        }),
+        Err(_) => None,
+    };
+    let (music_title, music_artist, mut music_url) = match song {
+        Some(s) => (s.title, s.artist, s.url),
+        None => (String::new(), String::new(), String::new()),
     };
     // Titik mulai lagu & posisi foto disimpan sebagai fragmen URL (fmt.rs).
     if !music_url.is_empty() {
@@ -1588,13 +1588,16 @@ pub async fn post_story(
     let filter = form.raw("filter");
     let filter = if crate::web::model::STORY_FILTERS.iter().any(|(k, _)| *k == filter) { filter } else { "normal".to_string() };
     let caption = form.get("caption", 150);
+    // Token pembuat: perangkat ini boleh menghapus story-nya sendiri. Satu
+    // token per undangan per perangkat (dipakai ulang bila sudah ada).
+    let token = story_token(&headers, &slug).unwrap_or_else(super::auth::new_token);
     let tail: String = phone.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect();
     let obj = format!("story-{tail}-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
     let url = match st.upload_image_as(up.data, &row.inv.slug, &obj, super::storage::Ukuran::Foto).await {
         Ok(u) => u,
         Err(e) => return to(&back, "galat", &e.to_string()),
     };
-    match repo::insert_story(&state.pool, row.id, &phone, &name, &url, &filter, &caption).await {
+    match repo::insert_story(&state.pool, row.id, &phone, &name, &url, &filter, &caption, &super::auth::token_hash(&token)).await {
         Ok(true) => {}
         Ok(false) => {
             discard_uploads(&state, std::slice::from_ref(&url)).await;
@@ -1610,5 +1613,250 @@ pub async fn post_story(
         tracing::warn!(error = %format!("{e:#}"), "story: tandai kunci terpakai");
     }
     tracing::info!(slug = %row.inv.slug, "story tamu baru");
-    to(&back, "ok", "Story Anda sudah tayang! Terima kasih telah berbagi momen.")
+    with_cookie(to(&back, "ok", "Story Anda sudah tayang! Terima kasih telah berbagi momen."), story_cookie(&slug, &token, &headers))
+}
+
+/// Cookie HttpOnly `ily_s_{slug}`: token pembuat story di perangkat ini.
+fn story_cookie_name(slug: &str) -> String {
+    format!("ily_s_{slug}")
+}
+
+/// Token pembuat story dari cookie request ini (belum diverifikasi).
+pub fn story_token(headers: &axum::http::HeaderMap, slug: &str) -> Option<String> {
+    let ok = !slug.is_empty() && slug.len() <= 80 && slug.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
+    ok.then(|| cookie_value(headers, &story_cookie_name(slug)))
+        .flatten()
+        .filter(|v| (16..=128).contains(&v.len()) && v.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_'))
+        .map(str::to_string)
+}
+
+fn story_cookie(slug: &str, token: &str, headers: &axum::http::HeaderMap) -> String {
+    let https = headers.get("x-forwarded-proto").and_then(|v| v.to_str().ok()) == Some("https");
+    format!("{}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}", story_cookie_name(slug), 400 * 86_400, if https { "; Secure" } else { "" })
+}
+
+/// Hapus story PERMANEN (baris + foto RustFS) setelah pemiliknya terverifikasi.
+async fn purge_story_file(state: &AppState, url: &str) {
+    if let Some(st) = state.storage.as_ref() {
+        if let Err(e) = st.delete_url(url).await {
+            tracing::warn!(error = %format!("{e:#}"), "story: hapus foto RustFS");
+        }
+    }
+}
+
+/// POST /u/{slug}/story/hapus-saya (id) — pembuat menghapus dari perangkatnya
+/// sendiri (cookie token pembuat harus cocok dengan story itu).
+pub async fn delete_my_story(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(slug): Path<String>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let base = format!("/u/{}/story", fmt::key(&slug));
+    let back = f.get("back").filter(|b| b.starts_with(&base) && !b.contains(['\r', '\n', '#'])).cloned().unwrap_or(base);
+    let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let Some(token) = story_token(&headers, &slug) else {
+        return to(&back, "galat", "Story ini bukan dibuat dari perangkat ini. Hapus lewat kunci WhatsApp di formulir Tambah Story.");
+    };
+    let row = match repo::invitation(&state.pool, &slug).await {
+        Ok(Some(r)) => r,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Undangan tidak ditemukan").into_response(),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "story: muat undangan");
+            return to(&back, "galat", "Server sedang sibuk, coba lagi sebentar.");
+        }
+    };
+    match repo::delete_story_by_token(&state.pool, row.id, id, &auth::token_hash(&token)).await {
+        Ok(Some(url)) => {
+            purge_story_file(&state, &url).await;
+            tracing::info!(slug = %slug, id, "story dihapus pembuatnya");
+            to(&back, "ok", "Story Anda sudah dihapus permanen.")
+        }
+        Ok(None) => to(&back, "galat", "Story tidak ditemukan atau bukan milik Anda."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "story: hapus (pembuat)");
+            to(&back, "galat", "Gagal menghapus story, coba lagi.")
+        }
+    }
+}
+
+/// POST /u/{slug}/story/hapus (phone, key) — pembuat menghapus dari perangkat
+/// lain: kunci 6 digit dari WhatsApp ke nomor pembuat (repo::check_story_key).
+pub async fn delete_story_with_key(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(slug): Path<String>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let base = format!("/u/{}/story", fmt::key(&slug));
+    let back = f.get("back").filter(|b| b.starts_with(&base) && !b.contains(['\r', '\n', '#'])).cloned().unwrap_or(base);
+    if let Err(secs) = state.write_limit.hit(&format!("storyhapus:{}:{slug}", security::client_ip(&headers))) {
+        return to(&back, "galat", &format!("Terlalu banyak percobaan. Coba lagi dalam {} menit.", secs.div_ceil(60)));
+    }
+    let phone = fmt::wa_number(f.get("phone").map(String::as_str).unwrap_or(""));
+    let key: String = f.get("key").map(String::as_str).unwrap_or("").chars().filter(|c| c.is_ascii_digit()).collect();
+    if phone.is_empty() || key.len() != 6 {
+        return to(&back, "galat", "Masukkan kunci 6 digit yang dikirim ke WhatsApp Anda.");
+    }
+    let row = match repo::invitation(&state.pool, &slug).await {
+        Ok(Some(r)) => r,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Undangan tidak ditemukan").into_response(),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "story: muat undangan");
+            return to(&back, "galat", "Server sedang sibuk, coba lagi sebentar.");
+        }
+    };
+    let key_id = match repo::check_story_key(&state.pool, row.id, &phone, &auth::token_hash(&key)).await {
+        Ok(Some((id, _))) => id,
+        Ok(None) => return to(&back, "galat", "Kunci salah atau sudah kedaluwarsa. Minta kunci baru bila perlu."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "story: cek kunci (hapus)");
+            return to(&back, "galat", "Server sedang sibuk, coba lagi sebentar.");
+        }
+    };
+    match repo::delete_story_by_phone(&state.pool, row.id, &phone).await {
+        Ok(Some(url)) => {
+            purge_story_file(&state, &url).await;
+            let _ = repo::use_story_key(&state.pool, key_id).await;
+            tracing::info!(slug = %slug, "story dihapus pembuatnya (kunci WA)");
+            to(&back, "ok", "Story Anda sudah dihapus permanen. Anda bisa membuat story baru.")
+        }
+        Ok(None) => to(&back, "galat", "Nomor ini tidak punya story di undangan ini."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "story: hapus (kunci)");
+            to(&back, "galat", "Gagal menghapus story, coba lagi.")
+        }
+    }
+}
+
+/// POST multipart /admin/lagu/simpan — tambah/sunting lagu pustaka. Berkas
+/// (MP3/M4A/OGG ≤ 6 MB) → RustFS musik/pustaka/{judul}.{ext}; atau isi URL.
+pub async fn admin_save_song(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let back = "/admin/lagu";
+    let Ok(mut form) = super::form::read(mp, 1).await else {
+        return to(back, "galat", "Unggahan terputus atau terlalu besar (lagu maks 6 MB).");
+    };
+    let mut s = crate::web::model::Song {
+        id: form.get("id", 20).parse().unwrap_or(0),
+        title: form.get("title", 120),
+        artist: form.get("artist", 120),
+        duration: form.get("duration", 8),
+        tag: form.get("tag", 30),
+        url: form.get("url", 500),
+        aktif: form.raw("aktif") == "1",
+        urutan: 0,
+    };
+    if s.title.is_empty() {
+        return to(back, "galat", "Judul lagu wajib diisi.");
+    }
+    if let Some(up) = form.take_file("file") {
+        let Some(st) = state.storage.as_ref() else {
+            return to(back, "galat", "RustFS belum dikonfigurasi — isi alamat lagu (https://…) saja.");
+        };
+        let name = if up.file_name.trim().is_empty() { s.title.clone() } else { up.file_name.clone() };
+        match st.upload_audio_as(up.data, "pustaka", &name).await {
+            Ok(u) => s.url = u,
+            Err(e) => return to(back, "galat", &e.to_string()),
+        }
+    }
+    if s.url.is_empty() || !crate::web::skin::is_safe_url(&s.url) {
+        return to(back, "galat", "Unggah berkas lagu atau isi alamat /music/… / https://….");
+    }
+    match repo::save_song(&state.pool, &s).await {
+        Ok(id) => {
+            tracing::info!(id, "admin: lagu disimpan");
+            to(&format!("{back}#lagu-{id}"), "ok", if s.id == 0 { "Lagu ditambahkan ke pustaka." } else { "Lagu tersimpan." })
+        }
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: simpan lagu");
+            to(back, "galat", "Gagal menyimpan — sudah menjalankan migration/027_pustaka_lagu.sql?")
+        }
+    }
+}
+
+/// POST /admin/lagu/urut (id, arah=naik|turun) & /admin/lagu/hapus (id).
+/// Berkas RustFS hanya dihapus bila tak ada undangan yang memakai lagu itu.
+pub async fn admin_song_action(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::extract::Path(aksi): axum::extract::Path<String>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let back = "/admin/lagu";
+    let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
+    match aksi.as_str() {
+        "urut" => match repo::move_song(&state.pool, id, f.get("arah").is_some_and(|a| a == "naik")).await {
+            Ok(()) => to(&format!("{back}#lagu-{id}"), "ok", "Urutan diperbarui."),
+            Err(e) => {
+                tracing::error!(error = %format!("{e:#}"), "admin: urut lagu");
+                to(back, "galat", "Gagal mengubah urutan.")
+            }
+        },
+        "hapus" => match repo::delete_song(&state.pool, id).await {
+            Ok(Some((url, used))) => {
+                if !used {
+                    if let Some(st) = state.storage.as_ref() {
+                        let _ = st.delete_url(&url).await;
+                    }
+                }
+                to(back, "ok", if used { "Lagu dihapus dari pustaka (berkasnya tetap — masih dipakai undangan)." } else { "Lagu dihapus." })
+            }
+            Ok(None) => to(back, "galat", "Lagu tidak ditemukan."),
+            Err(e) => {
+                tracing::error!(error = %format!("{e:#}"), "admin: hapus lagu");
+                to(back, "galat", "Gagal menghapus lagu.")
+            }
+        },
+        _ => to(back, "galat", "Aksi tidak dikenal."),
+    }
+}
+
+/// POST /kelola/{slug}/story/hapus (id[, key]) — PENGELOLA undangan (pembeli)
+/// menghapus story tamu mana pun dari penampil story di Kelola. Kunci Kelola
+/// dari cookie `ily_k_{slug}` (server/owner.rs) atau input `key`.
+pub async fn owner_delete_story(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(slug): Path<String>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    let back = format!("/kelola/{}#story", fmt::key(&slug));
+    let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let row = match repo::invitation(&state.pool, &slug).await {
+        Ok(Some(r)) => r,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Undangan tidak ditemukan").into_response(),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "kelola: muat undangan (hapus story)");
+            return to(&back, "story_galat", "Server sedang sibuk, coba lagi sebentar.");
+        }
+    };
+    let key = f.get("key").cloned().filter(|k| !k.trim().is_empty()).or_else(|| super::owner::key_from(&headers, &slug)).unwrap_or_default();
+    if !auth::same_hash(&auth::token_hash(key.trim()), &row.manage_key_hash) {
+        return to(&back, "story_galat", "Kunci kelola tidak valid. Buka Kelola dari tautan yang Anda terima saat memesan.");
+    }
+    if row.inv.is_demo {
+        return to(&back, "story_galat", "Dashboard demo — story contoh tidak bisa dihapus.");
+    }
+    match repo::delete_story(&state.pool, row.id, id).await {
+        Ok(Some(url)) => {
+            purge_story_file(&state, &url).await;
+            tracing::info!(slug = %slug, id, "story dihapus pengelola");
+            to(&back, "story_ok", "Story dihapus permanen.")
+        }
+        Ok(None) => to(&back, "story_galat", "Story tidak ditemukan (mungkin sudah dihapus)."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "kelola: hapus story");
+            to(&back, "story_galat", "Gagal menghapus story, coba lagi.")
+        }
+    }
 }

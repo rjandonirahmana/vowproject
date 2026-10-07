@@ -40,6 +40,11 @@ pub async fn once(state: &AppState) -> anyhow::Result<usize> {
         Ok(n) => tracing::info!(n, "cleanup: sesi admin kedaluwarsa dihapus"),
         Err(e) => tracing::warn!(error = %format!("{e:#}"), "cleanup: hapus sesi kedaluwarsa gagal"),
     }
+    match repo::purge_story_keys(&state.pool).await {
+        Ok(0) => {}
+        Ok(n) => tracing::info!(n, "cleanup: kunci story lama dihapus"),
+        Err(e) => tracing::warn!(error = %format!("{e:#}"), "cleanup: hapus kunci story gagal"),
+    }
     let _ = c.execute("SELECT pg_advisory_unlock($1)", &[&LOCK_KEY]).await;
     let purged = res?;
     for p in &purged {

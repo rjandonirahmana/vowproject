@@ -8,7 +8,6 @@
 use leptos::prelude::*;
 use leptos_router::hooks::use_query_map;
 
-use crate::web::api::get_konten;
 use crate::web::fmt::rupiah;
 use crate::web::icons::Icon;
 use crate::web::konten::{icon_line, Konten, Testimoni, VendorPaket};
@@ -25,7 +24,7 @@ pub fn wa_href(layanan: &str) -> String {
 /// dalam `<Suspense>` dengan `view(Konten)`.
 #[component]
 pub fn WithKonten<V: IntoView + 'static>(view: fn(Konten) -> V) -> impl IntoView {
-    let k = Resource::new(|| (), |_| get_konten());
+    let k = super::use_konten();
     view! {
         <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
             {move || k.get().map(|r| view(r.unwrap_or_default()))}
