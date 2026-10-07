@@ -3,6 +3,7 @@
 //! sehingga jalan tanpa JS (form GET) dan bisa dibagikan sebagai tautan.
 
 use leptos::prelude::*;
+use crate::web::skeleton::*;
 use leptos_router::hooks::use_query_map;
 
 use crate::web::components::{monogram_svg, Monogram};
@@ -243,7 +244,7 @@ pub fn KatalogPage() -> impl IntoView {
                 </aside>
 
                 <div class="k-results">
-                    <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+                    <Suspense fallback=|| view! { <SkelCards n=6 class="theme-grid" /> }>
                         <p class="k-count">
                             <i class="dot"></i>
                             {move || {

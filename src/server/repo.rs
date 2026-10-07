@@ -1377,3 +1377,83 @@ pub async fn move_song(pool: &Pool, id: i64, up: bool) -> Result<()> {
     tx.commit().await?;
     Ok(())
 }
+
+// ── Tema templat (migrasi 029) ─────────────────────────────────────────────
+
+/// Semua templat. Tabel belum ada → Err (pemanggil memakai templat bawaan).
+pub async fn templates(pool: &Pool) -> Result<Vec<super::templat::Templat>> {
+    let c = pool.get().await?;
+    let rows = db_rows(&c, "SELECT to_jsonb(t) AS j FROM theme_templates t ORDER BY slug", &[])
+        .await
+        .context("select theme_templates")?;
+    Ok(rows.iter().filter_map(|r| serde_json::from_value(r.get::<_, Value>("j")).ok()).collect())
+}
+
+/// Isi templat bawaan (berkas templat/ di repo). Baris bawaan yang BELUM
+/// disunting admin ikut diperbarui bila isinya berubah — beda dengan animasi
+/// bawaan (DO NOTHING) yang membuat perubahan berkas tak pernah sampai ke DB.
+pub async fn seed_templates(pool: &Pool, list: &[super::templat::Templat]) -> Result<u64> {
+    let rows: Vec<Value> = list
+        .iter()
+        .map(|t| serde_json::json!({ "slug": t.slug, "name": t.name, "html": t.html, "css": t.css, "fonts": t.fonts, "assets": t.assets }))
+        .collect();
+    let c = pool.get().await?;
+    Ok(db_exec(
+        &c,
+        "INSERT INTO theme_templates (slug, name, html, css, fonts, assets, builtin)
+         SELECT x.slug, x.name, x.html, x.css, x.fonts, x.assets, TRUE
+           FROM jsonb_to_recordset($1) AS x(slug TEXT, name TEXT, html TEXT, css TEXT, fonts TEXT, assets JSONB)
+         ON CONFLICT (slug) DO UPDATE
+            SET name = EXCLUDED.name, html = EXCLUDED.html, css = EXCLUDED.css,
+                fonts = EXCLUDED.fonts, assets = EXCLUDED.assets, updated_at = NOW()
+          WHERE theme_templates.builtin AND NOT theme_templates.edited
+            AND (theme_templates.html, theme_templates.css, theme_templates.fonts, theme_templates.assets)
+                IS DISTINCT FROM (EXCLUDED.html, EXCLUDED.css, EXCLUDED.fonts, EXCLUDED.assets)",
+        &[&Value::Array(rows)],
+    )
+    .await
+    .context("seed theme_templates")?)
+}
+
+/// Simpan suntingan admin (baris bawaan ditandai `edited`).
+pub async fn save_template(pool: &Pool, t: &super::templat::Templat) -> Result<()> {
+    let c = pool.get().await?;
+    let assets = serde_json::to_value(&t.assets)?;
+    db_exec(
+        &c,
+        "INSERT INTO theme_templates (slug, name, html, css, fonts, assets, edited)
+         VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+         ON CONFLICT (slug) DO UPDATE
+            SET name = EXCLUDED.name, html = EXCLUDED.html, css = EXCLUDED.css, fonts = EXCLUDED.fonts,
+                assets = EXCLUDED.assets, edited = TRUE, updated_at = NOW()",
+        &[&t.slug, &t.name, &t.html, &t.css, &t.fonts, &assets],
+    )
+    .await
+    .context("save theme_template")?;
+    Ok(())
+}
+
+/// Templat bawaan kembali mengikuti berkas di repo (diisi ulang saat seed berikutnya).
+pub async fn reset_template(pool: &Pool, slug: &str) -> Result<u64> {
+    let c = pool.get().await?;
+    Ok(db_exec(&c, "UPDATE theme_templates SET edited = FALSE WHERE slug = $1 AND builtin", &[&slug]).await?)
+}
+
+/// Pasang templat ke tema + aset & CSS tema (templat kosong = kembali ke
+/// tampilan komponen bawaan).
+pub async fn set_theme_template(
+    pool: &Pool,
+    theme: &str,
+    template: &str,
+    assets: &std::collections::BTreeMap<String, String>,
+    css: &str,
+) -> Result<u64> {
+    let c = pool.get().await?;
+    let assets = serde_json::to_value(assets)?;
+    Ok(db_exec(
+        &c,
+        "UPDATE themes SET template = $2, template_assets = $3, template_css = $4 WHERE slug = $1",
+        &[&theme, &template, &assets, &css],
+    )
+    .await?)
+}

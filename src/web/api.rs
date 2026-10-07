@@ -166,21 +166,61 @@ pub async fn submit_rsvp(
     use srv::*;
     let st = state()?;
     let row = load(&slug).await?;
-    deny_demo(&row)?;
-    deny_locked(&row)?;
-    limit_write(&st, "rsvp", &slug).await?;
-    let name = clean(&name, 80);
-    if name.is_empty() {
-        return Err(ServerFnError::new("Nama lengkap wajib diisi."));
-    }
-    let status = match status.as_str() {
-        "hadir" | "ragu" | "tidak" => status,
-        _ => return Err(ServerFnError::new("Pilih status kehadiran.")),
+    let headers: axum::http::HeaderMap = leptos_axum::extract().await?;
+    let ip = crate::server::security::client_ip(&headers);
+    rsvp_core(&st, &row, &ip, RsvpInput { guest, name, phone, status, pax, session, message })
+        .await
+        .map_err(ServerFnError::new)
+}
+
+/// Isian RSVP + ucapan (server fn Leptos & formulir tema templat).
+#[cfg(feature = "ssr")]
+#[derive(Default)]
+pub struct RsvpInput {
+    pub guest: Option<String>,
+    pub name: String,
+    pub phone: Option<String>,
+    pub status: String,
+    pub pax: Option<String>,
+    pub session: Option<String>,
+    pub message: Option<String>,
+}
+
+/// Validasi + batas kiriman per IP + simpan RSVP. Err = pesan untuk tamu.
+#[cfg(feature = "ssr")]
+pub async fn rsvp_core(
+    st: &crate::server::state::AppState,
+    row: &crate::server::repo::InvRow,
+    ip: &str,
+    i: RsvpInput,
+) -> Result<String, String> {
+    use crate::server::handlers::clean;
+    use crate::server::repo;
+    let msg = |e: ServerFnError| match e {
+        ServerFnError::ServerError(m) => m,
+        e => e.to_string(),
     };
-    let pax: i32 = pax.and_then(|p| p.trim().parse().ok()).unwrap_or(1).clamp(1, 10);
+    srv::deny_demo(row).map_err(msg)?;
+    srv::deny_locked(row).map_err(msg)?;
+    st.write_limit
+        .hit(&format!("rsvp:{}:{ip}", row.inv.slug))
+        .map_err(|secs| format!("Terlalu banyak kiriman dari jaringan ini. Coba lagi dalam {} menit.", secs.div_ceil(60)))?;
+    let busy = |e: anyhow::Error| {
+        tracing::error!(error = %format!("{e:#}"), "rsvp");
+        "Server sedang sibuk, coba lagi sebentar.".to_string()
+    };
+    let name = clean(&i.name, 80);
+    if name.is_empty() {
+        return Err("Nama lengkap wajib diisi.".into());
+    }
+    let status = match i.status.as_str() {
+        "hadir" | "ragu" | "tidak" => i.status,
+        _ => return Err("Pilih status kehadiran.".into()),
+    };
+    let pax: i32 = i.pax.and_then(|p| p.trim().parse().ok()).unwrap_or(1).clamp(1, 10);
     let pax = if status == "tidak" { 0 } else { pax };
-    let guest_id = match guest.as_deref().filter(|g| !g.is_empty()) {
-        Some(code) => repo::guest_id(&st.pool, row.id, code).await.map_err(internal)?,
+    let guest_id = match i.guest.as_deref().filter(|g| !g.is_empty()) {
+        Some(code) => repo::guest_id(&st.pool, row.id, code).await.map_err(busy)?,
         None => None,
     };
     repo::upsert_rsvp(
@@ -189,15 +229,15 @@ pub async fn submit_rsvp(
             inv_id: row.id,
             guest_id,
             name: &name,
-            phone: &clean(phone.as_deref().unwrap_or(""), 20),
+            phone: &clean(i.phone.as_deref().unwrap_or(""), 20),
             status: &status,
             pax,
-            session: &clean(session.as_deref().unwrap_or(""), 60),
-            message: &clean(message.as_deref().unwrap_or(""), 600),
+            session: &clean(i.session.as_deref().unwrap_or(""), 60),
+            message: &clean(i.message.as_deref().unwrap_or(""), 600),
         },
     )
     .await
-    .map_err(internal)?;
+    .map_err(busy)?;
     Ok(match status.as_str() {
         "hadir" => "Terima kasih! Konfirmasi kehadiran & doa restu Anda telah kami terima.".into(),
         "ragu" => "Terima kasih, semoga Anda dapat hadir. Doa restu Anda telah kami terima.".into(),
@@ -562,6 +602,42 @@ pub async fn admin_songs() -> Result<Vec<Song>, ServerFnError> {
         tracing::error!(error = %format!("{e:#}"), "admin: lagu");
         ServerFnError::new("Tabel lagu belum ada — jalankan migration/027_pustaka_lagu.sql.")
     })
+}
+
+/// Templat tema + tema dan templat yang dipakainya (/admin/templat).
+#[server]
+pub async fn admin_templates() -> Result<AdminTemplatPage, ServerFnError> {
+    let (st, _) = require_admin(false).await?;
+    let cat = st.themes();
+    let pretty = |m: &std::collections::BTreeMap<String, String>| serde_json::to_string_pretty(m).unwrap_or_default();
+    let set = st.templat();
+    let templates = set
+        .list()
+        .into_iter()
+        .map(|t| AdminTemplat {
+            slug: t.slug.clone(),
+            name: t.name.clone(),
+            html: t.html.clone(),
+            css: t.css.clone(),
+            fonts: t.fonts.clone(),
+            assets: pretty(&t.assets),
+            builtin: t.builtin,
+            edited: t.edited,
+            used_by: cat.list.iter().filter(|x| x.template == t.slug).map(|x| (x.slug.clone(), x.name.clone())).collect(),
+        })
+        .collect();
+    let themes = cat
+        .list
+        .iter()
+        .map(|t| TemaTemplat {
+            slug: t.slug.clone(),
+            name: t.name.clone(),
+            template: t.template.clone(),
+            assets: if t.template_assets.is_empty() { String::new() } else { pretty(&t.template_assets) },
+            css: t.template_css.clone(),
+        })
+        .collect();
+    Ok(AdminTemplatPage { templates, themes })
 }
 
 /// Satu tema — termasuk tema privat (dibuka lewat tautan langsung).

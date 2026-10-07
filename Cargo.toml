@@ -92,6 +92,9 @@ rustls = { version = "0.23", features = ["aws_lc_rs"], default-features = false 
 # Notifikasi WA admin lewat WAHA (bukti transfer: gambar base64 + keterangan).
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
 base64 = "0.22"
+# Tema TEMPLAT (server/templat.rs): HTML tema disimpan di DB sebagai templat
+# Jinja — dirender di server dengan autoescape, tanpa akses berkas/jaringan.
+minijinja = { version = "2", default-features = false, features = ["builtins", "macros", "serde", "multi_template", "adjacent_loop_items"] }
 
 dotenvy = "0.15"
 tracing = "0.1"

@@ -2,6 +2,7 @@
 //! Tawangmangu – Solo Raya (desain Stitch "Vendor Dekorasi & Sound System").
 
 use leptos::prelude::*;
+use crate::web::skeleton::*;
 use crate::web::seo::{JsonLd, Seo};
 
 use crate::web::icons::Icon;
@@ -196,7 +197,7 @@ pub fn DekorasiDetailPage() -> impl IntoView {
     view! {
         <div class="site">
             <SiteHeader active="dekorasi" />
-            <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+            <Suspense fallback=|| view! { <SkelDetail /> }>
                 {move || k.get().map(|r| {
                     let k = r.unwrap_or_default();
                     let slug = params.read().get("slug").unwrap_or_default();

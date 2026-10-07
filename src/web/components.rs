@@ -8,6 +8,7 @@ use super::api::{list_wishes, ConfirmGift, SubmitRsvp};
 use super::fmt;
 use super::icons::Icon;
 use super::model::*;
+use super::skeleton::SkelRows;
 
 /// Pesan galat server fn tanpa awalan teknis.
 pub fn err_msg(e: &ServerFnError) -> String {
@@ -697,7 +698,7 @@ pub fn WishList(slug: String, refresh: RwSignal<u32>) -> impl IntoView {
     let wishes = Resource::new(move || (slug.clone(), refresh.get()), |(s, _)| list_wishes(s));
     view! {
         <section class="wishes">
-            <Suspense fallback=|| view! { <p class="muted center">"Memuat doa & ucapan…"</p> }>
+            <Suspense fallback=|| view! { <SkelRows n=3 /> }>
                 {move || wishes.get().map(|r| match r {
                     Ok(p) => Either::Left(view! {
                         <div class="wishes__head">

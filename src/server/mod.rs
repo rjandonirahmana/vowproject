@@ -14,5 +14,6 @@ pub mod repo;
 pub mod security;
 pub mod state;
 pub mod storage;
+pub mod templat;
 pub mod util;
 pub mod waha;

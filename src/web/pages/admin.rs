@@ -8,6 +8,7 @@
 
 use leptos::either::Either;
 use leptos::prelude::*;
+use crate::web::skeleton::*;
 use leptos_meta::{Meta, Title};
 use leptos_router::hooks::{use_params_map, use_query_map};
 
@@ -54,6 +55,7 @@ fn AdminShell(
                             <nav class="adm-nav">
                                 <a href="/admin/tema" class:is-active=active == "tema"><Icon name="palette" />"Tema"</a>
                                 <a href="/admin/animasi" class:is-active=active == "animasi"><Icon name="animation" />"Animasi"</a>
+                                <a href="/admin/templat" class:is-active=active == "templat"><Icon name="code" />"Templat"</a>
                                 <a href="/admin/banner" class:is-active=active == "banner"><Icon name="view_carousel" />"Banner"</a>
                                 <a href="/admin/lagu" class:is-active=active == "lagu"><Icon name="library_music" />"Lagu"</a>
                                 <a href="/admin/story" class:is-active=active == "story"><Icon name="photo_camera" />"Story"</a>
@@ -75,7 +77,7 @@ fn AdminShell(
             <main class="adm-main">
                 {move || (!ok().is_empty()).then(|| view! { <p class="notice notice--ok">{ok()}</p> })}
                 {move || (!galat().is_empty()).then(|| view! { <p class="notice notice--err">{galat()}</p> })}
-                <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+                <Suspense fallback=|| view! { <SkelRows n=5 action=true /> }>
                     {
                         let children = children.clone();
                         move || session.get().map(|r| {
@@ -1436,7 +1438,7 @@ pub fn AdminUndangan() -> impl IntoView {
                 </div>
             })}
             <p class="muted small">"Pesanan yang sudah mengirim bukti transfer tampil paling atas, lalu yang menunggu pembayaran. Cek mutasi rekening, lalu ubah status ke "<b>"Aktif"</b>" — penanda pratinjau di undangan hilang. Tema bisa diganti ke tema custom (privat) yang Anda buat untuk pasangan ini."</p>
-            <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+            <Suspense fallback=|| view! { <SkelRows n=5 action=true /> }>
                 {move || {
                     let theme_opts: Vec<(String, String)> = themes.get().and_then(|r| r.ok()).unwrap_or_default()
                         .into_iter()
@@ -2306,6 +2308,144 @@ fn SongFields(s: crate::web::model::Song) -> impl IntoView {
             <label class="check"><input type="checkbox" name="aktif" value="1" checked=s.aktif /><span>"Aktif — tampil di pilihan pemesan"</span></label>
             <button class="btn btn--primary btn--sm" type="submit"><Icon name="cloud_upload" />{if new { "Tambah ke pustaka" } else { "Simpan" }}</button>
         </form>
+    }
+}
+
+// ── Tema templat: HTML + CSS di database (migrasi 029) ─────────────────────
+
+#[component]
+pub fn AdminTemplat() -> impl IntoView {
+    let page = Resource::new(|| (), |_| crate::web::api::admin_templates());
+    view! {
+        <AdminShell active="templat" title="Templat Tema">
+            <div class="adm-head">
+                <h1 class="adm-h1">"Templat Tema"</h1>
+            </div>
+            <div class="adm-anim-help">
+                <p>"Templat = STRUKTUR + GERAK undangan (HTML Jinja + CSS). Tema memilih templat lalu menimpa aset & warna — banyak tema boleh berbagi satu templat, persis cara everlove membuat puluhan tema dari satu induk."</p>
+                <p class="muted small">"Gerak ditulis sebagai atribut (data-a=\"zoomIn\" data-ad=\"400\", data-s=\"atas\", data-idle=\"goyang\" …) — tanpa <script>. Panduan lengkap & daftar data: templat/README.md di repo."</p>
+            </div>
+            <Suspense fallback=|| ()>
+                {move || page.get().map(|r| match r {
+                    Err(e) => view! { <p class="notice notice--err">{crate::web::components::err_msg(&e)}</p> }.into_any(),
+                    Ok(p) => {
+                        let names: Vec<(String, String)> = p.templates.iter().map(|t| (t.slug.clone(), t.name.clone())).collect();
+                        view! {
+                            <h2 class="adm-h2">"Templat"</h2>
+                            <div class="adm-songs">
+                                {p.templates.into_iter().map(|t| view! { <TemplatForm t=t /> }).collect_view()}
+                                <details class="card adm-song adm-song--new">
+                                    <summary><Icon name="add" />"Templat baru"</summary>
+                                    <TemplatFields t=crate::web::model::AdminTemplat::default() />
+                                </details>
+                            </div>
+                            <h2 class="adm-h2">"Pasang ke tema"</h2>
+                            <p class="muted small">"Aset tema menimpa aset bawaan templat (kunci sama). CSS tema ditambahkan setelah CSS templat — mis. .t-kusuma { --k-taupe: #5c6b4f; }."</p>
+                            <div class="adm-songs">
+                                {p.themes.into_iter().map(|t| view! { <TemaTemplatForm t=t templates=names.clone() /> }).collect_view()}
+                            </div>
+                        }
+                        .into_any()
+                    }
+                })}
+            </Suspense>
+        </AdminShell>
+    }
+}
+
+#[component]
+fn TemplatForm(t: crate::web::model::AdminTemplat) -> impl IntoView {
+    let demo = crate::web::themes::DEMO_SLUG;
+    let (slug, builtin, edited) = (t.slug.clone(), t.builtin, t.edited);
+    let used = t.used_by.clone();
+    view! {
+        <article class="card adm-song" id=format!("tpl-{slug}")>
+            <div class="adm-song__head">
+                <Icon name="code" />
+                <span class="adm-song__meta">
+                    <b>{t.name.clone()}</b>
+                    <small>{format!("{slug} · {} KB HTML · {} tema", t.html.len() / 1024, used.len())}</small>
+                </span>
+                {builtin.then(|| view! { <span class="chip chip--gold chip--xs">{if edited { "Bawaan (disunting)" } else { "Bawaan" }}</span> })}
+            </div>
+            {(!used.is_empty()).then(|| view! {
+                <p class="muted small">"Dipakai: "
+                    {used.into_iter().map(|(s, n)| view! {
+                        <a href=format!("/u/{demo}?tema={s}") target="_blank" rel="external">{n}" ↗"</a>" "
+                    }).collect_view()}
+                </p>
+            })}
+            <details>
+                <summary>"Sunting HTML / CSS"</summary>
+                <TemplatFields t=t.clone() />
+                {(builtin && edited).then(|| view! {
+                    <form method="post" action="/admin/templat/bawaan" class="adm-banner__del">
+                        <input type="hidden" name="slug" value=slug.clone() />
+                        <button class="btn btn--sm btn--soft" type="submit"><Icon name="restart_alt" />"Kembalikan ke bawaan"</button>
+                    </form>
+                })}
+            </details>
+        </article>
+    }
+}
+
+#[component]
+fn TemplatFields(t: crate::web::model::AdminTemplat) -> impl IntoView {
+    let new = t.slug.is_empty();
+    view! {
+        <form class="adm-banner__form adm-tpl" method="post" action="/admin/templat/simpan">
+            <div class="field-row">
+                <label class="field"><span class="field__label">"Kode (slug)"</span>
+                    <input class="input" name="slug" required maxlength="40" value=t.slug.clone() readonly=!new placeholder="kusuma" /></label>
+                <label class="field"><span class="field__label">"Nama"</span>
+                    <input class="input" name="name" required maxlength="80" value=t.name.clone() placeholder="Kusuma — Jawa 3D Motion" /></label>
+            </div>
+            <label class="field adm-wide"><span class="field__label">"Google Fonts (nilai family=)"</span>
+                <input class="input" name="fonts" maxlength="400" value=t.fonts.clone() placeholder="Pinyon+Script&family=Cormorant+Infant:wght@400;600" /></label>
+            <label class="field adm-wide"><span class="field__label">"Aset bawaan (JSON kunci → URL, dipanggil {{ a.kunci }})"</span>
+                <textarea class="input adm-code" name="assets" rows="6" spellcheck="false">{t.assets.clone()}</textarea></label>
+            <label class="field adm-wide"><span class="field__label">"HTML (Jinja)"</span>
+                <textarea class="input adm-code" name="html" rows="22" spellcheck="false" required>{t.html.clone()}</textarea></label>
+            <label class="field adm-wide"><span class="field__label">"CSS"</span>
+                <textarea class="input adm-code" name="css" rows="16" spellcheck="false">{t.css.clone()}</textarea></label>
+            <button class="btn btn--primary btn--sm" type="submit"><Icon name="cloud_upload" />{if new { "Buat templat" } else { "Simpan templat" }}</button>
+        </form>
+    }
+}
+
+#[component]
+fn TemaTemplatForm(t: crate::web::model::TemaTemplat, templates: Vec<(String, String)>) -> impl IntoView {
+    let demo = crate::web::themes::DEMO_SLUG;
+    let on = !t.template.is_empty();
+    view! {
+        <details class="card adm-song" id=format!("tema-{}", t.slug) open=on>
+            <summary>
+                <b>{t.name.clone()}</b>" "
+                <small class="muted">{if on { format!("templat: {}", t.template) } else { "komponen bawaan".to_string() }}</small>
+            </summary>
+            <form class="adm-banner__form" method="post" action="/admin/templat/pasang">
+                <input type="hidden" name="theme" value=t.slug.clone() />
+                <label class="field"><span class="field__label">"Templat"</span>
+                    <select class="input" name="template">
+                        <option value="" selected=!on>"— Komponen bawaan (tanpa templat) —"</option>
+                        {templates.into_iter().map(|(s, n)| {
+                            let sel = s == t.template;
+                            view! { <option value=s.clone() selected=sel>{format!("{n} ({s})")}</option> }
+                        }).collect_view()}
+                    </select>
+                </label>
+                <label class="field adm-wide"><span class="field__label">"Aset tema (JSON, opsional)"</span>
+                    <textarea class="input adm-code" name="assets" rows="4" spellcheck="false" placeholder="{\"bunga\": \"/img/tema/…/mawar.svg\"}">{t.assets.clone()}</textarea></label>
+                <label class="field adm-wide"><span class="field__label">"CSS tema (opsional)"</span>
+                    <textarea class="input adm-code" name="css" rows="4" spellcheck="false" placeholder=".t-kusuma { --k-taupe: #5c6b4f; }">{t.css.clone()}</textarea></label>
+                <div class="adm-banner__move">
+                    <button class="btn btn--primary btn--sm" type="submit"><Icon name="check" />"Simpan"</button>
+                    {on.then(|| view! {
+                        <a class="btn btn--soft btn--sm" href=format!("/u/{demo}?tema={}", t.slug) target="_blank" rel="external"><Icon name="visibility" />"Coba demo"</a>
+                    })}
+                </div>
+            </form>
+        </details>
     }
 }
 

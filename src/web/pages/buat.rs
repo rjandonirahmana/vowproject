@@ -6,6 +6,7 @@
 
 use leptos::either::Either;
 use leptos::prelude::*;
+use crate::web::skeleton::*;
 use crate::web::seo::Seo;
 use leptos_router::hooks::use_query_map;
 
@@ -108,7 +109,7 @@ pub fn BuatPage() -> impl IntoView {
                                 " — nama kedua mempelai + kunci rahasia, contoh "<code>"/u/yona-doni-k7f3x9m2"</code>". Kunci acak membuat tautan tak bisa ditebak dan tak mungkin sama dengan pasangan lain walau namanya sama. Hanya orang yang Anda kirimi tautan yang bisa membukanya."
                             </span>
                         </div>
-                        <Suspense fallback=|| view! { <p class="muted small">"Memuat tema…"</p> }>
+                        <Suspense fallback=|| view! { <SkelOptions n=1 /> }>
                             {move || theme_list.get().and_then(|list| {
                                 let cur = theme.get_untracked();
                                 let t = list.into_iter().find(|t| t.slug == cur)?;
@@ -260,7 +261,7 @@ pub fn BuatPage() -> impl IntoView {
                         <FsecHead icon="music_note" title="Media Audio & Untaian Doa" sub="Lagu latar pemikat suasana dan kata mutiara sakral" tag="Bagian D" />
                         <p class="field__label">"Pilihan Musik Latar"</p>
                         <p class="muted small">"Pilih dari pustaka lagu kami (tekan ▶ untuk mendengar). Lagu tak ada di daftar? Minta ke admin — kami tambahkan ke pustaka."</p>
-                        <Suspense fallback=|| view! { <p class="muted small">"Memuat daftar lagu…"</p> }>
+                        <Suspense fallback=|| view! { <SkelRows n=3 /> }>
                             {move || songs.get().map(|r| {
                                 let list = r.unwrap_or_default();
                                 if list.is_empty() {
@@ -357,7 +358,7 @@ pub fn BuatPage() -> impl IntoView {
 
                     <section class="card summary">
                         <div class="side-card__head"><h3>"Rincian Paket"</h3></div>
-                        <Suspense fallback=|| view! { <p class="muted small">"Memuat paket…"</p> }>
+                        <Suspense fallback=|| view! { <SkelOptions n=3 /> }>
                             {move || konten.get().map(|r| {
                                 let kk: Konten = r.unwrap_or_default();
                                 let chosen = kk.package_or_default(&package.get_untracked()).slug;

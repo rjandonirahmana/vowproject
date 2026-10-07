@@ -4,6 +4,7 @@
 
 use leptos::either::Either;
 use leptos::prelude::*;
+use crate::web::skeleton::*;
 use leptos_meta::Meta;
 use crate::web::seo::{JsonLd, Seo};
 use leptos_router::hooks::use_params_map;
@@ -29,7 +30,7 @@ pub fn TemaPage() -> impl IntoView {
     view! {
         <div class="site">
             <SiteHeader />
-            <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+            <Suspense fallback=|| view! { <SkelDetail phone=true /> }>
             {move || theme.get().map(|r| {
                 let Some(t): Option<ThemeInfo> = r.ok().flatten() else {
                     return Either::Left(view! { <super::NotFoundPage /> });
@@ -66,16 +67,28 @@ pub fn TemaPage() -> impl IntoView {
                         </a>
                     </div>
                     <div class="demo-layout">
-                        <div class="demo-phone">
-                            // Hiasan melayang tema — menempel di layar HP selama demo digulir.
-                            <FloatDeco kind=t.float_deco.clone() />
-                            <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
-                                {move || demo.get().map(|r| match r {
-                                    Ok(inv) => Either::Left(view! { <PreviewInvitation inv=Invitation { theme: slug.clone(), ..inv } anim=anim.clone() scroll=t.scroll_anim.clone() video=t.bg_video.clone() open_video=t.open_video.clone() /> }),
-                                    Err(e) => Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }),
-                                })}
-                            </Suspense>
-                        </div>
+                        {if t.template.is_empty() {
+                            Either::Left(view! {
+                                <div class="demo-phone">
+                                    // Hiasan melayang tema — menempel di layar HP selama demo digulir.
+                                    <FloatDeco kind=t.float_deco.clone() />
+                                    <Suspense fallback=|| view! { <SkelPhone /> }>
+                                        {move || demo.get().map(|r| match r {
+                                            Ok(inv) => Either::Left(view! { <PreviewInvitation inv=Invitation { theme: slug.clone(), ..inv } anim=anim.clone() scroll=t.scroll_anim.clone() video=t.bg_video.clone() open_video=t.open_video.clone() /> }),
+                                            Err(e) => Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }),
+                                        })}
+                                    </Suspense>
+                                </div>
+                            })
+                        } else {
+                            // Tema templat: HTML-nya dirender server (server/templat.rs),
+                            // bukan komponen — demo = halaman undangan asli di bingkai HP.
+                            Either::Right(view! {
+                                <div class="demo-phone demo-phone--frame">
+                                    <iframe class="demo-frame" src=format!("/u/{}?tema={}", DEMO_SLUG, t.slug) title=format!("Demo tema {}", t.name)></iframe>
+                                </div>
+                            })
+                        }}
                         <aside class="demo-side">
                             <MusicPanel />
                             <PhotoTryPanel />
@@ -205,7 +218,7 @@ fn MusicPanel() -> impl IntoView {
                 </div>
                 <button type="button" class="icon-btn disc" data-music="toggle" aria-label="Putar / jeda"><Icon name="music_note" /></button>
             </div>
-            <Suspense fallback=|| view! { <p class="muted small">"Memuat daftar lagu…"</p> }>
+            <Suspense fallback=|| view! { <SkelRows n=3 /> }>
                 {move || songs.get().map(|r| {
                     let list = r.unwrap_or_default();
                     let first = list.first().cloned().unwrap_or_default();

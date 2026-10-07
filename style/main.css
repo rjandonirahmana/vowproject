@@ -550,23 +550,147 @@ select.input {
     }
 }
 
-.spinner {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: 3px solid var(--surface-high);
-    border-top-color: var(--gold);
-    animation: spin 0.8s linear infinite;
+/* ── SKELETON: kerangka shimmer sesuai bentuk kontainer (web/skeleton.rs) ── */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.skl {
+    --sk-base: color-mix(in srgb, var(--ink) 8%, transparent);
+    --sk-shine: color-mix(in srgb, var(--card) 70%, transparent);
+    display: grid;
+    gap: 14px;
+}
+.sk {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    height: 12px;
+    border-radius: 6px;
+    background: var(--sk-base);
+}
+.sk::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    translate: -100% 0;
+    background: linear-gradient(90deg, transparent, var(--sk-shine), transparent);
+    animation: sk-shine 1.5s ease-in-out infinite;
 }
 @keyframes spin {
     to {
         transform: rotate(360deg);
     }
 }
-.inv-loading {
-    min-height: 60vh;
+@keyframes sk-shine {
+    to {
+        translate: 100% 0;
+    }
+}
+.sk-line { height: 12px; }
+.sk-line.sk-sm { height: 10px; }
+.sk-line.sk-xs { height: 8px; width: 70%; }
+.sk-title { height: 24px; border-radius: 8px; }
+.sk-hero { height: clamp(36px, 5vw, 64px); border-radius: 10px; }
+.sk-pill { height: 46px; border-radius: 999px; }
+.sk-pill.sk-sm { height: 32px; }
+.sk-circle { border-radius: 50%; flex: none; }
+.sk-box { border-radius: 10px; flex: none; }
+.sk-20 { width: 20px; height: 20px; }
+.sk-40 { width: 40px; height: 40px; }
+.sk-48 { width: 48px; height: 48px; }
+.sk-media { width: 100%; height: auto; border-radius: var(--r-lg, 16px); }
+.sk-card-art { aspect-ratio: 4 / 3.4; border-radius: 0; }
+.sk-photo { aspect-ratio: 4 / 3; }
+.sk-phone { aspect-ratio: 9 / 18; max-width: 380px; justify-self: center; border-radius: 36px; }
+.sk-story { aspect-ratio: 9 / 14; }
+.sk-square { aspect-ratio: 1; max-width: 420px; justify-self: center; }
+.sk-arch { width: min(260px, 70%); height: auto; aspect-ratio: 3 / 4; border-radius: 999px 999px 18px 18px; justify-self: center; }
+.skl-pad { padding: 20px 16px; max-width: 1100px; margin: 0 auto; }
+.skl-row { display: flex; align-items: center; gap: 12px; }
+.skl-between { justify-content: space-between; }
+.skl-grow { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.skl-card {
+    padding: 14px;
+    border-radius: var(--r-lg, 16px);
+    background: var(--card);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.skl-card--media { padding: 0; overflow: hidden; display: grid; }
+.skl-card__body { display: grid; gap: 10px; padding: 14px 16px 16px; }
+.skl-rows { gap: 10px; }
+.skl-cards { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+.skl-lines { gap: 10px; }
+.skl-stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.skl-stats .skl-card { display: grid; gap: 12px; }
+.skl-detail {
+    grid-template-columns: 1fr;
+    align-items: center;
+    gap: 28px;
+    padding: 28px 16px;
+    max-width: 1240px;
+    margin: 0 auto;
+}
+.skl-detail__text { display: grid; gap: 14px; }
+.skl-page { display: grid; gap: 8px; max-width: 1240px; margin: 0 auto; padding-bottom: 40px; }
+.skl-page > .skl-cards { padding: 0 16px; }
+.skl-phone { justify-items: center; padding: 56px 24px; min-height: 100%; }
+.skl-phone > .sk:not(.sk-arch) { justify-self: center; }
+.skl-scan { max-width: 520px; margin: 0 auto; }
+/* Undangan: HP = satu kolom; desktop = kiri & kanan sama besar (.inv--rail). */
+.skl-inv { min-height: 100svh; gap: 0; background: var(--bg); }
+.skl-inv__side { display: none; }
+.skl-inv__mid { display: grid; gap: 18px; }
+.skl-inv__col {
     display: grid;
-    place-items: center;
+    align-content: start;
+    gap: 18px;
+    width: min(100%, 720px);
+    margin: 0 auto;
+    padding: 16px 16px 110px;
+}
+.skl-inv__cover { display: grid; justify-items: center; gap: 14px; padding: 18px 0; }
+.skl-nav {
+    position: fixed;
+    left: 50%;
+    bottom: 14px;
+    translate: -50% 0;
+    display: flex;
+    justify-content: space-around;
+    width: min(560px, calc(100% - 28px));
+    padding: 10px 6px;
+    border-radius: 999px;
+    background: var(--card);
+    box-shadow: var(--shadow-lg, 0 8px 30px rgba(0, 0, 0, 0.12));
+}
+.skl-nav__i { display: grid; justify-items: center; gap: 6px; width: 56px; }
+@media (min-width: 960px) {
+    .skl-detail { grid-template-columns: 1.1fr 0.9fr; }
+}
+@media (min-width: 1100px) {
+    .skl-inv {
+        --gut: max(0px, (100vw - 1680px) / 2);
+        grid-template-columns: 1fr 1fr;
+        padding: 0 var(--gut);
+    }
+    .skl-inv__side {
+        --sk-base: color-mix(in srgb, var(--on-primary) 14%, transparent);
+        --sk-shine: color-mix(in srgb, var(--on-primary) 22%, transparent);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100svh;
+        position: sticky;
+        top: 0;
+        padding: clamp(40px, 6vh, 72px) clamp(48px, 5vw, 88px);
+        background: var(--primary);
+    }
+    .skl-inv__col { width: min(720px, calc(100% - 112px)); padding-top: 22px; }
+    .skl-nav { left: calc(75%); width: min(560px, calc(50vw - 160px)); }
 }
 
 .avatar {
@@ -9427,6 +9551,33 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     pointer-events: none;
 }
 .sv-caption[hidden] { display: none; }
+
+/* ── Demo tema templat di /tema/:slug (iframe halaman undangan asli) ──── */
+.demo-phone--frame {
+    padding: 0;
+    overflow: hidden;
+}
+.demo-phone--frame::before {
+    display: none;
+}
+.demo-frame {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* ── Editor templat tema (/admin/templat) ──────────────────────────────── */
+.adm-h2 {
+    margin: 28px 0 10px;
+    font-size: 20px;
+}
+.adm-code {
+    font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre;
+    tab-size: 2;
+    resize: vertical;
+}
 
 @media (prefers-reduced-motion: reduce) {
     html {

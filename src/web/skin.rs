@@ -77,6 +77,14 @@ pub struct ThemeInfo {
     pub gerak_foto: String,
     /// Foto sampul perlahan membesar-bergeser (efek Ken Burns).
     pub ken_burns: bool,
+    /// Tema TEMPLAT (migrasi 029): slug baris `theme_templates`. Tak kosong =
+    /// /u/{slug} dirender dari HTML+CSS templat itu (server/templat.rs), bukan
+    /// komponen Leptos. Banyak tema boleh memakai satu templat yang sama.
+    pub template: String,
+    /// Aset per tema yang menimpa aset bawaan templat (kunci → URL).
+    pub template_assets: BTreeMap<String, String>,
+    /// CSS tambahan per tema di atas CSS templat (mis. mengganti variabel warna).
+    pub template_css: String,
     /// Lapisan ornamen per bagian (tabel theme_ornaments; dimuat terpisah).
     pub ornaments: Vec<super::ornamen::Ornament>,
 }
@@ -518,6 +526,11 @@ pub fn from_form(get: impl Fn(&str) -> String) -> Result<ThemeInfo, String> {
         gerak_judul: f.pick("gerak_judul", gerak(), "ikut"),
         gerak_foto: f.pick("gerak_foto", gerak(), "ikut"),
         ken_burns: f.flag("ken_burns"),
+        // Kolom templat (029) dikelola di /admin/templat — tak ikut form ini
+        // dan tak ada di THEME_COLS, jadi menyimpan tema tak menghapusnya.
+        template: String::new(),
+        template_assets: BTreeMap::new(),
+        template_css: String::new(),
         ornaments: Vec::new(),
     })
 }

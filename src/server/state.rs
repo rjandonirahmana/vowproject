@@ -35,6 +35,9 @@ pub struct AppState {
     pub write_limit: super::security::RateLimit,
     /// Pembuatan undangan (+ unggah foto/lagu ke RustFS) per IP.
     pub create_limit: super::security::RateLimit,
+    /// Tema templat (migrasi 029) — HTML+CSS dari tabel theme_templates,
+    /// sudah dikompilasi; dimuat ulang tiap admin menyimpan templat.
+    pub templat: RwLock<Arc<super::templat::TemplatSet>>,
 }
 
 pub struct ThemeCatalog {
@@ -160,6 +163,41 @@ impl AppState {
         }
         Ok(())
     }
+}
+
+impl AppState {
+    pub fn templat(&self) -> Arc<super::templat::TemplatSet> {
+        self.templat.read().map(|g| g.clone()).unwrap_or_else(|e| e.into_inner().clone())
+    }
+
+    /// Isi templat bawaan lalu muat semua templat dari DB. Tabel belum ada
+    /// (migrasi 029) → templat bawaan dari berkas saja.
+    pub async fn reload_templat(&self, seed: bool) {
+        if seed {
+            match super::repo::seed_templates(&self.pool, &super::templat::builtins()).await {
+                Ok(0) => {}
+                Ok(n) => tracing::info!(n, "templat bawaan diperbarui di theme_templates"),
+                Err(e) => tracing::warn!(error = %format!("{e:#}"), "theme_templates belum ada — jalankan migration/029_tema_templat.sql"),
+            }
+        }
+        let list = match super::repo::templates(&self.pool).await {
+            Ok(v) if !v.is_empty() => v,
+            Ok(_) => super::templat::builtins(),
+            Err(e) => {
+                tracing::debug!(error = %format!("{e:#}"), "theme_templates belum ada");
+                super::templat::builtins()
+            }
+        };
+        let set = Arc::new(super::templat::TemplatSet::new(list));
+        match self.templat.write() {
+            Ok(mut g) => *g = set,
+            Err(e) => *e.into_inner() = set,
+        }
+    }
+}
+
+pub fn fallback_templat() -> RwLock<Arc<super::templat::TemplatSet>> {
+    RwLock::new(Arc::new(super::templat::TemplatSet::new(super::templat::builtins())))
 }
 
 pub fn fallback_catalog() -> RwLock<Arc<ThemeCatalog>> {

@@ -1,0 +1,124 @@
+/* templat/tata.css — dasar & PUSTAKA GERAK bersama semua tema templat.
+ *
+ * Templat cukup menulis atribut; keyframe & transisinya ada di sini (dan
+ * templat boleh menambah keyframe sendiri di CSS-nya dengan nama t-<nama>):
+ *
+ *   data-a="<nama>"   animasi masuk sekali: fadeIn fadeInUp fadeInDown fadeInLeft
+ *                     fadeInRight zoomIn zoomOut rotateIn rotateInDownLeft
+ *                     rotateInDownRight rotateInUpLeft rotateInUpRight slideInUp
+ *                     flipInX bounceIn  (data-ad = jeda ms, data-at = durasi ms)
+ *   data-s="<nama>"   gerak gulir yang diulang: atas bawah kiri kanan zoom-in
+ *                     zoom-out putar
+ *   data-idle="<nama>" gerak diam berulang: ayun melayang denyut putar kedip goyang
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { margin: 0; overflow-x: hidden; }
+img, video { max-width: 100%; display: block; }
+button { font: inherit; color: inherit; cursor: pointer; }
+input, textarea, select { font: inherit; }
+[hidden] { display: none !important; }
+
+/* Gerbang tertutup → halaman tak bisa digulir. */
+.t-gated:not(.t-open) body { overflow: hidden; height: 100svh; }
+
+/* ── Animasi masuk ─────────────────────────────────────────────────────── */
+.t-js [data-a] { opacity: 0; }
+.t-js [data-a].a-in {
+    opacity: 1;
+    animation-duration: var(--a-t, 1250ms);
+    animation-delay: var(--a-d, 0ms);
+    animation-fill-mode: both;
+    animation-timing-function: var(--a-ease, cubic-bezier(.25, .8, .35, 1));
+}
+[data-a=fadeIn].a-in { animation-name: t-fadeIn; }
+[data-a=fadeInUp].a-in { animation-name: t-fadeInUp; }
+[data-a=fadeInDown].a-in { animation-name: t-fadeInDown; }
+[data-a=fadeInLeft].a-in { animation-name: t-fadeInLeft; }
+[data-a=fadeInRight].a-in { animation-name: t-fadeInRight; }
+[data-a=zoomIn].a-in { animation-name: t-zoomIn; }
+[data-a=zoomOut].a-in { animation-name: t-zoomOut; }
+[data-a=rotateIn].a-in { animation-name: t-rotateIn; }
+[data-a=rotateInDownLeft].a-in { animation-name: t-rotateInDownLeft; }
+[data-a=rotateInDownRight].a-in { animation-name: t-rotateInDownRight; }
+[data-a=rotateInUpLeft].a-in { animation-name: t-rotateInUpLeft; }
+[data-a=rotateInUpRight].a-in { animation-name: t-rotateInUpRight; }
+[data-a=slideInUp].a-in { animation-name: t-slideInUp; }
+[data-a=flipInX].a-in { animation-name: t-flipInX; }
+[data-a=bounceIn].a-in { animation-name: t-bounceIn; }
+
+@keyframes t-fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes t-fadeInUp { from { opacity: 0; transform: translate3d(0, 40px, 0); } to { opacity: 1; transform: none; } }
+@keyframes t-fadeInDown { from { opacity: 0; transform: translate3d(0, -40px, 0); } to { opacity: 1; transform: none; } }
+@keyframes t-fadeInLeft { from { opacity: 0; transform: translate3d(-40px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes t-fadeInRight { from { opacity: 0; transform: translate3d(40px, 0, 0); } to { opacity: 1; transform: none; } }
+@keyframes t-zoomIn { from { opacity: 0; transform: scale3d(.3, .3, .3); } 50% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes t-zoomOut { from { opacity: 0; transform: scale3d(1.35, 1.35, 1); } to { opacity: 1; transform: none; } }
+@keyframes t-rotateIn { from { opacity: 0; transform: rotate(-200deg); } to { opacity: 1; transform: none; } }
+@keyframes t-rotateInDownLeft { from { opacity: 0; transform-origin: left bottom; transform: rotate(-45deg); } to { opacity: 1; transform-origin: left bottom; transform: none; } }
+@keyframes t-rotateInDownRight { from { opacity: 0; transform-origin: right bottom; transform: rotate(45deg); } to { opacity: 1; transform-origin: right bottom; transform: none; } }
+@keyframes t-rotateInUpLeft { from { opacity: 0; transform-origin: left bottom; transform: rotate(45deg); } to { opacity: 1; transform-origin: left bottom; transform: none; } }
+@keyframes t-rotateInUpRight { from { opacity: 0; transform-origin: right bottom; transform: rotate(-90deg); } to { opacity: 1; transform-origin: right bottom; transform: none; } }
+@keyframes t-slideInUp { from { transform: translate3d(0, 100%, 0); visibility: visible; } to { transform: none; } }
+@keyframes t-flipInX { from { opacity: 0; transform: perspective(400px) rotateX(90deg); } 60% { opacity: 1; transform: perspective(400px) rotateX(-10deg); } to { transform: perspective(400px); } }
+@keyframes t-bounceIn { 0% { opacity: 0; transform: scale3d(.3, .3, .3); } 40% { transform: scale3d(1.06, 1.06, 1.06); } 70% { opacity: 1; transform: scale3d(.97, .97, .97); } to { opacity: 1; transform: none; } }
+
+/* ── Gerak gulir (diulang saat digulir naik-turun) ─────────────────────── */
+.t-js [data-s] {
+    transition: transform var(--s-t, 1.5s) var(--s-ease, cubic-bezier(.2, .7, .2, 1)), opacity var(--s-t, 1.5s) ease;
+    opacity: 0;
+}
+.t-js [data-s=atas] { transform: translateY(min(50%, 140px)); }
+.t-js [data-s=bawah] { transform: translateY(max(-50%, -140px)); }
+.t-js [data-s=kiri] { transform: translateX(-100%) scale(.93); }
+.t-js [data-s=kanan] { transform: translateX(100%) scale(.93); }
+.t-js [data-s=zoom-in] { transform: scale(.9); }
+.t-js [data-s=zoom-out] { transform: scale(1.1); }
+.t-js [data-s=putar] { transform: rotate(-180deg); }
+.t-js [data-s].s-in { opacity: 1; transform: none; }
+
+/* ── Gerak diam berulang ───────────────────────────────────────────────── */
+[data-idle=ayun] { animation: t-ayun 5s ease-in-out infinite alternate; transform-origin: var(--poros, 50% 0); }
+[data-idle=goyang] { animation: t-goyang 6s ease-in-out infinite; transform-origin: var(--poros, 50% 100%); }
+[data-idle=melayang] { animation: t-melayang 6s ease-in-out infinite; }
+[data-idle=denyut] { animation: t-denyut 3s ease-in-out infinite; }
+[data-idle=putar] { animation: t-putar 40s linear infinite; }
+[data-idle=kedip] { animation: t-kedip 2.4s ease-in-out infinite; }
+@keyframes t-ayun { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+@keyframes t-goyang { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(1.6deg); } 70% { transform: rotate(-1.2deg); } }
+@keyframes t-melayang { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes t-denyut { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes t-putar { to { transform: rotate(360deg); } }
+@keyframes t-kedip { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+/* Ilustrasi beranimasi masuk SEKALIGUS bergerak diam: bungkus luar data-a,
+   gambar di dalam data-idle — dua transform tak saling menimpa. */
+
+/* ── Slideshow foto: silang-pudar + Ken Burns ──────────────────────────── */
+[data-slides] { position: relative; overflow: hidden; }
+[data-slides] > img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    opacity: 0; transition: opacity 3s ease;
+}
+[data-slides] > img:first-child { position: relative; }
+[data-slides] > img.is-on { opacity: 1; animation: t-kenburns 9s ease-out both; }
+@keyframes t-kenburns { from { transform: scale(1); } to { transform: scale(1.12); } }
+
+/* ── Foto layar penuh ──────────────────────────────────────────────────── */
+.t-lightbox {
+    position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+    background: rgba(0, 0, 0, .88); padding: 16px; cursor: zoom-out;
+    animation: t-fadeIn .3s both;
+}
+.t-lightbox img { max-height: 92svh; width: auto; border-radius: 6px; animation: t-zoomOut .45s both; }
+
+/* ── Pratinjau katalog & perangkat lemah ───────────────────────────────── */
+.t-pv [data-music-toggle] { display: none; }
+.t-lite [data-idle], .t-lite [data-slides] > img.is-on { animation: none; }
+.t-instant [data-gate] { transition: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+    .t-js [data-a], .t-js [data-s] { opacity: 1; transform: none; transition: none; animation: none !important; }
+    [data-idle], [data-slides] > img.is-on { animation: none; }
+    html { scroll-behavior: auto; }
+}

@@ -1860,3 +1860,123 @@ pub async fn owner_delete_story(
         }
     }
 }
+
+// ── Tema templat (/admin/templat, migrasi 029) ─────────────────────────────
+
+fn parse_assets(raw: &str) -> Result<std::collections::BTreeMap<String, String>, String> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Ok(Default::default());
+    }
+    let m: std::collections::BTreeMap<String, String> =
+        serde_json::from_str(raw).map_err(|e| format!("Aset harus JSON {{\"kunci\": \"/img/…\"}}: {e}"))?;
+    for (k, v) in &m {
+        if k.is_empty() || k.len() > 40 || !k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err(format!("Kunci aset \"{k}\" hanya boleh huruf/angka/garis bawah."));
+        }
+        if !super::templat::check_asset(v) {
+            return Err(format!("Aset {k}: alamat harus /lokal atau https://…"));
+        }
+    }
+    Ok(m)
+}
+
+/// POST /admin/templat/simpan — buat / sunting templat (HTML, CSS, font, aset).
+pub async fn admin_save_templat(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let get = |k: &str| f.get(k).map(|v| v.replace("\r\n", "\n")).unwrap_or_default();
+    let slug = fmt::key(&get("slug"));
+    let back = format!("/admin/templat#tpl-{slug}");
+    if slug.is_empty() || slug.len() > 40 {
+        return to("/admin/templat", "galat", "Kode templat wajib diisi (huruf kecil, angka, tanda minus).");
+    }
+    let t = super::templat::Templat {
+        slug: slug.clone(),
+        name: fmt::clean(&get("name"), 80),
+        html: get("html"),
+        css: get("css"),
+        fonts: get("fonts").trim().to_string(),
+        assets: match parse_assets(&get("assets")) {
+            Ok(m) => m,
+            Err(e) => return to(&back, "galat", &e),
+        },
+        ..Default::default()
+    };
+    if t.name.is_empty() {
+        return to(&back, "galat", "Nama templat wajib diisi.");
+    }
+    if let Err(e) = super::templat::check_html(&t.html).and_then(|_| super::templat::check_css(&t.css)) {
+        return to(&back, "galat", &e);
+    }
+    if !super::templat::check_fonts(&t.fonts) {
+        return to(&back, "galat", "Font: isi nilai family= Google Fonts, mis. Pinyon+Script&family=Cormorant+Infant:wght@400;600");
+    }
+    if let Err(e) = repo::save_template(&state.pool, &t).await {
+        tracing::error!(error = %format!("{e:#}"), "admin: simpan templat");
+        return to(&back, "galat", "Gagal menyimpan — sudah menjalankan migration/029_tema_templat.sql?");
+    }
+    state.reload_templat(false).await;
+    to(&back, "ok", "Templat tersimpan.")
+}
+
+/// POST /admin/templat/{bawaan|pasang}
+pub async fn admin_templat_action(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(aksi): Path<String>,
+    headers: axum::http::HeaderMap,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    let get = |k: &str| f.get(k).map(|v| v.replace("\r\n", "\n")).unwrap_or_default();
+    match aksi.as_str() {
+        "bawaan" => {
+            let slug = get("slug");
+            let back = format!("/admin/templat#tpl-{slug}");
+            match repo::reset_template(&state.pool, &slug).await {
+                Ok(1) => {
+                    state.reload_templat(true).await;
+                    to(&back, "ok", "Templat dikembalikan ke isi bawaan.")
+                }
+                Ok(_) => to(&back, "galat", "Bukan templat bawaan."),
+                Err(e) => {
+                    tracing::error!(error = %format!("{e:#}"), "admin: reset templat");
+                    to(&back, "galat", "Gagal — sudah menjalankan migration/029_tema_templat.sql?")
+                }
+            }
+        }
+        "pasang" => {
+            let theme = get("theme");
+            let template = get("template");
+            let back = format!("/admin/templat#tema-{theme}");
+            if state.themes().get(&theme).is_none() {
+                return to("/admin/templat", "galat", "Tema tidak ditemukan.");
+            }
+            if !template.is_empty() && state.templat().get(&template).is_none() {
+                return to(&back, "galat", "Templat tidak ditemukan.");
+            }
+            let assets = match parse_assets(&get("assets")) {
+                Ok(m) => m,
+                Err(e) => return to(&back, "galat", &e),
+            };
+            let css = get("css");
+            if let Err(e) = super::templat::check_css(&css) {
+                return to(&back, "galat", &e);
+            }
+            if let Err(e) = repo::set_theme_template(&state.pool, &theme, &template, &assets, &css).await {
+                tracing::error!(error = %format!("{e:#}"), "admin: pasang templat");
+                return to(&back, "galat", "Gagal — sudah menjalankan migration/029_tema_templat.sql?");
+            }
+            state.refresh_themes().await;
+            to(&back, "ok", if template.is_empty() { "Tema kembali memakai tampilan komponen bawaan." } else { "Templat terpasang di tema." })
+        }
+        _ => to("/admin/templat", "galat", "Aksi tidak dikenal."),
+    }
+}

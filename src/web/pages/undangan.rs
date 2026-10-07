@@ -6,6 +6,7 @@
 
 use leptos::either::Either;
 use leptos::prelude::*;
+use crate::web::skeleton::*;
 use leptos_meta::{Meta, Title};
 use leptos_router::components::{Outlet, A};
 use leptos_router::hooks::{use_location, use_params_map, use_query_map};
@@ -50,7 +51,7 @@ pub fn InvitationLayout() -> impl IntoView {
         |(slug, g, k, tema)| get_invitation(slug, g, k, tema),
     );
     view! {
-        <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+        <Suspense fallback=|| view! { <SkelInvitation /> }>
             {move || res.get().map(|r| match r {
                 Ok(page) => {
                     let q = query.read_untracked();

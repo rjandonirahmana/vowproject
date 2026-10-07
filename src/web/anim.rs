@@ -258,7 +258,7 @@ pub fn origin_of(u: &str) -> Option<String> {
 /// Periksa semua `url(…)`: path lokal, `data:image/`, atau asal milik sendiri.
 /// Pratinjau WASM (daftar asal tak diisi) menerima http(s) — server tetap
 /// memeriksa saat menyimpan dan saat merender /tema.css.
-fn check_css_urls(css: &str) -> Result<(), String> {
+pub fn check_css_urls(css: &str) -> Result<(), String> {
     let low = css.to_ascii_lowercase();
     let mut from = 0;
     while let Some(i) = low[from..].find("url(") {

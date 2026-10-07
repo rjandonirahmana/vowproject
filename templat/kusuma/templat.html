@@ -1,0 +1,319 @@
+{#- ═════════════════════════════════════════════════════════════════════════
+    Kusuma — templat undangan Jawa bergaya "3D Motion".
+
+    Susunan & koreografi meniru undangan Jawa everlove (m07, dibedah Okt 2026):
+    sampul naik → video pintu gebyok → latar video berulang; tiap bagian masuk
+    dengan gerak sendiri (data-a sekali, data-s diulang saat digulir).
+    Semua aset milik sendiri — dipanggil lewat {{ a.kunci }} (meta.json),
+    tema boleh menimpanya (themes.template_assets).
+    Data & atribut gerak: templat/README.md.
+    ═════════════════════════════════════════════════════════════════════════ -#}
+
+{%- macro sudut(src) -%}
+<img class="k-sudut k-sudut--tl" src="{{ src }}" alt="" aria-hidden="true">
+<img class="k-sudut k-sudut--tr" src="{{ src }}" alt="" aria-hidden="true">
+<img class="k-sudut k-sudut--bl" src="{{ src }}" alt="" aria-hidden="true">
+<img class="k-sudut k-sudut--br" src="{{ src }}" alt="" aria-hidden="true">
+{%- endmacro -%}
+
+{%- macro bunga_sudut(src, gerak) -%}
+<span class="k-bunga k-bunga--l" aria-hidden="true" {% if gerak == 'a' %}data-a="rotateInDownLeft" data-ad="500"{% else %}data-s="kiri"{% endif %}><img src="{{ src }}" alt="" data-idle="ayun"></span>
+<span class="k-bunga k-bunga--r" aria-hidden="true" {% if gerak == 'a' %}data-a="rotateInDownRight" data-ad="500"{% else %}data-s="kanan"{% endif %}><img src="{{ src }}" alt="" data-idle="ayun"></span>
+{%- endmacro -%}
+
+{%- macro orang(p, peran, bunga) -%}
+<article class="k-person k-person--{{ peran }}">
+  <div class="k-capsule" data-a="zoomIn" data-ad="300">
+    {%- if p.photo %}
+    <img class="k-capsule__img" src="{{ p.photo|foto }}" style="{{ p.photo|pos }}" alt="{{ p.name }}" loading="lazy" data-zoom>
+    {%- else %}
+    <span class="k-capsule__mono">{{ p.initial }}</span>
+    {%- endif %}
+  </div>
+  <span class="k-capsule__bunga" aria-hidden="true" data-a="rotateInDownRight" data-ad="1000"><img src="{{ bunga }}" alt=""></span>
+  <h3 class="k-script k-person__nick" data-s="atas">{{ p.first }}</h3>
+  <p class="k-person__name" data-s="atas">{{ p.name }}{% if p.degree %}, {{ p.degree }}{% endif %}</p>
+  {%- if p.parents %}
+  <p class="k-person__parents" data-s="atas">
+    {%- if not (p.parents|lower is startingwith("putr")) %}<span>{{ "Putri dari" if peran == "wanita" else "Putra dari" }}</span>{% endif %}
+    {{ p.parents }}
+  </p>
+  {%- endif %}
+  {%- if p.ig %}
+  <a class="k-ig" href="https://instagram.com/{{ p.ig }}" target="_blank" rel="noopener" data-s="zoom-in">@{{ p.ig }}</a>
+  {%- endif %}
+</article>
+{%- endmacro %}
+
+<div class="k-bg" aria-hidden="true">
+  {%- if a.latar_video %}
+  <video data-bg-video data-loop-from="2.6" src="{{ a.latar_video }}" poster="{{ a.latar_poster }}" muted playsinline preload="none"></video>
+  {%- else %}
+  <div></div>
+  {%- endif %}
+</div>
+
+{#- ── Desktop: panel kiri tetap (seperti everlove), undangan di kolom kanan ── #}
+<aside class="k-side" aria-hidden="true" data-pre>
+  <span class="k-side__pohon k-side__pohon--l" data-a="fadeInLeft" data-at="1800"><img src="{{ a.pohon_kiri }}" alt="" data-idle="goyang"></span>
+  <span class="k-side__pohon k-side__pohon--r" data-a="fadeInRight" data-at="1800"><img src="{{ a.pohon_kanan }}" alt="" data-idle="goyang"></span>
+  <span class="k-side__wayang k-side__wayang--l" data-a="fadeInUp" data-ad="600" data-at="1600"><img src="{{ a.wayang_kiri }}" alt="" data-idle="goyang"></span>
+  <span class="k-side__wayang k-side__wayang--r" data-a="fadeInUp" data-ad="800" data-at="1600"><img src="{{ a.wayang_kanan }}" alt="" data-idle="goyang"></span>
+  <div class="k-side__text">
+    <span class="k-mask k-side__gunungan" style="--m:url('{{ a.gunungan }}')" data-a="zoomIn"></span>
+    <p class="k-script k-side__eyebrow" data-a="zoomIn" data-ad="300">The Wedding Of</p>
+    <p class="k-side__names" data-a="zoomIn" data-ad="600">{{ bride.first }} &amp; {{ groom.first }}</p>
+    <p class="k-side__date" data-a="fadeInUp" data-ad="900">{{ date_label }}</p>
+  </div>
+</aside>
+
+{#- ── SAMPUL (gerbang) ─────────────────────────────────────────────────── #}
+<section class="k-cover" data-gate aria-label="Sampul undangan">
+  <div class="k-cover__frame">
+    <span class="k-cover__pohon k-cover__pohon--l" aria-hidden="true" data-a="rotateInDownLeft" data-ad="600"><img src="{{ a.pohon_kiri }}" alt="" data-idle="goyang"></span>
+    <span class="k-cover__pohon k-cover__pohon--r" aria-hidden="true" data-a="rotateInDownRight" data-ad="1400"><img src="{{ a.pohon_kanan }}" alt="" data-idle="goyang"></span>
+    <p class="k-script k-cover__eyebrow" data-a="zoomIn">The Wedding Of</p>
+    <div class="k-cover__arch" data-a="zoomIn" data-ad="300">
+      {%- if cover_photo %}
+      <div class="k-slides" data-slides="5000">
+        <img src="{{ cover_photo|foto }}" style="{{ cover_photo|pos }}" alt="{{ couple }}" fetchpriority="high">
+        {%- if gallery %}<img src="{{ gallery[0]|foto }}" style="{{ gallery[0]|pos }}" alt="" loading="lazy">{% endif %}
+      </div>
+      {%- else %}
+      <div class="k-mono"><span>{{ bride.initial }}</span><i>&amp;</i><span>{{ groom.initial }}</span></div>
+      {%- endif %}
+    </div>
+    <h1 class="k-cover__names" data-a="fadeInUp" data-ad="800">{{ bride.first }} &amp; {{ groom.first }}</h1>
+    <p class="k-cover__to" data-a="fadeInUp" data-ad="1000">Kepada Yth.<br>Bapak/Ibu/Saudara/i</p>
+    <p class="k-cover__guest" data-a="fadeInUp" data-ad="1400">{{ tamu }}</p>
+    {%- if guest and guest.vip %}<p class="k-chip" data-a="fadeInUp" data-ad="1500">Tamu Spesial</p>{% endif %}
+    <p class="k-cover__note" data-a="fadeInUp" data-ad="1800">*Mohon maaf apabila ada kesalahan penulisan nama/gelar</p>
+    <button type="button" class="k-btn" data-open data-a="zoomIn" data-ad="2200">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5 12 3l9 5.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m3 9 9 6 9-6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      Buka Undangan
+    </button>
+  </div>
+</section>
+{%- if a.buka_video %}
+<video class="k-door" data-open-video src="{{ a.buka_video }}" muted playsinline preload="auto" aria-hidden="true"></video>
+{%- endif %}
+
+<main class="k-main">
+
+  {#- ── 1. Pembuka di atas video latar ───────────────────────────────────── #}
+  <section class="k-hero" id="sampul">
+    <span class="k-mask k-hero__gunungan" style="--m:url('{{ a.gunungan }}')" aria-hidden="true" data-a="zoomIn"></span>
+    <p class="k-script k-hero__eyebrow" data-a="zoomIn">The Wedding Of</p>
+    <h2 class="k-hero__names" data-a="zoomIn" data-ad="400">{{ bride.first }}<i>&amp;</i>{{ groom.first }}</h2>
+    <p class="k-hero__date" data-a="zoomIn" data-ad="800">{{ date_num }}</p>
+    <span class="k-hero__wayang k-hero__wayang--l" aria-hidden="true" data-a="fadeInLeft" data-ad="900" data-at="1600"><img src="{{ a.wayang_kiri }}" alt="" data-idle="goyang"></span>
+    <span class="k-hero__wayang k-hero__wayang--r" aria-hidden="true" data-a="fadeInRight" data-ad="900" data-at="1600"><img src="{{ a.wayang_kanan }}" alt="" data-idle="goyang"></span>
+    <a class="k-scroll" href="#ayat" data-a="fadeInDown" data-ad="1200"><span></span>Gulir ke bawah</a>
+  </section>
+
+  {#- ── 2. Monogram & ayat ──────────────────────────────────────────────── #}
+  <section class="k-panel k-panel--taupe k-quote" id="ayat">
+    {{ bunga_sudut(a.bunga, 's') }}
+    <div class="k-mono k-mono--big" data-s="zoom-in"><span>{{ bride.initial }}</span><i>&amp;</i><span>{{ groom.initial }}</span></div>
+    <blockquote data-s="atas">“{{ quote.text or "Dan di antara tanda-tanda kebesaran-Nya ialah Dia menciptakan pasangan-pasangan untukmu dari jenismu sendiri, agar kamu cenderung dan merasa tenteram kepadanya, dan Dia menjadikan di antaramu rasa kasih dan sayang." }}”</blockquote>
+    <cite data-s="atas">{{ quote.source or "Q.S. Ar-Rum : 21" }}</cite>
+    <span class="k-mask k-quote__awan" style="--m:url('{{ a.awan }}')" aria-hidden="true" data-s="atas"></span>
+  </section>
+
+  {#- ── 3. Mempelai ─────────────────────────────────────────────────────── #}
+  <section class="k-panel k-panel--arch k-couple" id="mempelai">
+    <h2 class="k-title" data-a="zoomIn">Bride &amp; Groom</h2>
+    <p class="k-lead" data-s="atas"><b>Assalamu’alaikum Warahmatullahi Wabarakatuh</b><br>Maha Suci Allah yang telah menciptakan makhluk-Nya berpasang-pasangan. Ya Allah, semoga ridho-Mu tercurah mengiringi pernikahan kami.</p>
+    {{ orang(bride, "wanita", a.bunga) }}
+    <p class="k-amp" data-a="zoomIn" aria-hidden="true">&amp;</p>
+    {{ orang(groom, "pria", a.bunga) }}
+  </section>
+
+  {#- ── 4. Save the date ────────────────────────────────────────────────── #}
+  {%- if countdown_ms %}
+  <section class="k-panel k-panel--taupe k-save">
+    {{ bunga_sudut(a.bunga, 'a') }}
+    <h2 class="k-title k-title--light" data-s="atas">Save The Date</h2>
+    <p class="k-save__date" data-s="atas">{{ date_label }}</p>
+    <div class="k-count" data-countdown="{{ countdown_ms }}" data-s="atas">
+      <span><b data-cd="d">00</b><small>Hari</small></span>
+      <span><b data-cd="h">00</b><small>Jam</small></span>
+      <span><b data-cd="m">00</b><small>Menit</small></span>
+      <span><b data-cd="s">00</b><small>Detik</small></span>
+    </div>
+    {%- if calendar_url %}
+    <a class="k-btn k-btn--light" href="{{ calendar_url }}" target="_blank" rel="noopener" data-s="atas">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.6"/></svg>
+      Simpan Tanggal
+    </a>
+    {%- endif %}
+  </section>
+  {%- endif %}
+
+  {#- ── 5. Rangkaian acara ──────────────────────────────────────────────── #}
+  <section class="k-acara" id="acara">
+    <span class="k-acara__pendopo" aria-hidden="true" data-s="zoom-in"><span class="k-mask" style="--m:url('{{ a.pendopo }}')"></span></span>
+    {%- for e in events %}
+    <article class="k-event" data-s="zoom-in">
+      <span class="k-mask k-event__ukir k-event__ukir--t" style="--m:url('{{ a.ukir }}')" aria-hidden="true"></span>
+      <span class="k-mask k-event__ukir k-event__ukir--b" style="--m:url('{{ a.ukir }}')" aria-hidden="true"></span>
+      {{ sudut(a.sudut) }}
+      <h3 class="k-event__title">{{ e.title }}</h3>
+      <hr class="k-event__rule">
+      {%- if e.day_name %}<p class="k-script k-event__dayname">{{ e.day_name }}</p>{% endif %}
+      <p class="k-event__day">{{ e.day }}</p>
+      <p class="k-event__month">{{ e.month_year }}</p>
+      <p class="k-event__time"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>{{ e.time_label }}</p>
+      {%- for s in e.sessions %}<p class="k-event__session">{{ s.label }} · {{ s.time }}</p>{% endfor %}
+      <p class="k-event__label">Lokasi Acara</p>
+      <p class="k-event__venue"><b>{{ e.venue }}</b>{% if e.address %}<br>{{ e.address }}{% endif %}</p>
+      <a class="k-btn k-btn--sm" href="{{ e.maps }}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="9.8" r="2.3" fill="currentColor"/></svg>
+        Google Maps
+      </a>
+    </article>
+    {%- endfor %}
+
+    {%- if dress_code or dress_colors or live_url %}
+    <div class="k-panel k-panel--plain k-extra" data-s="atas">
+      {%- if dress_code or dress_colors %}
+      <h3 class="k-title k-title--sm">Dresscode</h3>
+      {%- if dress_code %}<p>{{ dress_code }}</p>{% endif %}
+      {%- if dress_colors %}
+      <p class="k-dots">{% for c in dress_colors %}<span style="background:{{ c.hex }}" title="{{ c.name }}"></span>{% endfor %}</p>
+      {%- endif %}
+      {%- endif %}
+      {%- if live_url %}
+      <h3 class="k-title k-title--sm">Live Streaming</h3>
+      <p>Temui kami secara virtual untuk menyaksikan acara pernikahan kami.</p>
+      <a class="k-btn k-btn--sm" href="{{ live_url }}" target="_blank" rel="noopener">Lihat Live Streaming</a>
+      {%- endif %}
+    </div>
+    {%- endif %}
+  </section>
+
+  {#- ── 6. Kisah cinta ──────────────────────────────────────────────────── #}
+  {%- if love_story %}
+  <section class="k-story" id="kisah">
+    <h2 class="k-title k-title--light" data-s="atas">Love Story</h2>
+    <ol class="k-timeline">
+      {%- for s in love_story %}
+      {%- set img = s.img or (gallery[loop.index % (gallery|length)] if gallery else "") %}
+      <li class="k-timeline__item" data-s="zoom-in">
+        {%- if img %}<img src="{{ img|foto }}" style="{{ img|pos }}" alt="" loading="lazy" data-zoom>{% endif %}
+        <div>
+          {%- if s.year %}<p class="k-timeline__when">{{ s.year }}</p>{% endif %}
+          <h3>{{ s.title }}</h3>
+          <p>{{ s.text }}</p>
+        </div>
+      </li>
+      {%- endfor %}
+    </ol>
+  </section>
+  {%- endif %}
+
+  {#- ── 7. Video prewedding ─────────────────────────────────────────────── #}
+  {%- if video_url %}
+  <section class="k-video" data-s="zoom-in">
+    <video src="{{ video_url|foto }}" controls playsinline preload="none" poster="{{ cover_photo|foto }}"></video>
+  </section>
+  {%- endif %}
+
+  {#- ── 8. Galeri ───────────────────────────────────────────────────────── #}
+  {%- if gallery %}
+  <section class="k-gallery" id="galeri">
+    <h2 class="k-title k-title--light" data-s="atas">Our Moments</h2>
+    <div class="k-grid">
+      {%- for g in gallery %}
+      <img src="{{ g|foto }}" style="{{ g|pos }}" alt="Momen {{ loop.index }}" loading="lazy" data-zoom data-s="zoom-in">
+      {%- endfor %}
+    </div>
+  </section>
+  {%- endif %}
+
+  {#- ── 9. Tanda kasih ──────────────────────────────────────────────────── #}
+  {%- if banks or gift_address %}
+  <section class="k-panel k-panel--arch k-gift" id="hadiah">
+    <h2 class="k-title" data-s="atas">Wedding Gift</h2>
+    <p class="k-lead" data-s="atas">Doa restu Anda merupakan karunia yang sangat berarti bagi kami. Dan jika memberi adalah ungkapan tanda kasih, Anda dapat memberi melalui di bawah ini.</p>
+    {%- for b in banks %}
+    <div class="k-card" data-s="zoom-in">
+      <p class="k-card__bank">{{ b.bank }}</p>
+      <span class="k-card__chip" aria-hidden="true"></span>
+      <p class="k-card__label">No. Rekening</p>
+      <p class="k-card__num">{{ b.number }}</p>
+      <p class="k-card__label">Atas Nama</p>
+      <p class="k-card__holder">{{ b.holder }}</p>
+      <button type="button" class="k-copy" data-copy="{{ b.number }}"><span data-copy-label>Salin</span></button>
+    </div>
+    {%- endfor %}
+    {%- if gift_address %}
+    <div class="k-card k-card--kado" data-s="zoom-in">
+      <p class="k-card__bank">Kirim Kado</p>
+      <p class="k-card__label">Alamat Penerima</p>
+      <p class="k-card__addr">{{ gift_address }}</p>
+      <button type="button" class="k-copy" data-copy="{{ gift_address }}"><span data-copy-label>Salin</span></button>
+    </div>
+    {%- endif %}
+  </section>
+  {%- endif %}
+
+  {#- ── 10. Ucapan & RSVP ───────────────────────────────────────────────── #}
+  <section class="k-panel k-panel--arch k-wish" id="ucapan">
+    {{ bunga_sudut(a.bunga, 'a') }}
+    <h2 class="k-title" data-s="atas">Wishes</h2>
+    <p class="k-lead" data-s="atas">Berikan doa dan ucapan terbaik untuk kami.</p>
+    {%- if is_demo %}<p class="k-note">Ini undangan demo — kiriman hanya contoh dan tidak disimpan.</p>{% endif %}
+    <form class="k-form" method="post" action="{{ rsvp_action }}" data-rsvp data-s="zoom-out">
+      <input type="hidden" name="guest" value="{{ guest_code }}">
+      <label class="k-field"><span>Nama</span><input name="name" required maxlength="80" value="{{ prefill_name }}" autocomplete="name"></label>
+      <label class="k-field"><span>Ucapan &amp; doa</span><textarea name="message" maxlength="600" rows="3"></textarea></label>
+      <fieldset class="k-radio">
+        <legend>Konfirmasi Kehadiran</legend>
+        <label><input type="radio" name="status" value="hadir" required><span>Hadir</span></label>
+        <label><input type="radio" name="status" value="tidak"><span>Tidak Hadir</span></label>
+      </fieldset>
+      <div class="k-form__row">
+        <label class="k-field"><span>Jumlah tamu</span>
+          <select name="pax">{% for n in range(1, 6) %}<option value="{{ n }}">{{ n }} orang</option>{% endfor %}</select>
+        </label>
+        {%- if sessions|length > 1 %}
+        <label class="k-field"><span>Sesi</span>
+          <select name="session">{% for s in sessions %}<option>{{ s }}</option>{% endfor %}</select>
+        </label>
+        {%- endif %}
+      </div>
+      <button class="k-btn k-btn--block" type="submit">Kirim</button>
+      <p class="k-form__msg" data-rsvp-msg role="status" hidden></p>
+    </form>
+    <p class="k-wish__count"><b data-wish-total>{{ wish_total }}</b> ucapan</p>
+    <ul class="k-wishes" data-wishes>
+      {%- for w in wishes %}
+      <li class="k-wishitem"><b>{{ w.name }}</b> <small>{{ w.status }}</small><p>{{ w.message }}</p><time>{{ w.ago }}</time></li>
+      {%- endfor %}
+    </ul>
+    {%- if not wishes %}<p class="k-empty" data-wishes-empty>Jadilah yang pertama memberi ucapan.</p>{% endif %}
+    <template id="wish-tpl"><li class="k-wishitem"><b data-f="name"></b> <small data-f="status"></small><p data-f="message"></p><time data-f="ago"></time></li></template>
+    <a class="k-story-link" href="{{ story_url }}">Lihat &amp; bagikan Story Tamu →</a>
+  </section>
+
+  {#- ── 11. Terima kasih ────────────────────────────────────────────────── #}
+  <section class="k-thanks">
+    <span class="k-thanks__bunga k-thanks__bunga--l" aria-hidden="true" data-a="zoomIn" data-ad="300"><img src="{{ a.bunga }}" alt=""></span>
+    <span class="k-thanks__bunga k-thanks__bunga--r" aria-hidden="true" data-a="zoomIn" data-ad="600"><img src="{{ a.bunga }}" alt=""></span>
+    <h2 class="k-title" data-s="atas">Terima Kasih</h2>
+    <p data-s="atas">Merupakan suatu kebahagiaan dan kehormatan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.</p>
+    <p class="k-thanks__by" data-s="atas">Kami yang berbahagia</p>
+    <p class="k-script k-thanks__names" data-s="zoom-in">{{ bride.first }} &amp; {{ groom.first }}</p>
+    {%- if family_name %}<p class="k-thanks__family" data-s="atas">{{ family_name }}</p>{% endif %}
+  </section>
+
+  <footer class="k-foot">Undangan digital oleh <a href="/">{{ brand }}</a></footer>
+</main>
+
+{%- if music.url %}
+<button class="k-music" type="button" data-music-toggle aria-label="Putar / jeda musik">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".5"/></svg>
+</button>
+<audio data-music src="{{ music.url }}" loop preload="none"></audio>
+{%- endif %}

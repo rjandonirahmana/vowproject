@@ -23,5 +23,6 @@ pub mod model;
 pub mod ornamen;
 pub mod pages;
 pub mod seo;
+pub mod skeleton;
 pub mod skin;
 pub mod themes;

@@ -8,6 +8,7 @@
 
 use leptos::either::Either;
 use leptos::prelude::*;
+use crate::web::skeleton::*;
 use leptos_meta::Title;
 use leptos_router::hooks::{use_params_map, use_query_map};
 
@@ -54,7 +55,7 @@ pub fn KelolaPage() -> impl IntoView {
 
     view! {
         <Title text=concat!("Kelola Undangan — ", crate::brand!()) />
-        <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+        <Suspense fallback=|| view! { <div class="skl-pad"><SkelDashboard /></div> }>
             {move || dash.get().map(|r| match r {
                 Ok(d) => Either::Left(view! { <Dashboard d=d baru=baru() notice=notice() add=add del=del /> }),
                 Err(e) => Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }),
@@ -540,7 +541,7 @@ pub fn ScanPage() -> impl IntoView {
     let key = move || dash.get().and_then(|r| r.ok()).map(|d| d.manage_key).filter(|k| !k.is_empty()).unwrap_or_else(|| key.clone());
     view! {
         <Title text=concat!("Scanner Buku Tamu — ", crate::brand!()) />
-        <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+        <Suspense fallback=|| view! { <div class="skl-pad"><SkelScanner /></div> }>
         {move || { let theme = theme(); let (slug, key, back) = (slug.clone(), key(), back.clone()); view! {
         <div class=format!("inv th-{theme}")>
             <div class="inv__glow" aria-hidden="true"></div>
@@ -608,7 +609,7 @@ fn StoryModeration(slug: String, key: String, demo: bool) -> impl IntoView {
             <p class="muted small">"Ketuk story untuk melihatnya. Story yang kurang pas bisa Anda hapus permanen (foto ikut terhapus) — dari tombol 🗑 di kartu atau di dalam penampil. Pembuat story juga bisa menghapus story-nya sendiri."</p>
             {move || story_notice().map(|(ok, m)| view! { <p class=if ok { "notice notice--ok" } else { "notice notice--err" }>{m}</p> })}
             {move || del.value().get().and_then(|r| r.err()).map(|e| view! { <p class="notice notice--err">{err_msg(&e)}</p> })}
-            <Transition fallback=|| view! { <p class="muted">"Memuat story…"</p> }>
+            <Transition fallback=|| view! { <SkelTiles /> }>
                 {move || stories.get().map(|r| match r {
                     Err(e) => Either::Left(view! { <p class="notice notice--err">{err_msg(&e)}</p> }),
                     Ok(pg) => Either::Right({

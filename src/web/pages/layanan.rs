@@ -6,6 +6,7 @@
 //! sinyal hanya memperkaya (pilihan paket dari `?paket=`, ringkasan live).
 
 use leptos::prelude::*;
+use crate::web::skeleton::*;
 use leptos_router::hooks::use_query_map;
 
 use crate::web::fmt::rupiah;
@@ -26,7 +27,7 @@ pub fn wa_href(layanan: &str) -> String {
 pub fn WithKonten<V: IntoView + 'static>(view: fn(Konten) -> V) -> impl IntoView {
     let k = super::use_konten();
     view! {
-        <Suspense fallback=|| view! { <div class="inv-loading"><div class="spinner"></div></div> }>
+        <Suspense fallback=|| view! { <SkelPage /> }>
             {move || k.get().map(|r| view(r.unwrap_or_default()))}
         </Suspense>
     }

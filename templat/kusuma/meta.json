@@ -1,0 +1,19 @@
+{
+  "name": "Kusuma — Jawa 3D Motion",
+  "fonts": "Pinyon+Script&family=Cormorant+Infant:ital,wght@0,400;0,500;0,600;0,700;1,400",
+  "assets": {
+    "buka_video": "/video/sekar-buka.mp4",
+    "latar_video": "/video/sekar-latar.mp4",
+    "latar_poster": "/video/sekar-latar.jpg",
+    "bunga": "/img/tema/sekar/lili.svg",
+    "pohon_kiri": "/img/tema/sekar/pohon-1.svg",
+    "pohon_kanan": "/img/tema/sekar/pohon-2.svg",
+    "pendopo": "/img/tema/wayang/pendopo.svg",
+    "awan": "/img/tema/sekar/awan.svg",
+    "wayang_kiri": "/img/tema/wayang/wayang-ksatria.svg",
+    "wayang_kanan": "/img/tema/wayang/wayang-putri.svg",
+    "gunungan": "/img/tema/gerak/gunungan.svg",
+    "ukir": "/img/tema/gerak/gebyok-mahkota-ukir.svg",
+    "sudut": "/img/tema/wayang/sudut.svg"
+  }
+}

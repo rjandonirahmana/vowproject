@@ -121,6 +121,7 @@ async fn main() -> Result<()> {
         // 10 pembuatan undangan per IP per jam — tiap kiriman bisa membawa foto & lagu.
         create_limit: security::RateLimit::new(10, std::time::Duration::from_secs(60 * 60)),
         unpaid_ttl_hours: cfg.unpaid_ttl_hours,
+        templat: state::fallback_templat(),
     });
     // Hapus pesanan yang tak dikonfirmasi admin dalam UNPAID_TTL_HOURS (+ file RustFS).
     tokio::spawn(undangan::server::cleanup::run(state.clone()));
@@ -140,6 +141,7 @@ async fn main() -> Result<()> {
         Err(e) => tracing::warn!(error = %format!("{e:#}"), "tabel site_content belum siap (jalankan migration/003_admin_konten.sql) — memakai konten bawaan"),
     }
     state.seed_animations().await;
+    state.reload_templat(true).await;
     match state.reload_themes().await {
         Ok(()) => tracing::info!(n = state.themes().list.len(), "katalog tema dimuat"),
         Err(e) => tracing::warn!(error = %format!("{e:#}"), "tabel themes belum siap (jalankan migration/002_themes.sql) — memakai tema bawaan"),
@@ -164,6 +166,10 @@ async fn main() -> Result<()> {
         .route("/tema.css", axum::routing::get(handlers::theme_css))
         .route("/sitemap.xml", axum::routing::get(handlers::sitemap))
         .route("/app.js", axum::routing::get(handlers::app_js))
+        // Tema templat: mesin gerak bersama + kirim RSVP (server/templat.rs).
+        .route("/tata.js", axum::routing::get(undangan::server::templat::tata_js))
+        .route("/tata.css", axum::routing::get(undangan::server::templat::tata_css))
+        .route("/u/{slug}/rsvp/kirim", axum::routing::post(undangan::server::templat::rsvp_kirim))
         // healthz (di bawah) = proses hidup; readyz = siap melayani (DB menjawab).
         .route("/readyz", axum::routing::get(handlers::readyz))
         .route("/admin/masuk", axum::routing::post(handlers::admin_login))
@@ -181,6 +187,8 @@ async fn main() -> Result<()> {
         .route("/admin/ornamen/{aksi}", axum::routing::post(handlers::admin_ornament_action))
         .route("/admin/banner/simpan", axum::routing::post(handlers::admin_save_banner))
         .route("/admin/banner/{aksi}", axum::routing::post(handlers::admin_banner_action))
+        .route("/admin/templat/simpan", axum::routing::post(handlers::admin_save_templat))
+        .route("/admin/templat/{aksi}", axum::routing::post(handlers::admin_templat_action))
         .route("/admin/lagu/simpan", axum::routing::post(handlers::admin_save_song))
         .route("/admin/lagu/{aksi}", axum::routing::post(handlers::admin_song_action))
         .route("/admin/undangan/simpan", axum::routing::post(handlers::admin_update_invitation))
@@ -224,6 +232,10 @@ async fn main() -> Result<()> {
         .merge(leptos_router)
         // Header keamanan (CSP ber-nonce, nosniff, Referrer-Policy, dll.) SEMUA
         // ditulis server/security.rs `headers` — jangan diduplikasi di sini.
+        // Tema templat: GET /u/{slug} dirender dari HTML di DB (bila temanya
+        // memakai templat). Di DALAM exchange (?k= sudah jadi cookie)
+        // & di dalam kompresi (HTML-nya ikut dikompresi).
+        .layer(axum::middleware::from_fn(undangan::server::templat::serve))
         .layer(tower_http::compression::CompressionLayer::new())
         // Tautan Kelola ?key= / pratinjau ?k= → cookie HttpOnly + 303 ke URL bersih.
         .layer(axum::middleware::from_fn(undangan::server::owner::exchange))

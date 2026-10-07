@@ -563,6 +563,41 @@ pub struct AdminAnim {
     pub used_by: Vec<String>,
 }
 
+/// Tema templat untuk /admin/templat (server/templat.rs, migrasi 029).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AdminTemplat {
+    pub slug: String,
+    pub name: String,
+    pub html: String,
+    pub css: String,
+    pub fonts: String,
+    /// Aset bawaan sebagai JSON rapi (kunci → URL) untuk textarea.
+    pub assets: String,
+    pub builtin: bool,
+    pub edited: bool,
+    /// (slug, nama) tema yang memakai templat ini.
+    pub used_by: Vec<(String, String)>,
+}
+
+/// Tema + pengaturan templatnya (/admin/templat).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TemaTemplat {
+    pub slug: String,
+    pub name: String,
+    pub template: String,
+    pub assets: String,
+    pub css: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AdminTemplatPage {
+    pub templates: Vec<AdminTemplat>,
+    pub themes: Vec<TemaTemplat>,
+}
+
 /// Banner strip di atas beranda (tabel `banners`, dikelola di /admin/banner).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
