@@ -376,6 +376,21 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         }
     }
     tracing::info!(slug = %slug, total, "undangan baru dibuat");
+    // Tautan Kelola ke WA pemesan: satu-satunya kunci dashboard — kalau tab
+    // tertutup sebelum disimpan, pemesan tetap memegangnya di WhatsApp.
+    if let Some(wa) = state.wa.as_ref() {
+        let konten = state.konten();
+        let text = pesan_pesanan_baru(
+            &format!("{} & {}", n.bride.name, n.groom.name),
+            &public_origin(&state, &headers),
+            &slug,
+            &manage_key,
+            total,
+            &konten.pembayaran,
+            state.unpaid_ttl_hours,
+        );
+        wa.spawn_text(n.contact_phone.clone(), text, "pesanan baru → pemesan");
+    }
     Redirect::to(&format!("/kelola/{slug}?key={manage_key}&baru=1")).into_response()
 }
 
@@ -1224,11 +1239,22 @@ pub async fn admin_update_invitation(
         return to(&back, "galat", "Status atau tema tidak valid.");
     }
     match repo::admin_update_invitation(&state.pool, &slug, &status, &theme).await {
-        Ok(true) => {
+        Ok(Some(ub)) => {
             tracing::info!(by = %me.username, slug = %slug, status = %status, theme = %theme, "admin: undangan diperbarui");
-            to(&back, "ok", &format!("/u/{slug} diperbarui."))
+            // Baru diaktifkan → kabari pemesan (hanya saat status BERUBAH ke aktif).
+            let mut info = String::new();
+            if status == "aktif" && ub.lama != "aktif" {
+                match state.wa.as_ref() {
+                    Some(wa) if !ub.contact_phone.is_empty() => {
+                        wa.spawn_text(ub.contact_phone.clone(), pesan_aktif(&ub.couple, &public_origin(&state, &headers), &slug), "undangan aktif → pemesan");
+                        info = " Pemesan dikabari lewat WhatsApp.".into();
+                    }
+                    _ => info = " (WA pemesan tidak dikirim — waxum mati / nomor kosong.)".into(),
+                }
+            }
+            to(&back, "ok", &format!("/u/{slug} diperbarui.{info}"))
         }
-        Ok(false) => to(&back, "galat", "Undangan tidak ditemukan (undangan demo tidak bisa diubah)."),
+        Ok(None) => to(&back, "galat", "Undangan tidak ditemukan (undangan demo tidak bisa diubah)."),
         Err(e) => {
             tracing::error!(error = %format!("{e:#}"), "admin: ubah undangan");
             to(&back, "galat", "Gagal menyimpan perubahan.")
@@ -1254,7 +1280,24 @@ pub async fn admin_reset_key(
         Ok(true) => {
             tracing::info!(by = %me.username, slug = %slug, "admin: kunci Kelola diterbitkan ulang");
             let link = format!("/kelola/{slug}?key={key}");
-            Redirect::to(&format!("{back}&ok={}&kelola={}", fmt::url_encode("Tautan Kelola baru diterbitkan — kirim ke pemesan, tautan lama tidak berlaku."), fmt::url_encode(&link)))
+            // Langsung ke WA pemesan (nomor saat memesan); admin tetap melihat tautannya.
+            let phone = match repo::invitation(&state.pool, &slug).await {
+                Ok(Some(r)) => Some((r.contact_phone, r.inv.couple())),
+                _ => None,
+            };
+            let ok = match (state.wa.as_ref(), phone) {
+                (Some(wa), Some((p, couple))) if !p.is_empty() => {
+                    let text = format!(
+                        "Halo! Tautan dashboard Kelola undangan *{couple}* telah diperbarui oleh admin {brand}:\n\n{origin}{link}\n\nSimpan pesan ini — tautan lama sudah tidak berlaku. Jangan bagikan tautan ini ke orang lain.",
+                        brand = crate::brand!(),
+                        origin = public_origin(&state, &headers),
+                    );
+                    wa.spawn_text(p, text, "tautan Kelola baru → pemesan");
+                    "Tautan Kelola baru diterbitkan & dikirim ke WhatsApp pemesan — tautan lama tidak berlaku."
+                }
+                _ => "Tautan Kelola baru diterbitkan — kirim ke pemesan (WA otomatis tidak terkirim), tautan lama tidak berlaku.",
+            };
+            Redirect::to(&format!("{back}&ok={}&kelola={}", fmt::url_encode(ok), fmt::url_encode(&link)))
                 .into_response()
         }
         Ok(false) => to(&back, "galat", "Undangan tidak ditemukan (undangan demo tidak bisa diubah)."),
@@ -1375,6 +1418,46 @@ fn public_origin(state: &AppState, headers: &axum::http::HeaderMap) -> String {
     format!("{}://{host}", h("x-forwarded-proto").unwrap_or_else(|| "http".into()))
 }
 
+/// WA ke pemesan setelah pesanan dibuat: tautan Kelola + cara bayar.
+fn pesan_pesanan_baru(couple: &str, origin: &str, slug: &str, manage_key: &str, total: i64, pay: &crate::web::konten::Pembayaran, ttl_jam: i64) -> String {
+    let bayar = if pay.nomor.is_empty() {
+        String::new()
+    } else {
+        format!("\nTransfer *{}* ke {} {} a/n {}, lalu unggah tangkapan layarnya di dashboard Kelola.\n", fmt::rupiah(total), pay.metode, pay.nomor, pay.atas_nama)
+    };
+    format!(
+        concat!(
+            "Terima kasih telah memesan di ", crate::brand!(), "! 💌\n\n",
+            "Undangan: *{couple}*\n",
+            "Total: *{total}*\n{bayar}\n",
+            "Dashboard Kelola (simpan pesan ini, JANGAN dibagikan):\n{origin}/kelola/{slug}?key={key}\n\n",
+            "Pesanan yang belum dibayar/dikirimi bukti dalam {ttl} jam akan dihapus otomatis."
+        ),
+        couple = couple,
+        total = fmt::rupiah(total),
+        bayar = bayar,
+        origin = origin,
+        slug = slug,
+        key = manage_key,
+        ttl = ttl_jam,
+    )
+}
+
+/// WA ke pemesan saat admin mengaktifkan undangan.
+fn pesan_aktif(couple: &str, origin: &str, slug: &str) -> String {
+    format!(
+        concat!(
+            "Kabar baik! 🎉 Pembayaran sudah kami terima dan undangan *{couple}* kini AKTIF.\n\n",
+            "Bagikan ke tamu: {origin}/u/{slug}\n",
+            "Atur daftar tamu & tautan pribadi tiap tamu di dashboard Kelola (tautan dari pesan sebelumnya).\n\n",
+            "Terima kasih — ", crate::brand!()
+        ),
+        couple = couple,
+        origin = origin,
+        slug = slug,
+    )
+}
+
 /// Keterangan pesan WA admin untuk bukti transfer baru.
 fn proof_caption(row: &repo::InvRow, package_name: &str, metode: &str, origin: &str) -> String {
     let wa = fmt::wa_number(&row.contact_phone);
@@ -1400,7 +1483,7 @@ fn proof_caption(row: &repo::InvRow, package_name: &str, metode: &str, origin: &
 
 /// POST multipart dari dashboard Kelola: gambar bukti transfer → RustFS
 /// (foto/{slug}/bukti-transfer-….webp) + kolom payment_proof, lalu WA ke
-/// admin lewat WAHA (gambar + tautan). Pemilik dikenali dari cookie kunci
+/// admin lewat waxum (gambar + tautan). Pemilik dikenali dari cookie kunci
 /// Kelola (server/owner.rs) atau input `key`.
 pub async fn upload_payment_proof(
     Extension(state): Extension<Arc<AppState>>,
@@ -1439,19 +1522,21 @@ pub async fn upload_payment_proof(
     if up.data.len() > super::storage::MAX_IMAGE {
         return to(&back, "galat", "Gambar bukti maksimal 5 MB.");
     }
-    let Some((mime, ext)) = super::storage::detect_image(&up.data) else {
+    let Some((mime, _)) = super::storage::detect_image(&up.data) else {
         return to(&back, "galat", "Bukti harus berupa gambar JPEG/PNG/WebP (tangkapan layar).");
     };
-    if state.storage.is_none() && state.waha.is_none() {
-        tracing::error!(slug = %slug, "bukti: RustFS & WAHA sama-sama tak dikonfigurasi");
+    if state.storage.is_none() && state.wa.is_none() {
+        tracing::error!(slug = %slug, "bukti: RustFS & waxum sama-sama tak dikonfigurasi");
         return to(&back, "galat", "Unggah bukti belum tersedia — kirim bukti lewat WhatsApp admin.");
     }
 
     // 1. Simpan gambar (bila RustFS ada). Isi asli disimpan untuk WA.
+    //    Akhiran acak (bukan jam:menit:detik): URL tak bisa ditebak dari slug
+    //    dan dua unggahan di detik yang sama tak saling timpa.
     let original = up.data.clone();
     let url = match state.storage.as_ref() {
         Some(st) => {
-            let name = format!("bukti-transfer-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
+            let name = format!("bukti-transfer-{}", auth::random_hex(8));
             match st.upload_image_as(up.data, &row.inv.slug, &name, super::storage::Ukuran::Foto).await {
                 Ok(u) => u,
                 Err(e) => return to(&back, "galat", &e.to_string()),
@@ -1480,17 +1565,17 @@ pub async fn upload_payment_proof(
     }
     tracing::info!(slug = %row.inv.slug, total = row.total_price, "bukti transfer diterima");
 
-    // 3. WA ke admin — di latar: pemesan tak menunggu WAHA. Gagal = dicatat;
-    //    bukti tetap terlihat di /admin/undangan.
-    if let (Some(waha), false) = (state.waha.clone(), state.notify_wa.is_empty()) {
+    // 3. WA ke admin — di latar (dicoba ulang bila waxum sedang menyambung):
+    //    pemesan tak menunggu. Gagal = dicatat; bukti tetap di /admin/undangan.
+    if let (Some(wa), false) = (state.wa.clone(), state.notify_wa.is_empty()) {
         let konten = state.konten();
         let caption = proof_caption(&row, &konten.package_name(&row.inv.package), &konten.pembayaran.metode, &public_origin(&state, &headers));
-        let to_chat = super::waha::chat_id(&state.notify_wa);
-        let (mime, filename) = (mime.to_string(), format!("bukti-{}.{ext}", row.inv.slug));
+        let to = state.notify_wa.clone();
+        let mime = mime.to_string();
         let slug = row.inv.slug.clone();
         tokio::spawn(async move {
-            let img = super::waha::Gambar { data: &original, mime: &mime, filename: &filename };
-            match waha.send_image_or_text(&to_chat, img, &caption, &url).await {
+            let img = super::wa::Gambar { data: &original, mime: &mime };
+            match wa.send_image_or_text(&to, img, &caption, &url, super::wa::Gigih::Latar).await {
                 Ok(()) => tracing::info!(slug = %slug, "bukti: WA admin terkirim"),
                 Err(e) => tracing::error!(slug = %slug, error = %format!("{e:#}"), "bukti: WA admin GAGAL"),
             }
@@ -1882,12 +1967,13 @@ fn parse_assets(raw: &str) -> Result<std::collections::BTreeMap<String, String>,
 }
 
 /// POST /admin/templat/simpan — buat / sunting templat (HTML, CSS, font, aset).
+/// Khusus peran Admin: HTML/CSS ini menjadi halaman undangan yang dibuka tamu.
 pub async fn admin_save_templat(
     Extension(state): Extension<Arc<AppState>>,
     headers: axum::http::HeaderMap,
     axum::Form(f): axum::Form<HashMap<String, String>>,
 ) -> Response {
-    if let Err(r) = require(&state, &headers, false).await {
+    if let Err(r) = require(&state, &headers, true).await {
         return r;
     }
     let get = |k: &str| f.get(k).map(|v| v.replace("\r\n", "\n")).unwrap_or_default();
@@ -1932,7 +2018,7 @@ pub async fn admin_templat_action(
     headers: axum::http::HeaderMap,
     axum::Form(f): axum::Form<HashMap<String, String>>,
 ) -> Response {
-    if let Err(r) = require(&state, &headers, false).await {
+    if let Err(r) = require(&state, &headers, true).await {
         return r;
     }
     let get = |k: &str| f.get(k).map(|v| v.replace("\r\n", "\n")).unwrap_or_default();

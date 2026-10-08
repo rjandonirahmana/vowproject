@@ -31,7 +31,7 @@ pub struct AppConfig {
     /// sekian jam. UNPAID_TTL_HOURS, bawaan 24.
     pub unpaid_ttl_hours: i64,
     pub rustfs: RustFsConfig,
-    pub waha: super::waha::WahaConfig,
+    pub wa: super::wa::WaConfig,
     /// Nomor WA (62…) penerima notifikasi bukti transfer. PAYMENT_NOTIFY_WA,
     /// bawaan = 6289635816942 (nomor pemilik).
     pub notify_wa: String,
@@ -58,10 +58,10 @@ impl AppConfig {
                 public_url: env("RUSTFS_PUBLIC_URL", "http://127.0.0.1:9000"),
                 auto_create_bucket: env("RUSTFS_AUTO_CREATE_BUCKET", "false") == "true",
             },
-            waha: super::waha::WahaConfig {
-                base_url: env("WAHA_BASE_URL", "").trim().trim_end_matches('/').to_string(),
-                session: env("WAHA_SESSION", "default").trim().to_string(),
-                api_key: env("WAHA_API_KEY", "").trim().to_string(),
+            wa: super::wa::WaConfig {
+                base_url: env("WAXUM_BASE_URL", "").trim().trim_end_matches('/').to_string(),
+                session: env("WAXUM_SESSION", "undangan").trim().to_string(),
+                token: env("WAXUM_TOKEN", "").trim().to_string(),
             },
             notify_wa: crate::web::fmt::wa_number(&env("PAYMENT_NOTIFY_WA", DEFAULT_NOTIFY_WA)),
             site_url: env("SITE_URL", DEFAULT_SITE_URL).trim().trim_end_matches('/').to_string(),

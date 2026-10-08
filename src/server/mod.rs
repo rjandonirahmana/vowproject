@@ -16,4 +16,4 @@ pub mod state;
 pub mod storage;
 pub mod templat;
 pub mod util;
-pub mod waha;
+pub mod wa;

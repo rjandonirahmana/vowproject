@@ -138,33 +138,82 @@ async fn jalankan(conn: &mut deadpool_postgres::Object) -> Result<()> {
     Ok(())
 }
 
-/// Migrasi yang BELUM diterapkan (dicek dari objek skemanya, bukan dari
+/// Penanda skema per migrasi: objek yang PASTI ada setelah migrasi itu jalan.
+#[derive(Clone, Copy)]
+enum Tanda {
+    /// Tabel / indeks (`to_regclass`).
+    Objek(&'static str),
+    /// Kolom tabel.
+    Kolom(&'static str, &'static str),
+}
+
+/// Setiap migrasi yang mengubah skema WAJIB punya penanda di sini; migrasi
+/// yang hanya mengisi data masuk `HANYA_DATA`. Test `semua_migrasi_tercakup`
+/// gagal bila ada berkas baru yang belum digolongkan — daftar ini tak bisa
+/// lagi tertinggal diam-diam (dulu berhenti di 017 padahal migrasi sampai 029).
+const PENANDA: &[(&str, Tanda)] = &[
+    ("001_init.sql", Tanda::Objek("public.invitations")),
+    ("002_themes.sql", Tanda::Objek("public.themes")),
+    ("003_admin_konten.sql", Tanda::Objek("public.site_content")),
+    ("004_keamanan.sql", Tanda::Kolom("invitations", "manage_key_hash")),
+    ("005_tampilan.sql", Tanda::Kolom("invitations", "cover_photo")),
+    ("006_animasi.sql", Tanda::Kolom("themes", "scroll_anim")),
+    ("007_animasi_kustom.sql", Tanda::Objek("public.animations")),
+    ("008_animasi_semua.sql", Tanda::Kolom("animations", "builtin")),
+    ("011_banner.sql", Tanda::Objek("public.banners")),
+    ("012_ornamen.sql", Tanda::Objek("public.theme_ornaments")),
+    ("015_indeks.sql", Tanda::Objek("public.invitations_unpaid_idx")),
+    ("017_bukti_bayar.sql", Tanda::Kolom("invitations", "payment_proof_at")),
+    ("017b_provenance.sql", Tanda::Kolom("theme_ornaments", "source")),
+    ("022_sinema.sql", Tanda::Kolom("invitations", "video_url")),
+    ("023_wayang_pintu.sql", Tanda::Kolom("themes", "open_video")),
+    ("025_sekar_kedhaton.sql", Tanda::Kolom("themes", "motion_locked")),
+    ("026_story.sql", Tanda::Objek("public.story_keys")),
+    ("027_pustaka_lagu.sql", Tanda::Objek("public.songs")),
+    ("028_story_hapus.sql", Tanda::Kolom("invitation_stories", "owner_token_hash")),
+    ("029_tema_templat.sql", Tanda::Objek("public.theme_templates")),
+];
+
+/// Migrasi data saja (seed tema/animasi/demo) — tak punya objek skema untuk
+/// dicek; kelengkapannya dilihat dari schema_migrations bila AUTO_MIGRATE.
+#[cfg_attr(not(test), allow(dead_code))]
+const HANYA_DATA: &[&str] = &[
+    "009_tema_nusantara.sql",
+    "010_musik_demo.sql",
+    "013_gerak_everlove.sql",
+    "014_ornamen_adat.sql",
+    "016_banner_cepat.sql",
+    "018_koreografi.sql",
+    "019_sepuluh_tema.sql",
+    "020_wayang_everlove.sql",
+    "021_demo_yona_doni.sql",
+    "024_desain_v2.sql",
+];
+
+/// Migrasi skema yang BELUM diterapkan (dicek dari objek skemanya, bukan dari
 /// schema_migrations — migrasi di proyek ini biasanya dijalankan manual).
 pub async fn missing(pool: &Pool) -> Result<Vec<&'static str>> {
     let c = pool.get().await.context("cek skema: ambil koneksi")?;
-    let r = c
-        .query_one(
-            "SELECT to_regclass('public.themes') IS NOT NULL,
-                    to_regclass('public.admin_users') IS NOT NULL AND to_regclass('public.site_content') IS NOT NULL,
-                    EXISTS (SELECT 1 FROM information_schema.columns
-                            WHERE table_name = 'invitations' AND column_name = 'manage_key_hash'),
-                    EXISTS (SELECT 1 FROM information_schema.columns
-                            WHERE table_name = 'invitations' AND column_name = 'cover_photo'),
-                    EXISTS (SELECT 1 FROM information_schema.columns
-                            WHERE table_name = 'themes' AND column_name = 'scroll_anim'),
-                    EXISTS (SELECT 1 FROM information_schema.columns
-                            WHERE table_name = 'animations' AND column_name = 'builtin'),
-                    to_regclass('public.banners') IS NOT NULL,
-                    to_regclass('public.theme_ornaments') IS NOT NULL,
-                    to_regclass('public.invitations_unpaid_idx') IS NOT NULL,
-                    EXISTS (SELECT 1 FROM information_schema.columns
-                            WHERE table_name = 'invitations' AND column_name = 'payment_proof_at')",
-            &[],
-        )
-        .await
-        .context("cek skema")?;
-    let checks = [(0, "002_themes.sql"), (1, "003_admin_konten.sql"), (2, "004_keamanan.sql"), (3, "005_tampilan.sql"), (4, "006_animasi.sql"), (5, "008_animasi_semua.sql (007 boleh dilewati)"), (6, "011_banner.sql"), (7, "012_ornamen.sql"), (8, "015_indeks.sql"), (9, "017_bukti_bayar.sql")];
-    Ok(checks.into_iter().filter(|(i, _)| !r.get::<_, bool>(*i)).map(|(_, n)| n).collect())
+    let mut out = Vec::new();
+    for (nama, tanda) in PENANDA {
+        let ada: bool = match tanda {
+            Tanda::Objek(o) => c.query_one("SELECT to_regclass($1) IS NOT NULL", &[o]).await,
+            Tanda::Kolom(t, k) => {
+                c.query_one(
+                    "SELECT EXISTS (SELECT 1 FROM information_schema.columns
+                                     WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2)",
+                    &[t, k],
+                )
+                .await
+            }
+        }
+        .with_context(|| format!("cek skema {nama}"))?
+        .get(0);
+        if !ada {
+            out.push(*nama);
+        }
+    }
+    Ok(out)
 }
 
 /// Galat "sudah ada" (tabel/indeks/constraint/kolom/tipe) dari Postgres.
@@ -191,6 +240,17 @@ mod tests {
         urut.sort_unstable();
         assert_eq!(nama, urut, "MIGRATIONS harus urut menurut nama berkas");
         assert!(!MIGRATIONS.is_empty(), "tak ada migrasi yang ter-embed");
+    }
+
+    #[test]
+    fn semua_migrasi_tercakup() {
+        for (nama, _) in MIGRATIONS {
+            let n = PENANDA.iter().filter(|(p, _)| p == nama).count() + HANYA_DATA.iter().filter(|p| *p == nama).count();
+            assert_eq!(n, 1, "{nama}: tambahkan ke PENANDA (ubah skema) atau HANYA_DATA (seed) di migrate.rs");
+        }
+        for (p, _) in PENANDA {
+            assert!(MIGRATIONS.iter().any(|(n, _)| n == p), "{p} tak ada di migration/");
+        }
     }
 
     #[test]

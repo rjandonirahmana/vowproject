@@ -55,12 +55,13 @@ fn AdminShell(
                             <nav class="adm-nav">
                                 <a href="/admin/tema" class:is-active=active == "tema"><Icon name="palette" />"Tema"</a>
                                 <a href="/admin/animasi" class:is-active=active == "animasi"><Icon name="animation" />"Animasi"</a>
-                                <a href="/admin/templat" class:is-active=active == "templat"><Icon name="code" />"Templat"</a>
                                 <a href="/admin/banner" class:is-active=active == "banner"><Icon name="view_carousel" />"Banner"</a>
                                 <a href="/admin/lagu" class:is-active=active == "lagu"><Icon name="library_music" />"Lagu"</a>
                                 <a href="/admin/story" class:is-active=active == "story"><Icon name="photo_camera" />"Story"</a>
                                 <a href="/admin/konten" class:is-active=active == "konten"><Icon name="edit_note" />"Konten & Harga"</a>
                                 {admin.then(|| view! {
+                                    // Templat = HTML/CSS mentah halaman undangan → khusus Admin.
+                                    <a href="/admin/templat" class:is-active=active == "templat"><Icon name="code" />"Templat"</a>
                                     <a href="/admin/undangan" class:is-active=active == "undangan"><Icon name="shopping_bag" />"Pesanan"</a>
                                     <a href="/admin/akun" class:is-active=active == "akun"><Icon name="groups" />"Akun"</a>
                                 })}
@@ -2317,7 +2318,7 @@ fn SongFields(s: crate::web::model::Song) -> impl IntoView {
 pub fn AdminTemplat() -> impl IntoView {
     let page = Resource::new(|| (), |_| crate::web::api::admin_templates());
     view! {
-        <AdminShell active="templat" title="Templat Tema">
+        <AdminShell active="templat" title="Templat Tema" admin_only=true>
             <div class="adm-head">
                 <h1 class="adm-h1">"Templat Tema"</h1>
             </div>

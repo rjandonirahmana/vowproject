@@ -14,10 +14,13 @@
 //! templat, halaman dirender di sini (tanpa WASM); selain itu diteruskan ke
 //! Leptos seperti biasa. Tab /u/{slug}/story & /kelola tetap Leptos.
 //!
-//! Keamanan: templat ditulis admin/editor, tapi tetap dibatasi — tanpa
-//! <script>/iframe/atribut on*/javascript: (lagi pula CSP menolak skrip tanpa
-//! nonce); CSS lewat pemeriksa url() yang sama dengan animasi; semua data
-//! tamu/undangan di-escape otomatis oleh minijinja.
+//! Keamanan: templat hanya bisa disunting peran ADMIN, tapi tetap dibatasi —
+//! tanpa <script>/iframe/<style>/atribut on*/javascript:/referensi karakter
+//! numerik (lagi pula CSP menolak skrip tanpa nonce); CSS lewat pemeriksa url()
+//! yang sama dengan animasi; semua data tamu/undangan di-escape otomatis oleh
+//! minijinja dan templat tak boleh mematikannya (`|safe`, `autoescape`).
+//! Pemeriksaan ini daftar-tolak (bukan parser + daftar-izin): lapis utamanya
+//! tetap CSP ber-nonce + peran Admin.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
@@ -93,10 +96,17 @@ pub fn check_html(src: &str) -> Result<(), String> {
         return Err(format!("HTML templat terlalu panjang (maks {HTML_MAX} karakter)."));
     }
     let low = src.to_ascii_lowercase();
-    for bad in ["<script", "<iframe", "<object", "<embed", "<base", "<meta", "<link", "javascript:", "vbscript:", "srcdoc"] {
+    // <style> di HTML akan melewati check_css; &# / &colon; dipakai menyamarkan
+    // "javascript:" di atribut (j&#97;vascript:) dari pencocokan teks di bawah.
+    for bad in ["<script", "<iframe", "<object", "<embed", "<base", "<meta", "<link", "<style", "javascript:", "vbscript:", "srcdoc", "&#", "&colon;", "&tab;", "&newline;"] {
         if low.contains(bad) {
             return Err(format!("HTML templat tidak boleh memuat \"{bad}\" — perilaku ditulis lewat atribut data-* (lihat templat/README.md)."));
         }
+    }
+    // Data tamu wajib tetap di-escape: larang |safe dan blok autoescape.
+    let compact: String = low.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("|safe") || compact.contains("autoescape") {
+        return Err("HTML templat tidak boleh mematikan escape otomatis (|safe / autoescape).".into());
     }
     // Atribut event inline (onclick=, onload= …).
     let b = low.as_bytes();
@@ -294,6 +304,17 @@ struct Page<'a> {
     preview: bool,
     wishes: WishPage,
     assets: BTreeMap<String, String>,
+    /// Hasil kiriman RSVP tanpa JS (?rsvp=ok|galat setelah 303).
+    rsvp_flash: Option<bool>,
+}
+
+/// Pesan tetap untuk ?rsvp= — teks tak pernah diambil dari URL.
+fn flash_msg(ok: bool) -> &'static str {
+    if ok {
+        "Terima kasih! Konfirmasi & ucapan Anda telah kami terima."
+    } else {
+        "Gagal mengirim — periksa isian (nama, status kehadiran, jumlah tamu) lalu coba lagi."
+    }
 }
 
 fn page_ctx(p: &Page) -> minijinja::Value {
@@ -355,6 +376,7 @@ fn page_ctx(p: &Page) -> minijinja::Value {
         story_url => format!("/u/{}/story{}", inv.slug, p.qs),
         prefill_name => if p.guest.is_some() || !p.to.is_empty() { tamu_name(p) } else { String::new() },
         guest_code => p.guest.as_ref().map(|g| g.code.clone()).unwrap_or_default(),
+        rsvp_flash => p.rsvp_flash.map(|ok| minijinja::context! { ok => ok, msg => flash_msg(ok) }),
         a => p.assets.clone(),
     }
 }
@@ -448,7 +470,12 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
     let wishes = repo::wishes(&st.pool, row.id, 30).await.unwrap_or_default();
     let mut assets = t.assets.clone();
     assets.extend(theme.template_assets.iter().filter(|(_, v)| check_asset(v)).map(|(k, v)| (k.clone(), v.clone())));
-    let page = Page { row: &row, guest, to, qs, preview, wishes, assets };
+    let rsvp_flash = match q.get("rsvp").map(String::as_str) {
+        Some("ok") => Some(true),
+        Some("galat") => Some(false),
+        _ => None,
+    };
+    let page = Page { row: &row, guest, to, qs, preview, wishes, assets, rsvp_flash };
     let body = set.env.get_template(&t.slug)?.render(page_ctx(&page))?;
     Ok(Some(document(st, t, theme, &page, &body, nonce)))
 }
@@ -508,7 +535,8 @@ pub async fn serve(req: Request, next: Next) -> Response {
 }
 
 /// POST /u/{slug}/rsvp/kirim — formulir RSVP tema templat. Dengan JS (Accept
-/// JSON) → {ok, msg, wish}; tanpa JS → 303 kembali ke bagian ucapan.
+/// JSON) → {ok, msg, wish, wish_total, baru}; tanpa JS → 303 kembali ke bagian
+/// ucapan dengan ?rsvp=ok|galat (kode tamu ikut) agar tamu tahu hasilnya.
 pub async fn rsvp_kirim(
     Extension(st): Extension<Arc<AppState>>,
     Path(slug): Path<String>,
@@ -520,6 +548,7 @@ pub async fn rsvp_kirim(
     let opt = |k: &str| f.get(k).cloned().filter(|v| !v.is_empty());
     let res = match repo::invitation(&st.pool, &slug).await {
         Ok(Some(row)) => {
+            let inv_id = row.id;
             let ip = super::security::client_ip(&headers);
             let input = crate::web::api::RsvpInput {
                 guest: opt("guest"),
@@ -530,7 +559,12 @@ pub async fn rsvp_kirim(
                 session: opt("session"),
                 message: opt("message"),
             };
-            crate::web::api::rsvp_core(&st, &row, &ip, input).await
+            match crate::web::api::rsvp_core(&st, &row, &ip, input).await {
+                // Jumlah ucapan dari DB: kiriman ulang tamu terdaftar memperbarui
+                // baris yang sama, jadi penghitung di layar tak boleh sekadar +1.
+                Ok((msg, baru)) => Ok((msg, baru, repo::wish_total(&st.pool, inv_id).await.ok())),
+                Err(e) => Err(e),
+            }
         }
         Ok(None) => Err("Undangan tidak ditemukan.".into()),
         Err(e) => {
@@ -539,15 +573,19 @@ pub async fn rsvp_kirim(
         }
     };
     if !json {
-        return Redirect::to(&format!("/u/{}#ucapan", fmt::url_encode(&slug))).into_response();
+        let g = get("guest");
+        let g = g.trim();
+        let g = if g.is_empty() || g.len() > 12 { String::new() } else { format!("g={}&", fmt::url_encode(g)) };
+        let hasil = if res.is_ok() { "ok" } else { "galat" };
+        return Redirect::to(&format!("/u/{}?{g}rsvp={hasil}#ucapan", fmt::url_encode(&slug))).into_response();
     }
     let body = match res {
-        Ok(msg) => {
+        Ok((msg, baru, total)) => {
             let message = super::handlers::clean(&get("message"), 600);
             let wish = (!message.is_empty()).then(|| {
                 wish_out(&Wish { name: super::handlers::clean(&get("name"), 80), status: get("status"), message, ago: "baru saja".into() })
             });
-            serde_json::json!({ "ok": true, "msg": msg, "wish": wish })
+            serde_json::json!({ "ok": true, "msg": msg, "wish": wish, "wish_total": total, "baru": baru })
         }
         Err(msg) => serde_json::json!({ "ok": false, "msg": msg }),
     };
@@ -577,6 +615,11 @@ mod tests {
         assert!(check_html("<img src=x onerror = 'a'>").is_err());
         assert!(check_html("<script>alert(1)</script>").is_err());
         assert!(check_html("<a href=\"javascript:alert(1)\">a</a>").is_err());
+        assert!(check_html("<a href=\"j&#97;vascript:alert(1)\">a</a>").is_err());
+        assert!(check_html("<a href=\"javascript&colon;alert(1)\">a</a>").is_err());
+        assert!(check_html("<p>{{ tamu | safe }}</p>").is_err());
+        assert!(check_html("{% autoescape false %}{{ tamu }}{% endautoescape %}").is_err());
+        assert!(check_html("<style>@import url(//x)</style>").is_err());
         assert!(check_html("<p class=\"none\">{{ tamu }}</p>").is_ok());
         assert!(check_html("{% if %}").is_err());
     }
@@ -601,10 +644,11 @@ mod tests {
             ..Default::default()
         };
         let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new() };
-        let page = Page { row: &row, guest: None, to: "<b>Budi</b>".into(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone() };
+        let page = Page { row: &row, guest: None, to: "<b>Budi</b>".into(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: Some(false) };
         let out = set.env.get_template("kusuma").unwrap().render(page_ctx(&page)).unwrap();
         assert!(out.contains("Yona") && out.contains("Doni"));
         assert!(out.contains("&lt;b&gt;Budi") && !out.contains("<b>Budi"), "nama tamu wajib di-escape");
         assert!(out.contains("Sabtu") && out.contains("September 2026"));
+        assert!(out.contains(flash_msg(false)), "pesan ?rsvp=galat tampil tanpa JS");
     }
 }

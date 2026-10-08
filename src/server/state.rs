@@ -13,9 +13,10 @@ pub struct AppState {
     pub storage: Option<StorageService>,
     /// Nomor WA admin untuk konfirmasi pembayaran (62…).
     pub admin_wa: String,
-    /// `None` bila WAHA_BASE_URL kosong — notifikasi bukti transfer dilewati
-    /// (bukti tetap tersimpan & tampil di /admin/undangan).
-    pub waha: Option<super::waha::WahaClient>,
+    /// `None` bila WAXUM_BASE_URL kosong — semua WA (bukti transfer ke admin,
+    /// tautan Kelola ke pemesan, kunci story) dilewati; bukti tetap tersimpan
+    /// & tampil di /admin/undangan.
+    pub wa: Option<super::wa::WaClient>,
     /// Penerima notifikasi bukti transfer (62…).
     pub notify_wa: String,
     /// SITE_URL (tanpa garis miring akhir); kosong = dari header request.

@@ -126,7 +126,11 @@ pub async fn read(mut mp: Multipart, max_files: usize) -> Result<Form, ()> {
                 }
             }
             None => {
-                let v = String::from_utf8(read_capped(&mut field, MAX_TEXT_FIELD, true).await?).unwrap_or_default();
+                // UTF-8 rusak = permintaan rusak (400-an), bukan isian kosong.
+                let Ok(v) = String::from_utf8(read_capped(&mut field, MAX_TEXT_FIELD, true).await?) else {
+                    tracing::warn!(field = %name, "form: isian bukan UTF-8 — ditolak");
+                    return Err(());
+                };
                 f.multi.entry(name.clone()).or_default().push(v.clone());
                 f.fields.insert(name, v);
             }

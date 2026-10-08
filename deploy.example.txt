@@ -26,9 +26,11 @@ PORT_HOST=3600
 echo "→ Menarik $IMAGE"
 docker pull "$IMAGE"
 
-# Hentikan yang lama SESUDAH image baru berhasil ditarik.
-docker rm -f "$NAMA" 2>/dev/null || true
+# Image yang sedang jalan — tujuan rollback bila image baru gagal sehat.
+SEBELUMNYA="$(docker inspect -f '{{.Config.Image}}' "$NAMA" 2>/dev/null || true)"
 
+jalankan() {
+docker rm -f "$NAMA" 2>/dev/null || true
 docker run -d \
   --name "$NAMA" \
   --restart unless-stopped \
@@ -49,35 +51,52 @@ docker run -d \
   -e RUSTFS_SECRET_KEY='...' \
   -e RUSTFS_PUBLIC_URL='https://image.ulalaapi.store' \
   -e RUSTFS_AUTO_CREATE_BUCKET='false' \
-  `# Bukti transfer → WA admin via WAHA (dari container: alamat host 172.17.0.1).` \
-  `# Cek port WAHA di server (ppm memakai 3001). Kosong = notifikasi WA mati.` \
-  -e WAHA_BASE_URL='http://172.17.0.1:3001' \
-  -e WAHA_SESSION='default' \
-  -e WAHA_API_KEY='...' \
+  `# WhatsApp via waxum (dari container: alamat host 172.17.0.1, port bawaan 3451).` \
+  `# Bukti transfer → admin, tautan Kelola/undangan aktif → pemesan, kunci story → tamu.` \
+  `# Kosong = semua WA mati. TOKEN = SUPERADMIN_TOKEN waxum / token ber-scope sesi.` \
+  -e WAXUM_BASE_URL='http://172.17.0.1:3451' \
+  -e WAXUM_SESSION='undangan' \
+  -e WAXUM_TOKEN='...' \
   -e PAYMENT_NOTIFY_WA='6289635816942' \
   -e SITE_URL='https://ilyvowcraft.online' \
   -e GOOGLE_SITE_VERIFICATION='' \
-  `# Titik awal — ukur: docker stats --no-stream undangan, lalu beri ruang ~2x.` \
-  --memory=256m \
-  --memory-swap=256m \
+  `# 512m: dekode satu foto HP 48 MP ±150 MB + 3 formulir unggahan ±40 MB` \
+  `# + SSR/pool. 256m bisa OOM saat beberapa pemesan mengunggah bersamaan.` \
+  `# Ukur: docker stats --no-stream undangan.` \
+  --memory=512m \
+  --memory-swap=512m \
   -e RUST_LOG='undangan=info,tower_http=warn' \
-  "$IMAGE"
+  "$1"
+}
 
-# Tunggu app menjawab (curl dari HOST — health status Docker tak andal di VPS
-# ini karena runtime youki gagal `docker exec`).
-echo "→ Menunggu http://127.0.0.1:${PORT_HOST}/healthz"
-for i in $(seq 1 30); do
-  if curl -fsS -o /dev/null "http://127.0.0.1:${PORT_HOST}/healthz"; then
-    echo "✓ $NAMA sehat ($IMAGE)"
-    break
+# Tunggu app SIAP (readyz = DB menjawab), curl dari HOST — health status
+# Docker tak andal di VPS ini karena runtime youki gagal `docker exec`.
+sehat() {
+  echo "→ Menunggu http://127.0.0.1:${PORT_HOST}/readyz"
+  for i in $(seq 1 30); do
+    curl -fsS -o /dev/null "http://127.0.0.1:${PORT_HOST}/readyz" && return 0
+    if [ "$(docker inspect -f '{{.State.Running}}' "$NAMA" 2>/dev/null)" != "true" ]; then
+      echo "✗ Container $NAMA berhenti. 50 baris log terakhir:"
+      docker logs --tail 50 "$NAMA" || true
+      return 1
+    fi
+    sleep 5
+  done
+  echo "✗ Tak kunjung siap dalam 150 dtk:"; docker logs --tail 50 "$NAMA" || true
+  return 1
+}
+
+jalankan "$IMAGE"
+if sehat; then
+  echo "✓ $NAMA sehat ($IMAGE)"
+else
+  # Downtime tetap ada (satu port, satu container) tapi tidak berlanjut:
+  # image lama dihidupkan lagi otomatis.
+  if [ -n "$SEBELUMNYA" ] && [ "$SEBELUMNYA" != "$IMAGE" ]; then
+    echo "↩ Rollback ke $SEBELUMNYA"
+    jalankan "$SEBELUMNYA" && sehat && echo "✓ rollback sehat" || echo "✗ rollback JUGA gagal — periksa manual"
   fi
-  if [ "$(docker inspect -f '{{.State.Running}}' "$NAMA" 2>/dev/null)" != "true" ]; then
-    echo "✗ Container $NAMA berhenti. 50 baris log terakhir:"
-    docker logs --tail 50 "$NAMA" || true
-    exit 1
-  fi
-  [ "$i" = 30 ] && { echo "✗ Tak kunjung sehat dalam 150 dtk:"; docker logs --tail 50 "$NAMA" || true; exit 1; }
-  sleep 5
-done
+  exit 1
+fi
 
 docker image prune -f >/dev/null 2>&1 || true

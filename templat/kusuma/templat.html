@@ -284,7 +284,11 @@
         {%- endif %}
       </div>
       <button class="k-btn k-btn--block" type="submit">Kirim</button>
+      {%- if rsvp_flash %}
+      <p class="k-form__msg" data-rsvp-msg role="status" data-ok="{{ '1' if rsvp_flash.ok else '0' }}">{{ rsvp_flash.msg }}</p>
+      {%- else %}
       <p class="k-form__msg" data-rsvp-msg role="status" hidden></p>
+      {%- endif %}
     </form>
     <p class="k-wish__count"><b data-wish-total>{{ wish_total }}</b> ucapan</p>
     <ul class="k-wishes" data-wishes>

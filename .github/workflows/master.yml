@@ -24,8 +24,11 @@ jobs:
           toolchain: "1.95"
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --lib
-      - run: cargo check --lib --no-default-features --features hydrate --target wasm32-unknown-unknown
+      # --locked: Cargo.lock wajib cocok — resolusi dependency tak berubah diam-diam.
+      - run: cargo test --lib --locked
+      # Binari server (main.rs: router, middleware) — tak tersentuh `--lib`.
+      - run: cargo check --bins --locked
+      - run: cargo check --lib --locked --no-default-features --features hydrate --target wasm32-unknown-unknown
 
   build-and-push:
     needs: test

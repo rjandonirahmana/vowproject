@@ -170,6 +170,7 @@ pub async fn submit_rsvp(
     let ip = crate::server::security::client_ip(&headers);
     rsvp_core(&st, &row, &ip, RsvpInput { guest, name, phone, status, pax, session, message })
         .await
+        .map(|(msg, _)| msg)
         .map_err(ServerFnError::new)
 }
 
@@ -186,14 +187,15 @@ pub struct RsvpInput {
     pub message: Option<String>,
 }
 
-/// Validasi + batas kiriman per IP + simpan RSVP. Err = pesan untuk tamu.
+/// Validasi + batas kiriman per IP + simpan RSVP. Ok = (pesan, baris baru?);
+/// `false` = RSVP tamu terdaftar yang sudah ada diperbarui. Err = pesan untuk tamu.
 #[cfg(feature = "ssr")]
 pub async fn rsvp_core(
     st: &crate::server::state::AppState,
     row: &crate::server::repo::InvRow,
     ip: &str,
     i: RsvpInput,
-) -> Result<String, String> {
+) -> Result<(String, bool), String> {
     use crate::server::handlers::clean;
     use crate::server::repo;
     let msg = |e: ServerFnError| match e {
@@ -217,13 +219,24 @@ pub async fn rsvp_core(
         "hadir" | "ragu" | "tidak" => i.status,
         _ => return Err("Pilih status kehadiran.".into()),
     };
-    let pax: i32 = i.pax.and_then(|p| p.trim().parse().ok()).unwrap_or(1).clamp(1, 10);
-    let pax = if status == "tidak" { 0 } else { pax };
-    let guest_id = match i.guest.as_deref().filter(|g| !g.is_empty()) {
-        Some(code) => repo::guest_id(&st.pool, row.id, code).await.map_err(busy)?,
+    // Isian rusak ditolak, bukan diam-diam dijadikan 1 tamu.
+    let pax = match (status.as_str(), i.pax.as_deref().map(str::trim).filter(|p| !p.is_empty())) {
+        ("tidak", _) => 0,
+        (_, None) => 1,
+        (_, Some(p)) => match p.parse::<i32>() {
+            Ok(n) if (1..=10).contains(&n) => n,
+            _ => return Err("Jumlah tamu harus angka 1–10.".into()),
+        },
+    };
+    // Kode tamu diisi tapi tak dikenal ≠ tamu umum: jangan diam-diam jadi anonim.
+    let guest_id = match i.guest.as_deref().map(str::trim).filter(|g| !g.is_empty()) {
+        Some(code) => match repo::guest_id(&st.pool, row.id, code).await.map_err(busy)? {
+            Some(id) => Some(id),
+            None => return Err("Kode tamu tidak dikenal — buka undangan dari tautan yang Anda terima.".into()),
+        },
         None => None,
     };
-    repo::upsert_rsvp(
+    let baru = repo::upsert_rsvp(
         &st.pool,
         repo::NewRsvp {
             inv_id: row.id,
@@ -238,11 +251,12 @@ pub async fn rsvp_core(
     )
     .await
     .map_err(busy)?;
-    Ok(match status.as_str() {
-        "hadir" => "Terima kasih! Konfirmasi kehadiran & doa restu Anda telah kami terima.".into(),
-        "ragu" => "Terima kasih, semoga Anda dapat hadir. Doa restu Anda telah kami terima.".into(),
-        _ => "Terima kasih atas doa restunya, semoga kita dipertemukan di lain kesempatan.".into(),
-    })
+    let msg = match status.as_str() {
+        "hadir" => "Terima kasih! Konfirmasi kehadiran & doa restu Anda telah kami terima.",
+        "ragu" => "Terima kasih, semoga Anda dapat hadir. Doa restu Anda telah kami terima.",
+        _ => "Terima kasih atas doa restunya, semoga kita dipertemukan di lain kesempatan.",
+    };
+    Ok((msg.into(), baru))
 }
 
 #[server]
@@ -323,7 +337,7 @@ pub async fn my_stories(slug: String) -> Result<Vec<i64>, ServerFnError> {
 }
 
 /// Langkah 1 menambah story: nomor WhatsApp tamu → kunci spesial 6 digit
-/// dikirim lewat WAHA (hanya hash yang disimpan, berlaku 15 menit). Satu
+/// dikirim lewat WhatsApp/waxum (hanya hash yang disimpan, berlaku 15 menit). Satu
 /// nomor = satu story per undangan; maks 3 kunci per nomor per jam.
 #[server]
 pub async fn request_story_key(slug: String, name: String, phone: String) -> Result<StoryKey, ServerFnError> {
@@ -342,7 +356,7 @@ pub async fn request_story_key(slug: String, name: String, phone: String) -> Res
     if phone.is_empty() {
         return Err(ServerFnError::new("Nomor WhatsApp tidak valid (contoh: 0812 3456 7890)."));
     }
-    let Some(waha) = st.waha.clone() else {
+    let Some(wa) = st.wa.clone() else {
         return Err(ServerFnError::new("Layanan WhatsApp belum aktif — story belum bisa ditambahkan."));
     };
     limit_write(&st, "storykey", &slug).await?;
@@ -362,7 +376,8 @@ pub async fn request_story_key(slug: String, name: String, phone: String) -> Res
         "Halo {name}! 👋\n\nKunci spesial untuk {tujuan} di undangan pernikahan *{}*:\n\n*{key}*\n\nBerlaku 15 menit, hanya untuk nomor ini. Jangan bagikan ke orang lain.",
         row.inv.couple()
     );
-    if let Err(e) = waha.send_text(&crate::server::waha::chat_id(&phone), &text).await {
+    // Tamu sedang menunggu di layar → percobaan ulang singkat saja.
+    if let Err(e) = wa.send_text(&phone, &text, crate::server::wa::Gigih::Cepat).await {
         tracing::error!(slug = %slug, error = %format!("{e:#}"), "story: kirim kunci WA gagal");
         return Err(ServerFnError::new("Gagal mengirim WhatsApp. Pastikan nomor aktif di WhatsApp lalu coba lagi."));
     }
@@ -607,7 +622,7 @@ pub async fn admin_songs() -> Result<Vec<Song>, ServerFnError> {
 /// Templat tema + tema dan templat yang dipakainya (/admin/templat).
 #[server]
 pub async fn admin_templates() -> Result<AdminTemplatPage, ServerFnError> {
-    let (st, _) = require_admin(false).await?;
+    let (st, _) = require_admin(true).await?;
     let cat = st.themes();
     let pretty = |m: &std::collections::BTreeMap<String, String>| serde_json::to_string_pretty(m).unwrap_or_default();
     let set = st.templat();

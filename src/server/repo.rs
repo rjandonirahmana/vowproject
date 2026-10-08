@@ -165,22 +165,26 @@ pub struct NewRsvp<'a> {
     pub message: &'a str,
 }
 
-pub async fn upsert_rsvp(pool: &Pool, n: NewRsvp<'_>) -> Result<()> {
+/// `true` = baris baru; `false` = RSVP tamu terdaftar yang sudah ada diperbarui.
+pub async fn upsert_rsvp(pool: &Pool, n: NewRsvp<'_>) -> Result<bool> {
     let c = pool.get().await?;
     match n.guest_id {
         // Tamu terdaftar: satu RSVP per tamu, kirim ulang = perbarui.
+        // xmax = 0 hanya pada baris yang baru di-INSERT.
         Some(gid) => {
-            db_exec(&c,
+            Ok(db_row(&c,
                 "INSERT INTO rsvps (invitation_id, guest_id, name, phone, status, pax, session, message)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
                  ON CONFLICT (guest_id) WHERE guest_id IS NOT NULL DO UPDATE SET
                    name = EXCLUDED.name, phone = EXCLUDED.phone, status = EXCLUDED.status,
                    pax = EXCLUDED.pax, session = EXCLUDED.session,
                    message = CASE WHEN EXCLUDED.message = '' THEN rsvps.message ELSE EXCLUDED.message END,
-                   created_at = NOW()",
+                   created_at = NOW()
+                 RETURNING (xmax = 0)",
                 &[&n.inv_id, &gid, &n.name, &n.phone, &n.status, &n.pax, &n.session, &n.message],
             )
-            .await?;
+            .await?
+            .get(0))
         }
         None => {
             db_exec(&c,
@@ -189,9 +193,15 @@ pub async fn upsert_rsvp(pool: &Pool, n: NewRsvp<'_>) -> Result<()> {
                 &[&n.inv_id, &n.name, &n.phone, &n.status, &n.pax, &n.session, &n.message],
             )
             .await?;
+            Ok(true)
         }
     }
-    Ok(())
+}
+
+/// Jumlah ucapan (RSVP bermesej) sebenarnya di DB.
+pub async fn wish_total(pool: &Pool, inv_id: i64) -> Result<i64> {
+    let c = pool.get().await?;
+    Ok(db_row(&c, "SELECT COUNT(*) FROM rsvps WHERE invitation_id = $1 AND message <> ''", &[&inv_id]).await?.get(0))
 }
 
 pub async fn insert_gift(
@@ -667,15 +677,31 @@ pub async fn set_payment_proof(pool: &Pool, inv_id: i64, url: &str) -> Result<Op
     Ok(r.map(|r| r.get(0)))
 }
 
-pub async fn admin_update_invitation(pool: &Pool, slug: &str, status: &str, theme: &str) -> Result<bool> {
+/// Hasil ubah status oleh admin — cukup untuk memberi tahu pemesan.
+pub struct StatusBerubah {
+    /// Status SEBELUM diubah (baris dikunci → dua admin serentak tak sama-sama
+    /// melihat "menunggu" lalu sama-sama mengirim WA "aktif").
+    pub lama: String,
+    pub contact_phone: String,
+    pub couple: String,
+}
+
+/// `None` = tak ditemukan / undangan demo.
+pub async fn admin_update_invitation(pool: &Pool, slug: &str, status: &str, theme: &str) -> Result<Option<StatusBerubah>> {
     let c = pool.get().await?;
-    let n = db_exec(&c,
-        
-            "UPDATE invitations SET status = $2, theme = $3, updated_at = NOW() WHERE slug = $1 AND NOT is_demo",
-            &[&slug, &status, &theme],
-        )
-        .await?;
-    Ok(n > 0)
+    let r = db_opt(&c,
+        "UPDATE invitations i SET status = $2, theme = $3, updated_at = NOW()
+           FROM (SELECT id, status AS lama FROM invitations WHERE slug = $1 AND NOT is_demo FOR UPDATE) o
+          WHERE i.id = o.id
+          RETURNING o.lama, i.contact_phone, i.bride_name, i.groom_name",
+        &[&slug, &status, &theme],
+    )
+    .await?;
+    Ok(r.map(|r| StatusBerubah {
+        lama: r.get("lama"),
+        contact_phone: r.get("contact_phone"),
+        couple: format!("{} & {}", r.get::<_, String>("bride_name"), r.get::<_, String>("groom_name")),
+    }))
 }
 
 // ── Konten situs (site_content) ────────────────────────────────────────────
@@ -1223,21 +1249,29 @@ pub async fn insert_story_key(pool: &Pool, inv_id: i64, phone: &str, name: &str,
 /// `Some(nama)` (belum ditandai terpakai — baru setelah story tersimpan, agar
 /// unggahan yang gagal tak menghanguskan kunci). Salah → percobaan +1; kunci
 /// mati setelah 5 kali salah.
+///
+/// SATU pernyataan atomik: baris dikunci (FOR UPDATE) lalu `attempts`
+/// dinaikkan bila salah. Dulu SELECT lalu UPDATE terpisah → beberapa tebakan
+/// paralel sama-sama membaca attempts = 4 dan semuanya lolos dicoba. Kini
+/// permintaan yang menunggu kunci baris menilai ulang `attempts < 5` pada versi
+/// terbaru (READ COMMITTED), jadi batas 5 benar-benar berlaku. Yang dibandingkan
+/// hash SHA-256, bukan kunci asli — perbandingan di SQL tak membocorkan apa pun.
 pub async fn check_story_key(pool: &Pool, inv_id: i64, phone: &str, key_hash: &str) -> Result<Option<(i64, String)>> {
     let c = pool.get().await?;
     let Some(r) = db_opt(&c,
-        "SELECT id, key_hash, name FROM story_keys
-          WHERE invitation_id = $1 AND phone = $2 AND used_at IS NULL AND expires_at > NOW() AND attempts < 5
-          ORDER BY created_at DESC LIMIT 1",
-        &[&inv_id, &phone]).await? else { return Ok(None) };
-    let id: i64 = r.get("id");
-    let stored: String = r.get("key_hash");
-    if crate::server::auth::same_hash(&stored, key_hash) {
-        Ok(Some((id, r.get("name"))))
-    } else {
-        db_exec(&c, "UPDATE story_keys SET attempts = attempts + 1 WHERE id = $1", &[&id]).await?;
-        Ok(None)
-    }
+        "WITH k AS (
+             SELECT id FROM story_keys
+              WHERE invitation_id = $1 AND phone = $2 AND used_at IS NULL AND expires_at > NOW() AND attempts < 5
+              ORDER BY created_at DESC LIMIT 1
+              FOR UPDATE
+         )
+         UPDATE story_keys s
+            SET attempts = s.attempts + CASE WHEN s.key_hash = $3 THEN 0 ELSE 1 END
+           FROM k
+          WHERE s.id = k.id AND s.attempts < 5
+         RETURNING s.id, s.name, s.key_hash = $3 AS cocok",
+        &[&inv_id, &phone, &key_hash]).await? else { return Ok(None) };
+    Ok(r.get::<_, bool>("cocok").then(|| (r.get("id"), r.get("name"))))
 }
 
 pub async fn use_story_key(pool: &Pool, key_id: i64) -> Result<()> {

@@ -130,20 +130,16 @@ impl StorageService {
     }
 
     /// Validasi + optimasi (server/gambar.rs): perkecil dimensi & WebP lossy
-    /// berkualitas; hasil tak lebih kecil → berkas asli.
-    async fn prepare_image(data: Vec<u8>, ukuran: Ukuran) -> anyhow::Result<(Vec<u8>, &'static str, &'static str)> {
+    /// berkualitas, metadata dibuang. Tak bisa didekode → ditolak.
+    async fn prepare_image(data: Vec<u8>, ukuran: Ukuran) -> anyhow::Result<super::gambar::Hasil> {
         if data.len() > MAX_IMAGE {
             anyhow::bail!("Foto maksimal {} MB", MAX_IMAGE / 1024 / 1024);
         }
-        let (mime, ext) = detect_image(&data).ok_or_else(|| anyhow::anyhow!("Foto harus JPEG/PNG/WebP"))?;
+        detect_image(&data).ok_or_else(|| anyhow::anyhow!("Foto harus JPEG/PNG/WebP"))?;
         let before = data.len();
-        Ok(match super::gambar::optimasi(data, ukuran).await? {
-            (_, Some(h)) => {
-                tracing::info!(sebelum_kb = before / 1024, sesudah_kb = h.data.len() / 1024, "gambar: dioptimasi");
-                (h.data, h.mime, h.ext)
-            }
-            (asli, None) => (asli, mime, ext),
-        })
+        let h = super::gambar::optimasi(data, ukuran).await?;
+        tracing::info!(sebelum_kb = before / 1024, sesudah_kb = h.data.len() / 1024, "gambar: dioptimasi");
+        Ok(h)
     }
 
     /// Nama berkas yang belum dipakai: `stem`, lalu `stem-2`, `stem-3`, …
@@ -160,27 +156,28 @@ impl StorageService {
     /// Foto dengan jalur terbaca: `foto/{folder}/{nama}.webp`
     /// (mis. foto/yona-doni-k7f3x9m2/sampul.webp).
     pub async fn upload_image_as(&self, data: Vec<u8>, dir: &str, name: &str, ukuran: Ukuran) -> anyhow::Result<String> {
-        let (data, mime, ext) = Self::prepare_image(data, ukuran).await?;
-        self.put_key(&format!("foto/{}/{}.{ext}", path_part(dir, "undangan"), file_stem(name, "foto")), mime, data).await
+        let h = Self::prepare_image(data, ukuran).await?;
+        self.put_key(&format!("foto/{}/{}.{}", path_part(dir, "undangan"), file_stem(name, "foto"), h.ext), h.mime, h.data).await
     }
 
-    /// Lagu unggahan pembeli: `musik/{undangan}/{nama-berkas-asli}.{ext}`
-    /// (mis. musik/yona-doni-k7f3x9m2/TULUS-Teman-Hidup.mp3).
+    /// Lagu unggahan pembeli: `musik/{undangan}/{nama-berkas}-{acak}.{ext}`
+    /// (mis. musik/yona-doni-k7f3x9m2/TULUS-Teman-Hidup-3f9a1c.mp3). Akhiran
+    /// acak: dua berkas bernama sama (mis. pustaka lagu admin) tak saling timpa.
     pub async fn upload_audio_as(&self, data: Vec<u8>, dir: &str, file_name: &str) -> anyhow::Result<String> {
         if data.len() > MAX_AUDIO {
             anyhow::bail!("Lagu maksimal {} MB", MAX_AUDIO / 1024 / 1024);
         }
         let (mime, ext) = detect_audio(&data).ok_or_else(|| anyhow::anyhow!("Lagu harus MP3/M4A/OGG"))?;
-        self.put_key(&format!("musik/{}/{}.{ext}", path_part(dir, "undangan"), file_stem(file_name, "lagu")), mime, data).await
+        self.put_key(&format!("musik/{}/{}.{ext}", path_part(dir, "undangan"), unique_stem(file_name, "lagu")), mime, data).await
     }
 
-    /// Video prewedding: `video/{undangan}/{nama-berkas}.{ext}`.
+    /// Video prewedding: `video/{undangan}/{nama-berkas}-{acak}.{ext}`.
     pub async fn upload_video_as(&self, data: Vec<u8>, dir: &str, file_name: &str) -> anyhow::Result<String> {
         if data.len() > MAX_VIDEO {
             anyhow::bail!("Video maksimal {} MB — kompres dulu (mis. 720p)", MAX_VIDEO / 1024 / 1024);
         }
         let (mime, ext) = detect_video(&data).ok_or_else(|| anyhow::anyhow!("Video harus MP4, MOV, atau WebM"))?;
-        self.put_key(&format!("video/{}/{}.{ext}", path_part(dir, "undangan"), file_stem(file_name, "prewedding")), mime, data).await
+        self.put_key(&format!("video/{}/{}.{ext}", path_part(dir, "undangan"), unique_stem(file_name, "prewedding")), mime, data).await
     }
 
     /// Kunci objek dari URL publik unggahan KITA (tanpa fragmen #t=/#pos=).
@@ -216,6 +213,11 @@ impl StorageService {
             .map_err(|e| anyhow::anyhow!("Gagal unggah ke RustFS: {e}"))?;
         Ok(format!("{}/{key}", self.public_url))
     }
+}
+
+/// `file_stem` + akhiran acak 6 hex — nama tetap terbaca, kunci tak bentrok.
+fn unique_stem(name: &str, fallback: &str) -> String {
+    format!("{}-{}", file_stem(name, fallback), super::auth::random_hex(3))
 }
 
 /// Nama berkas aman & tetap terbaca untuk kunci objek/URL: ekstensi dibuang,
@@ -296,6 +298,13 @@ mod tests {
         assert!(st.key_of("https://evil.example/undangan/foto/a.jpg").is_none());
         assert!(st.key_of(&format!("{base}/../rahasia")).is_none());
         assert!(st.key_of(&format!("{base}-lain/foto/a.jpg")).is_none());
+    }
+
+    #[test]
+    fn nama_unik_tetap_terbaca() {
+        let a = unique_stem("TULUS - Teman Hidup.mp3", "lagu");
+        assert!(a.starts_with("TULUS-Teman-Hidup-") && a.len() == "TULUS-Teman-Hidup-".len() + 6, "{a}");
+        assert_ne!(a, unique_stem("TULUS - Teman Hidup.mp3", "lagu"));
     }
 
     #[test]

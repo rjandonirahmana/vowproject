@@ -111,6 +111,12 @@ input, textarea, select { font: inherit; }
     animation: t-fadeIn .3s both;
 }
 .t-lightbox img { max-height: 92svh; width: auto; border-radius: 6px; animation: t-zoomOut .45s both; }
+.t-lightbox__x {
+    position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px;
+    border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; font-size: 28px; line-height: 1; cursor: pointer;
+}
+.t-lightbox__x:focus-visible, [data-zoom]:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+[data-zoom] { cursor: zoom-in; }
 
 /* ── Pratinjau katalog & perangkat lemah ───────────────────────────────── */
 .t-pv [data-music-toggle] { display: none; }

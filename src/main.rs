@@ -99,12 +99,15 @@ async fn main() -> Result<()> {
         pool,
         storage,
         admin_wa: cfg.admin_wa.clone(),
-        waha: {
-            let w = undangan::server::waha::WahaClient::new(cfg.waha.clone());
+        wa: {
+            let w = undangan::server::wa::WaClient::new(cfg.wa.clone());
             match (&w, cfg.notify_wa.is_empty()) {
-                (None, _) => tracing::warn!("WAHA_BASE_URL kosong — notifikasi WA bukti transfer dinonaktifkan"),
-                (Some(_), true) => tracing::warn!("WAHA aktif tapi PAYMENT_NOTIFY_WA/ADMIN_WHATSAPP kosong — tak ada penerima notifikasi"),
-                (Some(_), false) => tracing::info!(to = %cfg.notify_wa, "WAHA: notifikasi bukti transfer aktif"),
+                (None, _) => tracing::warn!("WAXUM_BASE_URL kosong — semua notifikasi WhatsApp dinonaktifkan"),
+                (Some(_), true) => tracing::warn!("waxum aktif tapi PAYMENT_NOTIFY_WA/ADMIN_WHATSAPP kosong — admin tak menerima notifikasi bukti transfer"),
+                (Some(_), false) => tracing::info!(to = %cfg.notify_wa, session = %cfg.wa.session, "waxum: notifikasi WhatsApp aktif"),
+            }
+            if !cfg.wa.base_url.is_empty() && cfg.wa.token.is_empty() {
+                tracing::warn!("WAXUM_TOKEN kosong — waxum akan menolak (401) bila autentikasinya aktif");
             }
             w
         },
@@ -125,14 +128,14 @@ async fn main() -> Result<()> {
     });
     // Hapus pesanan yang tak dikonfirmasi admin dalam UNPAID_TTL_HOURS (+ file RustFS).
     tokio::spawn(undangan::server::cleanup::run(state.clone()));
-    // WAHA: cek sesi sekali saat start — log jelas bila belum tersambung,
-    // jangan sampai baru ketahuan ketika bukti transfer pertama tak sampai.
-    if let Some(w) = state.waha.clone() {
+    // waxum: cek sesi sekali saat start — log jelas bila belum tersambung,
+    // jangan sampai baru ketahuan ketika WA pertama tak sampai.
+    if let Some(w) = state.wa.clone() {
         tokio::spawn(async move {
             match w.session_status().await {
-                Ok(s) if s == "WORKING" => tracing::info!(status = %s, "WAHA: sesi tersambung"),
-                Ok(s) => tracing::error!(status = %s, "WAHA: sesi BELUM siap (scan QR di dashboard WAHA) — notifikasi bukti transfer tak akan terkirim"),
-                Err(e) => tracing::error!(error = %format!("{e:#}"), "WAHA: gagal dicek — notifikasi bukti transfer tak akan terkirim"),
+                Ok(s) if s == "logged_in" || s == "connected" => tracing::info!(status = %s, "waxum: sesi tersambung"),
+                Ok(s) => tracing::error!(status = %s, "waxum: sesi BELUM siap (pasangkan QR/kode di konsol waxum) — WA tak akan terkirim"),
+                Err(e) => tracing::error!(error = %format!("{e:#}"), "waxum: gagal dicek — WA tak akan terkirim"),
             }
         });
     }
