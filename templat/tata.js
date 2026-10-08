@@ -50,6 +50,20 @@
   };
   html.classList.add("t-js");
   if (reduce) html.classList.add("t-reduce");
+  // ── Anggaran media (dihitung PALING AWAL, sebelum video apa pun dimuat) ──
+  //   penuh   : video pembuka + video latar + gerak idle
+  //   t-lite  : hemat data / RAM < 4 GB / koneksi 2G–3G atau < 1.5 Mbps →
+  //             tanpa video (gerbang memakai transisi CSS), tanpa loop dekor
+  //   t-reduce: prefers-reduced-motion → statis
+  // RAM besar tak menolong di sinyal buruk — jenis koneksi ikut dihitung.
+  const nav = navigator;
+  const conn = nav.connection || {};
+  const lite =
+    !!conn.saveData ||
+    (nav.deviceMemory && nav.deviceMemory < 4) ||
+    /^(slow-2g|2g|3g)$/.test(conn.effectiveType || "") ||
+    (conn.downlink > 0 && conn.downlink < 1.5);
+  if (lite) html.classList.add("t-lite");
 
   // ── Animasi masuk (data-a) ───────────────────────────────────────────────
   // Durasi & jeda dipasang sebagai variabel CSS; kelas a-in memicu keyframe
@@ -182,7 +196,11 @@
   });
 
   // ── Gerbang: sampul naik → video pembuka → isi ───────────────────────────
-  const openVideo = d.querySelector("video[data-open-video]");
+  // t-lite / reduce: video pembuka tak pernah diunduh (templat preload="none");
+  // perangkat & koneksi kuat mulai memuatnya sekarang agar siap saat dibuka.
+  const openEl = d.querySelector("video[data-open-video]");
+  const openVideo = lite || reduce ? null : openEl;
+  if (openVideo) openVideo.preload = "auto";
   const finish = () => {
     if (opened) return;
     opened = true;
@@ -194,7 +212,7 @@
     scan();
     setTimeout(() => {
       if (gate) gate.hidden = true;
-      if (openVideo) openVideo.hidden = true;
+      if (openEl) openEl.hidden = true;
     }, 2200);
   };
   const open = (instant) => {
@@ -232,10 +250,6 @@
     // Sudah dibuka di sesi ini (kembali dari tab Story / muat ulang) → langsung isi.
     if (store.get(KEY) === "1" && !pv) open(true);
   }
-  // Perangkat lemah / hemat data: video latar & loop dekor dimatikan.
-  const nav = navigator;
-  if ((nav.connection && nav.connection.saveData) || (nav.deviceMemory && nav.deviceMemory < 4))
-    html.classList.add("t-lite");
 
   // ── Slideshow foto (silang-pudar) ────────────────────────────────────────
   const slideIO = new IntersectionObserver((es) =>
@@ -284,10 +298,17 @@
       if (parts.m) parts.m.textContent = pad(mm);
       if (parts.s) parts.s.textContent = pad(s);
     };
-    if (target) {
+    if (!target) return;
+    tick();
+    // Berhenti setelah lewat; tab tersembunyi tak dihitung (disusul saat kembali).
+    const t = setInterval(() => {
+      if (d.hidden) return;
       tick();
-      setInterval(tick, 1000);
-    }
+      if (Date.now() >= target) clearInterval(t);
+    }, 1000);
+    d.addEventListener("visibilitychange", () => {
+      if (!d.hidden) tick();
+    });
   });
 
   // ── Salin ────────────────────────────────────────────────────────────────
@@ -332,7 +353,18 @@
     x.setAttribute("aria-label", "Tutup foto");
     x.textContent = "×";
     box.append(img, x);
+    // Latar tak bisa digulir / difokus / dibaca pembaca layar selama dialog terbuka.
+    const latar = Array.from(d.body.children).filter((n) => !n.inert);
+    const overflow = d.body.style.overflow;
+    latar.forEach((n) => {
+      n.inert = true;
+    });
+    d.body.style.overflow = "hidden";
     const close = () => {
+      latar.forEach((n) => {
+        n.inert = false;
+      });
+      d.body.style.overflow = overflow;
       box.remove();
       d.removeEventListener("keydown", key, true);
       el.focus({ preventScroll: true });
@@ -441,6 +473,26 @@
     try {
       parent.postMessage({ pv: "ready" }, location.origin);
     } catch (_) {}
+  }
+
+  // ── Navigasi bawah (server/templat.rs): item bagian yang sedang dibaca menyala ──
+  const navLinks = q(".t-nav a[href^='#']");
+  if (navLinks.length) {
+    const byId = new Map();
+    navLinks.forEach((a) => {
+      const sec = d.getElementById(a.getAttribute("href").slice(1));
+      if (sec) byId.set(sec, a);
+    });
+    // Garis baca 40% dari atas layar: bagian yang melintasinya = aktif.
+    const navIO = new IntersectionObserver(
+      (es) =>
+        es.forEach((e) => {
+          if (!e.isIntersecting) return;
+          navLinks.forEach((a) => a.classList.toggle("is-active", a === byId.get(e.target)));
+        }),
+      { rootMargin: "-40% 0px -59% 0px" },
+    );
+    byId.forEach((_, sec) => navIO.observe(sec));
   }
 
   watchA();

@@ -1011,7 +1011,6 @@ for region, items in NUS.items():
     for it in items:
         NUS_INFO[slugify(it[0])] = (region, it[8], it[9])
 
-THEMES = json.load(open(os.path.join(HERE, "themes.json")))
 
 def pick_set(t):
     if t["slug"] in ALAM:
@@ -1056,40 +1055,44 @@ def q(s):
 def b(v):
     return "TRUE" if v else "FALSE"
 
-vals, done, per_set, themes_done = [], 0, {}, []
-for t in THEMES:
-    if t["slug"] in SKIP:
-        continue
-    key = pick_set(t)
-    if not key:
-        print("lewati (tanpa set):", t["slug"], t["nuansa"])
-        continue
-    S = dict(SETS[key])
-    region, tile, emblem = NUS_INFO.get(t["slug"], (None, S["tile"], S.get("emblem")))
-    if key in ("alam", "laut", "modern"):
-        tile = S["tile"]
-    accent = REGIONS.get(region or "", {}).get("accent") or REGIONS.get(key, {}).get("accent") or "#9c1d1d"
-    c = palette(t, accent)
-    ikon_fn = IKON_KHUSUS.get(t["slug"], S["ikon"][0]) or S["ikon"][0]
-    pieces = {
-        "tokoh": S["tokoh"][0](c, tile) if S["tokoh"][0] is not kain_gantung else kain_gantung(c, tile, S.get("garis", False)),
-        "ikon": ikon_fn(c, tile),
-        "atas": S["atas"][0](c, tile),
-        "sudut": S["sudut"](c, tile),
-    }
-    if S.get("emblem"):
-        pieces["lambang"] = lambang(c, tile, emblem if emblem in M.EMBLEMS else S["emblem"])
-    for name, content in pieces.items():
-        with open(os.path.join(OUT, f'{t["slug"]}-{name}.svg'), "w") as fh:
-            fh.write(content)
-    for i, (bag, piece, pos, x, y, w, rot, mir, masuk, jeda, dur, gerak, spd, depan, hp, op) in enumerate(placements(S)):
-        img = f'{URL}/{t["slug"]}-{piece}.svg'
-        vals.append(f"    ({q(t['slug'])}, {q(bag)}, {q(img)}, {q(pos)}, {x}, {y}, {w}, {rot}, {b(mir)}, {q(masuk)}, {jeda}, {dur}, {q(gerak)}, {spd}, {b(depan)}, {b(hp)}, {op}, {(i + 1) * 10})")
-    done += 1
-    themes_done.append(t["slug"])
-    per_set[key] = per_set.get(key, 0) + 1
+def main():
+    """Bangkitkan SVG + migration/014 untuk tema di themes.json. Dibungkus
+    agar fungsi gambar & SETS bisa diimpor generator lain (scripts/provinsi)."""
+    THEMES = json.load(open(os.path.join(HERE, "themes.json")))
+    vals, done, per_set, themes_done = [], 0, {}, []
+    for t in THEMES:
+        if t["slug"] in SKIP:
+            continue
+        key = pick_set(t)
+        if not key:
+            print("lewati (tanpa set):", t["slug"], t["nuansa"])
+            continue
+        S = dict(SETS[key])
+        region, tile, emblem = NUS_INFO.get(t["slug"], (None, S["tile"], S.get("emblem")))
+        if key in ("alam", "laut", "modern"):
+            tile = S["tile"]
+        accent = REGIONS.get(region or "", {}).get("accent") or REGIONS.get(key, {}).get("accent") or "#9c1d1d"
+        c = palette(t, accent)
+        ikon_fn = IKON_KHUSUS.get(t["slug"], S["ikon"][0]) or S["ikon"][0]
+        pieces = {
+            "tokoh": S["tokoh"][0](c, tile) if S["tokoh"][0] is not kain_gantung else kain_gantung(c, tile, S.get("garis", False)),
+            "ikon": ikon_fn(c, tile),
+            "atas": S["atas"][0](c, tile),
+            "sudut": S["sudut"](c, tile),
+        }
+        if S.get("emblem"):
+            pieces["lambang"] = lambang(c, tile, emblem if emblem in M.EMBLEMS else S["emblem"])
+        for name, content in pieces.items():
+            with open(os.path.join(OUT, f'{t["slug"]}-{name}.svg'), "w") as fh:
+                fh.write(content)
+        for i, (bag, piece, pos, x, y, w, rot, mir, masuk, jeda, dur, gerak, spd, depan, hp, op) in enumerate(placements(S)):
+            img = f'{URL}/{t["slug"]}-{piece}.svg'
+            vals.append(f"    ({q(t['slug'])}, {q(bag)}, {q(img)}, {q(pos)}, {x}, {y}, {w}, {rot}, {b(mir)}, {q(masuk)}, {jeda}, {dur}, {q(gerak)}, {spd}, {b(depan)}, {b(hp)}, {op}, {(i + 1) * 10})")
+        done += 1
+        themes_done.append(t["slug"])
+        per_set[key] = per_set.get(key, 0) + 1
 
-sql = f"""-- ═══════════════════════════════════════════════════════════════════════════
+    sql = f"""-- ═══════════════════════════════════════════════════════════════════════════
 -- 014_ornamen_adat — ornamen KHAS DAERAH per tema (bukan lagi bunga yang sama
 -- beda warna): Jawa = wayang kulit + gunungan + janur, Minang = rumah gadang +
 -- rangkiang + marawa, Bali = penjor + candi bentar, Batak = rumah bolon + ulos,
@@ -1124,6 +1127,10 @@ SELECT a.theme, a.bagian, a.img, a.posisi, a.x, a.y, a.lebar, a.rotasi, a.cermin
    AND NOT EXISTS (SELECT 1 FROM theme_ornaments o WHERE o.theme = a.theme)
  ORDER BY a.theme, a.urutan;
 """
-with open(os.path.join(ROOT, "migration/014_ornamen_adat.sql"), "w") as fh:
-    fh.write(sql)
-print("tema:", done, "| per set:", per_set)
+    with open(os.path.join(ROOT, "migration/014_ornamen_adat.sql"), "w") as fh:
+        fh.write(sql)
+    print("tema:", done, "| per set:", per_set)
+
+
+if __name__ == "__main__":
+    main()

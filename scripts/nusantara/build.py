@@ -76,72 +76,75 @@ def write(name, content):
         fh.write(content)
     return f"{URL}/{name}"
 
-# ── Animasi khas daerah ─────────────────────────────────────────────────────
-anim_rows = []
-for i, (slug, (name, col, tile, emblem, extra)) in enumerate(ANIM_OPEN.items()):
-    panel = write(f"anim/pintu-{slug}.svg", M.panel(col, tile, emblem))
-    orn = write(f"anim/ornamen-{slug}.svg", M.svg(200, 200, M.EMBLEMS[emblem](col, 100, 120)))
-    spec = dict(fill="image", panel_image=panel, border=True, orn_image=orn, **extra)
-    anim_rows.append(("buka", slug, name, spec, 60 + i))
-for i, (slug, (name, img, extra)) in enumerate(ANIM_FLOAT.items()):
-    url = write(f"anim/{img}.svg", M.FLOATS[img]())
-    anim_rows.append(("hiasan", slug, name, dict(float_image=url, **extra), 60 + i))
+def main():
+    """Bangkitkan SVG + migration/009. Dibungkus agar tokens()/palette_key()
+    bisa diimpor generator lain (scripts/provinsi) tanpa menulis apa pun."""
+    # ── Animasi khas daerah ─────────────────────────────────────────────────────
+    anim_rows = []
+    for i, (slug, (name, col, tile, emblem, extra)) in enumerate(ANIM_OPEN.items()):
+        panel = write(f"anim/pintu-{slug}.svg", M.panel(col, tile, emblem))
+        orn = write(f"anim/ornamen-{slug}.svg", M.svg(200, 200, M.EMBLEMS[emblem](col, 100, 120)))
+        spec = dict(fill="image", panel_image=panel, border=True, orn_image=orn, **extra)
+        anim_rows.append(("buka", slug, name, spec, 60 + i))
+    for i, (slug, (name, img, extra)) in enumerate(ANIM_FLOAT.items()):
+        url = write(f"anim/{img}.svg", M.FLOATS[img]())
+        anim_rows.append(("hiasan", slug, name, dict(float_image=url, **extra), 60 + i))
 
-# ── Tema ───────────────────────────────────────────────────────────────────
-LAYOUTS = ["gerbang", "bingkai", "klasik", "editorial", "gerbang", "klasik"]
-rows, seen, n = [], set(), 0
-for region, items in THEMES.items():
-    R = REGIONS[region]
-    for i, (name, region_label, desc, tags, primary, gold, bg, dark, tile, emblem) in enumerate(items):
-        slug = slugify(name)
-        assert slug not in seen, slug
-        seen.add(slug)
-        tk = tokens(primary, gold, bg, dark)
-        col = dict(primary=tk["primary"] if not dark else gold, gold=gold, bg=bg, card=tk["card"], ink=tk["ink"], accent=R["accent"])
-        # Aset: motif (pola/sudut), hiasan kartu, bingkai (selang-seling), latar (tiap ke-3).
-        if n % 3 == 2:
-            image_url, mode = write(f"{slug}-sudut.svg", M.corner(col, tile)), "sudut"
-        else:
-            image_url, mode = write(f"{slug}-motif.svg", M.tile_svg(col, tile)), "pola"
-        deco = write(f"{slug}-hiasan.svg", M.card_deco(col, emblem, tile))
-        frame = write(f"{slug}-bingkai.svg", M.frame(col, tile)) if i % 2 == 0 else ""
-        bg_img = write(f"{slug}-latar.svg", M.background(col, tile, emblem)) if n % 3 == 0 else ""
-        layout = "bingkai" if dark else LAYOUTS[n % len(LAYOUTS)]
-        category = "Luxury" if dark else ("Modern" if "Modern" in name or "Modern" in region_label else "Adat")
-        badge = "Baru • Adat" if i == 0 else ("Favorit" if i == 2 else "")
-        open_anim = R["opens"][i % len(R["opens"])]
-        rows.append(dict(
-            slug=slug, name=name, category=category, nuansa=R["nuansa"], palette=palette_key(primary, dark, gold),
-            region=region_label, description=desc, tags=tags, badge=badge, layout=layout, ornament="none",
-            font=R["fonts"][i % len(R["fonts"])], tokens=tk, dark=dark, sort_order=200 + n,
-            script_font=R["scripts"][i % len(R["scripts"])], bg_image=bg_img, frame_image=frame, card_deco=deco,
-            float_deco=R["floats"][i % len(R["floats"])], open_anim=open_anim, page_mode="satu",
-            scroll_anim=R["scrolls"][i % len(R["scrolls"])], image_url=image_url, image_mode=mode,
-        ))
-        n += 1
+    # ── Tema ───────────────────────────────────────────────────────────────────
+    LAYOUTS = ["gerbang", "bingkai", "klasik", "editorial", "gerbang", "klasik"]
+    rows, seen, n = [], set(), 0
+    for region, items in THEMES.items():
+        R = REGIONS[region]
+        for i, (name, region_label, desc, tags, primary, gold, bg, dark, tile, emblem) in enumerate(items):
+            slug = slugify(name)
+            assert slug not in seen, slug
+            seen.add(slug)
+            tk = tokens(primary, gold, bg, dark)
+            col = dict(primary=tk["primary"] if not dark else gold, gold=gold, bg=bg, card=tk["card"], ink=tk["ink"], accent=R["accent"])
+            # Aset: motif (pola/sudut), hiasan kartu, bingkai (selang-seling), latar (tiap ke-3).
+            if n % 3 == 2:
+                image_url, mode = write(f"{slug}-sudut.svg", M.corner(col, tile)), "sudut"
+            else:
+                image_url, mode = write(f"{slug}-motif.svg", M.tile_svg(col, tile)), "pola"
+            deco = write(f"{slug}-hiasan.svg", M.card_deco(col, emblem, tile))
+            frame = write(f"{slug}-bingkai.svg", M.frame(col, tile)) if i % 2 == 0 else ""
+            bg_img = write(f"{slug}-latar.svg", M.background(col, tile, emblem)) if n % 3 == 0 else ""
+            layout = "bingkai" if dark else LAYOUTS[n % len(LAYOUTS)]
+            category = "Luxury" if dark else ("Modern" if "Modern" in name or "Modern" in region_label else "Adat")
+            badge = "Baru • Adat" if i == 0 else ("Favorit" if i == 2 else "")
+            open_anim = R["opens"][i % len(R["opens"])]
+            rows.append(dict(
+                slug=slug, name=name, category=category, nuansa=R["nuansa"], palette=palette_key(primary, dark, gold),
+                region=region_label, description=desc, tags=tags, badge=badge, layout=layout, ornament="none",
+                font=R["fonts"][i % len(R["fonts"])], tokens=tk, dark=dark, sort_order=200 + n,
+                script_font=R["scripts"][i % len(R["scripts"])], bg_image=bg_img, frame_image=frame, card_deco=deco,
+                float_deco=R["floats"][i % len(R["floats"])], open_anim=open_anim, page_mode="satu",
+                scroll_anim=R["scrolls"][i % len(R["scrolls"])], image_url=image_url, image_mode=mode,
+            ))
+            n += 1
 
-assert n == 100, n
-valid_open = {"none", "tirai", "gerbang", "amplop", "pudar"} | set(ANIM_OPEN)
-valid_float = {"none", "kelopak", "kupu", "bintang"} | set(ANIM_FLOAT)
-valid_scroll = {"naik", "pudar", "zoom", "geser", "lipat", "blur", "none"}
-for r in rows:
-    assert r["open_anim"] in valid_open and r["float_deco"] in valid_float and r["scroll_anim"] in valid_scroll, r["slug"]
+    assert n == 100, n
+    valid_open = {"none", "tirai", "gerbang", "amplop", "pudar"} | set(ANIM_OPEN)
+    valid_float = {"none", "kelopak", "kupu", "bintang"} | set(ANIM_FLOAT)
+    valid_scroll = {"naik", "pudar", "zoom", "geser", "lipat", "blur", "none"}
+    for r in rows:
+        assert r["open_anim"] in valid_open and r["float_deco"] in valid_float and r["scroll_anim"] in valid_scroll, r["slug"]
 
-# ── SQL ────────────────────────────────────────────────────────────────────
-cols = ["slug", "name", "category", "nuansa", "palette", "region", "description", "tags", "badge", "layout", "ornament", "font",
-        "tokens", "dark", "sort_order", "script_font", "bg_image", "frame_image", "card_deco", "float_deco", "open_anim",
-        "page_mode", "scroll_anim", "image_url", "image_mode", "listed"]
-def val(r, c):
-    v = r.get(c, True if c == "listed" else None)
-    if c in ("tags", "tokens"):
-        return q(json.dumps(v, ensure_ascii=False)) + "::jsonb"
-    if isinstance(v, bool):
-        return "TRUE" if v else "FALSE"
-    if isinstance(v, int):
-        return str(v)
-    return q(v)
+    # ── SQL ────────────────────────────────────────────────────────────────────
+    cols = ["slug", "name", "category", "nuansa", "palette", "region", "description", "tags", "badge", "layout", "ornament", "font",
+            "tokens", "dark", "sort_order", "script_font", "bg_image", "frame_image", "card_deco", "float_deco", "open_anim",
+            "page_mode", "scroll_anim", "image_url", "image_mode", "listed"]
+    def val(r, c):
+        v = r.get(c, True if c == "listed" else None)
+        if c in ("tags", "tokens"):
+            return q(json.dumps(v, ensure_ascii=False)) + "::jsonb"
+        if isinstance(v, bool):
+            return "TRUE" if v else "FALSE"
+        if isinstance(v, int):
+            return str(v)
+        return q(v)
 
-out = ["""-- ═══════════════════════════════════════════════════════════════════════════
+    out = ["""-- ═══════════════════════════════════════════════════════════════════════════
 -- 009_tema_nusantara — 100 tema undangan adat Nusantara + 11 animasi khas
 -- daerah. DIBANGKITKAN scripts/nusantara/build.py — jangan disunting tangan;
 -- ubah tema lewat /admin/tema & animasi lewat /admin/animasi.
@@ -154,20 +157,25 @@ out = ["""-- ══════════════════════�
 -- latar, daun pintu animasi, hiasan melayang).
 -- ═══════════════════════════════════════════════════════════════════════════
 """, "-- ── Animasi khas daerah ──"]
-for kind, slug, name, spec, so in anim_rows:
-    out.append(f"INSERT INTO animations (kind, slug, name, spec, css, builtin, sort_order) VALUES ({q(kind)}, {q(slug)}, {q(name)}, "
-               f"{q(json.dumps(spec, ensure_ascii=False))}::jsonb, '', FALSE, {so}) ON CONFLICT (kind, slug) DO NOTHING;")
-out.append("\n-- ── Tema ──")
-for r in rows:
-    out.append(f"-- {r['nuansa']}: {r['name']}")
-    out.append(f"INSERT INTO themes ({', '.join(cols)})\nVALUES ({', '.join(val(r, c) for c in cols)})\nON CONFLICT (slug) DO NOTHING;")
-with open(os.path.join(ROOT, "migration/009_tema_nusantara.sql"), "w") as fh:
-    fh.write("\n".join(out) + "\n")
+    for kind, slug, name, spec, so in anim_rows:
+        out.append(f"INSERT INTO animations (kind, slug, name, spec, css, builtin, sort_order) VALUES ({q(kind)}, {q(slug)}, {q(name)}, "
+                   f"{q(json.dumps(spec, ensure_ascii=False))}::jsonb, '', FALSE, {so}) ON CONFLICT (kind, slug) DO NOTHING;")
+    out.append("\n-- ── Tema ──")
+    for r in rows:
+        out.append(f"-- {r['nuansa']}: {r['name']}")
+        out.append(f"INSERT INTO themes ({', '.join(cols)})\nVALUES ({', '.join(val(r, c) for c in cols)})\nON CONFLICT (slug) DO NOTHING;")
+    with open(os.path.join(ROOT, "migration/009_tema_nusantara.sql"), "w") as fh:
+        fh.write("\n".join(out) + "\n")
 
-# Ringkasan
-from collections import Counter
-print("tema:", len(rows), "| animasi:", len(anim_rows))
-print("per daerah:", dict(Counter(r["nuansa"] for r in rows)))
-print("palet:", dict(Counter(r["palette"] for r in rows)))
-print("kategori:", dict(Counter(r["category"] for r in rows)))
-print("berkas SVG:", sum(len(fs) for _, _, fs in os.walk(OUT_IMG)))
+    # Ringkasan
+    from collections import Counter
+    print("tema:", len(rows), "| animasi:", len(anim_rows))
+    print("per daerah:", dict(Counter(r["nuansa"] for r in rows)))
+    print("palet:", dict(Counter(r["palette"] for r in rows)))
+    print("kategori:", dict(Counter(r["category"] for r in rows)))
+    print("berkas SVG:", sum(len(fs) for _, _, fs in os.walk(OUT_IMG)))
+
+
+
+if __name__ == "__main__":
+    main()

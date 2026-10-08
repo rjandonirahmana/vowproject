@@ -8253,6 +8253,13 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
 .orn-layer--depan {
     z-index: 3;
 }
+/* Pengapit bawah sampul (wayang, rangkiang, gorga, penjor…) lebar ±30% kartu:
+   di HP ≤480px ujungnya menabrak nama mempelai → diperkecil & tetap di sudut. */
+@media (max-width: 480px) {
+    .cover .orn:is(.orn--p-kiri-bawah, .orn--p-kanan-bawah) {
+        width: calc(var(--ow, 40%) * 0.6);
+    }
+}
 .orn {
     position: absolute;
     display: block;

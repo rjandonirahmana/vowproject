@@ -15,6 +15,11 @@
     --k-script: "Pinyon Script", "Great Vibes", cursive;
     --k-serif: "Cormorant Infant", "Cormorant Garamond", Georgia, serif;
     --k-col: min(100vw, 480px);
+    /* Navigasi bawah platform (tata.css .t-nav) mengikuti kolom & warna tema. */
+    --t-col: var(--k-col);
+    --t-nav-bg: rgba(252, 248, 240, .92);
+    --t-nav-fg: var(--k-ink-soft);
+    --t-nav-on: var(--k-taupe-d);
     background: var(--k-taupe-d)
         radial-gradient(circle at 1px 1px, rgba(255, 255, 255, .08) 1px, transparent 1.4px) 0 0 / 14px 14px;
     color: var(--k-ink);
@@ -368,6 +373,9 @@
 .t-playing .k-music { opacity: 1; }
 .t-playing .k-music svg { animation: t-putar 4s linear infinite; }
 .t-gated:not(.t-open) .k-music { visibility: hidden; }
+/* Di atas navigasi bawah; isi terakhir tak tertutup navigasi. */
+.t-has-nav .k-music { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 76px); }
+.t-has-nav .k-main { padding-bottom: 96px; }
 
 /* ── Desktop: kiri panel tetap, kanan kolom undangan (ala everlove) ────── */
 .k-side { display: none; }
@@ -414,6 +422,9 @@
     .k-main { margin: 0 0 0 auto; z-index: 1; }
     .k-door { left: auto; right: 0; translate: none; }
     .k-music { right: 16px; }
+    /* Navigasi di tengah kolom kanan. */
+    .t-nav { left: auto; right: calc(var(--k-col) / 2); translate: 50% 0; }
+    .t-gated:not(.t-open) .t-nav { translate: 50% 140%; }
     .k-cover__frame, .k-main { box-shadow: -10px 0 50px rgba(20, 12, 4, .3); }
     .k-panel, .k-event { width: min(var(--k-isi), calc(100% - 28px)); margin-left: auto; margin-right: auto; }
     .k-timeline, .k-grid, .k-video video { max-width: var(--k-isi); margin-left: auto; margin-right: auto; }

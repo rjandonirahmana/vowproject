@@ -95,7 +95,8 @@
   </div>
 </section>
 {%- if a.buka_video %}
-<video class="k-door" data-open-video src="{{ a.buka_video }}" muted playsinline preload="auto" aria-hidden="true"></video>
+{#- preload="none": tata.js yang menaikkan ke "auto" HANYA untuk perangkat/koneksi kuat (bukan t-lite) #}
+<video class="k-door" data-open-video src="{{ a.buka_video }}" muted playsinline preload="none" aria-hidden="true"></video>
 {%- endif %}
 
 <main class="k-main">

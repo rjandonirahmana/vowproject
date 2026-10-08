@@ -164,9 +164,10 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
                                 <a class=if gate_mode { "btn btn--lg inv-side__cta inv-side__cta--acara" } else { "btn btn--lg inv-side__cta" } href=acara>
                                     "Lihat Rangkaian Acara"<Icon name="arrow_forward" />
                                 </a>
-                                {(!inv.music_url.is_empty() && !inv.music_label().is_empty()).then(|| view! {
+                                // Judul lagu hanya untuk pemesan (/buat & Kelola) — tamu cukup tombol putar/jeda.
+                                {(!inv.music_url.is_empty()).then(|| view! {
                                     <button type="button" class="inv-side__music" data-music="toggle" aria-label="Putar / jeda musik">
-                                        <Icon name="album" />{inv.music_label()}
+                                        <Icon name="album" />"Musik"
                                     </button>
                                 })}
                             </div>
@@ -296,7 +297,6 @@ fn Cover() -> impl IntoView {
 #[component]
 fn GuestCard() -> impl IntoView {
     let c = ctx();
-    let inv = c.page.inv.clone();
     let vip = c.page.guest.as_ref().is_some_and(|g| matches!(g.category.as_str(), "vip" | "keluarga"));
     view! {
         <section class="guest card">
@@ -305,9 +305,6 @@ fn GuestCard() -> impl IntoView {
             <h2 class="guest__name">{c.guest_name()}</h2>
             <p class="guest__text">"Tanpa mengurangi rasa hormat, kami bermaksud mengundang Anda untuk hadir dan berbagi doa restu di hari bahagia kami."</p>
             <p class="guest__note">"*Mohon maaf bila ada kesalahan penulisan nama / gelar."</p>
-            {(!inv.music_label().is_empty()).then(|| view! {
-                <span class="pill"><Icon name="music_note" />{inv.music_label()}</span>
-            })}
         </section>
     }
 }
@@ -583,10 +580,19 @@ pub fn StoryPage() -> impl IntoView {
     let action = format!("/u/{}/story/kirim", inv.slug);
     let demo = inv.is_demo;
     let (slug_in, name_in) = (inv.slug.clone(), c.to.clone());
+    // "Story Anda" = mau menambah story: buka formulir lalu gulir ke sana
+    // (formulirnya di bawah daftar story — dulu terbuka tanpa terlihat).
+    let open_add = move || {
+        show_add.set(true);
+        request_animation_frame(|| {
+            if let Some(el) = document().get_element_by_id("tambah-story") {
+                el.scroll_into_view_with_bool(true);
+            }
+        });
+    };
     view! {
         <section class="section story-hero orn-host">
             <Ornamen bagian="rsvp" />
-            <span class="intro__icon"><Icon name="photo_camera" /></span>
             <p class="eyebrow eyebrow--gold eyebrow--center">"Momen Para Tamu"</p>
             <h1 class="section__title">"Guest Stories"</h1>
             <p class="intro__text">"Bagikan satu foto terbaikmu untuk kedua mempelai — semua tamu bisa melihatnya seperti story."</p>
@@ -602,7 +608,7 @@ pub fn StoryPage() -> impl IntoView {
                 view! {
                     <div class="story-bar" data-story-slug=slug.clone()>
                         <div class="story-item">
-                            <button type="button" class="story-add-btn" on:click=move |_| show_add.update(|v| *v = !*v) aria-label="Tambah story">
+                            <button type="button" class="story-add-btn" on:click=move |_| open_add() aria-label="Tambah story">
                                 <span class="story-avatar-ring story-avatar-ring--add"><span class="story-avatar-inner"><Icon name="add" /></span></span>
                                 <span class="story-username story-username--add">"Story Anda"</span>
                             </button>

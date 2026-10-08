@@ -93,6 +93,11 @@ RUN --mount=type=cache,id=undangan-cargo-registry,target=/usr/local/cargo/regist
 
 # ── Build final ───────────────────────────────────────────────────────────────
 COPY src/ ./src/
+# templat/ di-embed lewat include_str! (server/templat.rs: tata.js, tata.css,
+# templat/<slug>/{templat.html,gaya.css,meta.json}) — tanpa ini compile gagal
+# "couldn't read src/server/../../templat/kusuma/meta.json". Setiap berkas di
+# luar src/ yang di-include_str! WAJIB disalin di sini juga.
+COPY templat/ ./templat/
 # Sentuh agar Cargo tahu source berubah setelah swap dummy→real.
 RUN touch src/main.rs src/lib.rs
 

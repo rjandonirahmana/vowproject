@@ -6,7 +6,7 @@
 .rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateY(24px) scale(.92); filter: none; }
 .rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: none; letter-spacing: .35em; filter: blur(6px); }
 .rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv] { clip-path: circle(80% at 50% 50%); }
-.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { opacity: 1; transform: scale(1.12); clip-path: circle(0% at 50% 50%); }
+.rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { opacity: 1; transform: scale(1.12); clip-path: circle(2px at 50% 50%); }
 .rv-on {a} .couple > .person[data-rv] { transition-timing-function: ease, cubic-bezier(.34, 1.56, .64, 1); }
 .rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { transform: scale(.6) rotate(-6deg); }
 .rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { transform: scale(.6) rotate(6deg); }

@@ -30,11 +30,16 @@
 .inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 3.1s; }
 .inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; filter: brightness(1.15) saturate(1.2); }
 .inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: translateY(-70px) scale(.94); transition: opacity .6s ease, transform .8s cubic-bezier(.5, 0, .3, 1); }
-.inv-opened {a}:not(.gate--embed) .gate__panel, .is-open > {a} .gate__panel { visibility: visible; transform: translateX(-80%) scale(1.35); opacity: 0;
-  animation: cb-stand 1s cubic-bezier(.2, .8, .2, 1) .35s both; transition: transform 1.6s cubic-bezier(.55, 0, .2, 1) 1.45s, opacity .5s ease 2.55s; }
+/* Tiga tahap berurutan (dulu satu animasi + transisi: keyframe tanpa `to`
+   mengambil opacity:0 tahap akhir → gapura tak pernah terlihat). Berdiri dari
+   bawah → melangkah masuk (bergeser & membesar) → memudar. */
+.inv-opened {a}:not(.gate--embed) .gate__panel, .is-open > {a} .gate__panel { visibility: visible;
+  animation: cb-stand 1s cubic-bezier(.2, .8, .2, 1) .35s both, cb-go 1.6s cubic-bezier(.55, 0, .2, 1) 1.45s forwards, cb-fade .5s ease 2.55s forwards; }
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: none; opacity: 0; transform: translateY(40%) scale(1.6); transition: all 1.3s ease 1.5s; }
 @keyframes cb-sun { to { filter: brightness(1.08) saturate(1.1); } }
-@keyframes cb-stand { from { translate: 0 35%; opacity: 0; } }
+@keyframes cb-stand { from { translate: 0 35%; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+@keyframes cb-go { to { transform: translateX(-80%) scale(1.35); } }
+@keyframes cb-fade { to { opacity: 0; } }
 @keyframes cb-mist { to { translate: 12% -6%; } }
 @keyframes cb-drop { from { opacity: 0; transform: translateY(-50px); } }
 @keyframes cb-tilt { from { opacity: 0; transform: perspective(700px) rotateY(35deg) scale(.85); } }

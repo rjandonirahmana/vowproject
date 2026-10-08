@@ -194,7 +194,10 @@ impl Ornament {
     pub fn class(&self) -> String {
         let m = super::fmt::pick(&self.masuk, MASUK.iter().map(|m| m.0), "none");
         let g = super::fmt::pick(&self.gerak, GERAK.iter().map(|m| m.0), "none");
-        format!("orn orn--in-{m} orn--idle-{g}{}", if self.hp { "" } else { " orn--no-hp" })
+        // orn--p-{posisi}: CSS bisa menyesuaikan per letak (mis. pengapit
+        // sampul diperkecil di HP agar tak menabrak nama mempelai).
+        let p = super::fmt::pick(&self.posisi, POSISI.iter().map(|p| p.0), POSISI[0].0);
+        format!("orn orn--in-{m} orn--idle-{g} orn--p-{p}{}", if self.hp { "" } else { " orn--no-hp" })
     }
 
     pub fn bagian_label(&self) -> &'static str {
@@ -261,7 +264,8 @@ mod tests {
         let o = Ornament { posisi: "kanan-bawah".into(), cermin: true, x: 999, ..Default::default() };
         let st = o.style();
         assert!(st.starts_with("right:0;bottom:0;") && st.contains("--osx:-1;") && st.contains("--ox:100%;"));
-        assert_eq!(Ornament { gerak: "x;}".into(), hp: false, ..Default::default() }.class(), "orn orn--in-zoom orn--idle-none orn--no-hp");
+        assert_eq!(Ornament { gerak: "x;}".into(), hp: false, ..Default::default() }.class(), "orn orn--in-zoom orn--idle-none orn--p-kiri-atas orn--no-hp");
+        assert!(Ornament { posisi: "kanan-bawah\"><x".into(), ..Default::default() }.class().contains("orn--p-kiri-atas"), "posisi tak dikenal → bawaan");
     }
 
     #[test]

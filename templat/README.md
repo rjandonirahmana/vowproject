@@ -47,7 +47,7 @@ mesin `templat/tata.js`:
 | `data-gate` | sampul/gerbang; konten `data-a` di luar gerbang menunggu gerbang dibuka |
 | `data-pre` | bagian di luar gerbang yang animasinya jalan sejak awal (mis. panel kiri desktop) |
 | `data-open` | tombol buka (musik mulai, video pembuka diputar) |
-| `video[data-open-video]` | video pembuka; gerbang selesai saat video **habis** (bukan timer) |
+| `video[data-open-video]` | video pembuka; gerbang selesai saat video **habis** (bukan timer). Tulis `preload="none"` — tata.js menaikkan ke `auto` hanya di luar `t-lite`/reduce |
 | `video[data-bg-video] data-loop-from="2.6"` | video latar; setelah putaran pertama mengulang dari detik 2,6 |
 | `[data-slides="5000"]` | anak `<img>` silang-pudar + Ken Burns |
 | `[data-countdown="{{ countdown_ms }}"]` + `[data-cd=d/h/m/s]` | hitung mundur |
@@ -57,7 +57,7 @@ mesin `templat/tata.js`:
 | `[data-zoom]` | klik → foto layar penuh |
 
 Kelas status di `<html>`: `t-gated`, `t-opening`, `t-video-end`, `t-open`,
-`t-playing`, `t-lite` (hemat data / RAM < 4 GB), `t-pv` (pratinjau katalog).
+`t-playing`, `t-lite` (hemat data / RAM < 4 GB / koneksi 2G–3G atau < 1.5 Mbps: tanpa video), `t-pv` (pratinjau katalog).
 Gerak berat (pintu 3D, pemandangan, burung) = **video/APNG**, bukan CSS.
 
 Tips: elemen yang perlu dicerminkan sekaligus dianimasikan — pakai properti

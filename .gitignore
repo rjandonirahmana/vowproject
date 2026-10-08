@@ -2,3 +2,6 @@
 /.env
 .DS_Store
 rustc-ice-*.txt
+
+# Generator Python (scripts/*)
+__pycache__/

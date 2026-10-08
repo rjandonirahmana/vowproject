@@ -389,6 +389,47 @@ fn esc(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
+/// Ikon garis 24×24 untuk navigasi bawah (font Material Symbols tidak
+/// dimuat di halaman templat).
+const NAV_ICON: [(&str, &str); 5] = [
+    ("sampul", "M12 20.5 4.2 13A4.6 4.6 0 0 1 12 6.6 4.6 4.6 0 0 1 19.8 13Z"),
+    ("acara", "M5 6h14v14H5zM5 10h14M9 3v4M15 3v4M9 15l2 2 4-4"),
+    ("rsvp", "M4 6h16v12H4zM4 7l8 6 8-6"),
+    ("story", "M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"),
+    ("kelola", "M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6zM9 12l2 2 4-4"),
+];
+
+/// Navigasi bawah halaman templat — SAMA dengan tema komponen (Sampul ·
+/// Acara · Doa & RSVP · Story · Kelola). Ditulis platform, bukan templat:
+/// setiap templat otomatis punya, cukup sediakan id `sampul`/`acara`/`ucapan`.
+fn bottom_nav(p: &Page, theme: &str) -> String {
+    let inv = &p.row.inv;
+    let mut items = vec![
+        ("#sampul".to_string(), "Sampul", "sampul"),
+        ("#acara".to_string(), "Acara", "acara"),
+        ("#ucapan".to_string(), "Doa & RSVP", "rsvp"),
+        (format!("/u/{}/story{}", inv.slug, p.qs), "Story", "story"),
+    ];
+    if inv.is_demo {
+        items.push((format!("/kelola/{}?key=demo&tema={}", inv.slug, fmt::url_encode(theme)), "Kelola", "kelola"));
+    } else if p.preview {
+        // Pratinjau pemilik (belum dibayar): kembali ke dashboard Kelola.
+        items.push((format!("/kelola/{}", inv.slug), "Kelola", "kelola"));
+    }
+    let links: String = items
+        .iter()
+        .map(|(href, label, icon)| {
+            let d = NAV_ICON.iter().find(|(k, _)| k == icon).map(|(_, d)| *d).unwrap_or("");
+            format!(
+                "<a class=\"t-nav__item\" href=\"{}\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"{d}\"/></svg><span>{}</span></a>",
+                esc(href),
+                esc(label)
+            )
+        })
+        .collect();
+    format!("<nav class=\"t-nav\" aria-label=\"Navigasi undangan\">{links}</nav>\n")
+}
+
 /// Bungkus hasil templat menjadi dokumen utuh (head, CSS, data, mesin JS).
 fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: &Page, body: &str, nonce: &str) -> String {
     let inv = &p.row.inv;
@@ -413,7 +454,7 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
 <meta property=\"og:title\" content=\"The Wedding of {couple}\">\n<meta property=\"og:description\" content=\"{desc}\">\n{og}\
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\">\n{fonts}\
 <link rel=\"stylesheet\" href=\"/tema.css?v={tv}\">\n<link rel=\"stylesheet\" href=\"/tata.css?v={av}\">\n\
-<style>\n{tcss}\n{xcss}\n</style>\n</head>\n<body class=\"t-{tslug} th-{theme}\">\n{body}\n\
+<style>\n{tcss}\n{xcss}\n</style>\n</head>\n<body class=\"t-{tslug} th-{theme} t-has-nav\">\n{body}\n{nav}\
 <script type=\"application/json\" id=\"tata-data\">{data}</script>\n\
 <script nonce=\"{nonce}\" src=\"/tata.js?v={av}\"></script>\n</body>\n</html>\n",
         title = esc(&format!("Undangan Pernikahan {}", inv.couple())),
@@ -425,6 +466,7 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
         tcss = css_ok(&t.css),
         xcss = css_ok(&theme.template_css),
         tslug = esc(&t.slug),
+        nav = bottom_nav(p, &theme.slug),
         theme = esc(&theme.slug),
     )
 }
@@ -650,5 +692,11 @@ mod tests {
         assert!(out.contains("&lt;b&gt;Budi") && !out.contains("<b>Budi"), "nama tamu wajib di-escape");
         assert!(out.contains("Sabtu") && out.contains("September 2026"));
         assert!(out.contains(flash_msg(false)), "pesan ?rsvp=galat tampil tanpa JS");
+        // Templat bawaan wajib punya jangkar yang dipakai navigasi bawah.
+        for id in ["sampul", "acara", "ucapan"] {
+            assert!(out.contains(&format!("id=\"{id}\"")), "jangkar #{id} untuk navigasi bawah");
+        }
+        let nav = bottom_nav(&page, "kusuma-jawi");
+        assert!(nav.contains("/u/yona-doni/story") && nav.contains("#ucapan") && !nav.contains("Kelola"), "{nav}");
     }
 }
