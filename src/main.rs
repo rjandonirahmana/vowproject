@@ -124,6 +124,12 @@ async fn main() -> Result<()> {
         // 10 pembuatan undangan per IP per jam — tiap kiriman bisa membawa foto & lagu.
         create_limit: security::RateLimit::new(10, std::time::Duration::from_secs(60 * 60)),
         unpaid_ttl_hours: cfg.unpaid_ttl_hours,
+        // Longgar untuk Wi-Fi gedung / CGNAT (banyak tamu satu IP): ±100 buka
+        // halaman per menit per IP. Bot di atas itu ditolak 429.
+        req_limit: security::RateLimit::new(env_num("REQ_PER_MIN", 600), std::time::Duration::from_secs(60)),
+        inflight: std::sync::Arc::new(tokio::sync::Semaphore::new(env_num("MAX_INFLIGHT", 128) as usize)),
+        cap_limit: security::RateLimit::new(u32::MAX, std::time::Duration::from_secs(60 * 60)),
+        banners: std::sync::RwLock::new(None),
         templat: state::fallback_templat(),
     });
     // Hapus pesanan yang tak dikonfirmasi admin dalam UNPAID_TTL_HOURS (+ file RustFS).
@@ -158,10 +164,11 @@ async fn main() -> Result<()> {
     let routes = generate_route_list(App);
 
     let form_routes = axum::Router::new()
-        .route("/buat/kirim", axum::routing::post(handlers::create_invitation))
+        .route("/buat/kirim", axum::routing::post(handlers::create_invitation).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/kelola/{slug}/tamu.csv", axum::routing::get(handlers::export_guests))
-        .route("/kelola/{slug}/bukti", axum::routing::post(handlers::upload_payment_proof))
-        .route("/u/{slug}/story/kirim", axum::routing::post(handlers::post_story))
+        .route("/kelola/{slug}/bukti", axum::routing::post(handlers::upload_payment_proof).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
+        .route("/kelola/{slug}/sunting/simpan", axum::routing::post(handlers::update_invitation).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
+        .route("/u/{slug}/story/kirim", axum::routing::post(handlers::post_story).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/u/{slug}/story/hapus-saya", axum::routing::post(handlers::delete_my_story))
         .route("/u/{slug}/story/hapus", axum::routing::post(handlers::delete_story_with_key))
         .route("/kelola/{slug}/story/hapus", axum::routing::post(handlers::owner_delete_story))
@@ -178,26 +185,29 @@ async fn main() -> Result<()> {
         .route("/admin/masuk", axum::routing::post(handlers::admin_login))
         .route("/admin/setup", axum::routing::post(handlers::admin_setup))
         .route("/admin/keluar", axum::routing::post(handlers::admin_logout))
-        .route("/admin/konten/simpan", axum::routing::post(handlers::admin_save_konten))
+        .route("/admin/konten/simpan", axum::routing::post(handlers::admin_save_konten).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/admin/akun/simpan", axum::routing::post(handlers::admin_account_save))
         .route("/admin/sandi", axum::routing::post(handlers::admin_own_password))
-        .route("/admin/tema/simpan", axum::routing::post(handlers::admin_save_theme))
+        .route("/admin/tema/simpan", axum::routing::post(handlers::admin_save_theme).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/admin/tema/hapus", axum::routing::post(handlers::admin_delete_theme))
-        .route("/admin/animasi/simpan", axum::routing::post(handlers::admin_save_animation))
+        .route("/admin/animasi/simpan", axum::routing::post(handlers::admin_save_animation).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/admin/animasi/hapus", axum::routing::post(handlers::admin_delete_animation))
         .route("/admin/animasi/bawaan", axum::routing::post(handlers::admin_reset_animation))
-        .route("/admin/ornamen/simpan", axum::routing::post(handlers::admin_save_ornament))
+        .route("/admin/ornamen/simpan", axum::routing::post(handlers::admin_save_ornament).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/admin/ornamen/{aksi}", axum::routing::post(handlers::admin_ornament_action))
-        .route("/admin/banner/simpan", axum::routing::post(handlers::admin_save_banner))
+        .route("/admin/banner/simpan", axum::routing::post(handlers::admin_save_banner).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/admin/banner/{aksi}", axum::routing::post(handlers::admin_banner_action))
-        .route("/admin/templat/simpan", axum::routing::post(handlers::admin_save_templat))
-        .route("/admin/templat/{aksi}", axum::routing::post(handlers::admin_templat_action))
-        .route("/admin/lagu/simpan", axum::routing::post(handlers::admin_save_song))
+        .route("/admin/templat/simpan", axum::routing::post(handlers::admin_save_templat).layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)))
+        .route("/admin/templat/{aksi}", axum::routing::post(handlers::admin_templat_action).layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)))
+        .route("/admin/lagu/simpan", axum::routing::post(handlers::admin_save_song).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/admin/lagu/{aksi}", axum::routing::post(handlers::admin_song_action))
         .route("/admin/undangan/simpan", axum::routing::post(handlers::admin_update_invitation))
         .route("/admin/undangan/kunci", axum::routing::post(handlers::admin_reset_key))
-        // 2 foto + 1 lagu + teks — diturunkan dari batas unggahan di storage.rs.
-        .layer(axum::extract::DefaultBodyLimit::max(MAX_FORM))
+        // Bawaan KECIL: form urlencoded (RSVP, login, aksi admin) dibaca utuh ke
+        // memori SEBELUM handler/cek sesi — batas besar di sini = beberapa
+        // puluh POST 73 MB dari bot menghabiskan RAM. Batas MAX_FORM hanya di
+        // rute multipart di atas (dibaca bertahap + antrean 3 unggahan).
+        .layer(axum::extract::DefaultBodyLimit::max(64 * 1024))
         .layer(axum::Extension(state.clone()));
 
     let leptos_router = axum::Router::new()
@@ -239,12 +249,18 @@ async fn main() -> Result<()> {
         // memakai templat). Di DALAM exchange (?k= sudah jadi cookie)
         // & di dalam kompresi (HTML-nya ikut dikompresi).
         .layer(axum::middleware::from_fn(undangan::server::templat::serve))
+        // Pemutus kebocoran owner SSR Leptos (server/lepas.rs): membungkus
+        // semua respons; hanya yang dirender Leptos (shell) mengisi slotnya.
+        .layer(axum::middleware::from_fn(undangan::server::lepas::lepas))
         .layer(tower_http::compression::CompressionLayer::new())
         // Tautan Kelola ?key= / pratinjau ?k= → cookie HttpOnly + 303 ke URL bersih.
         .layer(axum::middleware::from_fn(undangan::server::owner::exchange))
         // Demo lama /u/anindita-raditya → /u/yona-doni (301).
         .layer(axum::middleware::from_fn(security::legacy_demo))
         .layer(axum::middleware::from_fn(security::csrf))
+        // Paling luar setelah header keamanan: request bot ditolak sebelum
+        // menyentuh router, sesi, atau DB.
+        .layer(axum::middleware::from_fn(security::pelindung))
         .layer(axum::middleware::from_fn(security::headers))
         .layer(axum::Extension(security::DevMode(dev)))
         .layer(axum::Extension(state.clone()))
@@ -260,6 +276,11 @@ async fn main() -> Result<()> {
     axum::serve(listener, app).with_graceful_shutdown(shutdown_signal()).await?;
     tracing::info!("undangan berhenti dengan rapi");
     Ok(())
+}
+
+/// Bilangan dari env (> 0), selain itu bawaan.
+fn env_num(k: &str, d: u32) -> u32 {
+    std::env::var(k).ok().and_then(|v| v.trim().parse().ok()).filter(|n| *n > 0).unwrap_or(d)
 }
 
 /// Ctrl-C (dev) atau SIGTERM (docker/systemd): selesaikan request yang

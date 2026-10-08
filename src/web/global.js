@@ -13,7 +13,8 @@
   // HP lemah / hemat kuota: gerak berulang dimatikan lewat html.motion-min
   // (main.css). deviceMemory dibulatkan browser (0.5,1,2,4,8) → <4 = ≤3 GB.
   var conn=navigator.connection;
-  if((conn && conn.saveData) || (navigator.deviceMemory && navigator.deviceMemory<4)) d.documentElement.classList.add('motion-min');
+  // Sinyal 2G/3G juga: RAM besar tak menolong saat video & gambar latar telat tiba.
+  if((conn && (conn.saveData || /^(slow-2g|2g|3g)$/.test(conn.effectiveType||''))) || (navigator.deviceMemory && navigator.deviceMemory<4)) d.documentElement.classList.add('motion-min');
   // Pratinjau tema di kartu katalog (iframe /u/…?pv=1): mode SENYAP — tanpa
   // musik, tanpa menulis sessionStorage (dipakai bersama tab induk), tanpa
   // pemulihan posisi; gerbang dibuka & halaman digulir otomatis (lihat bawah).
@@ -90,6 +91,9 @@
       burst(el); play(true); d.documentElement.classList.add('inv-opened','inv-seen');
       if(d.querySelector('.gate')) window.scrollTo(0,0);
       if(!openGate(g0, d)){ playBg(d); holdReveal(gateReveal(g0)); }
+      // Setelah benar-benar tersembunyi (transisi visibility tiap animasi buka
+      // berbeda; gerbang video menunggu videonya), lepas dari render.
+      if(g0){ var off=function(){ if(!g0.isConnected) return; if(getComputedStyle(g0).visibility==='hidden') g0.classList.add('gate--selesai'); else setTimeout(off, 700); }; setTimeout(off, 1600); }
     }
     if(el.dataset.music==='toggle'){ var a=audio(); if(a&&!a.paused) pause(); else play(); }
     if(el.hasAttribute('data-song')){
@@ -258,7 +262,15 @@
   // Pratinjau berkas lokal (lagu & foto) — TIDAK diunggah ke server/RustFS.
   // Berkas dibaca lewat URL blob di memori browser; URL dibuang saat berkas
   // diganti, inputnya hilang (pindah halaman SPA), atau tab ditutup/ditinggal.
-  var blobs=[];
+  var blobs=[], slotBlobs=new Set();
+  // Tombol "Batal" di slot foto: kosongkan input → pratinjau kembali ke semula.
+  d.addEventListener('click', function(e){
+    var b=e.target.closest && e.target.closest('[data-slot-clear]'); if(!b) return;
+    e.preventDefault();
+    var inp=b.closest('[data-slot-tile]').querySelector('input[type=file][data-slot]');
+    if(inp){ inp.value=''; inp.dispatchEvent(new Event('change', {bubbles:true})); }
+  });
+  addEventListener('pagehide', function(){ slotBlobs.forEach(function(u){ URL.revokeObjectURL(u); }); slotBlobs.clear(); });
   function release(u){
     var a=audio();
     if(a && a.getAttribute('src')===u){ a.pause(); a.removeAttribute('src'); a.load(); sync(); }
@@ -278,6 +290,22 @@
       var mx=+inp.dataset.galleryMax, big=Array.prototype.some.call(inp.files, function(f){ return f.size>5*1048576; });
       if(inp.files.length>mx){ toast('Maksimal '+mx+' foto galeri — hanya '+mx+' pertama yang dikirim.'); }
       if(big){ toast('Ada foto galeri lebih dari 5 MB — perkecil dulu.'); inp.value=''; }
+      return;
+    }
+    // Slot foto halaman sunting (galeri / mempelai / sampul): berkas pilihan
+    // langsung tampil DI slotnya (tanda "Baru"/"Akan diganti"); kosongkan →
+    // foto semula kembali. Belum diunggah sampai formulir disimpan.
+    if(inp.matches && inp.matches('input[type=file][data-slot]')){
+      var tile=inp.closest('[data-slot-tile]'), img=tile && tile.querySelector('[data-slot-img]');
+      if(!tile || !img) return;
+      if(tile.dataset.blob){ URL.revokeObjectURL(tile.dataset.blob); slotBlobs.delete(tile.dataset.blob); delete tile.dataset.blob; }
+      if(img.dataset.orig===undefined) img.dataset.orig=img.getAttribute('src')||'';
+      var sf=inp.files && inp.files[0];
+      if(sf && !/^image\/(jpeg|png|webp)$/.test(sf.type)){ toast('Foto harus JPEG, PNG, atau WebP.'); inp.value=''; sf=null; }
+      if(sf && sf.size>5*1048576){ toast('Foto lebih dari 5 MB — perkecil dulu.'); inp.value=''; sf=null; }
+      if(!sf){ tile.classList.remove('is-new'); if(img.dataset.orig){ img.src=img.dataset.orig; } else { img.removeAttribute('src'); img.hidden=true; } return; }
+      var su=URL.createObjectURL(sf); tile.dataset.blob=su; slotBlobs.add(su);
+      img.src=su; img.hidden=false; tile.classList.add('is-new');
       return;
     }
     if(!inp.matches || !inp.matches('input[type=file][data-preview]')) return;
@@ -506,6 +534,14 @@
     var fgScan=function(){ d.querySelectorAll('.fg:not([data-fg-w])').forEach(function(el){ el.setAttribute('data-fg-w','1'); track(fgIO, el); }); };
     fgScan();
     onDom(fgScan);
+    // Ornamen bagian (±10 per tema, gerak diam tak berujung) dijeda selama
+    // bagiannya di luar layar — GPU tak terus menganimasikan yang tak terlihat.
+    var ornIO=new IntersectionObserver(function(es){
+      es.forEach(function(e){ e.target.classList.toggle('orn-diam', !e.isIntersecting); });
+    }, {rootMargin:'120px 0px'});
+    var ornScan=function(){ d.querySelectorAll('.orn-host:not([data-orn-io])').forEach(function(el){ el.setAttribute('data-orn-io','1'); track(ornIO, el); }); };
+    ornScan();
+    onDom(ornScan);
     // Ruangan: bila koreografi tema menyetel --ruang-urut, tiap bagian ber-
     // ornamen (mempelai, kisah, galeri, acara, RSVP) jadi "ruangan" — saat
     // pertama dimasuki sambil menggulir ke bawah, portalnya (pintu / gapura /
@@ -528,6 +564,8 @@
       }, {rootMargin:'0px 0px -38% 0px'});
       var ruangScan=function(){
         var inv=d.querySelector('.inv:not(.inv--embed)'); if(!inv) return;
+        // Perangkat lemah / hemat data: portal layar penuh dilewati.
+        if(d.documentElement.classList.contains('motion-min')) return;
         if(d.querySelector('.gate:not(.gate--embed)') && !d.documentElement.classList.contains('inv-opened')) return;
         var seq=getComputedStyle(inv).getPropertyValue('--ruang-urut').replace(/["']/g,'').trim(); if(!seq) return;
         var list=seq.split(/\s+/), n=0;

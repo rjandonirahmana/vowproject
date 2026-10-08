@@ -420,6 +420,24 @@ pub struct Activity {
     pub ago: String,
 }
 
+/// Data halaman /kelola/{slug}/sunting — isi undangan saat ini + pilihan.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Sunting {
+    pub inv: Invitation,
+    pub contact_phone: String,
+    /// Kunci pemilik (kosong = dibuka admin).
+    pub manage_key: String,
+    /// Pustaka lagu aktif.
+    pub songs: Vec<Song>,
+    /// id lagu yang sedang dipakai (0 = tak cocok dengan pustaka / tanpa musik).
+    pub song_id: i64,
+    /// (slug, nama, wilayah) tema tayang + tema undangan ini bila privat.
+    pub themes: Vec<(String, String, String)>,
+    /// Indeks themes::QUOTES yang cocok dengan kutipan sekarang.
+    pub quote_idx: usize,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Dashboard {
     pub inv: Invitation,

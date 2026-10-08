@@ -190,6 +190,7 @@ const HANYA_DATA: &[&str] = &[
     "024_desain_v2.sql",
     "030_perbaikan_gerak.sql",
     "031_tema_provinsi.sql",
+    "032_gerak_ringan.sql",
 ];
 
 /// Migrasi skema yang BELUM diterapkan (dicek dari objek skemanya, bukan dari

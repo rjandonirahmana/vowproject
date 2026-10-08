@@ -1,10 +1,12 @@
-/* Mekar — isi "mekar" seperti bunga: judul merapat dari huruf renggang &
-   samar, foto terbuka dari lingkaran kecil di tengah, mempelai mekar memantul,
-   kartu terbuka seperti kelopak (rotasi 3D dari atas), ikon berputar mekar. */
+/* Mekar — isi "mekar" seperti bunga: judul merapat dari lebar, foto terbuka
+   dari lingkaran kecil di tengah, mempelai mekar memantul, kartu terbuka
+   seperti kelopak (rotasi 3D dari atas), ikon berputar mekar.
+   Judul memakai scaleX (GPU) — bukan letter-spacing + blur (tata letak &
+   lukis ulang tiap frame). Irisan 2px: lihat migrasi 030. */
 {a} { --rv-stagger: 160; }
-.rv-on {a} [data-rv] { transition: opacity 1.2s ease, transform 1.3s cubic-bezier(.2, .7, .2, 1), filter 1.2s ease, letter-spacing 1.4s ease, clip-path 1.6s cubic-bezier(.3, .6, .2, 1); }
-.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateY(24px) scale(.92); filter: none; }
-.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: none; letter-spacing: .35em; filter: blur(6px); }
+.rv-on {a} [data-rv] { transition: opacity 1.2s ease, transform 1.3s cubic-bezier(.2, .7, .2, 1), clip-path 1.6s cubic-bezier(.3, .6, .2, 1); }
+.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateY(24px) scale(.92); }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: scaleX(1.3); }
 .rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv] { clip-path: circle(80% at 50% 50%); }
 .rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { opacity: 1; transform: scale(1.12); clip-path: circle(2px at 50% 50%); }
 .rv-on {a} .couple > .person[data-rv] { transition-timing-function: ease, cubic-bezier(.34, 1.56, .64, 1); }

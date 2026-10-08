@@ -36,6 +36,21 @@ pub struct AppState {
     pub write_limit: super::security::RateLimit,
     /// Pembuatan undangan (+ unggah foto/lagu ke RustFS) per IP.
     pub create_limit: super::security::RateLimit,
+    /// Request DINAMIS (halaman, server fn, form) per IP per menit — bot /
+    /// scraper dihentikan murah (429) sebelum menyentuh DB. REQ_PER_MIN.
+    pub req_limit: super::security::RateLimit,
+    /// Request dinamis yang sedang diproses. Penuh → 503 seketika (tanpa
+    /// antre): banjir request tak bisa menumpuk ribuan tugas yang menunggu
+    /// pool DB & menghabiskan RAM. MAX_INFLIGHT.
+    pub inflight: Arc<tokio::sync::Semaphore>,
+    /// Kuota GLOBAL per jam untuk operasi mahal yang bisa diserang dari banyak
+    /// IP sekaligus (batas per IP saja tak cukup): kunci `buat` (undangan
+    /// baru + unggahan), `wa-story` (WA kunci story ke nomor mana pun),
+    /// `storykey:{slug}` & `rsvp:{slug}` (per undangan). Batas per kunci lewat
+    /// RateLimit::hit_max.
+    pub cap_limit: super::security::RateLimit,
+    /// Banner beranda (dibaca tiap katalog dibuka) — cache 30 dtk.
+    pub banners: RwLock<Option<(std::time::Instant, Arc<Vec<crate::web::model::Banner>>)>>,
     /// Tema templat (migrasi 029) — HTML+CSS dari tabel theme_templates,
     /// sudah dikompilasi; dimuat ulang tiap admin menyimpan templat.
     pub templat: RwLock<Arc<super::templat::TemplatSet>>,

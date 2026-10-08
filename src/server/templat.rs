@@ -490,7 +490,8 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
     let preview = row.inv.is_locked();
     if preview {
         let key = super::owner::key_from(headers, slug).unwrap_or_default();
-        if key.is_empty() || !super::auth::same_hash(&super::auth::token_hash(key.trim()), &row.manage_key_hash) {
+        let owner = !key.is_empty() && super::auth::same_hash(&super::auth::token_hash(key.trim()), &row.manage_key_hash);
+        if !owner && super::auth::require(st, headers, true).await.is_err() {
             return Ok(None);
         }
     }

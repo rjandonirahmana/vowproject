@@ -17,6 +17,7 @@ use super::pages::{
     katalog::KatalogPage,
     admin::{AdminAkun, AdminAnimEdit, AdminAnims, AdminBanner, AdminHome, AdminKonten, AdminLagu, AdminOrnaments, AdminStory, AdminTemplat, AdminKontenEdit, AdminProfil, AdminThemeEdit, AdminThemes, AdminUndangan},
     kelola::{KelolaPage, ScanPage},
+    sunting::SuntingPage,
     mua::MuaPage,
     seserahan::SeserahanPage,
     tema::TemaPage,
@@ -26,6 +27,14 @@ use super::pages::{
 
 #[cfg(feature = "ssr")]
 pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
+    // Root owner render ini dibersihkan setelah respons terkirim
+    // (server/lepas.rs — kebocoran siklus owner leptos_router).
+    if let (Some(slot), Some(owner)) = (
+        use_context::<axum::http::request::Parts>().and_then(|p| p.extensions.get::<crate::server::lepas::OwnerSlot>().cloned()),
+        Owner::current(),
+    ) {
+        slot.set(owner);
+    }
     // Nonce CSP per request (server/security.rs) → skrip hydration Leptos
     // (lewat use_nonce) dan skrip global di bawah ikut diizinkan CSP.
     if let Some(n) = use_context::<axum::http::request::Parts>()
@@ -152,6 +161,7 @@ pub fn App() -> impl IntoView {
                 </ParentRoute>
                 <Route path=path!("/kelola/:slug") view=KelolaPage ssr=SsrMode::Async />
                 <Route path=path!("/kelola/:slug/scan") view=ScanPage />
+                <Route path=path!("/kelola/:slug/sunting") view=SuntingPage ssr=SsrMode::Async />
             </Routes>
         </Router>
     }

@@ -170,8 +170,12 @@ impl RateLimit {
     }
 
     fn remaining(&self, e: &(u32, Instant), now: Instant) -> Option<u64> {
+        self.remaining_max(e, now, self.max)
+    }
+
+    fn remaining_max(&self, e: &(u32, Instant), now: Instant, max: u32) -> Option<u64> {
         let age = now.duration_since(e.1);
-        (e.0 >= self.max && age < self.window).then(|| (self.window - age).as_secs() + 1)
+        (e.0 >= max && age < self.window).then(|| (self.window - age).as_secs() + 1)
     }
 
     /// Sisa detik blokir bila salah satu kunci sudah melewati batas.
@@ -213,9 +217,15 @@ impl RateLimit {
     /// `Err(detik)` bila kunci sudah mencapai batas dalam jendela. Satu kunci
     /// mutex untuk cek + catat (tak ada celah balapan di antaranya).
     pub fn hit(&self, key: &str) -> Result<(), u64> {
+        self.hit_max(key, self.max)
+    }
+
+    /// Seperti `hit`, dengan batas khusus kunci ini (satu pembatas melayani
+    /// beberapa jenis kuota dalam jendela yang sama — lihat AppState::cap_limit).
+    pub fn hit_max(&self, key: &str, max: u32) -> Result<(), u64> {
         let now = Instant::now();
         let mut h = self.lock();
-        if let Some(secs) = h.map.get(key).and_then(|e| self.remaining(e, now)) {
+        if let Some(secs) = h.map.get(key).and_then(|e| self.remaining_max(e, now, max)) {
             return Err(secs);
         }
         self.record(&mut h, &[key], now);
@@ -230,6 +240,39 @@ impl RateLimit {
     fn len(&self) -> usize {
         self.lock().map.len()
     }
+}
+
+/// Aset statis & cek kesehatan: murah (disajikan dari disk/memori, tanpa DB)
+/// — tak ikut kuota request dinamis.
+fn statis(path: &str) -> bool {
+    ["/pkg/", "/img/", "/music/", "/video/"].iter().any(|p| path.starts_with(p))
+        || matches!(path, "/healthz" | "/readyz" | "/favicon.svg" | "/robots.txt" | "/tata.js" | "/tata.css" | "/app.js" | "/tema.css" | "/sitemap.xml")
+}
+
+/// Middleware tahan banjir request untuk rute DINAMIS:
+///  1. kuota per IP per menit (REQ_PER_MIN) → 429 + Retry-After;
+///  2. batas request yang diproses bersamaan (MAX_INFLIGHT) → 503 seketika
+///     tanpa antre — saat diserang, memori & pool DB tetap terkendali dan
+///     pengunjung lain tetap dilayani begitu beban turun.
+/// Pembatas di memori proses (single instance) dengan jumlah kunci terbatas
+/// (RateLimit::CAP) — jutaan IP palsu tak membuat memori tumbuh tanpa batas.
+pub async fn pelindung(req: Request, next: Next) -> Response {
+    let path = req.uri().path();
+    if statis(path) {
+        return next.run(req).await;
+    }
+    let Some(st) = req.extensions().get::<std::sync::Arc<super::state::AppState>>().cloned() else {
+        return next.run(req).await;
+    };
+    let ip = client_ip(req.headers());
+    if let Err(secs) = st.req_limit.hit(&format!("req:{ip}")) {
+        return (StatusCode::TOO_MANY_REQUESTS, [(header::RETRY_AFTER, secs.to_string())], "Terlalu banyak permintaan. Coba lagi sebentar.").into_response();
+    }
+    let Ok(_izin) = st.inflight.clone().try_acquire_owned() else {
+        tracing::warn!(ip = %ip, path = %path, "pelindung: server penuh — 503");
+        return (StatusCode::SERVICE_UNAVAILABLE, [(header::RETRY_AFTER, "3".to_string())], "Server sedang ramai. Muat ulang beberapa detik lagi.").into_response();
+    };
+    next.run(req).await
 }
 
 /// IP klien untuk kunci pembatas: X-Real-IP / X-Forwarded-For dari proxy,

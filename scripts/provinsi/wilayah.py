@@ -90,7 +90,7 @@ PROVINSI = [
  ("penjor-pura-bali", "Penjor Pura Besakih", "Bali", "Bali",
   "Penjor melengkung menghias jalan pura, kain poleng hitam-putih, dan kamboja berguguran di gerbang candi bentar.",
   ["Kain Poleng", "Penjor", "Kamboja Berguguran"], "#1d1d1b", "#c8a248", "#f7f3ea", F, "bali", "patra", "candi", None,
-  "lawang-bali", "blur", "kamboja-gugur", "gerbang", "marcellus", "parisienne"),
+  "lawang-bali", "anggun", "kamboja-gugur", "gerbang", "marcellus", "parisienne"),
  ("tenun-sasak-lombok", "Tenun Sasak Lombok", "Nusa Tenggara Barat", "Sasak",
   "Lumbung padi Sasak beratap ilalang, tenun songket Sukarara yang diurai helai demi helai, dan pohon lontar di pantai Lombok.",
   ["Tenun Sasak", "Lumbung", "Kain Diurai"], "#283c6b", "#d0a14a", "#f4f6fb", F, "ntt", "tenun", "ikat", "rangkiang",
@@ -178,7 +178,7 @@ PROVINSI = [
  ("asmat-merauke", "Ukir Asmat Merauke", "Papua Selatan", "Papua",
   "Ukiran bis Asmat yang menjulang, rawa biru Merauke, dan rumah semut musamus — Papua Selatan yang luas dan teduh.",
   ["Ukir Asmat", "Rawa Biru", "Daun Gugur"], "#2f4f3a", "#d4a64e", "#f3f6ef", F, "papua", "asmat", "tifa", "pohon",
-  "pudar", "blur", "daun-gugur", "klasik", "cormorant", "alex-brush"),
+  "pudar", "zoom", "daun-gugur", "klasik", "cormorant", "alex-brush"),
 ]
 
 # Varian animasi pintu khas (spek AnimSpec, web/anim.rs) — dipilih lewat

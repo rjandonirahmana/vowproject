@@ -1,18 +1,20 @@
-/* Tenun — isi "ditenun" seperti benang songket: teks & kartu tersingkap dari
-   kiri (genap dari kanan), judul terbuka dari tengah ke tepi, foto terbuka
-   seperti tirai atas-bawah, kartu terurai dari atas, ikon merentang.
-   ATURAN: keadaan tersembunyi tak boleh memotong elemen selebar NOL atau
-   menggesernya ke samping — IntersectionObserver memotong kotak deteksi dengan
-   clip-path elemen & overflow leluhurnya; irisan nol di luar kolom (dulu
-   translateX(-30px) + inset 100%) = tak pernah "terlihat" → kartu mempelai
-   wanita tak pernah muncul. Sisakan irisan 2px (tak tampak: opacity 0). */
+/* Tenun — isi "ditenun" seperti benang songket: judul terbuka dari tengah ke
+   tepi, foto terbuka seperti tirai atas-bawah (clip-path — ciri khasnya, hanya
+   untuk judul & foto), teks & kartu bergeser masuk dari kiri (genap dari
+   kanan), mempelai dari sisi masing-masing, ikon merentang.
+   Elemen lain cukup opacity + transform (GPU): clip-path di SEMUA elemen dulu
+   melukis ulang tiap frame saat digulir (±500 ms raster di HP).
+   ATURAN irisan: keadaan tersembunyi ber-clip tak boleh selebar NOL —
+   IntersectionObserver memotong kotak deteksi dengan clip-path; sisakan 2px
+   (tak tampak: opacity 0). Lihat migrasi 030. */
 {a} { --rv-stagger: 150; }
-.rv-on {a} [data-rv] { transition: opacity .6s ease, transform 1.1s cubic-bezier(.7, 0, .25, 1), clip-path 1.1s cubic-bezier(.7, 0, .25, 1); clip-path: inset(-60px -60px -60px -60px); }
-.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: none; filter: none; clip-path: inset(0 calc(100% - 2px) 0 0); }
-.rv-on {a} [data-rv]:nth-child(even):not(.is-in) { clip-path: inset(0 0 0 calc(100% - 2px)); }
-.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { clip-path: inset(0 calc(50% - 1px) 0 calc(50% - 1px)); }
+.rv-on {a} [data-rv] { transition: opacity .6s ease, transform 1.1s cubic-bezier(.7, 0, .25, 1); }
+.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateX(-16px); filter: none; }
+.rv-on {a} [data-rv]:nth-child(even):not(.is-in) { transform: translateX(16px); }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name, .arch-photo, .gallery__item, .hero__seal)[data-rv] { transition: opacity .6s ease, transform 1.1s cubic-bezier(.7, 0, .25, 1), clip-path 1.1s cubic-bezier(.7, 0, .25, 1); clip-path: inset(-60px -60px -60px -60px); }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: none; clip-path: inset(0 calc(50% - 1px) 0 calc(50% - 1px)); }
 .rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { transform: scale(1.08); clip-path: inset(calc(50% - 1px) 0 calc(50% - 1px) 0); }
-.rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { clip-path: inset(0 calc(100% - 2px) 0 0); }
-.rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { clip-path: inset(0 0 0 calc(100% - 2px)); }
-.rv-on {a} :is(.card, .event):not(.person)[data-rv]:not(.is-in) { transform: translateY(-12px); clip-path: inset(0 0 calc(100% - 2px) 0); }
-.rv-on {a} :is(.intro__icon, .couple__amp, .eyebrow)[data-rv]:not(.is-in) { transform: scaleX(.02); clip-path: inset(-60px -60px -60px -60px); }
+.rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { transform: translateX(-30px); }
+.rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { transform: translateX(30px); }
+.rv-on {a} :is(.card, .event):not(.person)[data-rv]:not(.is-in) { transform: translateY(-12px); }
+.rv-on {a} :is(.intro__icon, .couple__amp, .eyebrow)[data-rv]:not(.is-in) { transform: scaleX(.02); }

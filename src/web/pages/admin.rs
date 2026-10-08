@@ -1463,6 +1463,13 @@ pub fn AdminUndangan() -> impl IntoView {
                                                     <a href=format!("/u/{}", i.slug) target="_blank">{format!("/u/{}", i.slug)}</a>
                                                     {format!(" • {} • {} • {} • {}", i.package_name, rupiah(i.total_price), i.payment_method, i.created)}
                                                 </small>
+                                                // Kelola pembeli — admin boleh tanpa kunci (api::load_owned).
+                                                {(!i.is_demo).then(|| view! {
+                                                    <small class="adm-order__kelola">
+                                                        <a href=format!("/kelola/{}", i.slug) target="_blank" rel="external"><Icon name="dashboard" />{format!("/kelola/{}", i.slug)}</a>
+                                                        <a href=format!("/kelola/{}/sunting", i.slug) target="_blank" rel="external"><Icon name="edit" />"Sunting isi"</a>
+                                                    </small>
+                                                })}
                                                 {(!wa.is_empty()).then(|| view! {
                                                     <a class="adm-order__wa" href=format!("https://wa.me/{wa}") target="_blank" rel="noopener"><Icon name="chat" />{format!("+{wa}")}</a>
                                                 })}
@@ -2317,6 +2324,7 @@ fn SongFields(s: crate::web::model::Song) -> impl IntoView {
 #[component]
 pub fn AdminTemplat() -> impl IntoView {
     let page = Resource::new(|| (), |_| crate::web::api::admin_templates());
+    let cari = RwSignal::new(String::new());
     view! {
         <AdminShell active="templat" title="Templat Tema" admin_only=true>
             <div class="adm-head">
@@ -2331,6 +2339,7 @@ pub fn AdminTemplat() -> impl IntoView {
                     Err(e) => view! { <p class="notice notice--err">{crate::web::components::err_msg(&e)}</p> }.into_any(),
                     Ok(p) => {
                         let names: Vec<(String, String)> = p.templates.iter().map(|t| (t.slug.clone(), t.name.clone())).collect();
+                        let (n_all, n_on) = (p.themes.len(), p.themes.iter().filter(|t| !t.template.is_empty()).count());
                         view! {
                             <h2 class="adm-h2">"Templat"</h2>
                             <div class="adm-songs">
@@ -2340,10 +2349,25 @@ pub fn AdminTemplat() -> impl IntoView {
                                     <TemplatFields t=crate::web::model::AdminTemplat::default() />
                                 </details>
                             </div>
-                            <h2 class="adm-h2">"Pasang ke tema"</h2>
+                            <div class="adm-tpl-head">
+                                <h2 class="adm-h2">"Pasang ke tema"</h2>
+                                <span class="chip chip--xs">{format!("{n_on} bertemplat · {} komponen bawaan", n_all - n_on)}</span>
+                            </div>
                             <p class="muted small">"Aset tema menimpa aset bawaan templat (kunci sama). CSS tema ditambahkan setelah CSS templat — mis. .t-kusuma { --k-taupe: #5c6b4f; }."</p>
-                            <div class="adm-songs">
-                                {p.themes.into_iter().map(|t| view! { <TemaTemplatForm t=t templates=names.clone() /> }).collect_view()}
+                            <label class="adm-cari">
+                                <Icon name="search" />
+                                <input class="input" type="search" placeholder="Cari tema…" aria-label="Cari tema"
+                                    on:input=move |e| cari.set(event_target_value(&e).to_lowercase()) />
+                            </label>
+                            <div class="adm-songs adm-songs--rapat">
+                                {p.themes.into_iter().map(|t| {
+                                    let kunci = format!("{} {} {}", t.name, t.slug, t.template).to_lowercase();
+                                    view! {
+                                        <div style:display=move || if cari.with(|q| q.is_empty() || kunci.contains(q.as_str())) { "" } else { "none" }>
+                                            <TemaTemplatForm t=t templates=names.clone() />
+                                        </div>
+                                    }
+                                }).collect_view()}
                             </div>
                         }
                         .into_any()
@@ -2390,6 +2414,15 @@ fn TemplatForm(t: crate::web::model::AdminTemplat) -> impl IntoView {
     }
 }
 
+/// Isi <textarea> sebagai HTML ter-escape (`inner_html`), bukan anak teks:
+/// textarea KOSONG tak punya node teks di HTML server sehingga hydration Leptos
+/// panik ("unreachable") — dulu seluruh /admin/templat mati. Parser HTML membuang
+/// satu baris baru pertama di textarea → digandakan bila isinya diawali baris baru.
+fn textarea_isi(s: &str) -> String {
+    let e = s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
+    if e.starts_with('\n') { format!("\n{e}") } else { e }
+}
+
 #[component]
 fn TemplatFields(t: crate::web::model::AdminTemplat) -> impl IntoView {
     let new = t.slug.is_empty();
@@ -2404,11 +2437,11 @@ fn TemplatFields(t: crate::web::model::AdminTemplat) -> impl IntoView {
             <label class="field adm-wide"><span class="field__label">"Google Fonts (nilai family=)"</span>
                 <input class="input" name="fonts" maxlength="400" value=t.fonts.clone() placeholder="Pinyon+Script&family=Cormorant+Infant:wght@400;600" /></label>
             <label class="field adm-wide"><span class="field__label">"Aset bawaan (JSON kunci → URL, dipanggil {{ a.kunci }})"</span>
-                <textarea class="input adm-code" name="assets" rows="6" spellcheck="false">{t.assets.clone()}</textarea></label>
+                <textarea class="input adm-code" name="assets" rows="6" spellcheck="false" inner_html=textarea_isi(&t.assets)></textarea></label>
             <label class="field adm-wide"><span class="field__label">"HTML (Jinja)"</span>
-                <textarea class="input adm-code" name="html" rows="22" spellcheck="false" required>{t.html.clone()}</textarea></label>
+                <textarea class="input adm-code" name="html" rows="22" spellcheck="false" required inner_html=textarea_isi(&t.html)></textarea></label>
             <label class="field adm-wide"><span class="field__label">"CSS"</span>
-                <textarea class="input adm-code" name="css" rows="16" spellcheck="false">{t.css.clone()}</textarea></label>
+                <textarea class="input adm-code" name="css" rows="16" spellcheck="false" inner_html=textarea_isi(&t.css)></textarea></label>
             <button class="btn btn--primary btn--sm" type="submit"><Icon name="cloud_upload" />{if new { "Buat templat" } else { "Simpan templat" }}</button>
         </form>
     }
@@ -2421,8 +2454,8 @@ fn TemaTemplatForm(t: crate::web::model::TemaTemplat, templates: Vec<(String, St
     view! {
         <details class="card adm-song" id=format!("tema-{}", t.slug) open=on>
             <summary>
-                <b>{t.name.clone()}</b>" "
-                <small class="muted">{if on { format!("templat: {}", t.template) } else { "komponen bawaan".to_string() }}</small>
+                <span class="adm-song__meta"><b>{t.name.clone()}</b><small>{t.slug.clone()}</small></span>
+                <span class=if on { "chip chip--gold chip--xs" } else { "chip chip--xs" }>{if on { format!("templat: {}", t.template) } else { "komponen bawaan".to_string() }}</span>
             </summary>
             <form class="adm-banner__form" method="post" action="/admin/templat/pasang">
                 <input type="hidden" name="theme" value=t.slug.clone() />
@@ -2436,9 +2469,9 @@ fn TemaTemplatForm(t: crate::web::model::TemaTemplat, templates: Vec<(String, St
                     </select>
                 </label>
                 <label class="field adm-wide"><span class="field__label">"Aset tema (JSON, opsional)"</span>
-                    <textarea class="input adm-code" name="assets" rows="4" spellcheck="false" placeholder="{\"bunga\": \"/img/tema/…/mawar.svg\"}">{t.assets.clone()}</textarea></label>
+                    <textarea class="input adm-code" name="assets" rows="4" spellcheck="false" placeholder="{\"bunga\": \"/img/tema/…/mawar.svg\"}" inner_html=textarea_isi(&t.assets)></textarea></label>
                 <label class="field adm-wide"><span class="field__label">"CSS tema (opsional)"</span>
-                    <textarea class="input adm-code" name="css" rows="4" spellcheck="false" placeholder=".t-kusuma { --k-taupe: #5c6b4f; }">{t.css.clone()}</textarea></label>
+                    <textarea class="input adm-code" name="css" rows="4" spellcheck="false" placeholder=".t-kusuma { --k-taupe: #5c6b4f; }" inner_html=textarea_isi(&t.css)></textarea></label>
                 <div class="adm-banner__move">
                     <button class="btn btn--primary btn--sm" type="submit"><Icon name="check" />"Simpan"</button>
                     {on.then(|| view! {

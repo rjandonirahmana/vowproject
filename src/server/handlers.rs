@@ -70,10 +70,146 @@ fn back_with_error(msg: &str) -> Response {
     Redirect::to(&format!("/buat?galat={}", fmt::url_encode(msg))).into_response()
 }
 
+/// Isian TEKS undangan dari formulir — sama untuk /buat/kirim (buat baru) dan
+/// /kelola/{slug}/sunting (sunting): mempelai (tanpa foto), acara, busana,
+/// kutipan, rekening, kisah, siaran langsung. Err = pesan untuk pengguna.
+pub struct IsiTeks {
+    pub bride: MempelaiInput,
+    pub groom: MempelaiInput,
+    pub events: serde_json::Value,
+    pub dress_code: String,
+    pub quote_text: String,
+    pub quote_source: String,
+    pub banks: serde_json::Value,
+    pub family_name: String,
+    pub love_story: Vec<serde_json::Value>,
+    pub live_url: String,
+    pub dress_colors: serde_json::Value,
+    pub music_autoplay: bool,
+}
+
+pub fn baca_isi(form: &super::form::Form) -> Result<IsiTeks, &'static str> {
+    let get = |k: &str, max: usize| form.get(k, max);
+    let bride_name = get("bride_name", 80);
+    let groom_name = get("groom_name", 80);
+    if bride_name.is_empty() || groom_name.is_empty() {
+        return Err("Nama lengkap kedua mempelai wajib diisi.");
+    }
+    let akad_date = get("akad_date", 10);
+    if fmt::parse_date(&akad_date).is_none() {
+        return Err("Tanggal akad / pemberkatan wajib diisi.");
+    }
+    // ── Kisah cinta, siaran langsung, warna busana ──
+    let love_story: Vec<serde_json::Value> = (1..=4)
+        .filter_map(|i| {
+            let title = get(&format!("story{i}_title"), 80);
+            let text = get(&format!("story{i}_text"), 500);
+            (!title.is_empty() || !text.is_empty())
+                .then(|| json!({ "year": get(&format!("story{i}_year"), 20), "title": title, "text": text }))
+        })
+        .collect();
+    let live_url = get("live_url", 300);
+    let live_url = if live_url.starts_with("https://") && crate::web::skin::is_safe_url(&live_url) { live_url } else { String::new() };
+    let dress_colors: Vec<serde_json::Value> = (1..=4)
+        .filter_map(|i| {
+            let name = get(&format!("dress{i}_name"), 30);
+            let hex = get(&format!("dress{i}_hex"), 9).to_lowercase();
+            (!name.is_empty() && crate::web::skin::is_color(&hex)).then(|| json!({ "name": name, "hex": hex }))
+        })
+        .collect();
+
+    // ── Acara ──
+    let tz = get("tz", 4);
+    let tz = if fmt::TIMEZONES.iter().any(|t| t.0 == tz) { tz } else { "WIB".to_string() };
+    let akad_title = get("akad_title", 40);
+    let mut events = vec![json!({
+        "kind": "akad",
+        "title": if akad_title.is_empty() { "Akad Nikah".to_string() } else { akad_title },
+        "badge": "Pemberkatan & Akad",
+        "tag": "Sesi Khidmat",
+        "date": akad_date,
+        "time_start": get("akad_start", 5),
+        "time_end": get("akad_end", 5),
+        "sessions": [],
+        "venue": get("akad_venue", 120),
+        "address": get("akad_address", 200),
+        "maps_url": get("akad_maps", 300),
+        "tz": tz,
+    })];
+    let resepsi_date = get("resepsi_date", 10);
+    if fmt::parse_date(&resepsi_date).is_some() {
+        let mut sessions = Vec::new();
+        for (i, label) in [(1, "Sesi Siang"), (2, "Sesi Malam")] {
+            let t = get(&format!("resepsi_s{i}"), 40);
+            if !t.is_empty() {
+                sessions.push(json!({ "label": label, "time": t }));
+            }
+        }
+        events.push(json!({
+            "kind": "resepsi",
+            "title": "Resepsi Pernikahan",
+            "badge": "Resepsi Agung",
+            "tag": "Selebrasi",
+            "date": resepsi_date,
+            "time_start": get("resepsi_start", 5),
+            "time_end": get("resepsi_end", 5),
+            "sessions": sessions,
+            "venue": get("resepsi_venue", 120),
+            "address": get("resepsi_address", 200),
+            "maps_url": get("resepsi_maps", 300),
+            "tz": tz,
+        }));
+    }
+
+    // ── Rekening ──
+    let mut banks = Vec::new();
+    for i in 1..=2 {
+        let number = get(&format!("bank{i}_number"), 40);
+        if !number.is_empty() {
+            banks.push(json!({
+                "bank": get(&format!("bank{i}_name"), 60),
+                "number": number,
+                "holder": get(&format!("bank{i}_holder"), 80),
+            }));
+        }
+    }
+
+    let quote_idx: usize = get("quote", 2).parse().unwrap_or(0);
+    let (quote_text, quote_source) = themes::QUOTES.get(quote_idx).copied().unwrap_or(themes::QUOTES[0]);
+    let ig = |k: &str| get(k, 40).trim_start_matches('@').to_string();
+    let orang = |p: &str, name: String| MempelaiInput {
+        name,
+        degree: get(&format!("{p}_degree"), 30),
+        nick: get(&format!("{p}_nick"), 30),
+        parents: get(&format!("{p}_parents"), 200),
+        ig: ig(&format!("{p}_ig")),
+        photo: String::new(),
+    };
+    Ok(IsiTeks {
+        bride: orang("bride", bride_name),
+        groom: orang("groom", groom_name),
+        events: json!(events),
+        dress_code: get("dress_code", 200),
+        quote_text: quote_text.to_string(),
+        quote_source: quote_source.to_string(),
+        banks: json!(banks),
+        family_name: get("family_name", 120),
+        love_story,
+        live_url,
+        dress_colors: json!(dress_colors),
+        music_autoplay: form.has("music_autoplay"),
+    })
+}
+
 pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, headers: axum::http::HeaderMap, mp: Multipart) -> Response {
     // Dicek SEBELUM membaca multipart: kiriman spam tak sempat diunggah ke RustFS.
     if let Err(secs) = state.create_limit.hit(&format!("buat:{}", security::client_ip(&headers))) {
         return back_with_error(&format!("Terlalu banyak pembuatan undangan dari jaringan ini. Coba lagi dalam {} menit.", secs.div_ceil(60)));
+    }
+    // Kuota global: bot dari ribuan IP tak bisa membanjiri DB & RustFS.
+    if state.cap_limit.hit_max("buat", 300).is_err() {
+        tracing::warn!("buat: kuota global per jam habis — kemungkinan serangan bot");
+        return back_with_error("Layanan pemesanan sedang sangat ramai. Coba lagi beberapa saat lagi atau hubungi admin.");
     }
     let mut form = match super::form::read(mp, 5 + MAX_GALLERY).await {
         Ok(f) => f,
@@ -85,15 +221,11 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     let mut addons: Vec<String> = form.all("addon").to_vec();
     let get = |k: &str, max: usize| form.get(k, max);
 
-    let bride_name = get("bride_name", 80);
-    let groom_name = get("groom_name", 80);
-    if bride_name.is_empty() || groom_name.is_empty() {
-        return back_with_error("Nama lengkap kedua mempelai wajib diisi.");
-    }
-    let akad_date = get("akad_date", 10);
-    if fmt::parse_date(&akad_date).is_none() {
-        return back_with_error("Tanggal akad / pemberkatan wajib diisi.");
-    }
+    let isi = match baca_isi(&form) {
+        Ok(i) => i,
+        Err(m) => return back_with_error(m),
+    };
+    let (bride_name, groom_name) = (isi.bride.name.clone(), isi.groom.name.clone());
     let contact = fmt::wa_number(&get("contact_phone", 20));
     if contact.is_empty() {
         return back_with_error("Nomor WhatsApp pemesan wajib diisi (untuk konfirmasi pembayaran).");
@@ -204,81 +336,6 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         }
     }
 
-    // ── Kisah cinta, siaran langsung, warna busana ──
-    let love_story: Vec<serde_json::Value> = (1..=4)
-        .filter_map(|i| {
-            let title = get(&format!("story{i}_title"), 80);
-            let text = get(&format!("story{i}_text"), 500);
-            (!title.is_empty() || !text.is_empty())
-                .then(|| json!({ "year": get(&format!("story{i}_year"), 20), "title": title, "text": text }))
-        })
-        .collect();
-    let live_url = get("live_url", 300);
-    let live_url = if live_url.starts_with("https://") && crate::web::skin::is_safe_url(&live_url) { live_url } else { String::new() };
-    let dress_colors: Vec<serde_json::Value> = (1..=4)
-        .filter_map(|i| {
-            let name = get(&format!("dress{i}_name"), 30);
-            let hex = get(&format!("dress{i}_hex"), 9).to_lowercase();
-            (!name.is_empty() && crate::web::skin::is_color(&hex)).then(|| json!({ "name": name, "hex": hex }))
-        })
-        .collect();
-
-    // ── Acara ──
-    let tz = get("tz", 4);
-    let tz = if fmt::TIMEZONES.iter().any(|t| t.0 == tz) { tz } else { "WIB".to_string() };
-    let akad_title = get("akad_title", 40);
-    let mut events = vec![json!({
-        "kind": "akad",
-        "title": if akad_title.is_empty() { "Akad Nikah".to_string() } else { akad_title },
-        "badge": "Pemberkatan & Akad",
-        "tag": "Sesi Khidmat",
-        "date": akad_date,
-        "time_start": get("akad_start", 5),
-        "time_end": get("akad_end", 5),
-        "sessions": [],
-        "venue": get("akad_venue", 120),
-        "address": get("akad_address", 200),
-        "maps_url": get("akad_maps", 300),
-        "tz": tz,
-    })];
-    let resepsi_date = get("resepsi_date", 10);
-    if fmt::parse_date(&resepsi_date).is_some() {
-        let mut sessions = Vec::new();
-        for (i, label) in [(1, "Sesi Siang"), (2, "Sesi Malam")] {
-            let t = get(&format!("resepsi_s{i}"), 40);
-            if !t.is_empty() {
-                sessions.push(json!({ "label": label, "time": t }));
-            }
-        }
-        events.push(json!({
-            "kind": "resepsi",
-            "title": "Resepsi Pernikahan",
-            "badge": "Resepsi Agung",
-            "tag": "Selebrasi",
-            "date": resepsi_date,
-            "time_start": get("resepsi_start", 5),
-            "time_end": get("resepsi_end", 5),
-            "sessions": sessions,
-            "venue": get("resepsi_venue", 120),
-            "address": get("resepsi_address", 200),
-            "maps_url": get("resepsi_maps", 300),
-            "tz": tz,
-        }));
-    }
-
-    // ── Rekening ──
-    let mut banks = Vec::new();
-    for i in 1..=2 {
-        let number = get(&format!("bank{i}_number"), 40);
-        if !number.is_empty() {
-            banks.push(json!({
-                "bank": get(&format!("bank{i}_name"), 60),
-                "number": number,
-                "holder": get(&format!("bank{i}_holder"), 80),
-            }));
-        }
-    }
-
     // ── Musik: HANYA dari pustaka admin (diverifikasi ulang: harus lagu aktif) ──
     let song = match get("music_song", 20).parse::<i64>() {
         Ok(id) => repo::active_song(&state.pool, id).await.unwrap_or_else(|e| {
@@ -301,44 +358,29 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         }
     }
 
-    let quote_idx: usize = get("quote", 2).parse().unwrap_or(0);
-    let (quote_text, quote_source) = themes::QUOTES.get(quote_idx).copied().unwrap_or(themes::QUOTES[0]);
-
     // ±200 bit acak; yang disimpan hanya hash-nya — kunci polos tampil sekali
     // di tautan Kelola setelah pesan (dan bisa diterbitkan ulang oleh admin).
     let manage_key = random_key(40);
-    let ig = |k: &str| get(k, 40).trim_start_matches('@').to_string();
+    let IsiTeks { mut bride, mut groom, events, dress_code, quote_text, quote_source, banks, family_name, love_story, live_url, dress_colors, music_autoplay } = isi;
+    bride.photo = urls.remove("bride_photo").unwrap_or_default();
+    groom.photo = urls.remove("groom_photo").unwrap_or_default();
     let n = NewInvitation {
         slug: slug.clone(),
         manage_key_hash: auth::token_hash(&manage_key),
         theme,
         package,
-        bride: MempelaiInput {
-            name: bride_name.clone(),
-            degree: get("bride_degree", 30),
-            nick: get("bride_nick", 30),
-            parents: get("bride_parents", 200),
-            ig: ig("bride_ig"),
-            photo: urls.remove("bride_photo").unwrap_or_default(),
-        },
-        groom: MempelaiInput {
-            name: groom_name.clone(),
-            degree: get("groom_degree", 30),
-            nick: get("groom_nick", 30),
-            parents: get("groom_parents", 200),
-            ig: ig("groom_ig"),
-            photo: urls.remove("groom_photo").unwrap_or_default(),
-        },
-        events: json!(events),
-        dress_code: get("dress_code", 200),
-        quote_text: quote_text.to_string(),
-        quote_source: quote_source.to_string(),
+        bride,
+        groom,
+        events,
+        dress_code,
+        quote_text,
+        quote_source,
         music_title,
         music_artist,
         music_url,
-        music_autoplay: form.has("music_autoplay"),
-        banks: json!(banks),
-        family_name: get("family_name", 120),
+        music_autoplay,
+        banks,
+        family_name,
         addons: json!(addons),
         coupon,
         total_price: total,
@@ -348,7 +390,7 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         love_story: json!(love_story),
         live_url,
         gallery: json!(gallery),
-        dress_colors: json!(dress_colors),
+        dress_colors,
     };
 
     // Slug TIDAK diganti di sini (berkas sudah di foto/{slug}/). Bentrok hanya
@@ -396,6 +438,262 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
 
 
 
+/// POST /kelola/{slug}/sunting (multipart) — pemilik (kunci/cookie Kelola)
+/// atau peran Admin menyunting ISI undangan: teks (sama dengan /buat lewat
+/// baca_isi), tema, foto mempelai & sampul (ganti / hapus / posisi), galeri
+/// (hapus sebagian + tambah), video, lagu dari pustaka, WA pemesan. Paket &
+/// harga tidak bisa diubah di sini. Berkas lama yang diganti/dihapus dibuang
+/// dari RustFS SETELAH data tersimpan.
+pub async fn update_invitation(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(slug): Path<String>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    let back = format!("/kelola/{}/sunting", fmt::key(&slug));
+    if let Err(secs) = state.write_limit.hit(&format!("sunting:{}:{slug}", security::client_ip(&headers))) {
+        return to(&back, "galat", &format!("Terlalu sering menyimpan. Coba lagi dalam {} menit.", secs.div_ceil(60)));
+    }
+    let Ok(mut form) = super::form::read(mp, 4 + MAX_GALLERY).await else {
+        return to(&back, "galat", "Unggahan terputus atau terlalu besar (foto maks 5 MB, video maks 20 MB).");
+    };
+    // Galeri: `galeri_baru` (slot kosong) & `galeri_ganti_{i}` (timpa foto ke-i).
+    let (gallery_files, mut files): (Vec<super::form::Upload>, Vec<super::form::Upload>) =
+        std::mem::take(&mut form.files).into_iter().partition(|u| u.field == "galeri_baru" || u.field == "gallery" || u.field.starts_with("galeri_ganti_"));
+    let row = match repo::invitation(&state.pool, &slug).await {
+        Ok(Some(r)) => r,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Undangan tidak ditemukan").into_response(),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "sunting: muat undangan");
+            return to(&back, "galat", "Server sedang sibuk, coba lagi sebentar.");
+        }
+    };
+    let key = Some(form.raw("key")).filter(|k| !k.trim().is_empty()).or_else(|| super::owner::key_from(&headers, &slug)).unwrap_or_default();
+    let owner = !key.trim().is_empty() && auth::same_hash(&auth::token_hash(key.trim()), &row.manage_key_hash);
+    if !owner && auth::require(&state, &headers, true).await.is_err() {
+        return to(&back, "galat", "Kunci kelola tidak valid. Buka dari tautan yang Anda terima saat memesan.");
+    }
+    if row.inv.is_demo {
+        return to(&back, "galat", "Undangan demo tidak bisa disunting.");
+    }
+    let isi = match baca_isi(&form) {
+        Ok(i) => i,
+        Err(m) => return to(&back, "galat", m),
+    };
+    let get = |k: &str, max: usize| form.get(k, max);
+    let theme = get("theme", 60);
+    let theme = if state.themes().get(&theme).is_some() { theme } else { row.inv.theme.clone() };
+    let contact = fmt::wa_number(&get("contact_phone", 20));
+    let contact = if contact.is_empty() { row.contact_phone.clone() } else { contact };
+
+    // Unggahan baru (dibuang bila langkah berikutnya gagal) & berkas lama yang
+    // tak dipakai lagi (dibuang setelah tersimpan).
+    let mut uploaded: Vec<String> = Vec::new();
+    let mut lama: Vec<String> = Vec::new();
+    let base_of = |u: &str| u.split('#').next().unwrap_or("").to_string();
+
+    // ── Foto mempelai & sampul: ganti (unggah) / hapus / tetap (+ posisi baru) ──
+    let mut foto: HashMap<&str, String> = HashMap::new();
+    for (k, nama, sekarang) in [
+        ("bride_photo", "mempelai-wanita", &row.inv.bride_photo),
+        ("groom_photo", "mempelai-pria", &row.inv.groom_photo),
+        ("cover_photo", "sampul", &row.inv.cover_photo),
+    ] {
+        let pos = fmt::photo_pos_fragment(&get(&format!("{k}_pos"), 30));
+        let baru = files.iter().position(|u| u.field == k).map(|i| files.swap_remove(i));
+        let url = if let Some(up) = baru {
+            let Some(st) = state.storage.as_ref() else {
+                return to(&back, "galat", "Penyimpanan foto belum dikonfigurasi — hubungi admin.");
+            };
+            match ganti_foto(st, up.data, sekarang, &slug, nama).await {
+                Ok((u, timpa)) => {
+                    // Timpa = berkas yang sama ditulis ulang (tak bisa "dibatalkan");
+                    // unggahan baru dicatat agar dibuang bila langkah berikutnya gagal.
+                    if !timpa {
+                        uploaded.push(u.clone());
+                        lama.push(sekarang.clone());
+                    }
+                    format!("{u}{pos}")
+                }
+                Err(e) => {
+                    discard_uploads(&state, &uploaded).await;
+                    return to(&back, "galat", &e.to_string());
+                }
+            }
+        } else if form.has(&format!("hapus_{k}")) {
+            lama.push(sekarang.clone());
+            String::new()
+        } else if sekarang.is_empty() {
+            String::new()
+        } else if pos.is_empty() {
+            sekarang.clone()
+        } else {
+            format!("{}{pos}", base_of(sekarang))
+        };
+        foto.insert(k, url);
+    }
+
+    // ── Galeri (6 slot): dicentang hapus → dibuang dari RustFS; berkas di slot
+    //    berisi → TIMPA foto itu di tempat (urutan tetap); slot kosong → tambah.
+    let hapus: Vec<String> = form.all("galeri_hapus").to_vec();
+    let (mut ganti, baru): (Vec<super::form::Upload>, Vec<super::form::Upload>) =
+        gallery_files.into_iter().partition(|u| u.field.starts_with("galeri_ganti_"));
+    let mut gallery: Vec<String> = Vec::new();
+    for (i, g) in row.inv.gallery.iter().enumerate() {
+        if hapus.iter().any(|h| *h == i.to_string()) {
+            lama.push(g.clone());
+            continue;
+        }
+        let Some(j) = ganti.iter().position(|u| u.field == format!("galeri_ganti_{i}")) else {
+            gallery.push(g.clone());
+            continue;
+        };
+        let up = ganti.swap_remove(j);
+        let Some(st) = state.storage.as_ref() else {
+            gallery.push(g.clone());
+            continue;
+        };
+        match ganti_foto(st, up.data, g, &slug, &format!("galeri-{}", i + 1)).await {
+            Ok((u, timpa)) => {
+                if !timpa {
+                    uploaded.push(u.clone());
+                    lama.push(g.clone());
+                }
+                gallery.push(u);
+            }
+            Err(e) => {
+                discard_uploads(&state, &uploaded).await;
+                return to(&back, "galat", &format!("Galeri foto {}: {e}", i + 1));
+            }
+        }
+    }
+    for up in baru {
+        if gallery.len() >= MAX_GALLERY {
+            break;
+        }
+        let Some(st) = state.storage.as_ref() else { break };
+        match st.upload_image_as(up.data, &slug, &format!("galeri-{}", auth::random_hex(3)), super::storage::Ukuran::Foto).await {
+            Ok(u) => {
+                uploaded.push(u.clone());
+                gallery.push(u);
+            }
+            Err(e) => {
+                discard_uploads(&state, &uploaded).await;
+                return to(&back, "galat", &format!("Galeri: {e}"));
+            }
+        }
+    }
+
+    // ── Video prewedding ──
+    let mut video_url = row.inv.video_url.clone();
+    if let Some(i) = files.iter().position(|u| u.field == super::form::VIDEO_FIELD) {
+        let up = files.swap_remove(i);
+        if let Some(st) = state.storage.as_ref() {
+            match st.upload_video_as(up.data, &slug, &up.file_name).await {
+                Ok(u) => {
+                    uploaded.push(u.clone());
+                    lama.push(std::mem::replace(&mut video_url, u));
+                }
+                Err(e) => {
+                    discard_uploads(&state, &uploaded).await;
+                    return to(&back, "galat", &e.to_string());
+                }
+            }
+        }
+    } else if form.has("hapus_video") {
+        lama.push(std::mem::take(&mut video_url));
+    } else {
+        let link = get("video_link", 300);
+        let path = link.split(['?', '#']).next().unwrap_or("").to_ascii_lowercase();
+        if link != video_url && link.starts_with("https://") && crate::web::skin::is_safe_url(&link) && (path.ends_with(".mp4") || path.ends_with(".webm")) {
+            lama.push(std::mem::replace(&mut video_url, link));
+        }
+    }
+
+    // ── Lagu: pustaka admin; -1 = tetap lagu sekarang ──
+    let (mut music_title, mut music_artist, mut music_url) = match get("music_song", 20).parse::<i64>() {
+        Ok(-1) => (row.inv.music_title.clone(), row.inv.music_artist.clone(), base_of(&row.inv.music_url)),
+        Ok(id) if id > 0 => match repo::active_song(&state.pool, id).await {
+            Ok(Some(s)) => (s.title, s.artist, s.url),
+            _ => (row.inv.music_title.clone(), row.inv.music_artist.clone(), base_of(&row.inv.music_url)),
+        },
+        _ => (String::new(), String::new(), String::new()),
+    };
+    if music_url.is_empty() {
+        (music_title, music_artist) = (String::new(), String::new());
+    } else {
+        music_url.push_str(&fmt::music_start_fragment(&get("music_start", 10)));
+    }
+
+    // Kisah cinta: foto per babak (diatur admin) dipertahankan per urutan.
+    let mut love_story = isi.love_story;
+    for (i, ls) in love_story.iter_mut().enumerate() {
+        if let Some(old) = row.inv.love_story.get(i).filter(|o| !o.img.is_empty()) {
+            ls["img"] = json!(old.img);
+        }
+    }
+
+    let IsiTeks { mut bride, mut groom, events, dress_code, quote_text, quote_source, banks, family_name, live_url, dress_colors, music_autoplay, .. } = isi;
+    bride.photo = foto.remove("bride_photo").unwrap_or_default();
+    groom.photo = foto.remove("groom_photo").unwrap_or_default();
+    let n = NewInvitation {
+        slug: slug.clone(),
+        manage_key_hash: String::new(),
+        theme,
+        package: row.inv.package.clone(),
+        bride,
+        groom,
+        events,
+        dress_code,
+        quote_text,
+        quote_source,
+        music_title,
+        music_artist,
+        music_url,
+        music_autoplay,
+        banks,
+        family_name,
+        addons: json!([]),
+        coupon: String::new(),
+        total_price: row.total_price,
+        payment_method: row.payment_method.clone(),
+        contact_phone: contact,
+        cover_photo: foto.remove("cover_photo").unwrap_or_default(),
+        love_story: json!(love_story),
+        live_url,
+        gallery: json!(gallery),
+        dress_colors,
+    };
+    if let Err(e) = repo::update_invitation_isi(&state.pool, row.id, &n).await {
+        tracing::error!(error = %format!("{e:#}"), slug = %slug, "sunting: simpan");
+        discard_uploads(&state, &uploaded).await;
+        return to(&back, "galat", "Gagal menyimpan perubahan, coba lagi.");
+    }
+    if video_url != row.inv.video_url {
+        if let Err(e) = repo::set_invitation_video(&state.pool, &slug, &video_url).await {
+            tracing::error!(error = %format!("{e:#}"), "sunting: simpan video");
+        }
+    }
+    // Berkas lama: hanya unggahan kita (lagu bawaan / URL luar tak tersentuh).
+    let lama: Vec<String> = lama.into_iter().filter(|u| !u.is_empty()).map(|u| base_of(&u)).collect();
+    discard_uploads(&state, &lama).await;
+    tracing::info!(slug = %slug, admin = !owner, "undangan disunting");
+    to(&back, "ok", "Perubahan tersimpan — buka \"Lihat Undangan\" untuk melihat hasilnya.")
+}
+
+/// Ganti satu foto undangan: TIMPA berkas lama di kunci yang sama bila itu
+/// unggahan kita (`true`), selain itu unggah sebagai berkas baru (`false`).
+async fn ganti_foto(st: &super::storage::StorageService, data: Vec<u8>, lama: &str, slug: &str, nama: &str) -> anyhow::Result<(String, bool)> {
+    if st.key_of(lama).is_some() {
+        if let Some(u) = st.replace_image(data, lama, super::storage::Ukuran::Foto).await? {
+            return Ok((u, true));
+        }
+        anyhow::bail!("Foto lama tak bisa ditimpa, coba lagi.");
+    }
+    let u = st.upload_image_as(data, slug, &format!("{nama}-{}", auth::random_hex(3)), super::storage::Ukuran::Foto).await?;
+    Ok((u, false))
+}
+
 fn csv_cell(s: &str) -> String {
     // Satu baris per tamu; cegah formula injection saat dibuka di Excel/Sheets.
     let s = s.replace(['\n', '\r'], " ");
@@ -412,8 +710,11 @@ pub async fn export_guests(
     // Kunci dari cookie (server/owner.rs); ?key= tetap diterima.
     let cookie_key = super::owner::key_from(&headers, &slug);
     let key = q.get("key").map(String::as_str).filter(|k| !k.is_empty()).or(cookie_key.as_deref()).unwrap_or("");
+    // Pemilik (kunci cocok) atau peran Admin yang sedang masuk.
+    let admin = || async { auth::require(&state, &headers, true).await.is_ok() };
     let inv = match repo::invitation(&state.pool, &slug).await {
         Ok(Some(i)) if auth::same_hash(&auth::token_hash(key), &i.manage_key_hash) => i,
+        Ok(Some(i)) if admin().await => i,
         Ok(_) => return (StatusCode::FORBIDDEN, "Kunci kelola tidak valid").into_response(),
         Err(e) => {
             tracing::error!(error = %format!("{e:#}"), "export");
@@ -631,13 +932,19 @@ pub async fn admin_login(
             return to("/admin", "galat", "Database akun belum siap — jalankan migration/003_admin_konten.sql.");
         }
     };
-    match row {
-        Some((u, hash)) if u.active && auth::verify_password(&password, &hash) => {
+    let (user, hash) = match row {
+        Some((u, h)) if u.active => (Some(u), Some(h)),
+        _ => (None, None),
+    };
+    // Selalu verifikasi (hash palsu bila akun tak ada/nonaktif) — waktu sama.
+    let ok = auth::verify_password_async(password, hash).await;
+    match user.filter(|_| ok) {
+        Some(u) => {
             tracing::info!(user = %u.username, "admin: masuk");
             state.login_limit.clear(&ku);
             start_session(&state, &headers, u.id, "/admin").await
         }
-        _ => {
+        None => {
             state.login_limit.fail(&[&ku, &ki]);
             tracing::warn!(user = %username, ip = %ki, "admin: login gagal");
             // Perlambat tebak-tebakan sandi.
@@ -677,7 +984,7 @@ pub async fn admin_setup(
     if pw.chars().count() < auth::MIN_PASSWORD || pw != pw2 {
         return to("/admin", "galat", "Sandi minimal 8 karakter dan kedua isian harus sama.");
     }
-    let hash = match auth::hash_password(&pw) {
+    let hash = match auth::hash_password_async(pw.clone()).await {
         Ok(h) => h,
         Err(_) => return to("/admin", "galat", "Gagal memproses sandi."),
     };
@@ -727,7 +1034,7 @@ pub async fn admin_account_save(
             if pw.chars().count() < auth::MIN_PASSWORD {
                 return to(back, "galat", "Sandi minimal 8 karakter.");
             }
-            let Ok(hash) = auth::hash_password(&pw) else { return to(back, "galat", "Gagal memproses sandi.") };
+            let Ok(hash) = auth::hash_password_async(pw.clone()).await else { return to(back, "galat", "Gagal memproses sandi.") };
             match repo::create_admin(&state.pool, &username, &clean(&get("name"), 60), &hash, &role).await {
                 Ok(_) => {
                     tracing::info!(by = %me.username, user = %username, role = %role, "admin: akun dibuat");
@@ -761,7 +1068,7 @@ pub async fn admin_account_save(
             if pw.chars().count() < auth::MIN_PASSWORD {
                 return to(back, "galat", "Sandi baru minimal 8 karakter.");
             }
-            let Ok(hash) = auth::hash_password(&pw) else { return to(back, "galat", "Gagal memproses sandi.") };
+            let Ok(hash) = auth::hash_password_async(pw.clone()).await else { return to(back, "galat", "Gagal memproses sandi.") };
             match repo::set_admin_password(&state.pool, id, &hash, None).await {
                 Ok(()) => to(back, "ok", "Sandi diganti; sesi lama akun itu dikeluarkan."),
                 Err(_) => to(back, "galat", "Gagal mengganti sandi."),
@@ -786,14 +1093,14 @@ pub async fn admin_own_password(
     let Ok(Some((_, hash))) = repo::admin_login_row(&state.pool, &me.username).await else {
         return to(back, "galat", "Akun tidak ditemukan.");
     };
-    if !auth::verify_password(&get("old"), &hash) {
+    if !auth::verify_password_async(get("old"), Some(hash)).await {
         return to(back, "galat", "Sandi lama salah.");
     }
     let (pw, pw2) = (get("password"), get("password2"));
     if pw.chars().count() < auth::MIN_PASSWORD || pw != pw2 {
         return to(back, "galat", "Sandi baru minimal 8 karakter dan kedua isian harus sama.");
     }
-    let Ok(new_hash) = auth::hash_password(&pw) else { return to(back, "galat", "Gagal memproses sandi.") };
+    let Ok(new_hash) = auth::hash_password_async(pw.clone()).await else { return to(back, "galat", "Gagal memproses sandi.") };
     let keep = cookie_value(&headers, auth::COOKIE).map(auth::token_hash);
     match repo::set_admin_password(&state.pool, me.id, &new_hash, keep.as_deref()).await {
         Ok(()) => to(back, "ok", "Sandi diganti. Sesi di perangkat lain dikeluarkan."),
@@ -1124,6 +1431,10 @@ pub async fn admin_save_banner(
     if let Err(r) = require(&state, &headers, false).await {
         return r;
     }
+    // Beranda membaca banner dari cache 30 dtk — kosongkan agar perubahan segera tampil.
+    if let Ok(mut g) = state.banners.write() {
+        *g = None;
+    }
     let back = "/admin/banner";
     let Ok(mut form) = super::form::read(mp, 2).await else {
         return to(back, "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
@@ -1206,6 +1517,10 @@ pub async fn admin_banner_action(
     if let Err(r) = require(&state, &headers, false).await {
         return r;
     }
+    // Beranda membaca banner dari cache 30 dtk — kosongkan agar perubahan segera tampil.
+    if let Ok(mut g) = state.banners.write() {
+        *g = None;
+    }
     let back = "/admin/banner";
     let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
     let res = match aksi.as_str() {
@@ -1246,8 +1561,26 @@ pub async fn admin_update_invitation(
             if status == "aktif" && ub.lama != "aktif" {
                 match state.wa.as_ref() {
                     Some(wa) if !ub.contact_phone.is_empty() => {
-                        wa.spawn_text(ub.contact_phone.clone(), pesan_aktif(&ub.couple, &public_origin(&state, &headers), &slug), "undangan aktif → pemesan");
-                        info = " Pemesan dikabari lewat WhatsApp.".into();
+                        // DB hanya menyimpan HASH kunci Kelola → tautan lama tak bisa
+                        // disusun ulang. Terbitkan kunci baru & kirim di pesan yang
+                        // sama (tautan lama berhenti berlaku). Gagal menyimpan kunci →
+                        // pesan tetap terkirim tanpa tautan Kelola.
+                        let key = random_key(40);
+                        let key = match repo::reset_manage_key(&state.pool, &slug, &auth::token_hash(&key)).await {
+                            Ok(true) => Some(key),
+                            Ok(false) => None,
+                            Err(e) => {
+                                tracing::error!(error = %format!("{e:#}"), slug = %slug, "aktivasi: terbitkan kunci Kelola");
+                                None
+                            }
+                        };
+                        let text = pesan_aktif(&ub.couple, &public_origin(&state, &headers), &slug, key.as_deref());
+                        wa.spawn_text(ub.contact_phone.clone(), text, "undangan aktif → pemesan");
+                        info = if key.is_some() {
+                            " Pemesan dikabari lewat WhatsApp beserta tautan Kelola baru (tautan lama tidak berlaku).".into()
+                        } else {
+                            " Pemesan dikabari lewat WhatsApp.".into()
+                        };
                     }
                     _ => info = " (WA pemesan tidak dikirim — waxum mati / nomor kosong.)".into(),
                 }
@@ -1444,17 +1777,25 @@ fn pesan_pesanan_baru(couple: &str, origin: &str, slug: &str, manage_key: &str, 
 }
 
 /// WA ke pemesan saat admin mengaktifkan undangan.
-fn pesan_aktif(couple: &str, origin: &str, slug: &str) -> String {
+/// `key` = kunci Kelola BARU (diterbitkan saat aktivasi); None = tanpa tautan Kelola.
+fn pesan_aktif(couple: &str, origin: &str, slug: &str, key: Option<&str>) -> String {
+    let kelola = match key {
+        Some(k) => format!(
+            "Atur daftar tamu, tautan pribadi tiap tamu, RSVP & story di dashboard Kelola (simpan pesan ini, JANGAN dibagikan):\n{origin}/kelola/{slug}?key={k}\n_Tautan Kelola sebelumnya sudah tidak berlaku._\n\n"
+        ),
+        None => "Atur daftar tamu & tautan pribadi tiap tamu di dashboard Kelola (tautan dari pesan sebelumnya).\n\n".to_string(),
+    };
     format!(
         concat!(
             "Kabar baik! 🎉 Pembayaran sudah kami terima dan undangan *{couple}* kini AKTIF.\n\n",
-            "Bagikan ke tamu: {origin}/u/{slug}\n",
-            "Atur daftar tamu & tautan pribadi tiap tamu di dashboard Kelola (tautan dari pesan sebelumnya).\n\n",
+            "Bagikan ke tamu: {origin}/u/{slug}\n\n",
+            "{kelola}",
             "Terima kasih — ", crate::brand!()
         ),
         couple = couple,
         origin = origin,
         slug = slug,
+        kelola = kelola,
     )
 }
 
@@ -1587,6 +1928,13 @@ pub async fn upload_payment_proof(
 #[cfg(test)]
 mod bukti_tests {
     use super::*;
+
+    #[test]
+    fn pesan_aktif_memuat_tautan_kelola_baru() {
+        let t = pesan_aktif("Ani & Budi", "https://ilyvowcraft.online", "ani-budi-x1", Some("KUNCI123"));
+        assert!(t.contains("https://ilyvowcraft.online/u/ani-budi-x1") && t.contains("/kelola/ani-budi-x1?key=KUNCI123"), "{t}");
+        assert!(!pesan_aktif("A & B", "https://x", "a-b", None).contains("?key="));
+    }
 
     #[test]
     fn keterangan_wa_memuat_tautan_dan_total() {

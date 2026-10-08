@@ -1,16 +1,17 @@
-/* Bayang — gerak ala wayang kulit: elemen muncul dari bayangan gelap & samar
-   lalu "didekatkan ke kelir" hingga jelas; mempelai masuk dari kiri & kanan
-   seperti tokoh wayang dimainkan dalang (sedikit miring lalu tegak), judul
-   menyala seperti api blencong, ikon & foto bergoyang masuk pada porosnya. */
+/* Bayang — gerak ala wayang kulit: elemen naik dari bawah kelir lalu tegak;
+   mempelai masuk dari kiri & kanan seperti tokoh wayang dimainkan dalang
+   (miring lalu tegak), judul mendekat dari kelir, ikon & foto bergoyang masuk
+   pada porosnya. Hanya opacity + transform (dikerjakan GPU) — filter
+   brightness/blur & text-shadow dulu melukis ulang tiap section saat digulir. */
 {a} { --rv-stagger: 200; }
-.rv-on {a} [data-rv] { transition: opacity 1.1s ease, transform 1.3s cubic-bezier(.2, .75, .25, 1), filter 1.4s ease, text-shadow 2s ease; }
-.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateY(30px) scale(1.04); filter: brightness(0) blur(6px); }
-.rv-on {a} :is(.card, .event)[data-rv]:not(.is-in) { filter: none; transform: translateY(46px); }
-.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: none; filter: blur(5px); text-shadow: 0 0 22px var(--gold-c, #fed488), 0 0 44px var(--gold, #e3c27a); }
+.rv-on {a} [data-rv] { transition: opacity 1.1s ease, transform 1.3s cubic-bezier(.2, .75, .25, 1); }
+.rv-on {a} [data-rv]:not(.is-in) { opacity: 0; transform: translateY(30px) scale(1.04); }
+.rv-on {a} :is(.card, .event)[data-rv]:not(.is-in) { transform: translateY(46px); }
+.rv-on {a} :is(.section__title, .cover__names, .guest__name)[data-rv]:not(.is-in) { transform: scale(1.1); }
 .rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv] { transform-origin: 50% 100%; }
 .rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:not(.is-in) { transform: rotate(-9deg) translateY(30px); }
 .rv-on {a} :is(.arch-photo, .gallery__item, .hero__seal)[data-rv]:nth-child(even):not(.is-in) { transform: rotate(9deg) translateY(30px); }
-.rv-on {a} .couple > .person[data-rv] { transform-origin: 50% 100%; transition-timing-function: ease, cubic-bezier(.3, 1.3, .5, 1), ease; }
-.rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { transform: translateX(-90px) rotate(-10deg); filter: none; }
-.rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { transform: translateX(90px) rotate(10deg); filter: none; }
-.rv-on {a} :is(.intro__icon, .couple__amp)[data-rv]:not(.is-in) { transform: scale(.4) rotate(-40deg); filter: brightness(2) blur(3px); }
+.rv-on {a} .couple > .person[data-rv] { transform-origin: 50% 100%; transition-timing-function: ease, cubic-bezier(.3, 1.3, .5, 1); }
+.rv-on {a} .couple > .person:first-child[data-rv]:not(.is-in) { transform: translateX(-90px) rotate(-10deg); }
+.rv-on {a} .couple > .person:last-child[data-rv]:not(.is-in) { transform: translateX(90px) rotate(10deg); }
+.rv-on {a} :is(.intro__icon, .couple__amp)[data-rv]:not(.is-in) { transform: scale(.4) rotate(-40deg); }

@@ -147,7 +147,7 @@ fn Dashboard(d: Dashboard, baru: bool, notice: Option<(bool, String)>, add: Serv
                 <div class="inv-top__actions">
                     // URL tak lagi memuat kunci → tautan khusus bisa disalin dari sini
                     // (untuk membuka Kelola di HP/laptop lain).
-                    {(!inv.is_demo).then(|| view! {
+                    {(!inv.is_demo && !key.is_empty()).then(|| view! {
                         // HP: ikon saja (teks ≥720px) — kalau tidak, menimpa nama pasangan di header.
                         <button type="button" class="btn btn--outline btn--sm" title="Salin tautan rahasia untuk membuka Kelola di perangkat lain"
                             aria-label="Salin Tautan Kelola"
@@ -155,9 +155,19 @@ fn Dashboard(d: Dashboard, baru: bool, notice: Option<(bool, String)>, add: Serv
                             <Icon name="key" /><span class="hide-sm">"Salin Tautan Kelola"</span>
                         </button>
                     })}
+                    {(!inv.is_demo).then(|| view! {
+                        <a class="btn btn--primary btn--sm" href=format!("/kelola/{}/sunting", inv.slug)><Icon name="edit" /><span class="hide-sm">"Sunting Undangan"</span></a>
+                    })}
                     <a class="btn btn--soft btn--sm" href=base_link.clone() target="_blank"><Icon name="visibility" />"Lihat Undangan"</a>
                 </div>
             </header>
+            // Dibuka admin dari /admin/undangan (tanpa kunci pemilik).
+            {(key.is_empty() && !inv.is_demo).then(|| view! {
+                <p class="notice notice--info dash-admin">
+                    <Icon name="admin_panel_settings" />
+                    "Mode admin — Anda membuka dashboard milik pemesan. Perubahan tamu langsung tersimpan atas nama mereka."
+                </p>
+            })}
             <main class="inv__main">
                 {baru.then(|| {
                     let pay_msg = format!(
@@ -367,6 +377,8 @@ fn PaymentCard(
                     } })}
                 </div>
             })}
+            // Admin (tanpa kunci pemilik) tak bisa mengunggah atas nama pembeli.
+            {(!key.is_empty()).then(|| view! {
             <form class="pay-card__form" method="post" action=format!("/kelola/{slug}/bukti") enctype="multipart/form-data">
                 <input type="hidden" name="key" value=key />
                 <label class="pay-card__file">
@@ -378,6 +390,7 @@ fn PaymentCard(
                     <Icon name="send" />{if sudah { "Kirim Ulang Bukti" } else { "Kirim Bukti Transfer" }}
                 </button>
             </form>
+            })}
             {tanya.map(|href| view! {
                 <a class="btn btn--soft btn--sm" href=href target="_blank" rel="noopener"><Icon name="chat" />"Ada kendala? Chat admin"</a>
             })}

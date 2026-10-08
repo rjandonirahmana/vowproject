@@ -755,17 +755,19 @@ pub use super::fmt::rupiah;
 /// Penggeser "mulai lagu dari detik …" untuk `<audio id=bgm>`; dihidupkan
 /// skrip global (app.rs). `name` diisi = ikut terkirim bersama formulir.
 #[component]
-pub fn MusicSeek(#[prop(optional)] name: &'static str) -> impl IntoView {
+/// `start` = detik awal yang sudah tersimpan (halaman sunting); 0 = dari awal.
+pub fn MusicSeek(#[prop(optional)] name: &'static str, #[prop(optional)] start: u32) -> impl IntoView {
+    let mmss = format!("{}:{:02}", start / 60, start % 60);
     view! {
         <div class="seek" data-seek="">
             <div class="seek__head">
                 <span class="field__label"><Icon name="schedule" />"Mulai lagu dari"</span>
-                <output class="seek__time" data-seek-time="">"0:00"</output>
+                <output class="seek__time" data-seek-time="">{mmss}</output>
             </div>
-            <input type="range" min="0" max="0" step="1" value="0" data-seek-range="" disabled aria-label="Mulai lagu dari detik" />
+            <input type="range" min="0" max=start.to_string() step="1" value=start.to_string() data-seek-range="" disabled aria-label="Mulai lagu dari detik" />
             <small class="seek__now" data-seek-now=""></small>
             <small class="muted" data-seek-hint="">"Putar lagu dulu, lalu geser ke bagian favorit (mis. reff). Tamu mendengar lagu mulai dari titik ini."</small>
-            {(!name.is_empty()).then(|| view! { <input type="hidden" name=name value="0" data-seek-value="" /> })}
+            {(!name.is_empty()).then(|| view! { <input type="hidden" name=name value=start.to_string() data-seek-value="" /> })}
         </div>
     }
 }

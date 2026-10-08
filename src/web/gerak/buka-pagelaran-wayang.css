@@ -36,7 +36,7 @@
 {a} .gate__panel--r { right: 2%; left: auto; scale: -1 1; }
 /* ── Dibuka ── */
 .inv-opened {a}:not(.gate--embed), .is-open > {a} { opacity: 0; transition: opacity .7s ease 2.75s, visibility 0s 3.5s; }
-.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: translateY(30px); filter: blur(4px); transition: opacity .6s ease, transform .7s ease, filter .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: translateY(30px); transition: opacity .6s ease, transform .7s ease; }
 .inv-opened {a}:not(.gate--embed)::after, .is-open > {a}::after { opacity: 1; transition: opacity .9s ease .25s; }
 .inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { animation: wy-flicker .5s ease-in-out infinite alternate; }
 .inv-opened {a}:not(.gate--embed) .gate__orn, .is-open > {a} .gate__orn,
@@ -44,8 +44,8 @@
 .inv-opened {a}:not(.gate--embed) .gate__panel, .is-open > {a} .gate__panel { visibility: visible; animation: wy-enter .8s cubic-bezier(.2, .8, .3, 1) 1.95s both; }
 @keyframes wy-flicker { from { opacity: .7; transform: scale(.94); } to { opacity: 1; transform: scale(1.05); } }
 @keyframes wy-ember { 0% { opacity: 0; transform: none; } 20% { opacity: .9; } 100% { opacity: 0; transform: translate(calc((var(--i) - 6) * 6px), -90px); } }
-@keyframes wy-flame { from { opacity: 0; filter: blur(6px); text-shadow: 0 0 24px var(--gold-c, #fed488); } }
-@keyframes wy-shadow { from { opacity: 0; filter: brightness(0) blur(8px); transform: scale(1.06); } 50% { opacity: 1; filter: brightness(.25) blur(2px); } }
+@keyframes wy-flame { from { opacity: 0; transform: scale(.94); } }
+@keyframes wy-shadow { from { opacity: 0; filter: brightness(0); transform: scale(1.06); } 50% { opacity: 1; filter: brightness(.25); } }
 @keyframes wy-up { from { opacity: 0; transform: translateY(40px); } }
 @keyframes wy-plant { from { transform: translateY(115%); } }
 @keyframes wy-kebut { 0%, 100% { rotate: 0deg; } 20% { rotate: -14deg; } 45% { rotate: 12deg; } 70% { rotate: -7deg; } 88% { rotate: 3deg; } }

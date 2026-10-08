@@ -160,6 +160,17 @@ impl StorageService {
         self.put_key(&format!("foto/{}/{}.{}", path_part(dir, "undangan"), file_stem(name, "foto"), h.ext), h.mime, h.data).await
     }
 
+    /// TIMPA foto yang sudah ada di kunci objek yang sama (sunting undangan:
+    /// "ganti" = berkas lama tertimpa, bukan menumpuk). URL diberi `?v=acak`
+    /// agar peramban/CDN tak menampilkan salinan lama. `Ok(None)` = URL lama
+    /// bukan unggahan kita (gambar bawaan / situs luar) → pemanggil mengunggah baru.
+    pub async fn replace_image(&self, data: Vec<u8>, old_url: &str, ukuran: Ukuran) -> anyhow::Result<Option<String>> {
+        let Some(key) = self.key_of(old_url) else { return Ok(None) };
+        let h = Self::prepare_image(data, ukuran).await?;
+        let url = self.put_key(&key, h.mime, h.data).await?;
+        Ok(Some(format!("{url}?v={}", super::auth::random_hex(4))))
+    }
+
     /// Lagu unggahan pembeli: `musik/{undangan}/{nama-berkas}-{acak}.{ext}`
     /// (mis. musik/yona-doni-k7f3x9m2/TULUS-Teman-Hidup-3f9a1c.mp3). Akhiran
     /// acak: dua berkas bernama sama (mis. pustaka lagu admin) tak saling timpa.

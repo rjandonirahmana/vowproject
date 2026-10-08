@@ -11,6 +11,7 @@ pub mod kelola;
 pub mod layanan;
 pub mod mua;
 pub mod seserahan;
+pub mod sunting;
 pub mod tema;
 pub mod undangan;
 

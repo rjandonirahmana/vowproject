@@ -442,6 +442,35 @@ pub struct NewInvitation {
     pub dress_colors: Value,
 }
 
+/// Sunting isi undangan oleh pemilik/admin (/kelola/{slug}/sunting). Paket,
+/// add-on, kupon, total & metode bayar TIDAK ikut (sudah dihitung saat pesan).
+pub async fn update_invitation_isi(pool: &Pool, id: i64, n: &NewInvitation) -> Result<()> {
+    let c = pool.get().await?;
+    let (b, g) = (&n.bride, &n.groom);
+    db_exec(&c,
+        "UPDATE invitations SET theme = $2,
+            bride_name = $3, bride_degree = $4, bride_nick = $5, bride_parents = $6, bride_ig = $7, bride_photo = $8,
+            groom_name = $9, groom_degree = $10, groom_nick = $11, groom_parents = $12, groom_ig = $13, groom_photo = $14,
+            events = $15, dress_code = $16, quote_text = $17, quote_source = $18,
+            music_title = $19, music_artist = $20, music_url = $21, music_autoplay = $22,
+            banks = $23, family_name = $24, contact_phone = $25, cover_photo = $26,
+            love_story = $27, live_url = $28, gallery = $29, dress_colors = $30, updated_at = NOW()
+          WHERE id = $1 AND NOT is_demo",
+        &[
+            &id, &n.theme,
+            &b.name, &b.degree, &b.nick, &b.parents, &b.ig, &b.photo,
+            &g.name, &g.degree, &g.nick, &g.parents, &g.ig, &g.photo,
+            &n.events, &n.dress_code, &n.quote_text, &n.quote_source,
+            &n.music_title, &n.music_artist, &n.music_url, &n.music_autoplay,
+            &n.banks, &n.family_name, &n.contact_phone, &n.cover_photo,
+            &n.love_story, &n.live_url, &n.gallery, &n.dress_colors,
+        ],
+    )
+    .await
+    .context("sunting undangan")?;
+    Ok(())
+}
+
 /// Simpan URL video prewedding. `Ok(false)` = kolom belum ada (migrasi 022
 /// belum dijalankan) → pemanggil membuang unggahannya.
 pub async fn set_invitation_video(pool: &Pool, slug: &str, url: &str) -> Result<bool> {

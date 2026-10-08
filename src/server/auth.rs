@@ -31,6 +31,38 @@ pub fn verify_password(pw: &str, hash: &str) -> bool {
     PasswordHash::new(hash).is_ok_and(|h| Argon2::default().verify_password(pw.as_bytes(), &h).is_ok())
 }
 
+/// Argon2 sengaja mahal (±19 MB RAM, puluhan ms CPU). Dijalankan di thread
+/// blocking — di thread async ia membekukan worker tokio (VPS 2 CPU = 2 worker:
+/// segelintir login serentak menghentikan SEMUA halaman). Maks 2 bersamaan →
+/// banjir percobaan login dari banyak IP tak bisa menghabiskan RAM.
+fn antrian_argon() -> &'static tokio::sync::Semaphore {
+    static S: std::sync::OnceLock<tokio::sync::Semaphore> = std::sync::OnceLock::new();
+    S.get_or_init(|| tokio::sync::Semaphore::new(2))
+}
+
+/// Hash pembanding untuk username yang tak ada: waktu respons sama dengan
+/// sandi salah → penyerang tak bisa menebak username mana yang terdaftar.
+fn hash_palsu() -> &'static str {
+    static H: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    H.get_or_init(|| hash_password(&random_hex(16)).unwrap_or_default())
+}
+
+pub async fn verify_password_async(pw: String, hash: Option<String>) -> bool {
+    let _izin = antrian_argon().acquire().await;
+    let ada = hash.is_some();
+    tokio::task::spawn_blocking(move || {
+        let hash = hash.unwrap_or_else(|| hash_palsu().to_string());
+        verify_password(&pw, &hash) && ada
+    })
+    .await
+    .unwrap_or(false)
+}
+
+pub async fn hash_password_async(pw: String) -> anyhow::Result<String> {
+    let _izin = antrian_argon().acquire().await;
+    tokio::task::spawn_blocking(move || hash_password(&pw)).await.map_err(|e| anyhow::anyhow!("hash: {e}"))?
+}
+
 /// Byte → hex huruf kecil (tanpa alokasi per byte).
 pub fn hex(bytes: &[u8]) -> String {
     const H: &[u8; 16] = b"0123456789abcdef";
@@ -117,6 +149,7 @@ mod tests {
         assert!(verify_password("rahasia-panjang", &h));
         assert!(!verify_password("salah", &h));
         assert!(!verify_password("x", "bukan-hash"));
+        assert!(PasswordHash::new(hash_palsu()).is_ok(), "hash pembanding wajib valid (waktu verifikasi sama)");
         let t = new_token();
         assert_eq!(t.len(), 64);
         assert_ne!(t, new_token());

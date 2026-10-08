@@ -438,7 +438,7 @@ pub fn BuatPage() -> impl IntoView {
 }
 
 #[component]
-fn FsecHead(icon: &'static str, title: &'static str, sub: &'static str, tag: &'static str) -> impl IntoView {
+pub fn FsecHead(icon: &'static str, title: &'static str, sub: &'static str, tag: &'static str) -> impl IntoView {
     view! {
         <div class="fsec__head">
             <span class="fsec__icon"><span class="ms" aria-hidden="true">{icon}</span></span>

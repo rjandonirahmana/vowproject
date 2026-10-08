@@ -27,7 +27,7 @@
 {a} .gate__fx i:nth-child(even) { --side: 74%; }
 .inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.3s; }
 .inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; }
-.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(1.08); filter: blur(6px); transition: opacity .6s ease, transform .9s ease, filter .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(1.08); transition: opacity .6s ease, transform .9s ease; }
 .inv-opened {a}:not(.gate--embed) .gate__panel, .is-open > {a} .gate__panel { animation: none; transition: transform 1.6s cubic-bezier(.6, 0, .25, 1) .1s, opacity .6s 1.3s; opacity: 0; }
 .inv-opened {a}:not(.gate--embed) .gate__panel--l, .is-open > {a} .gate__panel--l { transform: translateX(-105%) rotate(-16deg); }
 .inv-opened {a}:not(.gate--embed) .gate__panel--r, .is-open > {a} .gate__panel--r { transform: translateX(-105%) rotate(-16deg); }
@@ -35,6 +35,6 @@
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: tm-fly calc(1.4s + var(--i) * .07s) cubic-bezier(.2, .6, .3, 1) calc(var(--i) * .04s) both; }
 .inv-opened {a}:not(.gate--embed) .gate__fx i:nth-child(even), .is-open > {a} .gate__fx i:nth-child(even) { --dir: 1; }
 @keyframes tm-sway { from { rotate: -1.6deg; } to { rotate: 1.8deg; } }
-@keyframes tm-bloom { from { opacity: 0; transform: scale(.7); filter: blur(8px); } }
+@keyframes tm-bloom { from { opacity: 0; transform: scale(.7); } }
 @keyframes tm-rise { from { opacity: 0; transform: translateY(36px); } }
 @keyframes tm-fly { 0% { opacity: 0; transform: none; } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--dir, -1) * (120px + var(--i) * 14px)), calc(-60px + var(--i) * 22px)) rotate(calc(var(--dir, -1) * 540deg)); } }

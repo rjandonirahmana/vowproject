@@ -49,13 +49,30 @@ mod srv {
     }
 
     /// Undangan + verifikasi kunci kelola. Demo boleh dibuka dengan kunci "demo".
+    /// Tanpa kunci yang cocok, peran ADMIN yang sedang masuk tetap diizinkan
+    /// (/admin/undangan → "Kelola": membantu/memeriksa undangan pembeli).
     pub async fn load_owned(slug: &str, key: &str) -> Result<InvRow, ServerFnError> {
         let key = &owner_key(slug, key).await?;
         let row = load(slug).await?;
-        if key.is_empty() || !crate::server::auth::same_hash(&crate::server::auth::token_hash(key), &row.manage_key_hash) {
+        if !is_owner(key, &row) && !admin_view(&row).await? {
             return Err(ServerFnError::new("Kunci kelola tidak valid. Buka dari tautan yang Anda terima saat memesan."));
         }
         Ok(row)
+    }
+
+    pub fn is_owner(key: &str, row: &InvRow) -> bool {
+        !key.is_empty() && crate::server::auth::same_hash(&crate::server::auth::token_hash(key.trim()), &row.manage_key_hash)
+    }
+
+    /// Admin (peran Admin, bukan Editor) sedang masuk → boleh membuka Kelola /
+    /// pratinjau undangan pembeli mana pun. Dicatat di log.
+    pub async fn admin_view(row: &InvRow) -> Result<bool, ServerFnError> {
+        let st = state()?;
+        let ok = current_admin(&st).await?.is_some_and(|u| u.is_admin());
+        if ok {
+            tracing::info!(slug = %row.inv.slug, "admin membuka Kelola/pratinjau pembeli");
+        }
+        Ok(ok)
     }
 
     /// Undangan DEMO boleh ditampilkan dengan tema pilihan pengunjung
@@ -105,10 +122,7 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
     let preview = row.inv.is_locked();
     if preview {
         let k = owner_key(&slug, k.as_deref().unwrap_or("")).await?;
-        let owner = Some(k.as_str()).filter(|k| !k.is_empty()).is_some_and(|k| {
-            crate::server::auth::same_hash(&crate::server::auth::token_hash(k.trim()), &row.manage_key_hash)
-        });
-        if !owner {
+        if !is_owner(&k, &row) && !admin_view(&row).await? {
             if let Some(r) = use_context::<leptos_axum::ResponseOptions>() {
                 r.set_status(axum::http::StatusCode::FORBIDDEN);
             }
@@ -207,6 +221,10 @@ pub async fn rsvp_core(
     st.write_limit
         .hit(&format!("rsvp:{}:{ip}", row.inv.slug))
         .map_err(|secs| format!("Terlalu banyak kiriman dari jaringan ini. Coba lagi dalam {} menit.", secs.div_ceil(60)))?;
+    // Per undangan (semua IP): buku ucapan tak bisa dibanjiri bot terdistribusi.
+    st.cap_limit
+        .hit_max(&format!("rsvp:{}", row.inv.slug), 600)
+        .map_err(|_| "Buku ucapan sedang sangat ramai. Coba lagi beberapa saat lagi.".to_string())?;
     let busy = |e: anyhow::Error| {
         tracing::error!(error = %format!("{e:#}"), "rsvp");
         "Server sedang sibuk, coba lagi sebentar.".to_string()
@@ -274,6 +292,9 @@ pub async fn confirm_gift(
     deny_demo(&row)?;
     deny_locked(&row)?;
     limit_write(&st, "gift", &slug).await?;
+    if st.cap_limit.hit_max(&format!("gift:{slug}"), 300).is_err() {
+        return Err(ServerFnError::new("Sedang sangat ramai. Coba lagi beberapa saat lagi."));
+    }
     let name = clean(&name, 80);
     let amount: i64 = amount.chars().filter(|c| c.is_ascii_digit()).collect::<String>().parse().unwrap_or(0);
     if name.is_empty() || amount <= 0 {
@@ -360,6 +381,11 @@ pub async fn request_story_key(slug: String, name: String, phone: String) -> Res
         return Err(ServerFnError::new("Layanan WhatsApp belum aktif — story belum bisa ditambahkan."));
     };
     limit_write(&st, "storykey", &slug).await?;
+    // Tiap kunci = satu pesan WA ke nomor yang diketik pengunjung: dibatasi per
+    // undangan & global agar tak bisa dipakai menyepam nomor orang lewat bot.
+    if st.cap_limit.hit_max(&format!("storykey:{slug}"), 60).is_err() || st.cap_limit.hit_max("wa-story", 300).is_err() {
+        return Err(ServerFnError::new("Pengiriman kunci sedang dibatasi karena terlalu ramai. Coba lagi nanti."));
+    }
     // Nomor yang sudah punya story tetap dikirimi kunci — untuk MENGHAPUS
     // story-nya (dari perangkat mana pun); 1 nomor tetap = 1 story.
     let has_story = repo::story_phone_taken(&st.pool, row.id, &phone).await.map_err(internal)?;
@@ -441,6 +467,38 @@ pub async fn get_contact() -> Result<String, ServerFnError> {
 
 // ── Kelola (pengantin) ─────────────────────────────────────────────────────
 
+/// Isi undangan saat ini untuk /kelola/{slug}/sunting (pemilik atau Admin).
+#[server]
+pub async fn get_sunting(slug: String, key: String) -> Result<crate::web::model::Sunting, ServerFnError> {
+    use srv::*;
+    let st = state()?;
+    let key = owner_key(&slug, &key).await?;
+    let row = load_owned(&slug, &key).await?;
+    if row.inv.is_demo {
+        return Err(ServerFnError::new("Ini undangan demo — pesan undangan Anda sendiri untuk mencoba menyunting."));
+    }
+    let songs = repo::songs(&st.pool, true).await.unwrap_or_default();
+    let base = row.inv.music_url.split('#').next().unwrap_or("").to_string();
+    let song_id = songs.iter().find(|s| !base.is_empty() && s.url == base).map(|s| s.id).unwrap_or(0);
+    let cat = st.themes();
+    let mut themes: Vec<(String, String, String)> = cat.list.iter().filter(|t| t.listed).map(|t| (t.slug.clone(), t.name.clone(), t.region.clone())).collect();
+    if !themes.iter().any(|t| t.0 == row.inv.theme) {
+        if let Some(t) = cat.get(&row.inv.theme) {
+            themes.insert(0, (t.slug.clone(), t.name.clone(), "Tema custom milik Anda".into()));
+        }
+    }
+    let quote_idx = crate::web::themes::QUOTES.iter().position(|(t, _)| *t == row.inv.quote_text).unwrap_or(0);
+    Ok(crate::web::model::Sunting {
+        manage_key: if is_owner(&key, &row) { key } else { String::new() },
+        contact_phone: row.contact_phone.clone(),
+        inv: row.inv,
+        songs,
+        song_id,
+        themes,
+        quote_idx,
+    })
+}
+
 #[server]
 /// `tema` hanya untuk undangan DEMO: dashboard contoh ikut tema yang sedang
 /// dilihat pengunjung (sama seperti `get_invitation`).
@@ -449,6 +507,9 @@ pub async fn get_dashboard(slug: String, key: String, tema: Option<String>) -> R
     let st = state()?;
     let key = owner_key(&slug, &key).await?;
     let mut row = load_owned(&slug, &key).await?;
+    // Dibuka admin (tanpa kunci pemilik): kunci rahasia pembeli tak pernah
+    // dikirim — manage_key kosong = "mode admin" di halaman Kelola.
+    let key = if is_owner(&key, &row) { key } else { String::new() };
     apply_demo_theme(&st, &mut row, tema.as_deref());
     // Empat query independen → jalan paralel.
     let (stats, guests, activity, minutes_left) = tokio::try_join!(
@@ -583,10 +644,20 @@ pub async fn list_themes() -> Result<Vec<super::skin::ThemeInfo>, ServerFnError>
 #[server]
 pub async fn get_banners() -> Result<Vec<Banner>, ServerFnError> {
     let st = srv::state()?;
-    Ok(srv::repo::banners_live(&st.pool).await.unwrap_or_else(|e| {
+    // Dibaca tiap katalog dibuka → cache 30 dtk (jadwal tayang banner per menit).
+    if let Some((t, v)) = st.banners.read().ok().and_then(|g| g.clone()) {
+        if t.elapsed() < std::time::Duration::from_secs(30) {
+            return Ok((*v).clone());
+        }
+    }
+    let v = srv::repo::banners_live(&st.pool).await.unwrap_or_else(|e| {
         tracing::debug!(error = %format!("{e:#}"), "banners belum ada — jalankan migration/011_banner.sql");
         Vec::new()
-    }))
+    });
+    if let Ok(mut g) = st.banners.write() {
+        *g = Some((std::time::Instant::now(), std::sync::Arc::new(v.clone())));
+    }
+    Ok(v)
 }
 
 /// Semua banner untuk /admin/banner.

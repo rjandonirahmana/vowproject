@@ -477,6 +477,12 @@ select.input {
 .field-row--tight {
     gap: 6px;
 }
+/* Item kisi boleh menyusut: input jam/tanggal yang BERISI nilai punya lebar
+   intrinsik besar → baris melebar keluar layar HP (halaman sunting). */
+.field-row > *,
+.field-row .input {
+    min-width: 0;
+}
 .field-row + .field-row,
 .field-row + .btn {
     margin-top: 12px;
@@ -6572,9 +6578,11 @@ html.is-pv .toast {
     z-index: 5;
     box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.35);
 }
+/* Denyut lewat `scale` (dikerjakan GPU). Dulu box-shadow → lukis ulang tiap
+   frame tanpa henti selama sampul terbuka. */
 @keyframes gate-pulse {
     50% {
-        box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold) 18%, transparent);
+        scale: 1.035;
     }
 }
 html:not(.inv-opened) body:has(.gate:not(.gate--embed)) {
@@ -6590,6 +6598,12 @@ html:not(.inv-opened) body:has(.gate:not(.gate--embed)) {
  * — kembali dari tab Story/Acara, muat ulang — langsung tak tampil. Yang
  * sedang dibuka tamu ditandai data-live dan tetap memutar animasinya. */
 .inv-seen .gate:not(.gate--embed):not([data-live]) {
+    display: none !important;
+}
+/* Gerbang yang selesai dibuka (sudah tak terlihat) dilepas dari render oleh
+ * global.js — tanpa ini 5–19 animasi tak berujung di dalamnya (kabut, kilau,
+ * bintang, tombol) tetap dihitung tiap frame selama tamu membaca undangan. */
+.gate.gate--selesai {
     display: none !important;
 }
 .inv-opened .gate:not(.gate--embed) .gate__content,
@@ -7009,6 +7023,11 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
     z-index: 15;
     pointer-events: none;
     overflow: hidden;
+    /* Portal diputar SAMBIL tamu menggulir — semua geraknya transform/opacity
+       saja (dikerjakan compositor/GPU, tanpa layout & lukis ulang per frame).
+       JANGAN tambahkan filter, box-shadow raksasa, atau animasi width/height:
+       audit 8 Okt 2026 mengukur raster gulir 711 ms → 52 ms tanpa portal lama. */
+    contain: strict;
     perspective: 1000px;
     --rd: var(--ruang-dinding, color-mix(in srgb, var(--bg) 82%, #000));
     --rk: var(--ruang-kayu, color-mix(in srgb, var(--gold-deep, #775a19) 32%, #2b1a0d));
@@ -7016,6 +7035,7 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
 .ruang i {
     position: absolute;
     display: block;
+    will-change: transform, opacity;
 }
 @media (min-width: 1100px) {
     .inv--rail .ruang {
@@ -7039,7 +7059,6 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
     inset: 0;
     z-index: 2;
     background: var(--rk);
-    filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.4));
     -webkit-mask:
         url("/img/tema/gerak/gebyok-mahkota.svg") top center / 100% auto no-repeat,
         linear-gradient(#000 0 0) left / 11% 100% no-repeat,
@@ -7171,7 +7190,6 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
     background: linear-gradient(180deg, color-mix(in srgb, var(--rk) 75%, var(--gold)), var(--rk));
     -webkit-mask: url("/img/tema/gerak/candi-bentar.svg") right bottom / contain no-repeat;
     mask: url("/img/tema/gerak/candi-bentar.svg") right bottom / contain no-repeat;
-    filter: drop-shadow(4px 0 10px rgba(0, 0, 0, 0.35));
 }
 .ruang--gapura .ruang__b {
     left: 0;
@@ -7211,24 +7229,32 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
         transform: scale(2);
     }
 }
-/* Lengkung: dinding berjendela lengkung yang dilalui (ditembus). */
-.ruang--lengkung .ruang__a {
-    left: 50%;
-    top: 50%;
-    width: 74%;
-    height: 70%;
-    translate: -50% -50%;
-    border-radius: 999px 999px 18px 18px;
-    box-shadow:
-        0 0 0 4px var(--gold),
-        0 0 0 9px var(--rd),
-        0 0 0 11px var(--gold-light),
-        0 0 0 200vmax var(--rd);
+/* Lengkung: dinding berjendela lengkung yang dilalui (ditembus).
+   Dinding = lapisan layar penuh dengan LUBANG lengkung (mask SVG statis);
+   bingkai emas = lapisan kedua dengan mask cincin berbentuk sama. Keduanya
+   di-scale bersama dari tengah → lubang membesar melewati tepi layar. */
+.ruang--lengkung .ruang__a,
+.ruang--lengkung .ruang__c {
+    inset: 0;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
     animation: ruang-lengkung 1.3s cubic-bezier(0.55, 0, 0.7, 0.3) both;
+}
+.ruang--lengkung .ruang__c {
+    background: var(--rd);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H100V100H0Z M13 50A37 35 0 0 1 87 50V83Q87 85 85 85H15Q13 85 13 83Z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H100V100H0Z M13 50A37 35 0 0 1 87 50V83Q87 85 85 85H15Q13 85 13 83Z'/%3E%3C/svg%3E");
+}
+.ruang--lengkung .ruang__a {
+    z-index: 1;
+    background: linear-gradient(var(--gold-light), var(--gold));
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23000' stroke-width='1.6' d='M13 50A37 35 0 0 1 87 50V83Q87 85 85 85H15Q13 85 13 83Z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23000' stroke-width='1.6' d='M13 50A37 35 0 0 1 87 50V83Q87 85 85 85H15Q13 85 13 83Z'/%3E%3C/svg%3E");
 }
 .ruang--lengkung .ruang__b {
     left: 50%;
     top: 9%;
+    z-index: 2;
     width: 54px;
     aspect-ratio: 300 / 470;
     translate: -50% 0;
@@ -7256,18 +7282,15 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
     }
 }
 /* Dimensi: gunungan berputar di tengah lalu membuka lubang cahaya — pindah ke
-   "dimensi" ruangan lain. */
+   "dimensi" ruangan lain. Dinding = layar penuh dengan lubang bulat kecil
+   (mask statis) yang di-scale hingga lubangnya menelan layar — dulu
+   width/height + bayangan 200vmax dianimasikan (layout & lukis ulang per frame). */
 .ruang--dimensi .ruang__a {
-    left: 50%;
-    top: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
+    inset: 0;
     z-index: 0;
-    box-shadow:
-        0 0 0 3px var(--gold-light),
-        0 0 24px 8px var(--gold-c, #fed488),
-        0 0 0 200vmax var(--rd);
+    background: var(--rd);
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 1.6vmax, #000 calc(1.6vmax + 1px));
+    mask: radial-gradient(circle at 50% 50%, transparent 0 1.6vmax, #000 calc(1.6vmax + 1px));
     animation: ruang-lubang 1.5s cubic-bezier(0.6, 0, 0.3, 1) both;
 }
 .ruang--dimensi .ruang__b {
@@ -7280,40 +7303,31 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
     -webkit-mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat;
     mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat;
     z-index: 2;
-    filter: drop-shadow(0 0 14px var(--gold-c, #fed488));
     animation: ruang-kayon 1.5s cubic-bezier(0.5, 0, 0.4, 1) both;
 }
 .ruang--dimensi .ruang__c {
     inset: 0;
-    background: repeating-conic-gradient(
-        from 0deg,
-        color-mix(in srgb, var(--gold) 22%, transparent) 0 6deg,
-        transparent 6deg 18deg
-    );
+    z-index: 1;
+    background:
+        radial-gradient(circle, color-mix(in srgb, var(--gold-c, #fed488) 55%, transparent), transparent 24%),
+        repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--gold) 22%, transparent) 0 6deg, transparent 6deg 18deg);
     -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%);
     mask: radial-gradient(circle, #000 20%, transparent 70%);
     animation: ruang-pusar 1.5s ease both;
 }
-/* Ukuran (bukan scale) yang dianimasikan: bayangan 200vmax = dinding tetap menutup layar sampai lubang membesar. */
 @keyframes ruang-lubang {
     0% {
         opacity: 0;
-        width: 0;
-        height: 0;
-        margin: 0;
+        transform: scale(1);
     }
     12% {
         opacity: 1;
     }
     45% {
-        width: 0;
-        height: 0;
-        margin: 0;
+        transform: scale(1);
     }
     100% {
-        width: 300vmax;
-        height: 300vmax;
-        margin: -150vmax;
+        transform: scale(70);
     }
 }
 @keyframes ruang-kayon {
@@ -8880,6 +8894,22 @@ html:has(.inv--video:not(.inv--embed)) body {
 .motion-min .arch-photo--cover .arch-photo__clip img {
     animation: none;
 }
+/* Bagian di luar layar (global.js ornIO): ornamennya berhenti bergerak. */
+.orn-diam .orn,
+.orn-diam .orn * {
+    animation-play-state: paused !important;
+}
+/* HP lemah / hemat data: kaca buram (backdrop-filter) dilukis ulang tiap frame
+   saat digulir — ganti latar padat. */
+.motion-min .bottom-nav,
+.motion-min .icon-btn,
+.motion-min .guest {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+}
+.motion-min .bottom-nav {
+    background: var(--card);
+}
 .motion-min .float-deco {
     display: none;
 }
@@ -9572,6 +9602,402 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     width: 100%;
     height: 100%;
     border: 0;
+}
+
+/* ── Pustaka lagu (/admin/lagu) & templat tema (/admin/templat) ───────────
+ * Kartu bersama .adm-song: kepala (ikon/putar · judul+keterangan · chip ·
+ * urutan), lalu <details> sunting. Kartu tema di /admin/templat = <details>
+ * itu sendiri (summary = baris). */
+.adm-songs {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.adm-songs--rapat {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 8px;
+    align-items: start;
+}
+/* Tema yang sedang disunting melebar penuh (wadah filter = item kisi). */
+.adm-songs--rapat > :has(> details[open]) {
+    grid-column: 1 / -1;
+}
+.adm-song {
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-margin-top: 90px;
+}
+.adm-song.is-off {
+    background: var(--surface-low);
+}
+.adm-song.is-off .adm-song__meta b {
+    color: var(--muted);
+}
+.adm-song__head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.adm-song__head > .ms {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--surface-high);
+    color: var(--primary);
+}
+.adm-song__head .song__play {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--on-primary);
+    flex: none;
+}
+.adm-song__meta {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.adm-song__meta b {
+    font-size: 15.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.adm-song__meta small {
+    font-size: 12.5px;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.adm-song .status {
+    font-size: 11.5px;
+}
+.adm-song__head .adm-banner__move {
+    margin-left: auto;
+}
+.adm-song details {
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+}
+.adm-song details > summary,
+.adm-song--new > summary,
+details.adm-song > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    color: var(--gold-deep);
+}
+.adm-song summary::-webkit-details-marker {
+    display: none;
+}
+/* Panah buka/tutup di ujung kanan setiap ringkasan. */
+.adm-song summary::after {
+    content: "";
+    margin-left: auto;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    rotate: 45deg;
+    translate: 0 -2px;
+    transition: rotate 0.2s ease;
+    flex: none;
+}
+.adm-song details[open] > summary::after,
+details.adm-song[open] > summary::after {
+    rotate: 225deg;
+    translate: 0 2px;
+}
+.adm-song--new {
+    border: 1.5px dashed var(--line-gold, var(--line));
+    background: transparent;
+    box-shadow: none;
+}
+.adm-song--new[open] {
+    background: var(--card);
+    border-style: solid;
+}
+/* Baris tema (/admin/templat): ringkasan nama · kode · chip status. */
+details.adm-song {
+    padding: 10px 16px;
+}
+details.adm-song > summary {
+    color: var(--ink);
+    font-weight: 400;
+    gap: 12px;
+}
+details.adm-song > summary .chip {
+    flex: none;
+}
+details.adm-song[open] {
+    padding-bottom: 16px;
+}
+.adm-tpl-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.adm-tpl-head .adm-h2 {
+    margin-right: auto;
+}
+.adm-cari {
+    position: relative;
+    display: block;
+    max-width: 360px;
+    margin: 4px 0 12px;
+}
+.adm-cari .ms {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    translate: 0 -50%;
+    color: var(--muted);
+    pointer-events: none;
+}
+.adm-cari .input {
+    padding-left: 40px;
+}
+@media (max-width: 560px) {
+    .adm-song {
+        padding: 12px 14px;
+    }
+    /* HP: chip & tombol urutan turun ke baris kedua, judul tetap utuh. */
+    .adm-song__meta {
+        flex-basis: calc(100% - 60px);
+    }
+}
+
+/* ── Sunting undangan (/kelola/{slug}/sunting, pages/sunting.rs) ──────────
+ * Memakai tata letak formulir /buat (.buat, .fsec, .subcard); di sini hanya
+ * bilah atas, foto tersimpan, kisi galeri, dan panel simpan. */
+.sunting__top {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px max(14px, calc((100% - 1240px) / 2));
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+}
+.sunting__title {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+.sunting__title small {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.sunting__title b {
+    font-family: var(--font-display);
+    font-size: 18px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.buat--sunting {
+    margin-top: 16px;
+}
+.sunting__save {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.slot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+}
+.slot-grid--satu {
+    grid-template-columns: minmax(150px, 220px);
+}
+.slot {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.slot__media {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--surface-high);
+    border: 1.5px solid var(--line);
+}
+.slot__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.2s, filter 0.2s;
+}
+/* `hidden` kalah oleh aturan img global (display:block) — slot kosong. */
+.slot__media img[hidden] {
+    display: none;
+}
+.slot--kosong .slot__media {
+    border-style: dashed;
+    background: var(--surface-low);
+}
+.slot__plus {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+}
+.slot__plus .ms {
+    font-size: 34px;
+}
+/* Berkas dipilih: gambar baru tampil, slot kosong kehilangan ikon "+". */
+.slot.is-new .slot__plus {
+    display: none;
+}
+.slot.is-new .slot__media {
+    border-color: var(--gold);
+    border-style: solid;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+.slot__tanda {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    display: none;
+}
+.slot__tanda--baru {
+    background: var(--gold);
+    color: #1d160a;
+}
+.slot__tanda--hapus {
+    background: #b3261e;
+    color: #fff;
+}
+.slot.is-new .slot__tanda--baru {
+    display: block;
+}
+/* Ditandai hapus: menang atas "ganti" (server juga mendahulukan hapus). */
+.slot:has(.slot__btn--hapus input:checked) .slot__media img {
+    opacity: 0.3;
+    filter: grayscale(1);
+}
+.slot:has(.slot__btn--hapus input:checked) .slot__tanda--hapus {
+    display: block;
+}
+.slot:has(.slot__btn--hapus input:checked) .slot__tanda--baru {
+    display: none;
+}
+.slot:has(.slot__btn--hapus input:checked) .slot__media {
+    border-color: #b3261e;
+}
+.slot__aksi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.slot__btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    overflow: hidden;
+}
+.slot__btn .ms {
+    font-size: 16px;
+}
+.slot__btn input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.slot__btn input[type="checkbox"] {
+    margin: 0;
+    accent-color: #b3261e;
+}
+.slot__btn--batal {
+    display: none;
+}
+.slot.is-new .slot__btn--batal {
+    display: inline-flex;
+}
+.slot__btn--hapus {
+    color: #b3261e;
+}
+.slot:has(.slot__btn--hapus input:checked) .slot__btn--hapus {
+    background: #fbe9e7;
+    border-color: #b3261e;
+}
+.slot__label {
+    font-size: 12px;
+    color: var(--muted);
+}
+.sunting-video {
+    width: 100%;
+    max-height: 260px;
+    border-radius: 12px;
+    background: #000;
+}
+@media (max-width: 560px) {
+    .sunting__top .btn span:not(.ms) {
+        display: none;
+    }
+}
+
+/* Tautan Kelola & Sunting di bawah tautan undangan (/admin/undangan). */
+.adm-order__kelola {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+}
+.adm-order__kelola a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+}
+.adm-order__kelola .ms {
+    font-size: 15px;
+}
+
+/* Kelola dibuka admin dari /admin/undangan (pages/kelola.rs). */
+.dash-admin {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: min(720px, calc(100% - 28px));
+    margin: 12px auto 0;
 }
 
 /* ── Editor templat tema (/admin/templat) ──────────────────────────────── */
