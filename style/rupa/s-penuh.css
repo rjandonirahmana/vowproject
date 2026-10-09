@@ -1,0 +1,64 @@
+/* ═══ rupa SAMPUL: Foto penuh ═══
+ * Foto selebar kolom tanpa bingkai, nama & tanggal DI ATAS foto dengan
+ * selubung gelap di bawah (gaya sampul majalah). */
+.inv.rp-s-penuh .arch-photo--cover {
+    width: 100%;
+    max-width: none;
+    aspect-ratio: 4 / 5;
+    margin: 12px 0 0;
+}
+.inv.rp-s-penuh .arch-photo--cover .arch-photo__clip {
+    border-radius: var(--r-lg, 18px);
+    box-shadow: var(--shadow-lg);
+}
+.inv.rp-s-penuh .arch-photo--cover .arch-photo__clip::after {
+    content: "";
+    position: absolute;
+    inset: 45% 0 0;
+    background: linear-gradient(to bottom, transparent, rgb(0 0 0 / 0.62));
+    pointer-events: none;
+}
+.inv.rp-s-penuh .arch-photo--cover .arch-photo__frame {
+    display: none;
+}
+.inv.rp-s-penuh .cover:has(.arch-photo--cover) .cover__names,
+.inv.rp-s-penuh .cover:has(.arch-photo--cover) .hero__date {
+    position: relative;
+    z-index: 2;
+    color: #fff;
+    text-shadow: 0 1px 12px rgb(0 0 0 / 0.45);
+}
+.inv.rp-s-penuh .cover:has(.arch-photo--cover) .cover__names {
+    margin-top: -112px;
+    font-size: clamp(32px, 9.5vw, 42px);
+}
+.inv.rp-s-penuh .cover:has(.arch-photo--cover) .hero__date {
+    margin-bottom: 26px;
+    color: rgb(255 255 255 / 0.92);
+}
+.inv.rp-s-penuh .cover:has(.arch-photo--cover) .hero__date .ms {
+    color: var(--gold-light);
+}
+/* Sampul di gerbang menyusut ke lebar isi (align-items:center) → paksa
+   selebar kolom; tinggi foto dibatasi layar agar kartu tamu tetap terlihat. */
+.inv.rp-s-penuh .gate__content > .cover,
+.inv.rp-s-penuh .cover:has(.arch-photo--cover) {
+    align-self: stretch;
+    width: auto;
+}
+.inv.rp-s-penuh .gate .arch-photo--cover {
+    aspect-ratio: auto;
+    height: min(400px, calc(var(--gate-foto, 34svh) + 6svh));
+}
+
+/* foto penutup: persegi panjang lebar */
+.inv.rp-s-penuh .arch-photo--thanks {
+    width: 100%;
+    aspect-ratio: 3 / 2;
+}
+.inv.rp-s-penuh .arch-photo--thanks .arch-photo__clip {
+    border-radius: var(--r-lg, 18px);
+}
+.inv.rp-s-penuh .arch-photo--thanks .arch-photo__frame {
+    display: none;
+}

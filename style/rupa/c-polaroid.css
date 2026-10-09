@@ -1,0 +1,43 @@
+/* ═══ rupa KISAH: Polaroid berjudul tulisan tangan ═══
+ * Foto tiap babak dicetak polaroid miring, judul babak kaligrafi. */
+.inv.rp-c-polaroid .story__item {
+    grid-template-columns: 26px minmax(0, 1fr);
+}
+.inv.rp-c-polaroid .story__dot {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+}
+.inv.rp-c-polaroid .story__item:not(:last-child)::after {
+    left: 12px;
+    top: 26px;
+    background: repeating-linear-gradient(to bottom, var(--gold-light) 0 4px, transparent 4px 9px);
+}
+.inv.rp-c-polaroid .story__photo {
+    width: 86%;
+    aspect-ratio: 1;
+    margin: 6px 0 14px;
+    padding: 7px 7px 28px;
+    border-radius: 2px;
+    background: #fdfbf6;
+    box-shadow: 0 8px 18px -8px rgb(0 0 0 / 0.4);
+    rotate: -2deg;
+    overflow: visible;
+}
+.inv.rp-c-polaroid .story__item:nth-child(even) .story__photo {
+    rotate: 2.2deg;
+    margin-left: auto;
+}
+.inv.rp-c-polaroid .story__photo .fg {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+.inv.rp-c-polaroid .story h3 {
+    font-family: var(--font-script, var(--font-display));
+    font-weight: 400;
+    font-size: calc(25px * var(--script-scale, 1) * 0.85);
+    color: var(--gold-deep);
+}

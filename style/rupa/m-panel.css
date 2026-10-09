@@ -1,0 +1,47 @@
+/* ═══ rupa MEMPELAI: Satu panel terbagi dua ═══
+ * Kedua mempelai dalam SATU kartu berbingkai; dipisah garis dengan "&" di
+ * tengahnya. Foto persegi panjang berbingkai garis. */
+.inv.rp-m-panel .couple {
+    gap: 0;
+    padding: 26px 18px;
+    border-radius: var(--r-lg, 18px);
+    background: var(--card-glass, var(--card));
+    border: 1px solid var(--line-gold);
+    box-shadow: inset 0 0 0 6px var(--card), inset 0 0 0 7px color-mix(in srgb, var(--gold) 40%, transparent), var(--shadow);
+}
+.inv.rp-m-panel .person.card {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    padding: 6px 4px;
+    border-radius: 0;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+.inv.rp-m-panel .person::before {
+    display: none;
+}
+.inv.rp-m-panel .couple__amp {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 10px 0;
+}
+.inv.rp-m-panel .couple__amp::before,
+.inv.rp-m-panel .couple__amp::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line-gold);
+}
+.inv.rp-m-panel .arch-photo--person {
+    width: min(150px, 42vw);
+    aspect-ratio: 4 / 5;
+}
+.inv.rp-m-panel .arch-photo--person .arch-photo__clip {
+    border-radius: 6px;
+    box-shadow: 0 0 0 4px var(--card), 0 0 0 5px var(--gold);
+}
+.inv.rp-m-panel .arch-photo--person .arch-photo__frame {
+    display: none;
+}

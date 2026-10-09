@@ -1,0 +1,53 @@
+/* ═══ rupa MEMPELAI: Selang-seling kiri–kanan ═══
+ * Foto tegak di samping teks; mempelai pria dicerminkan ke kanan. */
+.inv.rp-m-zigzag .person {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    text-align: left;
+    border-radius: var(--r-lg, 18px);
+    padding: 18px 16px;
+}
+.inv.rp-m-zigzag .person:last-child {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+.inv.rp-m-zigzag .person .person__body {
+    align-items: flex-start;
+    min-width: 0;
+    flex: 1;
+}
+.inv.rp-m-zigzag .person:last-child .person__body {
+    align-items: flex-end;
+}
+.inv.rp-m-zigzag .arch-photo--person {
+    flex: none;
+    width: min(122px, 32vw);
+    aspect-ratio: 3 / 4;
+    margin: 0;
+}
+.inv.rp-m-zigzag .arch-photo--person .arch-photo__clip {
+    border-radius: 999px 999px 10px 10px;
+}
+.inv.rp-m-zigzag .person:last-child .arch-photo--person .arch-photo__clip {
+    border-radius: 10px 10px 999px 999px;
+}
+.inv.rp-m-zigzag .arch-photo--person .arch-photo__frame {
+    display: none;
+}
+.inv.rp-m-zigzag .person .chip {
+    letter-spacing: 0.14em;
+}
+.inv.rp-m-zigzag .person__nick {
+    margin-top: 2px;
+}
+.inv.rp-m-zigzag .person__name {
+    font-size: 15.5px;
+    overflow-wrap: anywhere;
+}
+.inv.rp-m-zigzag .person__parents {
+    font-size: 12.5px;
+}
+.inv.rp-m-zigzag .person__initial {
+    font-size: calc(46px * var(--script-scale, 1));
+}

@@ -246,6 +246,7 @@ impl RateLimit {
 /// — tak ikut kuota request dinamis.
 fn statis(path: &str) -> bool {
     ["/pkg/", "/img/", "/music/", "/video/"].iter().any(|p| path.starts_with(p))
+        || path.starts_with("/gaya/")
         || matches!(path, "/healthz" | "/readyz" | "/favicon.svg" | "/robots.txt" | "/tata.js" | "/tata.css" | "/app.js" | "/tema.css" | "/sitemap.xml")
 }
 

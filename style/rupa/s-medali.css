@@ -1,0 +1,44 @@
+/* ═══ rupa SAMPUL: Oval medali ═══
+ * Potret oval tegak dengan cincin ganda (tipis–tebal) seperti bros/medali. */
+.inv.rp-s-medali .arch-photo--cover,
+.inv.rp-s-medali .arch-photo--thanks {
+    width: min(214px, 56vw);
+    aspect-ratio: 3 / 4;
+    margin-block: 22px 16px;
+}
+.inv.rp-s-medali .arch-photo--cover .arch-photo__clip,
+.inv.rp-s-medali .arch-photo--thanks .arch-photo__clip {
+    border-radius: 50%;
+    box-shadow:
+        0 0 0 4px var(--card),
+        0 0 0 5px var(--gold-light),
+        0 0 0 11px var(--card),
+        0 0 0 14px var(--gold),
+        var(--shadow-lg);
+}
+.inv.rp-s-medali .arch-photo--cover .arch-photo__frame,
+.inv.rp-s-medali .arch-photo--thanks .arch-photo__frame {
+    display: none;
+}
+/* pita kecil di bawah medali */
+.inv.rp-s-medali .arch-photo--cover::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -24px;
+    width: 46px;
+    height: 22px;
+    margin-left: -23px;
+    background: var(--gold);
+    clip-path: polygon(0 0, 100% 0, 82% 50%, 100% 100%, 50% 72%, 0 100%, 18% 50%);
+    z-index: 3;
+}
+.inv.rp-s-medali .cover__names {
+    margin-top: 26px;
+}
+
+/* Di gerbang (sampul pertama) foto dibatasi tinggi layar: kartu tamu &
+   tombol buka harus tetap terlihat di HP pendek (360×640). */
+.inv.rp-s-medali .gate .arch-photo--cover {
+    width: min(214px, 56vw, calc(var(--gate-foto, 34svh) * 0.75));
+}

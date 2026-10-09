@@ -816,6 +816,34 @@ pub async fn theme_css(Extension(state): Extension<Arc<AppState>>) -> Response {
         .into_response()
 }
 
+/// GET /gaya/{slug}.css — CSS SATU tema (variabel + animasi + rupa) untuk
+/// halaman undangan; `_rupa.css` = semua varian rupa (pratinjau admin).
+/// `?rupa=` (uji bentuk di undangan demo) dihitung saat itu, tanpa cache lama.
+pub async fn gaya_css(
+    Extension(state): Extension<Arc<AppState>>,
+    Path(file): Path<String>,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let cat = state.themes();
+    let Some(slug) = file.strip_suffix(".css") else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let over = q.get("rupa").filter(|r| r.len() <= 300).map(|r| crate::web::rupa::parse_override(r));
+    let body = if slug == "_rupa" { Some(cat.rupa_all.clone()) } else { cat.gaya(slug, over.as_ref()) };
+    match body {
+        Some(b) => (
+            [
+                (header::CONTENT_TYPE, "text/css; charset=utf-8"),
+                // Hanya URL ber-?v= (berubah tiap isi berubah) yang boleh disimpan selamanya.
+                (header::CACHE_CONTROL, if over.is_none() && q.contains_key("v") { "public, max-age=31536000, immutable" } else { "public, max-age=600" }),
+            ],
+            b,
+        )
+            .into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 /// GET /sitemap.xml — halaman publik + demo tiap tema yang tampil di katalog +
 /// detail paket dekorasi. Dari cache AppState (tanpa query DB per request).
 pub async fn sitemap(Extension(state): Extension<Arc<AppState>>) -> Response {

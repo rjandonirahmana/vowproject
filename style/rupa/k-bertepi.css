@@ -1,0 +1,11 @@
+/* ═══ rupa KARTU: Tepi atas bermotif ═══
+ * Pita warna primer + garis emas di tepi atas tiap kartu (seperti kepala kain). */
+.inv.rp-k-bertepi .card {
+    border-radius: 6px;
+    border: 0;
+    background:
+        linear-gradient(var(--primary), var(--primary)) top / 100% 6px no-repeat,
+        linear-gradient(var(--gold), var(--gold)) 0 9px / 100% 1px no-repeat,
+        var(--card-glass, var(--card));
+    box-shadow: var(--shadow);
+}

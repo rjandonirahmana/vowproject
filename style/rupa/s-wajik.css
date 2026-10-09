@@ -1,0 +1,57 @@
+/* ═══ rupa SAMPUL: Belah ketupat ═══
+ * Foto dalam belah ketupat (motif wajik songket/tenun; Bugis, Lampung, NTT).
+ * Bentuk = mask SVG (ikut skala elemen); cincin = dua lapis pseudo dengan
+ * bentuk sama (emas di luar, warna kartu di dalam). Statis — tanpa animasi. */
+.inv.rp-s-wajik .arch-photo--cover,
+.inv.rp-s-wajik .arch-photo--thanks {
+    --rp-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M50 0 L100 50 L50 100 L0 50 Z'/%3E%3C/svg%3E");
+    width: min(270px, 72vw);
+    aspect-ratio: 1 / 1;
+    isolation: isolate;
+}
+.inv.rp-s-wajik .arch-photo--cover .arch-photo__clip,
+.inv.rp-s-wajik .arch-photo--thanks .arch-photo__clip {
+    border-radius: 0;
+    box-shadow: none;
+    z-index: 2;
+    -webkit-mask: var(--rp-mask) center / 100% 100% no-repeat;
+    mask: var(--rp-mask) center / 100% 100% no-repeat;
+}
+.inv.rp-s-wajik .arch-photo--cover::before,
+.inv.rp-s-wajik .arch-photo--cover::after,
+.inv.rp-s-wajik .arch-photo--thanks::before,
+.inv.rp-s-wajik .arch-photo--thanks::after {
+    content: "";
+    position: absolute;
+    -webkit-mask: var(--rp-mask) center / 100% 100% no-repeat;
+    mask: var(--rp-mask) center / 100% 100% no-repeat;
+    pointer-events: none;
+}
+/* cincin emas */
+.inv.rp-s-wajik .arch-photo--cover::before,
+.inv.rp-s-wajik .arch-photo--thanks::before {
+    inset: -9px;
+    background: linear-gradient(160deg, var(--gold-light), var(--gold) 45%, var(--gold-deep));
+    z-index: 0;
+}
+/* celah warna kartu di antara cincin & foto */
+.inv.rp-s-wajik .arch-photo--cover::after,
+.inv.rp-s-wajik .arch-photo--thanks::after {
+    inset: -5px;
+    background: var(--card);
+    z-index: 1;
+}
+.inv.rp-s-wajik .arch-photo--cover .arch-photo__frame,
+.inv.rp-s-wajik .arch-photo--thanks .arch-photo__frame {
+    display: none;
+}
+/* nama tak boleh tertutup sudut bawah wajik */
+.inv.rp-s-wajik .cover__names {
+    margin-top: 16px;
+}
+
+/* Di gerbang (sampul pertama) foto dibatasi tinggi layar: kartu tamu &
+   tombol buka harus tetap terlihat di HP pendek (360×640). */
+.inv.rp-s-wajik .gate .arch-photo--cover {
+    width: min(270px, 72vw, calc(var(--gate-foto, 34svh) * 1));
+}

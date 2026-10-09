@@ -110,6 +110,12 @@ pub struct InvSkin {
     pub bg_video: String,
     /// Video pembuka di gerbang (kosong = animasi CSS saja).
     pub open_video: String,
+    /// Kelas varian struktur (web/rupa.rs), diawali spasi: " rp-s-kubah …".
+    pub rupa: String,
+    /// `/gaya/{tema}.css?v=…` — CSS tema INI saja (variabel, animasi, rupa).
+    pub css: String,
+    /// Google Fonts untuk huruf tema ini saja (kosong = huruf dasar).
+    pub fonts: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

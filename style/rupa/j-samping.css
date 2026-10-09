@@ -1,0 +1,20 @@
+/* ═══ rupa JUDUL: Rata kiri bergaris tegak ═══
+ * Label & judul rata kiri dengan garis tegak emas (gaya editorial). */
+.inv.rp-j-samping .eyebrow--center:has(+ .section__title),
+.inv.rp-j-samping .section__title {
+    text-align: left;
+    justify-content: flex-start;
+    align-self: stretch;
+    padding-left: 16px;
+    border-left: 3px solid var(--gold);
+}
+.inv.rp-j-samping .eyebrow--center:has(+ .section__title) {
+    margin-bottom: -16px;
+    padding-bottom: 4px;
+}
+.inv.rp-j-samping .section__title {
+    font-size: calc(32px * var(--script-scale, 1));
+}
+.inv.rp-j-samping .section__title::after {
+    display: none;
+}

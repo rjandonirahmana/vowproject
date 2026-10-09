@@ -5,7 +5,7 @@
 use leptos::either::Either;
 use leptos::prelude::*;
 use crate::web::skeleton::*;
-use leptos_meta::Meta;
+use leptos_meta::{Link, Meta};
 use crate::web::seo::{JsonLd, Seo};
 use leptos_router::hooks::use_params_map;
 
@@ -74,7 +74,7 @@ pub fn TemaPage() -> impl IntoView {
                                     <FloatDeco kind=t.float_deco.clone() />
                                     <Suspense fallback=|| view! { <SkelPhone /> }>
                                         {move || demo.get().map(|r| match r {
-                                            Ok(inv) => Either::Left(view! { <PreviewInvitation inv=Invitation { theme: slug.clone(), ..inv } anim=anim.clone() scroll=t.scroll_anim.clone() video=t.bg_video.clone() open_video=t.open_video.clone() /> }),
+                                            Ok(inv) => Either::Left(view! { <PreviewInvitation inv=Invitation { theme: slug.clone(), ..inv } anim=anim.clone() scroll=t.scroll_anim.clone() video=t.bg_video.clone() open_video=t.open_video.clone() rupa=crate::web::rupa::classes(&t.rupa) /> }),
                                             Err(e) => Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }),
                                         })}
                                     </Suspense>
@@ -129,11 +129,13 @@ pub fn TemaPage() -> impl IntoView {
 /// Undangan lengkap dalam satu gulungan (versi desktop dari tab Sampul →
 /// Acara → RSVP), dirender dengan tema yang sedang dipratinjau.
 #[component]
-fn PreviewInvitation(inv: Invitation, anim: String, scroll: String, video: String, open_video: String) -> impl IntoView {
+fn PreviewInvitation(inv: Invitation, anim: String, scroll: String, video: String, open_video: String, rupa: String) -> impl IntoView {
     let resepsi = inv.events.last().cloned();
     let names = format!("{} & {}", inv.bride_nick, inv.groom_nick);
     view! {
-        <div class=format!("inv inv--embed th-{}{}{}", inv.theme, scroll_class(&scroll), if video.is_empty() { "" } else { " inv--video" })>
+        // Varian rupa hanya ada di CSS per tema (/gaya/…), bukan di /tema.css.
+        {(!rupa.is_empty()).then(|| view! { <Link rel="stylesheet" href=format!("/gaya/{}.css", inv.theme) /> })}
+        <div class=format!("inv inv--embed th-{}{}{}{}", inv.theme, rupa, scroll_class(&scroll), if video.is_empty() { "" } else { " inv--video" })>
             <div class="inv__glow" aria-hidden="true"></div>
             <BgVideo src=video.clone() poster=Some(video_poster(&video, &inv.cover_photo)) />
             // Gerbang: sampul + tamu + tombol buka. Isi di bawahnya baru bisa

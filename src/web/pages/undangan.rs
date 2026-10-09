@@ -7,7 +7,7 @@
 use leptos::either::Either;
 use leptos::prelude::*;
 use crate::web::skeleton::*;
-use leptos_meta::{Meta, Title};
+use leptos_meta::{Link, Meta, Title};
 use leptos_router::components::{Outlet, A};
 use leptos_router::hooks::{use_location, use_params_map, use_query_map};
 
@@ -47,8 +47,11 @@ pub fn InvitationLayout() -> impl IntoView {
     let params = use_params_map();
     let query = use_query_map();
     let res = Resource::new(
-        move || (params.read().get("slug").unwrap_or_default(), query.read().get("g"), query.read().get("k"), query.read().get("tema")),
-        |(slug, g, k, tema)| get_invitation(slug, g, k, tema),
+        move || {
+            let q = query.read();
+            (params.read().get("slug").unwrap_or_default(), q.get("g"), q.get("k"), q.get("tema"), q.get("rupa"))
+        },
+        |(slug, g, k, tema, rupa)| get_invitation(slug, g, k, tema, rupa),
     );
     view! {
         <Suspense fallback=|| view! { <SkelInvitation /> }>
@@ -68,6 +71,9 @@ pub fn InvitationLayout() -> impl IntoView {
                     if page.inv.is_demo {
                         if let Some(t) = q.get("tema").filter(|t| *t == page.inv.theme) {
                             parts.push(format!("tema={}", crate::web::fmt::url_encode(&t)));
+                        }
+                        if let Some(r) = q.get("rupa").filter(|_| !page.skin.rupa.is_empty()) {
+                            parts.push(format!("rupa={}", crate::web::fmt::url_encode(&r)));
                         }
                     }
                     let qs = if parts.is_empty() { String::new() } else { format!("?{}", parts.join("&")) };
@@ -114,8 +120,9 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
     let video = bg_video_src(&skin.bg_video, &inv.video_url);
     let poster = Some(video_poster(&video, &inv.cover_photo));
     let root_class = format!(
-        "inv inv--rail th-{}{}{}{}{}",
+        "inv inv--rail th-{}{}{}{}{}{}",
         inv.theme,
+        skin.rupa,
         scroll_class(&skin.scroll_anim),
         if video.is_empty() { "" } else { " inv--video" },
         if single { " inv--single" } else { "" },
@@ -127,6 +134,10 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
         <Meta property="og:title" content=format!("The Wedding of {}", inv.couple()) />
         <Meta property="og:description" content=desc />
         <Meta name="robots" content="noindex, nofollow" />
+        // CSS & huruf tema INI saja (bukan /tema.css semua tema) — shell
+        // melewatkan tautan tema global di /u/… (app.rs theme_links).
+        {(!skin.css.is_empty()).then(|| view! { <Link rel="stylesheet" href=skin.css.clone() /> })}
+        {(!skin.fonts.is_empty()).then(|| view! { <Link rel="stylesheet" href=skin.fonts.clone() /> })}
         {(!og_image.is_empty()).then(|| view! { <Meta property="og:image" content=og_image.clone() /> })}
         <div class=root_class>
             <div class="inv__glow" aria-hidden="true"></div>

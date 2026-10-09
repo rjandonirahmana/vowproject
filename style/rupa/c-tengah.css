@@ -1,0 +1,43 @@
+/* ═══ rupa KISAH: Garis tengah ═══
+ * Tulang punggung di tengah: titik di garis, tahun di atasnya, foto bulat &
+ * cerita rata tengah — dibaca seperti gulungan. */
+.inv.rp-c-tengah .story {
+    position: relative;
+    padding: 24px 18px;
+}
+.inv.rp-c-tengah .story::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 24px;
+    bottom: 24px;
+    width: 1px;
+    margin-left: -0.5px;
+    background: var(--line-gold);
+}
+.inv.rp-c-tengah .story__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding-bottom: 30px;
+    z-index: 1;
+}
+.inv.rp-c-tengah .story__item::after {
+    display: none;
+}
+.inv.rp-c-tengah .story__dot {
+    margin-bottom: 8px;
+    box-shadow: 0 0 0 5px var(--card);
+}
+.inv.rp-c-tengah .story__item > div {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--card);
+}
+.inv.rp-c-tengah .story__photo {
+    width: min(170px, 46vw);
+    aspect-ratio: 1;
+    margin: 4px auto 12px;
+    border-radius: 50%;
+}

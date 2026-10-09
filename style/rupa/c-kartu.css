@@ -1,0 +1,43 @@
+/* ═══ rupa KISAH: Babak berkartu ═══
+ * Tiap babak kartu sendiri: foto lebar di atas, tahun sebagai lencana. */
+.inv.rp-c-kartu .story {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    gap: 16px;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+.inv.rp-c-kartu .story::before {
+    display: none;
+}
+.inv.rp-c-kartu .story__item {
+    display: block;
+    padding: 0 0 18px;
+    border-radius: var(--r-lg, 18px);
+    background: var(--card-glass, var(--card));
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    text-align: center;
+}
+.inv.rp-c-kartu .story__item::after,
+.inv.rp-c-kartu .story__dot {
+    display: none;
+}
+.inv.rp-c-kartu .story__item > div {
+    padding-inline: 18px;
+}
+.inv.rp-c-kartu .story__photo {
+    margin: 0 -18px 14px;
+    aspect-ratio: 16 / 11;
+    border-radius: 0;
+    box-shadow: none;
+}
+.inv.rp-c-kartu .story__year {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    color: var(--on-primary);
+    background: var(--primary);
+}

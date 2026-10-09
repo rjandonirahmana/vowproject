@@ -1,0 +1,19 @@
+/* ═══ rupa KARTU: Sudut terpotong ═══
+ * Keempat sudut dipancung serong (gaya bingkai ukir / plakat). Bayangan
+ * diganti garis dalam karena clip-path memotong bayangan. */
+.inv.rp-k-potong .card {
+    --c: 16px;
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px var(--line-gold);
+    clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
+    background:
+        linear-gradient(135deg, var(--gold) 0 calc(var(--c) * 0.72), transparent 0) top left / 40px 40px no-repeat,
+        linear-gradient(225deg, var(--gold) 0 calc(var(--c) * 0.72), transparent 0) top right / 40px 40px no-repeat,
+        linear-gradient(45deg, var(--gold) 0 calc(var(--c) * 0.72), transparent 0) bottom left / 40px 40px no-repeat,
+        linear-gradient(315deg, var(--gold) 0 calc(var(--c) * 0.72), transparent 0) bottom right / 40px 40px no-repeat,
+        var(--card-glass, var(--card));
+}
+/* hiasan bunga di tepi atas kartu ikut terpotong → disembunyikan */
+.inv.rp-k-potong .card::before {
+    display: none;
+}

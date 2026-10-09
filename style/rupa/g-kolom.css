@@ -1,0 +1,22 @@
+/* ═══ rupa GALERI: Tiga kolom rapat ═══
+ * Kisi 3 kolom foto persegi, celah tipis, tanpa sudut membulat (gaya kontak
+ * cetak / feed). */
+.inv.rp-g-kolom .gallery--masonry {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    columns: auto;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.inv.rp-g-kolom .gallery--masonry .gallery__item {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+.inv.rp-g-kolom .gallery--masonry img,
+.inv.rp-g-kolom .gallery--masonry .gallery__item:nth-child(3n + 1) img {
+    aspect-ratio: 1;
+    height: 100%;
+    object-fit: cover;
+}

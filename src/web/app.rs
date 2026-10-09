@@ -27,14 +27,6 @@ use super::pages::{
 
 #[cfg(feature = "ssr")]
 pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
-    // Root owner render ini dibersihkan setelah respons terkirim
-    // (server/lepas.rs — kebocoran siklus owner leptos_router).
-    if let (Some(slot), Some(owner)) = (
-        use_context::<axum::http::request::Parts>().and_then(|p| p.extensions.get::<crate::server::lepas::OwnerSlot>().cloned()),
-        Owner::current(),
-    ) {
-        slot.set(owner);
-    }
     // Nonce CSP per request (server/security.rs) → skrip hydration Leptos
     // (lewat use_nonce) dan skrip global di bawah ikut diizinkan CSP.
     if let Some(n) = use_context::<axum::http::request::Parts>()
@@ -94,8 +86,14 @@ fn google_verification() -> Option<AnyView> {
 }
 
 /// `<link>` /tema.css (ber-versi) dan Google Fonts untuk font tema.
+/// Halaman undangan /u/… melewatkannya: InvShell memasang CSS & huruf tema
+/// undangan itu saja (/gaya/{tema}.css) — ±220 KB CSS semua tema tak diurai.
 #[cfg(feature = "ssr")]
 fn theme_links() -> AnyView {
+    let undangan = use_context::<axum::http::request::Parts>().is_some_and(|p| p.uri.path().starts_with("/u/"));
+    if undangan {
+        return ().into_any();
+    }
     let cat = use_context::<std::sync::Arc<crate::server::state::AppState>>().map(|s| s.themes());
     let css = match &cat {
         Some(c) => format!("/tema.css?v={}", c.version),

@@ -1,0 +1,39 @@
+/* ═══ rupa ACARA: Kepala berwarna tegas ═══
+ * Sudut tajam, pita kepala berwarna primer berisi label & nama acara. */
+.inv.rp-a-tegas .event {
+    border-radius: 0;
+    border: 1px solid var(--primary);
+    padding-top: 0;
+    gap: 12px;
+}
+.inv.rp-a-tegas .event::before,
+.inv.rp-a-tegas .event::after {
+    display: none;
+}
+.inv.rp-a-tegas .event__badge,
+.inv.rp-a-tegas .event__title {
+    align-self: stretch;
+    margin-inline: -24px;
+    padding-inline: 16px;
+    color: var(--on-primary);
+    background: var(--primary);
+}
+.inv.rp-a-tegas .event__badge {
+    padding-top: 16px;
+    color: color-mix(in srgb, var(--on-primary) 78%, transparent);
+}
+.inv.rp-a-tegas .event__title {
+    margin-top: -12px;
+    padding-bottom: 16px;
+    margin-bottom: 4px;
+    color: var(--on-primary);
+    box-shadow: 0 4px 0 -1px var(--gold);
+}
+.inv.rp-a-tegas .event__venue,
+.inv.rp-a-tegas .event__session,
+.inv.rp-a-tegas .event__dress {
+    border-radius: 0;
+}
+.inv.rp-a-tegas .event .btn {
+    border-radius: 0;
+}

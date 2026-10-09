@@ -1,0 +1,60 @@
+/* ═══ rupa MEMPELAI: Dua potret bulat berdampingan ═══
+ * Dua kartu sejajar (dua kolom bahkan di HP), foto bulat, "&" melayang di
+ * tengah antara keduanya. */
+.inv.rp-m-sejajar .couple {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+    position: relative;
+}
+.inv.rp-m-sejajar .couple__amp {
+    position: absolute;
+    left: 50%;
+    top: 92px;
+    translate: -50% 0;
+    z-index: 3;
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding-top: 6px;
+    font-size: calc(34px * var(--script-scale, 1));
+    border-radius: 50%;
+    background: var(--card);
+    box-shadow: 0 0 0 1px var(--line-gold), var(--shadow);
+}
+.inv.rp-m-sejajar .person {
+    border-radius: var(--r-lg, 18px);
+    padding: 22px 10px 18px;
+    gap: 4px;
+}
+.inv.rp-m-sejajar .arch-photo--person {
+    width: min(122px, 30vw);
+    aspect-ratio: 1;
+    margin: 4px auto 6px;
+}
+.inv.rp-m-sejajar .arch-photo--person .arch-photo__clip {
+    border-radius: 50%;
+}
+.inv.rp-m-sejajar .arch-photo--person .arch-photo__frame {
+    display: none;
+}
+.inv.rp-m-sejajar .person .chip {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+}
+.inv.rp-m-sejajar .person__nick {
+    font-size: calc(26px * var(--script-scale, 1));
+}
+.inv.rp-m-sejajar .person__name {
+    font-size: 14.5px;
+    letter-spacing: 0.02em;
+    overflow-wrap: anywhere;
+}
+.inv.rp-m-sejajar .person__parents {
+    font-size: 12px;
+}
+.inv.rp-m-sejajar .person__initial {
+    font-size: calc(46px * var(--script-scale, 1));
+}

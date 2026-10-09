@@ -1,0 +1,43 @@
+/* ═══ rupa KISAH: Selang-seling ═══
+ * Foto kecil di samping cerita, bergantian kiri–kanan; tanpa titik & garis. */
+.inv.rp-c-selang .story {
+    gap: 0;
+    padding: 18px 16px;
+}
+.inv.rp-c-selang .story__item {
+    display: block;
+    padding: 16px 0;
+}
+.inv.rp-c-selang .story__item + .story__item {
+    border-top: 1px dashed var(--line-gold);
+}
+.inv.rp-c-selang .story__item::after,
+.inv.rp-c-selang .story__dot {
+    display: none;
+}
+.inv.rp-c-selang .story__item > div {
+    display: grid;
+    grid-template-columns: 38% minmax(0, 1fr);
+    grid-template-areas: "foto tahun" "foto judul" "foto teks";
+    grid-template-rows: auto auto 1fr;
+    column-gap: 14px;
+    align-items: start;
+}
+.inv.rp-c-selang .story__item:nth-child(even) > div {
+    grid-template-columns: minmax(0, 1fr) 38%;
+    grid-template-areas: "tahun foto" "judul foto" "teks foto";
+    text-align: right;
+}
+.inv.rp-c-selang .story__photo {
+    grid-area: foto;
+    margin: 0;
+    aspect-ratio: 3 / 4;
+    border-radius: 10px;
+}
+.inv.rp-c-selang .story__year { grid-area: tahun; }
+.inv.rp-c-selang .story h3 { grid-area: judul; margin-top: 0; }
+.inv.rp-c-selang .story p { grid-area: teks; }
+/* babak tanpa foto: teks selebar kartu */
+.inv.rp-c-selang .story__item > div:not(:has(.story__photo)) {
+    display: block;
+}

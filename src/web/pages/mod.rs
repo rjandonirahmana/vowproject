@@ -30,12 +30,15 @@ use super::icons::Icon;
 #[derive(Clone)]
 pub struct KontenSlot {
     res: StoredValue<Option<Resource<Result<konten::Konten, ServerFnError>>>>,
-    owner: Owner,
+    // WEAK: slot ini disimpan sebagai context DI owner yang sama — Owner kuat di
+    // sini = siklus Arc (owner → contexts → slot → owner) yang tak pernah lepas,
+    // sehingga di SSR seluruh pohon render tiap request bocor (±20KB/halaman).
+    owner: leptos::reactive::owner::WeakOwner,
 }
 
 pub fn provide_konten_slot() {
     if let Some(owner) = Owner::current() {
-        provide_context(KontenSlot { res: StoredValue::new(None), owner });
+        provide_context(KontenSlot { res: StoredValue::new(None), owner: owner.downgrade() });
     }
 }
 
@@ -47,7 +50,11 @@ pub fn use_konten() -> Resource<Result<konten::Konten, ServerFnError>> {
     if let Some(r) = slot.res.get_value() {
         return r;
     }
-    let r = slot.owner.with(|| Resource::new(|| (), |_| super::api::get_konten()));
+    let make = || Resource::new(|| (), |_| super::api::get_konten());
+    let r = match slot.owner.upgrade() {
+        Some(owner) => owner.with(make),
+        None => make(),
+    };
     slot.res.set_value(Some(r));
     r
 }
@@ -101,40 +108,44 @@ pub fn SiteHeader(#[prop(optional)] active: &'static str) -> impl IntoView {
 /// biasa tidak memicu request apa pun (cek penanda cookie dulu, di browser).
 #[component]
 fn AdminBar() -> impl IntoView {
-    let me: LocalResource<Option<crate::web::model::AdminUser>> = LocalResource::new(|| async move {
-        #[cfg(feature = "hydrate")]
-        {
-            use wasm_bindgen::JsCast;
-            let marked = web_sys::window()
-                .and_then(|w| w.document())
-                .and_then(|d| d.dyn_into::<web_sys::HtmlDocument>().ok())
-                .and_then(|d| d.cookie().ok())
-                .is_some_and(|c| c.split(';').any(|kv| kv.trim() == "ily_adm_ui=1"));
-            if marked {
-                return crate::web::api::admin_me().await.ok().flatten();
-            }
+    // Signal + Effect, BUKAN LocalResource: di SSR LocalResource memasang task
+    // tiruan yang tak pernah selesai — task itu memegang seluruh Owner request
+    // (≈20KB/halaman) selamanya = memory leak tiap render. Effect tak pernah
+    // jalan di server; klien mulai dari None juga → hydration tetap cocok.
+    let me = RwSignal::new(None::<crate::web::model::AdminUser>);
+    #[cfg(feature = "hydrate")]
+    Effect::new(move |_| {
+        use wasm_bindgen::JsCast;
+        let marked = web_sys::window()
+            .and_then(|w| w.document())
+            .and_then(|d| d.dyn_into::<web_sys::HtmlDocument>().ok())
+            .and_then(|d| d.cookie().ok())
+            .is_some_and(|c| c.split(';').any(|kv| kv.trim() == "ily_adm_ui=1"));
+        if marked {
+            leptos::task::spawn_local(async move {
+                if let Ok(Some(u)) = crate::web::api::admin_me().await {
+                    me.set(Some(u));
+                }
+            });
         }
-        None
     });
     let loc = leptos_router::hooks::use_location();
     view! {
-        <Suspense fallback=|| ()>
-            {move || me.get().flatten().map(|u| {
-                let path = loc.pathname.get();
-                let links = admin_links(&path);
-                view! {
-                    <aside class="admin-bar" aria-label="Mode admin">
-                        <span class="admin-bar__who"><Icon name="admin_panel_settings" />{format!("Mode Admin • {}", u.display())}</span>
-                        <span class="admin-bar__links">
-                            {links.into_iter().map(|(href, label)| view! {
-                                <a href=href><Icon name="edit_note" />{label}</a>
-                            }).collect_view()}
-                            <a href="/admin" class="admin-bar__panel">"Panel"</a>
-                        </span>
-                    </aside>
-                }
-            })}
-        </Suspense>
+        {move || me.get().map(|u| {
+            let path = loc.pathname.get();
+            let links = admin_links(&path);
+            view! {
+                <aside class="admin-bar" aria-label="Mode admin">
+                    <span class="admin-bar__who"><Icon name="admin_panel_settings" />{format!("Mode Admin • {}", u.display())}</span>
+                    <span class="admin-bar__links">
+                        {links.into_iter().map(|(href, label)| view! {
+                            <a href=href><Icon name="edit_note" />{label}</a>
+                        }).collect_view()}
+                        <a href="/admin" class="admin-bar__panel">"Panel"</a>
+                    </span>
+                </aside>
+            }
+        })}
     }
 }
 
@@ -235,7 +246,9 @@ pub fn NotFoundPage() -> impl IntoView {
             <Monogram initials="404" />
             <h1 class="section__title">"Halaman tidak ditemukan"</h1>
             <p class="muted">"Tautan undangan mungkin salah ketik atau sudah tidak aktif."</p>
-            <a class="btn btn--primary" href="/">"Kembali ke Katalog"</a>
+            // rel=external: halaman ini juga tampil di /u/… yang hanya memuat
+            // CSS satu tema — katalog perlu dimuat penuh (dengan /tema.css).
+            <a class="btn btn--primary" href="/" rel="external">"Kembali ke Katalog"</a>
         </div>
     }
 }
@@ -247,7 +260,7 @@ pub fn ErrorCard(msg: String) -> impl IntoView {
             <Icon name="info" class="empty-page__icon" />
             <h1 class="section__title">"Terjadi kendala"</h1>
             <p class="muted">{msg}</p>
-            <a class="btn btn--primary" href="/">"Kembali"</a>
+            <a class="btn btn--primary" href="/" rel="external">"Kembali"</a>
         </div>
     }
 }

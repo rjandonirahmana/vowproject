@@ -1,0 +1,77 @@
+/* ═══ rupa ACARA: Tiket berlubang sobek ═══
+ * Kartu tiket: sobekan tanggal di kiri (hari/angka/bulan tegak) dipisah garis
+ * putus-putus berlubang setengah lingkaran; rincian di kanan. */
+.inv.rp-a-tiket .event {
+    --stub: 92px;
+    display: grid;
+    grid-template-columns: var(--stub) minmax(0, 1fr);
+    grid-template-areas:
+        "date badge"
+        "date title"
+        "date time"
+        "date venue"
+        "dress dress"
+        "btn btn";
+    column-gap: 18px;
+    row-gap: 8px;
+    align-items: start;
+    text-align: left;
+    padding: 20px 16px 18px 0;
+    border-radius: 14px;
+    border: 1px solid var(--line-gold);
+    -webkit-mask:
+        radial-gradient(circle at var(--stub) 0, transparent 11px, #000 11.5px) top / 100% 51% no-repeat,
+        radial-gradient(circle at var(--stub) 100%, transparent 11px, #000 11.5px) bottom / 100% 51% no-repeat;
+    mask:
+        radial-gradient(circle at var(--stub) 0, transparent 11px, #000 11.5px) top / 100% 51% no-repeat,
+        radial-gradient(circle at var(--stub) 100%, transparent 11px, #000 11.5px) bottom / 100% 51% no-repeat;
+}
+.inv.rp-a-tiket .event::before,
+.inv.rp-a-tiket .event::after {
+    display: none;
+}
+.inv.rp-a-tiket .event__badge { grid-area: badge; }
+.inv.rp-a-tiket .event__title { grid-area: title; font-size: 20px; letter-spacing: 0.08em; }
+.inv.rp-a-tiket .event__time,
+.inv.rp-a-tiket .event__sessions { grid-area: time; }
+.inv.rp-a-tiket .event__venue { grid-area: venue; align-items: flex-start; text-align: left; flex-direction: row; padding: 10px 12px; }
+.inv.rp-a-tiket .event__dress { grid-area: dress; margin-left: 16px; }
+.inv.rp-a-tiket .event .btn { grid-area: btn; margin-left: 16px; width: auto; }
+.inv.rp-a-tiket .event__date,
+.inv.rp-a-tiket .event__meta {
+    grid-area: date;
+    align-self: stretch;
+    margin: -20px 0 -18px;
+    padding: 18px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-align: center;
+    color: var(--on-primary);
+    background: var(--primary);
+    border-right: 2px dashed color-mix(in srgb, var(--on-primary) 55%, transparent);
+}
+.inv.rp-a-tiket .event__num {
+    color: var(--on-primary);
+    font-size: 44px;
+}
+/* bukan --gold-light: di tema gelap primer = emas → kaligrafi hilang di sobekan */
+.inv.rp-a-tiket .event__day {
+    color: color-mix(in srgb, var(--on-primary) 78%, var(--primary));
+    font-size: calc(22px * var(--script-scale, 1));
+}
+.inv.rp-a-tiket .event__month {
+    color: var(--on-primary);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-align: center;
+}
+.inv.rp-a-tiket .event__time {
+    padding: 0;
+    border: 0;
+}
+.inv.rp-a-tiket .event__sessions {
+    grid-template-columns: 1fr;
+}

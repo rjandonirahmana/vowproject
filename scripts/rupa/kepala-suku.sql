@@ -1,0 +1,6 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 035_rupa_suku — rupa (bentuk tiap bagian) untuk 25 tema suku dari 034.
+-- DIBANGKITKAN scripts/rupa/build.py bersama 033 (jarak dihitung terhadap
+-- SEMUA tema) — jangan disunting tangan. Aman dijalankan ulang.
+-- WAJIB setelah 033 & 034.
+-- ═══════════════════════════════════════════════════════════════════════════

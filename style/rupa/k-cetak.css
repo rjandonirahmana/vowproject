@@ -1,0 +1,10 @@
+/* ═══ rupa KARTU: Bayang cetak bergeser ═══
+ * Garis tegas + bayangan padat bergeser (gaya cetak sablon / retro). */
+.inv.rp-k-cetak .card {
+    border-radius: 8px;
+    border: 1.5px solid color-mix(in srgb, var(--ink) 70%, transparent);
+    box-shadow: 6px 6px 0 0 color-mix(in srgb, var(--gold) 70%, var(--card));
+}
+.inv.rp-k-cetak .btn--primary {
+    box-shadow: 3px 3px 0 0 color-mix(in srgb, var(--ink) 70%, transparent);
+}

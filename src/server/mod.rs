@@ -17,4 +17,3 @@ pub mod storage;
 pub mod templat;
 pub mod util;
 pub mod wa;
-pub mod lepas;

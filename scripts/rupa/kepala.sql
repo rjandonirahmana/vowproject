@@ -1,0 +1,15 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 033_rupa — RUPA: varian STRUKTUR per bagian undangan (web/rupa.rs).
+--
+-- Audit piksel 9 Okt 2026: 50 tema berbagi satu kerangka — tinggi halaman
+-- 9906/9999 px untuk hampir semua tema, 603 dari 1275 pasangan "struktur
+-- > 0,85 identik" (granit-belitung ~ raja-ampat 0,996). Kini tiap tema memilih
+-- satu varian per bagian (sampul, judul, mempelai, acara, galeri, kartu,
+-- pemisah) dan tiap pasangan tema berbeda di ≥ 4 bagian.
+--
+-- Bagian data DIBANGKITKAN scripts/rupa/build.py — jangan disunting tangan.
+-- Aman dijalankan ulang: rupa hanya ditulis bila masih '{}' (belum diatur
+-- admin), gerak hanya bila tema belum dikunci admin (motion_locked).
+-- WAJIB setelah 025 (kolom motion_locked) & 031.
+-- ═══════════════════════════════════════════════════════════════════════════
+ALTER TABLE themes ADD COLUMN IF NOT EXISTS rupa JSONB NOT NULL DEFAULT '{}'::jsonb;

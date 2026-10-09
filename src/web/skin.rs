@@ -87,6 +87,9 @@ pub struct ThemeInfo {
     pub template_css: String,
     /// Lapisan ornamen per bagian (tabel theme_ornaments; dimuat terpisah).
     pub ornaments: Vec<super::ornamen::Ornament>,
+    /// Varian STRUKTUR per bagian (web/rupa.rs, migrasi 033): bagian → varian.
+    /// Absen / "asli" = tampilan dasar.
+    pub rupa: BTreeMap<String, String>,
 }
 
 pub const DEFAULT_THEME: &str = "botanical-heritage";
@@ -394,10 +397,14 @@ pub fn theme_vars(t: &ThemeInfo) -> String {
         );
     }
     if t.dark {
+        // --gold-pale (latar lingkaran ikon, titik kisah, chip) dulu krem
+        // terang di tema gelap — ikon --gold-deep (emas terang) di atasnya
+        // hanya 1,4:1 (audit piksel). Di tema gelap: emas tipis di atas kartu.
         s.push_str(
             "color-scheme:dark;--shadow:0 6px 24px -4px rgba(0,0,0,.45);--shadow-lg:0 14px 36px -6px rgba(0,0,0,.55);\
 --glow-opacity:.25;--ok-bg:#2c3a26;--ok:#bfe0a8;--err-bg:#4a1f1c;--err:#ffb4ab;\
---side-bg:var(--surface-low);--side-ink:var(--ink);--side-accent:var(--gold);--side-btn:var(--gold);--side-btn-ink:var(--on-primary);",
+--side-bg:var(--surface-low);--side-ink:var(--ink);--side-accent:var(--gold);--side-btn:var(--gold);--side-btn-ink:var(--on-primary);\
+--gold-pale:color-mix(in srgb,var(--gold) 18%,var(--card));",
         );
     }
     if let Some(f) = FONTS.iter().find(|f| f.0 == t.font && f.0 != "playfair") {
@@ -411,10 +418,10 @@ pub fn theme_vars(t: &ThemeInfo) -> String {
     }
     let img = |u: &str| is_safe_url(u).then(|| format!("url(\"{u}\")"));
     if let Some(u) = img(&t.bg_image) {
-        // Latar ilustrasi → kartu agak tembus pandang agar ilustrasi terasa.
-        s.push_str(&format!(
-            "--bg-illus:{u};--card-glass:color-mix(in srgb,var(--card) 84%,transparent);--card-blur:blur(6px);"
-        ));
+        // Latar ilustrasi → kartu sedikit tembus pandang agar ilustrasi terasa.
+        // TANPA backdrop-filter: blur di tiap kartu di atas latar tetap =
+        // raster ulang tiap frame gulir (ngadet di HP) — kartu cukup 90% pekat.
+        s.push_str(&format!("--bg-illus:{u};--card-glass:color-mix(in srgb,var(--card) 90%,transparent);"));
     }
     if let Some(u) = img(&t.frame_image) {
         s.push_str(&format!("--frame-img:{u};"));
@@ -532,6 +539,12 @@ pub fn from_form(get: impl Fn(&str) -> String) -> Result<ThemeInfo, String> {
         template_assets: BTreeMap::new(),
         template_css: String::new(),
         ornaments: Vec::new(),
+        rupa: super::rupa::sanitize(
+            &super::rupa::BAGIAN
+                .iter()
+                .map(|b| (b.key.to_string(), f.pick(&format!("rupa_{}", b.key), b.varian.iter().map(|v| v.0), super::rupa::ASLI)))
+                .collect(),
+        ),
     })
 }
 

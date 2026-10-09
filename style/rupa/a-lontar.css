@@ -1,0 +1,53 @@
+/* ═══ rupa ACARA: Lembar lontar bergulung ═══
+ * Daun lontar bergaris halus dengan gulungan kayu di atas & bawah. */
+.inv.rp-a-lontar .event {
+    margin-block: 18px;
+    border-radius: 4px;
+    border: 0;
+    background:
+        repeating-linear-gradient(to bottom, transparent 0 25px, color-mix(in srgb, var(--gold) 16%, transparent) 25px 26px),
+        color-mix(in srgb, var(--gold) 12%, var(--card));
+    box-shadow: var(--shadow);
+    overflow: visible;
+    padding: 30px 22px 24px;
+}
+.inv.rp-a-lontar .event::before,
+.inv.rp-a-lontar .event::after {
+    content: "";
+    display: block;
+    position: absolute;
+    left: -10px;
+    right: -10px;
+    width: auto;
+    height: 16px;
+    margin: 0;
+    inset-block: auto;
+    border: 0;
+    border-radius: 8px;
+    transform: none;
+    opacity: 1;
+    background: linear-gradient(to bottom, var(--gold-light), var(--gold-deep) 70%, var(--gold));
+    box-shadow: 0 3px 6px -2px rgb(0 0 0 / 0.35);
+}
+.inv.rp-a-lontar .event::before {
+    top: -9px;
+}
+.inv.rp-a-lontar .event::after {
+    bottom: -9px;
+}
+/* tanggal satu baris: "Sabtu · 24 · Oktober 2026" */
+.inv.rp-a-lontar .event__date {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.inv.rp-a-lontar .event__num {
+    font-size: 40px;
+}
+.inv.rp-a-lontar .event__venue {
+    background: none;
+    border-top: 1px dashed var(--line-gold);
+    border-radius: 0;
+}

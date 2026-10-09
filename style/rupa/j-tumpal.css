@@ -1,0 +1,24 @@
+/* ═══ rupa JUDUL: Deret tumpal ═══
+ * Deret segitiga tumpal (kepala kain batik/songket) di atas label, garis
+ * bertitik di bawah judul. */
+.inv.rp-j-tumpal .eyebrow--center:has(+ .section__title) {
+    flex-direction: column;
+    gap: 0;
+}
+.inv.rp-j-tumpal .eyebrow--center:has(+ .section__title)::before {
+    content: "";
+    display: block;
+    width: 132px;
+    height: 14px;
+    margin: 0 auto 10px;
+    background: var(--gold);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 14'%3E%3Cpath d='M0 14 L11 0 L22 14 Z M5 14 L11 6 L17 14 Z' fill-rule='evenodd'/%3E%3C/svg%3E") 0 0 / 22px 14px repeat-x;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 14'%3E%3Cpath d='M0 14 L11 0 L22 14 Z M5 14 L11 6 L17 14 Z' fill-rule='evenodd'/%3E%3C/svg%3E") 0 0 / 22px 14px repeat-x;
+}
+.inv.rp-j-tumpal .section__title::after {
+    width: 132px;
+    height: 6px;
+    margin-top: 10px;
+    -webkit-mask: radial-gradient(circle, #000 1.6px, transparent 2px) 0 50% / 9px 6px repeat-x;
+    mask: radial-gradient(circle, #000 1.6px, transparent 2px) 0 50% / 9px 6px repeat-x;
+}

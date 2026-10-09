@@ -1,0 +1,53 @@
+/* ═══ rupa SAMPUL: Gunungan ═══
+ * Siluet gunungan wayang: runcing di atas, melebar & berkaki rata (Jawa, Sunda).
+ * Bentuk = mask SVG (ikut skala elemen); cincin = dua lapis pseudo dengan
+ * bentuk sama (emas di luar, warna kartu di dalam). Statis — tanpa animasi. */
+.inv.rp-s-gunungan .arch-photo--cover,
+.inv.rp-s-gunungan .arch-photo--thanks {
+    --rp-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120' preserveAspectRatio='none'%3E%3Cpath d='M50 0 C55 9 64 18 74 30 C88 47 98 64 98 84 C98 100 92 112 84 120 L16 120 C8 112 2 100 2 84 C2 64 12 47 26 30 C36 18 45 9 50 0 Z'/%3E%3C/svg%3E");
+    width: min(250px, 66vw);
+    aspect-ratio: 100 / 118;
+    isolation: isolate;
+}
+.inv.rp-s-gunungan .arch-photo--cover .arch-photo__clip,
+.inv.rp-s-gunungan .arch-photo--thanks .arch-photo__clip {
+    border-radius: 0;
+    box-shadow: none;
+    z-index: 2;
+    -webkit-mask: var(--rp-mask) center / 100% 100% no-repeat;
+    mask: var(--rp-mask) center / 100% 100% no-repeat;
+}
+.inv.rp-s-gunungan .arch-photo--cover::before,
+.inv.rp-s-gunungan .arch-photo--cover::after,
+.inv.rp-s-gunungan .arch-photo--thanks::before,
+.inv.rp-s-gunungan .arch-photo--thanks::after {
+    content: "";
+    position: absolute;
+    -webkit-mask: var(--rp-mask) center / 100% 100% no-repeat;
+    mask: var(--rp-mask) center / 100% 100% no-repeat;
+    pointer-events: none;
+}
+/* cincin emas */
+.inv.rp-s-gunungan .arch-photo--cover::before,
+.inv.rp-s-gunungan .arch-photo--thanks::before {
+    inset: -9px;
+    background: linear-gradient(160deg, var(--gold-light), var(--gold) 45%, var(--gold-deep));
+    z-index: 0;
+}
+/* celah warna kartu di antara cincin & foto */
+.inv.rp-s-gunungan .arch-photo--cover::after,
+.inv.rp-s-gunungan .arch-photo--thanks::after {
+    inset: -5px;
+    background: var(--card);
+    z-index: 1;
+}
+.inv.rp-s-gunungan .arch-photo--cover .arch-photo__frame,
+.inv.rp-s-gunungan .arch-photo--thanks .arch-photo__frame {
+    display: none;
+}
+
+/* Di gerbang (sampul pertama) foto dibatasi tinggi layar: kartu tamu &
+   tombol buka harus tetap terlihat di HP pendek (360×640). */
+.inv.rp-s-gunungan .gate .arch-photo--cover {
+    width: min(250px, 66vw, calc(var(--gate-foto, 34svh) * 0.85));
+}

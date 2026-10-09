@@ -172,6 +172,7 @@ const PENANDA: &[(&str, Tanda)] = &[
     ("027_pustaka_lagu.sql", Tanda::Objek("public.songs")),
     ("028_story_hapus.sql", Tanda::Kolom("invitation_stories", "owner_token_hash")),
     ("029_tema_templat.sql", Tanda::Objek("public.theme_templates")),
+    ("033_rupa.sql", Tanda::Kolom("themes", "rupa")),
 ];
 
 /// Migrasi data saja (seed tema/animasi/demo) — tak punya objek skema untuk
@@ -191,6 +192,9 @@ const HANYA_DATA: &[&str] = &[
     "030_perbaikan_gerak.sql",
     "031_tema_provinsi.sql",
     "032_gerak_ringan.sql",
+    "034_tema_suku.sql",
+    "035_rupa_suku.sql",
+    "036_ornamen_rapi.sql",
 ];
 
 /// Migrasi skema yang BELUM diterapkan (dicek dari objek skemanya, bukan dari

@@ -535,11 +535,11 @@ const THEME_COLS: &[&str] = &[
     "slug", "name", "category", "nuansa", "palette", "region", "description", "tags", "badge", "rating", "reviews",
     "layout", "ornament", "font", "tokens", "dark", "image_url", "image_mode", "listed", "sort_order",
     "script_font", "bg_image", "frame_image", "card_deco", "float_deco", "open_anim", "page_mode", "scroll_anim",
-    "gerak_judul", "gerak_foto", "ken_burns", "bg_video", "open_video",
+    "gerak_judul", "gerak_foto", "ken_burns", "bg_video", "open_video", "rupa",
 ];
-/// Kolom dari migrasi yang mungkin belum dijalankan (022) — upsert diulang
+/// Kolom dari migrasi yang mungkin belum dijalankan (022, 033) — upsert diulang
 /// tanpa kolom ini bila DB belum punya (admin tetap bisa menyimpan tema).
-const THEME_COLS_NEW: &[&str] = &["bg_video", "open_video"];
+const THEME_COLS_NEW: &[&str] = &["bg_video", "open_video", "rupa"];
 
 fn upsert_theme_sql(with_new: bool) -> &'static str {
     static FULL: std::sync::OnceLock<String> = std::sync::OnceLock::new();

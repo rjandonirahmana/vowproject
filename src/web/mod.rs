@@ -22,6 +22,7 @@ pub mod layanan;
 pub mod model;
 pub mod ornamen;
 pub mod pages;
+pub mod rupa;
 pub mod seo;
 pub mod skeleton;
 pub mod skin;

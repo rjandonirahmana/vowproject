@@ -174,6 +174,7 @@ async fn main() -> Result<()> {
         .route("/kelola/{slug}/story/hapus", axum::routing::post(handlers::owner_delete_story))
         .route("/layanan/wa", axum::routing::get(handlers::layanan_wa))
         .route("/tema.css", axum::routing::get(handlers::theme_css))
+        .route("/gaya/{file}", axum::routing::get(handlers::gaya_css))
         .route("/sitemap.xml", axum::routing::get(handlers::sitemap))
         .route("/app.js", axum::routing::get(handlers::app_js))
         // Tema templat: mesin gerak bersama + kirim RSVP (server/templat.rs).
@@ -249,9 +250,6 @@ async fn main() -> Result<()> {
         // memakai templat). Di DALAM exchange (?k= sudah jadi cookie)
         // & di dalam kompresi (HTML-nya ikut dikompresi).
         .layer(axum::middleware::from_fn(undangan::server::templat::serve))
-        // Pemutus kebocoran owner SSR Leptos (server/lepas.rs): membungkus
-        // semua respons; hanya yang dirender Leptos (shell) mengisi slotnya.
-        .layer(axum::middleware::from_fn(undangan::server::lepas::lepas))
         .layer(tower_http::compression::CompressionLayer::new())
         // Tautan Kelola ?key= / pratinjau ?k= → cookie HttpOnly + 303 ke URL bersih.
         .layer(axum::middleware::from_fn(undangan::server::owner::exchange))

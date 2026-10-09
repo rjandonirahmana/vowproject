@@ -173,7 +173,8 @@ textarea {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    /* 12px: label kapital 11px terbaca terlalu kecil di HP (audit piksel). */
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -528,7 +529,8 @@ select.input {
 }
 .notice--info {
     background: var(--gold-pale);
-    color: #5d4201;
+    /* ikut token (dulu #5d4201 tetap → tenggelam di --gold-pale tema gelap) */
+    color: color-mix(in srgb, var(--gold-deep) 55%, var(--ink));
 }
 
 .toast {
@@ -6267,6 +6269,28 @@ html.is-pv .toast {
     aspect-ratio: 82 / 100;
     margin: 14px auto 6px;
 }
+/* Di gerbang foto sampul dibatasi tinggi layar — di HP pendek (360×640)
+   kartu tamu & tombol "Buka Undangan" dulu terdorong ke luar layar. */
+.gate .arch-photo--cover {
+    width: min(240px, 64vw, calc(var(--gate-foto, 34svh) * 0.82));
+}
+/* Amplop: tutup setinggi 22vh + segel mendorong kartu tamu ke bawah tombol
+   "Buka Undangan" (audit piksel). Tutup dipendekkan & foto diperkecil.
+   Spesifisitas tinggi: CSS animasi bawaan ada di DB (seed tak menimpa). */
+.inv .gate.gate--amplop:not(.gate--embed),
+.inv .gate.gate--tenun-songket:not(.gate--embed) {
+    --gate-foto: 25svh;
+}
+.inv .gate.gate--amplop:not(.gate--embed) .gate__panel--l {
+    height: 15vh;
+    min-height: 104px;
+}
+.inv .gate.gate--amplop:not(.gate--embed)::before {
+    top: max(15vh, 104px);
+}
+.inv .gate.gate--amplop:not(.gate--embed) .gate__content {
+    padding-top: calc(max(15vh, 104px) + 28px);
+}
 .arch-photo--person {
     width: min(176px, 50vw);
     margin: 18px auto 6px;
@@ -6370,7 +6394,7 @@ html.is-pv .toast {
     font-variation-settings: "FILL" 1;
 }
 .story__year {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.1em;
     color: var(--gold-deep);
@@ -8264,6 +8288,19 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
     z-index: -1;
     pointer-events: none;
 }
+/* Ornamen tengah-atas (lambang/hiasan gantung) dulu menindih label & judul
+   bagian. Padding % = % LEBAR kontainer — satuan yang sama dengan lebar
+   ornamen — jadi ruangnya bisa dicadangkan: lambang 22% lebar, digeser −46%
+   tinggi sendiri, berakhir ±12% lebar di bawah tepi atas. */
+.inv .orn-host:not(.cover):has(> .orn-layer > .orn--p-tengah-atas) {
+    padding-top: max(26px, calc(16% + 12px));
+}
+/* Foto babak kisah di kolom desktop (±720px) dulu setinggi ±600px. */
+@media (min-width: 900px) {
+    .inv .story__photo {
+        max-width: 380px;
+    }
+}
 .orn-layer--depan {
     z-index: 3;
 }
@@ -10010,6 +10047,21 @@ details.adm-song[open] {
     white-space: pre;
     tab-size: 2;
     resize: vertical;
+}
+
+/* ══ Keterbacaan undangan (audit piksel 9 Okt 2026, HP 412px) ═══════════
+ * 1. Teks minimum 12px — label kapital 10,5–11px (chip mempelai, label acara
+ *    & sesi, keterangan ayat, status hadir) terlalu kecil di HP.
+ * 2. Teks di bagian berornamen diberi halo tipis warna kartu: motif/tokoh di
+ *    belakang kalimat menurunkan kontras sampai < 3:1. Halo statis (tidak
+ *    dianimasikan) — tak menambah kerja per frame saat menggulir. */
+.inv :is(.chip, .event__badge, .event__session span, .rule-label, .quote figcaption, .guide figcaption, .live-card figcaption, .wish .status, .thanks__by) {
+    font-size: 12px;
+}
+.inv .orn-host:has(> .orn-layer) :is(.intro__text, .eyebrow, .person__parents, .thanks__text, .muted, .guest__text) {
+    text-shadow:
+        0 0 2px var(--card),
+        0 0 8px var(--card);
 }
 
 @media (prefers-reduced-motion: reduce) {

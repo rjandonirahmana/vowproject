@@ -68,6 +68,11 @@ pub struct ThemeCatalog {
     pub version: String,
     /// Parameter `family=` Google Fonts untuk font tema yang terpakai.
     pub fonts: Vec<&'static str>,
+    /// slug → isi `/gaya/{slug}.css`: variabel + animasi + rupa tema itu SAJA.
+    /// Halaman undangan memuat ini, bukan /tema.css (semua tema, ±220 KB).
+    gaya: std::collections::HashMap<String, axum::body::Bytes>,
+    /// Semua varian rupa — pratinjau admin & demo `?rupa=`.
+    pub rupa_all: axum::body::Bytes,
 }
 
 impl ThemeCatalog {
@@ -78,7 +83,32 @@ impl ThemeCatalog {
         let css = axum::body::Bytes::from(css);
         let fonts = skin::font_families(&list);
         let index = list.iter().enumerate().map(|(i, t)| (t.slug.clone(), i)).collect();
-        Self { list, index, anims, css, version: format!("{:08x}", h as u32), fonts }
+        let gaya = list
+            .iter()
+            .filter(|t| skin::is_slug(&t.slug))
+            .map(|t| (t.slug.clone(), axum::body::Bytes::from(theme_css(t, &t.rupa, &anims))))
+            .collect();
+        let rupa_all = axum::body::Bytes::from(crate::web::rupa::all_css());
+        Self { list, index, anims, css, version: format!("{:08x}", h as u32), fonts, gaya, rupa_all }
+    }
+
+    /// Isi `/gaya/{slug}.css`; `rupa` = timpaan demo (`?rupa=`), dihitung saat itu.
+    pub fn gaya(&self, slug: &str, rupa: Option<&std::collections::BTreeMap<String, String>>) -> Option<axum::body::Bytes> {
+        match rupa {
+            None => self.gaya.get(slug).cloned(),
+            Some(r) => self.get(slug).map(|t| axum::body::Bytes::from(theme_css(t, r, &self.anims))),
+        }
+    }
+
+    /// `<link>` CSS & font khusus satu tema (InvSkin.css / InvSkin.fonts).
+    pub fn links(&self, t: &ThemeInfo, rupa_override: &str) -> (String, String) {
+        let mut css = format!("/gaya/{}.css?v={}", t.slug, self.version);
+        if !rupa_override.is_empty() {
+            css.push_str(&format!("&rupa={}", crate::web::fmt::url_encode(rupa_override)));
+        }
+        let fam = skin::font_families([t]);
+        let fonts = if fam.is_empty() { String::new() } else { format!("https://fonts.googleapis.com/css2?family={}&display=swap", fam.join("&family=")) };
+        (css, fonts)
     }
 
     pub fn get(&self, slug: &str) -> Option<&ThemeInfo> {
@@ -94,6 +124,19 @@ impl ThemeCatalog {
     pub fn anim(&self, kind: &str, slug: &str) -> Option<&crate::web::anim::AnimInfo> {
         self.anims.iter().find(|a| a.kind == kind && a.slug == slug)
     }
+}
+
+/// CSS satu tema: variabel + animasi yang benar-benar ia pakai + varian rupa.
+fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, anims: &[crate::web::anim::AnimInfo]) -> String {
+    let mut css = format!(".th-{}{{{}}}\n", t.slug, skin::theme_vars_with(t, anims));
+    for a in anims {
+        let k = a.key();
+        if (a.kind == "buka" && k == t.open_anim) || (a.kind == "scroll" && k == t.scroll_anim) || (a.kind == "hiasan" && k == t.float_deco) {
+            css.push_str(&crate::web::anim::css(a));
+        }
+    }
+    css.push_str(&crate::web::rupa::css(rupa));
+    css
 }
 
 impl AppState {

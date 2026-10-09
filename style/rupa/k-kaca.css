@@ -1,0 +1,14 @@
+/* ═══ rupa KARTU: Kaca bening ═══
+ * Kartu tembus pandang bergaris kilau di tepi atas. SENGAJA tanpa
+ * backdrop-filter (blur = raster ulang tiap frame gulir di HP). */
+.inv.rp-k-kaca .card {
+    background:
+        linear-gradient(to bottom, rgb(255 255 255 / 0.22), transparent 38%),
+        color-mix(in srgb, var(--card) 70%, transparent);
+    border: 1px solid color-mix(in srgb, #fff 45%, transparent);
+    border-top-color: rgb(255 255 255 / 0.85);
+    border-radius: 22px;
+    box-shadow: 0 10px 30px -14px rgb(0 0 0 / 0.35);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}

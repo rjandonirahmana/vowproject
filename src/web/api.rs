@@ -113,8 +113,9 @@ mod srv {
 /// pun) kecuali dibuka pemilik dengan kunci Kelola (`k`) sebagai pratinjau.
 /// `tema` hanya berlaku untuk undangan DEMO ("Coba Demo" dari halaman tema):
 /// isi demo ditampilkan dengan tema itu. Undangan asli selalu memakai temanya.
+/// `rupa` ("sampul:kubah,judul:pita") juga hanya untuk demo: uji varian bentuk.
 #[server]
-pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<String>, tema: Option<String>) -> Result<InvitationPage, ServerFnError> {
+pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<String>, tema: Option<String>, rupa: Option<String>) -> Result<InvitationPage, ServerFnError> {
     use srv::*;
     let st = state()?;
     let mut row = load(&slug).await?;
@@ -134,17 +135,29 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
         Some(code) if !preview => repo::open_guest(&st.pool, row.id, code).await.map_err(internal)?.map(|(_, g)| g),
         _ => None,
     };
-    let skin = st
-        .themes()
+    let cat = st.themes();
+    // Timpaan rupa hanya untuk demo; dinormalisasi agar URL CSS-nya kanonis.
+    let over = rupa
+        .filter(|r| row.inv.is_demo && r.len() <= 300)
+        .map(|r| crate::web::rupa::parse_override(&r))
+        .filter(|m| !m.is_empty());
+    let skin = cat
         .get(&row.inv.theme)
-        .map(|t| InvSkin {
-            single: t.single_page(),
-            open_anim: t.open_anim.clone(),
-            float_deco: t.float_deco.clone(),
-            scroll_anim: t.scroll_anim.clone(),
-            ornaments: t.ornaments.clone(),
-            bg_video: t.bg_video.clone(),
-            open_video: t.open_video.clone(),
+        .map(|t| {
+            let over_q = over.as_ref().map(|m| m.iter().map(|(k, v)| format!("{k}:{v}")).collect::<Vec<_>>().join(",")).unwrap_or_default();
+            let (css, fonts) = cat.links(t, &over_q);
+            InvSkin {
+                single: t.single_page(),
+                open_anim: t.open_anim.clone(),
+                float_deco: t.float_deco.clone(),
+                scroll_anim: t.scroll_anim.clone(),
+                ornaments: t.ornaments.clone(),
+                bg_video: t.bg_video.clone(),
+                open_video: t.open_video.clone(),
+                rupa: crate::web::rupa::classes(over.as_ref().unwrap_or(&t.rupa)),
+                css,
+                fonts,
+            }
         })
         .unwrap_or_default();
     Ok(InvitationPage { inv: row.inv, guest, preview, skin })

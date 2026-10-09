@@ -1,0 +1,26 @@
+/* ═══ rupa GALERI: Polaroid miring ═══
+ * Dua kolom foto berbingkai putih tebal di bawah, miring selang-seling. */
+.inv.rp-g-polaroid .gallery--masonry {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 14px;
+    columns: auto;
+    padding: 8px 6px;
+}
+.inv.rp-g-polaroid .gallery--masonry .gallery__item {
+    margin: 0;
+    padding: 7px 7px 26px;
+    border-radius: 2px;
+    background: #fdfbf6;
+    box-shadow: 0 6px 18px -6px rgb(0 0 0 / 0.35);
+    rotate: -2.5deg;
+}
+.inv.rp-g-polaroid .gallery--masonry .gallery__item:nth-child(even) {
+    rotate: 2deg;
+    translate: 0 10px;
+}
+.inv.rp-g-polaroid .gallery--masonry img,
+.inv.rp-g-polaroid .gallery--masonry .gallery__item:nth-child(3n + 1) img {
+    aspect-ratio: 1;
+    object-fit: cover;
+}

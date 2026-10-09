@@ -1,0 +1,24 @@
+/* ═══ rupa GALERI: Mozaik satu besar ═══
+ * Foto pertama besar (2×2), sisanya persegi di sekelilingnya. */
+.inv.rp-g-mozaik .gallery--masonry {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: dense;
+    gap: 6px;
+    columns: auto;
+}
+.inv.rp-g-mozaik .gallery--masonry .gallery__item {
+    margin: 0;
+    aspect-ratio: 1;
+    border-radius: 10px;
+}
+.inv.rp-g-mozaik .gallery--masonry .gallery__item:first-child {
+    grid-column: span 2;
+    grid-row: span 2;
+}
+.inv.rp-g-mozaik .gallery--masonry img,
+.inv.rp-g-mozaik .gallery--masonry .gallery__item:nth-child(3n + 1) img {
+    aspect-ratio: auto;
+    height: 100%;
+    object-fit: cover;
+}

@@ -1,0 +1,37 @@
+/* ═══ rupa KISAH: Bab bernomor ═══
+ * Nomor bab besar (01, 02 …) menggantikan titik hati; garis tegak dihapus. */
+.inv.rp-c-angka .story {
+    counter-reset: bab;
+}
+.inv.rp-c-angka .story__item {
+    counter-increment: bab;
+    grid-template-columns: 54px minmax(0, 1fr);
+    padding-bottom: 26px;
+}
+.inv.rp-c-angka .story__item::after {
+    display: none;
+}
+.inv.rp-c-angka .story__dot {
+    width: auto;
+    height: auto;
+    place-items: start center;
+    background: none;
+    border-right: 1px solid var(--line-gold);
+    padding-right: 10px;
+    align-self: stretch;
+}
+.inv.rp-c-angka .story__dot .ms {
+    display: none;
+}
+.inv.rp-c-angka .story__dot::before {
+    content: counter(bab, decimal-leading-zero);
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--gold-deep);
+}
+.inv.rp-c-angka .story__photo {
+    aspect-ratio: 16 / 10;
+    border-radius: 6px;
+}

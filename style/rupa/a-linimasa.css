@@ -1,0 +1,56 @@
+/* ═══ rupa ACARA: Garis waktu ═══
+ * Tanpa kartu: acara berderet di garis tegak dengan titik, rata kiri. */
+.inv.rp-a-linimasa .event.card {
+    background: none;
+    border: 0;
+    border-left: 2px solid var(--line-gold);
+    border-radius: 0;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    margin-left: 12px;
+    padding: 0 0 26px 24px;
+    align-items: flex-start;
+    text-align: left;
+    overflow: visible;
+}
+.inv.rp-a-linimasa .event::after {
+    display: none;
+}
+.inv.rp-a-linimasa .event::before {
+    top: 2px;
+    left: -9px;
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    transform: none;
+    background: var(--gold);
+    box-shadow: 0 0 0 4px var(--bg), 0 0 0 5px var(--line-gold);
+}
+.inv.rp-a-linimasa .event__date {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    order: -1;
+    justify-items: start;
+}
+.inv.rp-a-linimasa .event__num {
+    font-size: 34px;
+}
+.inv.rp-a-linimasa .event__title {
+    font-size: 21px;
+}
+.inv.rp-a-linimasa .event__time {
+    padding: 0;
+    border: 0;
+}
+.inv.rp-a-linimasa .event__venue {
+    align-items: flex-start;
+    text-align: left;
+    flex-direction: row;
+    background: var(--card-glass, var(--card));
+}
+.inv.rp-a-linimasa .event .btn {
+    width: auto;
+}

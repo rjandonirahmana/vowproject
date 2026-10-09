@@ -1,0 +1,29 @@
+/* ═══ rupa MEMPELAI: Potret penuh ═══
+ * Foto memenuhi lebar kartu di bagian atas (tanpa bingkai), nama di bawah. */
+.inv.rp-m-potret .person {
+    padding: 0 0 20px;
+    border-radius: var(--r-lg, 18px);
+    overflow: hidden;
+    gap: 0;
+}
+.inv.rp-m-potret .person::before {
+    display: none;
+}
+.inv.rp-m-potret .arch-photo--person {
+    width: 100%;
+    aspect-ratio: 4 / 4.2;
+    margin: 0 0 14px;
+}
+.inv.rp-m-potret .arch-photo--person .arch-photo__clip {
+    border-radius: 0;
+    box-shadow: none;
+}
+.inv.rp-m-potret .arch-photo--person .arch-photo__frame {
+    display: none;
+}
+.inv.rp-m-potret .person .person__body {
+    padding-inline: 16px;
+}
+.inv.rp-m-potret .person__initial {
+    font-size: calc(76px * var(--script-scale, 1));
+}

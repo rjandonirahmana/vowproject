@@ -1,0 +1,42 @@
+/* ═══ rupa SAMPUL: Lingkaran bercincin ═══
+ * Foto bulat dengan dua cincin: garis emas penuh + cincin titik-titik di luar
+ * (cincin tasbih / lingkar matahari). Statis. */
+.inv.rp-s-lingkaran .arch-photo--cover,
+.inv.rp-s-lingkaran .arch-photo--thanks {
+    width: min(232px, 60vw);
+    aspect-ratio: 1;
+    margin-block: 26px 14px;
+}
+.inv.rp-s-lingkaran .arch-photo--cover .arch-photo__clip,
+.inv.rp-s-lingkaran .arch-photo--thanks .arch-photo__clip {
+    border-radius: 50%;
+    box-shadow:
+        0 0 0 5px var(--card),
+        0 0 0 6.5px var(--gold),
+        var(--shadow-lg);
+}
+.inv.rp-s-lingkaran .arch-photo--cover::before,
+.inv.rp-s-lingkaran .arch-photo--thanks::before {
+    content: "";
+    position: absolute;
+    inset: -18px;
+    border-radius: 50%;
+    border: 2px dotted var(--gold);
+    pointer-events: none;
+}
+.inv.rp-s-lingkaran .arch-photo--cover .arch-photo__frame,
+.inv.rp-s-lingkaran .arch-photo--thanks .arch-photo__frame {
+    display: none;
+}
+.inv.rp-s-lingkaran .cover__names {
+    margin-top: 22px;
+}
+
+/* Di gerbang (sampul pertama) foto dibatasi tinggi layar: kartu tamu &
+   tombol buka harus tetap terlihat di HP pendek (360×640). */
+.inv.rp-s-lingkaran .gate .arch-photo--cover {
+    width: min(232px, 60vw, calc(var(--gate-foto, 34svh) * 1));
+}
+.inv.rp-s-lingkaran .gate .arch-photo--cover {
+    margin-block: 20px 8px;
+}

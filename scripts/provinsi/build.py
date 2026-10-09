@@ -16,6 +16,8 @@
 import json, os, sys
 
 ROOT = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else ".")
+# Data kedua: `suku` (scripts/provinsi/suku.py → 034_tema_suku.sql).
+DATA = sys.argv[2] if len(sys.argv) > 2 else "wilayah"
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Generator lama membaca sys.argv[1] sebagai akar proyek saat diimpor.
 sys.argv = [sys.argv[0], ROOT]
@@ -26,8 +28,14 @@ import adat  # noqa: E402
 sys.path.insert(0, HERE)
 from wilayah import PROVINSI, VARIAN_BUKA, AKSEN  # noqa: E402
 
-OUT = os.path.join(ROOT, "public/img/tema/provinsi")
-URL = "/img/tema/provinsi"
+if DATA == "suku":
+    from suku import SUKU as PROVINSI, KEPALA  # noqa: E402
+    MAP, SQL, SORT, PREFIX, ANIM_SORT = "suku", "034_tema_suku.sql", 400, "suku", 130
+else:
+    KEPALA = None
+    MAP, SQL, SORT, PREFIX, ANIM_SORT = "provinsi", "031_tema_provinsi.sql", 300, "prov", 90
+OUT = os.path.join(ROOT, "public/img/tema", MAP)
+URL = "/img/tema/" + MAP
 os.makedirs(os.path.join(OUT, "anim"), exist_ok=True)
 
 VALID_OPEN = {"tirai", "gerbang", "amplop", "pudar", "gebyok-ukir", "taman-daun", "galaksi", "candi-bentar", "pagelaran-wayang",
@@ -60,7 +68,7 @@ def main():
         assert gulir in VALID_SCROLL and hiasan in VALID_FLOAT and layout in VALID_LAYOUT, slug
         assert font in VALID_FONT and script in VALID_SCRIPT and set_key in adat.SETS, slug
         tk = tokens(primary, gold, bg, dark)
-        accent = AKSEN[set_key]
+        accent = AKSEN.get(set_key, primary)
         col = dict(primary=tk["primary"] if not dark else gold, gold=gold, bg=bg, card=tk["card"], ink=tk["ink"], accent=accent)
 
         # ── Animasi buka ────────────────────────────────────────────────────
@@ -69,8 +77,8 @@ def main():
             spec.update(fill="image", border=True,
                         panel_image=write(f"anim/pintu-{slug}.svg", M.panel(col, tile, emblem)),
                         orn_image=write(f"anim/lambang-{slug}.svg", M.svg(200, 200, M.EMBLEMS[emblem](col, 100, 120))))
-            open_anim = f"prov-{slug}"[:48]
-            anim_rows.append((open_anim, f"Pintu {name}", spec, 90 + n))
+            open_anim = f"{PREFIX}-{slug}"[:48]
+            anim_rows.append((open_anim, f"Pintu {name}", spec, ANIM_SORT + n))
         else:
             assert buka in VALID_OPEN, (slug, buka)
             open_anim = buka
@@ -105,7 +113,7 @@ def main():
         theme_rows.append(dict(
             slug=slug, name=name, category="Luxury" if dark else "Adat", nuansa=nuansa, palette=palette_key(primary, dark, gold),
             region=prov, description=desc, tags=tags + [f"Provinsi {prov}"], badge="Baru", layout=layout, ornament="none",
-            font=font, tokens=tk, dark=dark, sort_order=300 + n, script_font=script, bg_image=bg_img, frame_image=frame,
+            font=font, tokens=tk, dark=dark, sort_order=SORT + n, script_font=script, bg_image=bg_img, frame_image=frame,
             card_deco=deco, float_deco=hiasan, open_anim=open_anim, page_mode="satu", scroll_anim=gulir, image_url=image_url,
             image_mode=mode, gerak_judul="zoom-masuk", gerak_foto="zoom-masuk", ken_burns=True, listed=True,
         ))
@@ -123,7 +131,7 @@ def main():
             return str(v)
         return q(v)
 
-    out = ["""-- ═══════════════════════════════════════════════════════════════════════════
+    out = [KEPALA] if KEPALA else ["""-- ═══════════════════════════════════════════════════════════════════════════
 -- 031_tema_provinsi — 38 tema undangan, SATU PER PROVINSI Indonesia (Aceh s/d
 -- Papua Selatan). DIBANGKITKAN scripts/provinsi/build.py — jangan disunting
 -- tangan; ubah tema lewat /admin/tema setelah tayang.
@@ -139,7 +147,8 @@ def main():
 -- belum punya ornamen — suntingan admin tak pernah ditimpa.
 -- WAJIB setelah 029 (kolom tema terbaru) & 030.
 -- ═══════════════════════════════════════════════════════════════════════════
-""", "-- ── Animasi buka khas provinsi ──"]
+"""]
+    out.append("-- ── Animasi buka khas provinsi ──" if DATA != "suku" else "-- ── Animasi buka khas suku ──")
     for slug, nm, spec, so in anim_rows:
         out.append(f"INSERT INTO animations (kind, slug, name, spec, css, builtin, sort_order) VALUES ('buka', {q(slug)}, {q(nm)}, "
                    f"{q(json.dumps(spec, ensure_ascii=False))}::jsonb, '', FALSE, {so}) ON CONFLICT (kind, slug) DO NOTHING;")
@@ -158,12 +167,12 @@ SELECT a.theme, a.bagian, a.img, a.posisi, a.x, a.y, a.lebar, a.rotasi, a.cermin
    AND NOT EXISTS (SELECT 1 FROM theme_ornaments o WHERE o.theme = a.theme)
  ORDER BY a.theme, a.urutan;
 """)
-    with open(os.path.join(ROOT, "migration/031_tema_provinsi.sql"), "w") as fh:
+    with open(os.path.join(ROOT, "migration", SQL), "w") as fh:
         fh.write("\n".join(out))
 
     from collections import Counter
     print("tema:", len(theme_rows), "| animasi buka baru:", len(anim_rows), "| ornamen:", len(orn_rows))
-    print("buka:", dict(Counter(r["open_anim"] if not r["open_anim"].startswith("prov-") else "prov-*" for r in theme_rows)))
+    print("buka:", dict(Counter(r["open_anim"] if not r["open_anim"].startswith(PREFIX + "-") else PREFIX + "-*" for r in theme_rows)))
     print("gulir:", dict(Counter(r["scroll_anim"] for r in theme_rows)))
     print("hiasan:", dict(Counter(r["float_deco"] for r in theme_rows)))
     print("berkas SVG:", sum(len(fs) for _, _, fs in os.walk(OUT)))

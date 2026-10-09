@@ -1,0 +1,28 @@
+/* ═══ rupa JUDUL: Huruf kapital berjarak ═══
+ * Peran dibalik: label kecil jadi kaligrafi, judul jadi kapital huruf judul
+ * berjarak lebar (gaya prasasti / undangan cetak klasik). */
+.inv.rp-j-kapital .eyebrow--center:has(+ .section__title) {
+    font-family: var(--font-script, var(--font-display));
+    font-size: calc(22px * var(--script-scale, 1));
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--gold-deep);
+    margin-bottom: -6px;
+}
+.inv.rp-j-kapital .section__title {
+    font-family: var(--font-display);
+    font-size: clamp(21px, 6vw, 26px);
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--primary);
+    text-indent: 0.2em;
+}
+.inv.rp-j-kapital .section__title::after {
+    width: 56px;
+    height: 2px;
+    margin: 14px auto 2px;
+    -webkit-mask: none;
+    mask: none;
+}

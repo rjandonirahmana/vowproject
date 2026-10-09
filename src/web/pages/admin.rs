@@ -9,7 +9,7 @@
 use leptos::either::Either;
 use leptos::prelude::*;
 use crate::web::skeleton::*;
-use leptos_meta::{Meta, Title};
+use leptos_meta::{Link, Meta, Title};
 use leptos_router::hooks::{use_params_map, use_query_map};
 
 use crate::web::anim::{self, AnimInfo, AnimSpec};
@@ -266,6 +266,8 @@ pub fn AdminThemeEdit() -> impl IntoView {
     // Ornamen tema ini (untuk pratinjau sampul) — katalog admin tak membawanya.
     let full = Resource::new(slug, get_theme);
     view! {
+        // Semua varian rupa — pratinjau langsung saat admin mengganti bentuk.
+        <Link rel="stylesheet" href="/gaya/_rupa.css" />
         <AdminShell active="tema" title="Sunting Tema">
             <Suspense fallback=|| ()>
                 {move || themes.get().and_then(|r| r.ok()).zip(anims.get()).zip(full.get()).map(|((list, anims), full)| {
@@ -485,6 +487,28 @@ fn ThemeForm(t: ThemeInfo, used: i64, is_new: bool, categories: Vec<String>, nua
                                 {ORNAMENTS.iter().map(|(k, l)| view! { <option value=*k selected=t.ornament == *k>{*l}</option> }).collect_view()}
                             </select>
                         </label>
+                    </div>
+                </section>
+
+                <section class="card fsec">
+                    <h2 class="adm-sec"><Icon name="dashboard" />"Rupa — bentuk tiap bagian"</h2>
+                    <p class="muted">"Bentuk sampul, judul, mempelai, kartu acara, galeri, kartu & pemisah. Pilih kombinasi yang belum dipakai tema lain agar tiap tema benar-benar berbeda."</p>
+                    <div class="field-row field-row--3">
+                        {crate::web::rupa::BAGIAN.iter().map(|b| {
+                            let key = b.key;
+                            let cur = t.rupa.get(key).cloned().unwrap_or_else(|| crate::web::rupa::ASLI.to_string());
+                            view! {
+                                <label class="field">
+                                    <span class="field__label">{b.label}</span>
+                                    <select class="input" name=format!("rupa_{key}") on:change=move |e| {
+                                        let v = event_target_value(&e);
+                                        draft.update(|t| { t.rupa.insert(key.to_string(), v); t.rupa = crate::web::rupa::sanitize(&t.rupa); });
+                                    }>
+                                        {b.varian.iter().map(|(k, l)| view! { <option value=*k selected=cur == *k>{*l}</option> }).collect_view()}
+                                    </select>
+                                </label>
+                            }
+                        }).collect_view()}
                     </div>
                 </section>
 
@@ -712,7 +736,7 @@ fn ThemeForm(t: ThemeInfo, used: i64, is_new: bool, categories: Vec<String>, nua
                             </section>
                         };
                         view! {
-                            <div class=format!("inv inv--embed adm-prev{}", scroll_class(&scroll)) class:is-open=!gate>
+                            <div class=move || format!("inv inv--embed adm-prev{}{}", draft.with(|t| crate::web::rupa::classes(&t.rupa)), scroll_class(&scroll)) class:is-open=!gate>
                                 <div class="inv__glow" aria-hidden="true"></div>
                                 <FloatDeco kind=deco />
                                 {gate.then(|| view! {

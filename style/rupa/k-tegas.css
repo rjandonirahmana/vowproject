@@ -1,0 +1,17 @@
+/* ═══ rupa KARTU: Sudut tajam bergaris ═══
+ * Kartu tanpa bayangan, sudut hampir siku, garis tipis warna primer. */
+.inv.rp-k-tegas .card,
+.inv.rp-k-tegas .bank {
+    border-radius: 3px;
+    box-shadow: none;
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+}
+.inv.rp-k-tegas .btn {
+    border-radius: 3px;
+}
+.inv.rp-k-tegas .event__venue,
+.inv.rp-k-tegas .event__session,
+.inv.rp-k-tegas .event__dress,
+.inv.rp-k-tegas .countdown__tile {
+    border-radius: 2px;
+}

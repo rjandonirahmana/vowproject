@@ -1,0 +1,66 @@
+/* ═══ rupa SAMPUL: Kubah ═══
+ * Foto dalam bentuk kubah bawang (pintu masjid/istana Melayu, Aceh, Banten, Ternate).
+ * Bentuk = mask SVG (ikut skala elemen); cincin = dua lapis pseudo dengan
+ * bentuk sama (emas di luar, warna kartu di dalam). Statis — tanpa animasi. */
+.inv.rp-s-kubah .arch-photo--cover,
+.inv.rp-s-kubah .arch-photo--thanks {
+    --rp-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 128' preserveAspectRatio='none'%3E%3Cpath d='M50 0 C52 7 60 12 68 18 C86 31 100 44 100 64 L100 128 L0 128 L0 64 C0 44 14 31 32 18 C40 12 48 7 50 0 Z'/%3E%3C/svg%3E");
+    width: min(236px, 62vw);
+    aspect-ratio: 100 / 128;
+    isolation: isolate;
+}
+.inv.rp-s-kubah .arch-photo--cover .arch-photo__clip,
+.inv.rp-s-kubah .arch-photo--thanks .arch-photo__clip {
+    border-radius: 0;
+    box-shadow: none;
+    z-index: 2;
+    -webkit-mask: var(--rp-mask) center / 100% 100% no-repeat;
+    mask: var(--rp-mask) center / 100% 100% no-repeat;
+}
+.inv.rp-s-kubah .arch-photo--cover::before,
+.inv.rp-s-kubah .arch-photo--cover::after,
+.inv.rp-s-kubah .arch-photo--thanks::before,
+.inv.rp-s-kubah .arch-photo--thanks::after {
+    content: "";
+    position: absolute;
+    -webkit-mask: var(--rp-mask) center / 100% 100% no-repeat;
+    mask: var(--rp-mask) center / 100% 100% no-repeat;
+    pointer-events: none;
+}
+/* cincin emas */
+.inv.rp-s-kubah .arch-photo--cover::before,
+.inv.rp-s-kubah .arch-photo--thanks::before {
+    inset: -9px;
+    background: linear-gradient(160deg, var(--gold-light), var(--gold) 45%, var(--gold-deep));
+    z-index: 0;
+}
+/* celah warna kartu di antara cincin & foto */
+.inv.rp-s-kubah .arch-photo--cover::after,
+.inv.rp-s-kubah .arch-photo--thanks::after {
+    inset: -5px;
+    background: var(--card);
+    z-index: 1;
+}
+.inv.rp-s-kubah .arch-photo--cover .arch-photo__frame,
+.inv.rp-s-kubah .arch-photo--thanks .arch-photo__frame {
+    display: none;
+}
+/* puncak kubah: mustaka kecil di atas cincin */
+.inv.rp-s-kubah .arch-photo--cover {
+    margin-top: 30px;
+}
+.inv.rp-s-kubah .arch-photo--cover .arch-photo__frame {
+    display: block;
+    inset: -30px 50% auto;
+    width: 10px;
+    height: 22px;
+    margin-left: -5px;
+    background: var(--gold);
+    border-radius: 50% 50% 2px 2px / 70% 70% 2px 2px;
+}
+
+/* Di gerbang (sampul pertama) foto dibatasi tinggi layar: kartu tamu &
+   tombol buka harus tetap terlihat di HP pendek (360×640). */
+.inv.rp-s-kubah .gate .arch-photo--cover {
+    width: min(236px, 62vw, calc(var(--gate-foto, 34svh) * 0.78));
+}

@@ -1,0 +1,55 @@
+/* ═══ rupa SAMPUL: Jendela berbingkai geser ═══
+ * Foto persegi panjang bersudut tajam + bingkai garis yang digeser ke
+ * kanan-bawah (gaya editorial / bingkai jendela kayu). Teks rata kiri. */
+.inv.rp-s-jendela .cover {
+    align-items: flex-start;
+    text-align: left;
+}
+.inv.rp-s-jendela .arch-photo--cover,
+.inv.rp-s-jendela .arch-photo--thanks {
+    width: min(276px, 72vw);
+    aspect-ratio: 4 / 5;
+    margin: 16px 0 22px;
+}
+.inv.rp-s-jendela .arch-photo--thanks {
+    margin-inline: auto;
+}
+.inv.rp-s-jendela .arch-photo--cover .arch-photo__clip,
+.inv.rp-s-jendela .arch-photo--thanks .arch-photo__clip {
+    border-radius: 2px;
+    box-shadow: var(--shadow-lg);
+}
+.inv.rp-s-jendela .arch-photo--cover::before,
+.inv.rp-s-jendela .arch-photo--thanks::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    translate: 12px 12px;
+    border: 1.5px solid var(--gold);
+    pointer-events: none;
+}
+.inv.rp-s-jendela .arch-photo--cover .arch-photo__clip,
+.inv.rp-s-jendela .arch-photo--thanks .arch-photo__clip {
+    z-index: 1;
+}
+.inv.rp-s-jendela .arch-photo--cover .arch-photo__frame,
+.inv.rp-s-jendela .arch-photo--thanks .arch-photo__frame {
+    display: none;
+}
+.inv.rp-s-jendela .cover__names {
+    font-size: clamp(34px, 10vw, 44px);
+    line-height: 1.05;
+    text-wrap: balance;
+    margin-top: 6px;
+}
+.inv.rp-s-jendela .cover .hero__date {
+    justify-content: flex-start;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-gold);
+}
+
+/* Di gerbang (sampul pertama) foto dibatasi tinggi layar: kartu tamu &
+   tombol buka harus tetap terlihat di HP pendek (360×640). */
+.inv.rp-s-jendela .gate .arch-photo--cover {
+    width: min(250px, 66vw, calc(var(--gate-foto, 34svh) * 0.8));
+}

@@ -1,0 +1,49 @@
+/* ═══ rupa MEMPELAI: Medali bercincin tebal ═══
+ * Tanpa kartu: foto bulat besar bercincin ganda, nama di pita berwarna. */
+.inv.rp-m-medali .person.card {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    padding: 10px 0 0;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+.inv.rp-m-medali .person::before {
+    display: none;
+}
+.inv.rp-m-medali .arch-photo--person {
+    width: min(178px, 48vw);
+    aspect-ratio: 1;
+    margin: 16px auto 18px;
+}
+.inv.rp-m-medali .arch-photo--person .arch-photo__clip {
+    border-radius: 50%;
+    box-shadow:
+        0 0 0 5px var(--card),
+        0 0 0 7px var(--gold),
+        0 0 0 13px var(--card),
+        0 0 0 14px var(--gold-light),
+        var(--shadow-lg);
+}
+.inv.rp-m-medali .arch-photo--person .arch-photo__frame {
+    display: none;
+}
+.inv.rp-m-medali .person__name {
+    width: fit-content;
+    max-width: 100%;
+    margin: 4px auto 2px;
+    padding: 6px 30px 7px;
+    font-size: 15px;
+    color: var(--on-primary);
+    background: var(--primary);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%, 12px 50%);
+}
+/* Tanpa kartu → teks langsung di atas motif latar: alas lembut agar terbaca. */
+.inv.rp-m-medali .person .person__body {
+    padding: 10px 16px 12px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--bg) 84%, transparent);
+}
+.inv.rp-m-medali .couple__amp {
+    margin: 6px 0;
+}

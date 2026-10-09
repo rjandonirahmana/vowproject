@@ -1,0 +1,23 @@
+/* ═══ rupa JUDUL: Dalam bingkai bersudut ═══
+ * Judul dikurung empat siku emas (gaya kartu nama / plakat). */
+.inv.rp-j-bingkai .section__title {
+    --s: 16px;
+    --t: 1.5px;
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    padding: 12px 28px 14px;
+    background:
+        linear-gradient(var(--gold), var(--gold)) top left / var(--s) var(--t),
+        linear-gradient(var(--gold), var(--gold)) top left / var(--t) var(--s),
+        linear-gradient(var(--gold), var(--gold)) top right / var(--s) var(--t),
+        linear-gradient(var(--gold), var(--gold)) top right / var(--t) var(--s),
+        linear-gradient(var(--gold), var(--gold)) bottom left / var(--s) var(--t),
+        linear-gradient(var(--gold), var(--gold)) bottom left / var(--t) var(--s),
+        linear-gradient(var(--gold), var(--gold)) bottom right / var(--s) var(--t),
+        linear-gradient(var(--gold), var(--gold)) bottom right / var(--t) var(--s);
+    background-repeat: no-repeat;
+}
+.inv.rp-j-bingkai .section__title::after {
+    display: none;
+}

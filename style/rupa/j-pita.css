@@ -1,0 +1,21 @@
+/* ═══ rupa JUDUL: Di atas pita ═══
+ * Judul di pita berwarna primer berujung takik (pita undangan / selendang). */
+.inv.rp-j-pita .section__title {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+    padding: 8px 40px 10px;
+    font-size: calc(26px * var(--script-scale, 1));
+    color: var(--on-primary);
+    background:
+        linear-gradient(var(--gold-light), var(--gold-light)) 0 4px / 100% 1px no-repeat,
+        linear-gradient(var(--gold-light), var(--gold-light)) 0 calc(100% - 4px) / 100% 1px no-repeat,
+        var(--primary);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 50%, 100% 100%, 0 100%, 16px 50%);
+}
+.inv.rp-j-pita .section__title::after {
+    display: none;
+}
+.inv.rp-j-pita .eyebrow--center:has(+ .section__title) {
+    margin-bottom: 2px;
+}
