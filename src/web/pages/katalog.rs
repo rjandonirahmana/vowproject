@@ -341,11 +341,15 @@ pub fn ThemeCard(t: ThemeInfo, from: i64, #[prop(default = None)] anchor: Option
         let r = if t.reviews.is_empty() { t.rating.clone() } else { format!("{} ({})", t.rating, t.reviews) };
         view! { <span class="tcard__rating"><Icon name="star" />{r}</span> }
     });
+    // Klik kartu / "Demo" → undangan demo LAYAR PENUH bertema ini (bukan
+    // halaman /tema/{slug} dengan bingkai HP). Nama tema tetap menaut ke
+    // /tema/{slug} — halaman itu yang diindeks Google (/u/ ber-noindex).
+    let demo = format!("/u/{}?tema={}", crate::web::themes::DEMO_SLUG, t.slug);
     view! {
         <article class="tcard card" id=anchor>
             // Kelas rupa: bentuk kartu mini mengikuti sampul tema (web/rupa.rs) —
             // dulu semua kartu katalog sama persis.
-            <a class=format!("tcard__art th-{}{}", t.slug, crate::web::rupa::classes(&t.rupa)) href=format!("/tema/{}", t.slug) aria-label=format!("Demo {}", t.name)>
+            <a class=format!("tcard__art th-{}{}", t.slug, crate::web::rupa::classes(&t.rupa)) href=demo.clone() aria-label=format!("Demo {}", t.name)>
                 {(!t.badge.is_empty()).then(|| view! { <span class="tcard__badge"><Icon name="star" />{t.badge.clone()}</span> })}
                 <div class="mini">
                     <p class="mini__eyebrow">"The Wedding Of"</p>
@@ -360,7 +364,7 @@ pub fn ThemeCard(t: ThemeInfo, from: i64, #[prop(default = None)] anchor: Option
                 <div class="tcard__pv" data-pv=format!("/u/{}?tema={}&pv=1", crate::web::themes::DEMO_SLUG, t.slug) aria-hidden="true"></div>
             </a>
             <div class="tcard__body">
-                <h3>{t.name.clone()}</h3>
+                <h3><a href=format!("/tema/{}", t.slug)>{t.name.clone()}</a></h3>
                 <p class="tcard__desc">{t.description.clone()}</p>
                 <div class="tcard__tags">
                     {t.tags.iter().map(|tag| view! { <span class="tag">{tag.clone()}</span> }).collect_view()}
@@ -371,7 +375,7 @@ pub fn ThemeCard(t: ThemeInfo, from: i64, #[prop(default = None)] anchor: Option
                         <b>{format!("mulai {}", rupiah(from))}</b>
                     </div>
                     <div class="tcard__btns">
-                        <a class="btn btn--soft btn--sm" href=format!("/tema/{}", t.slug)>"Demo"</a>
+                        <a class="btn btn--soft btn--sm" href=demo>"Demo"</a>
                         <a class="btn btn--primary btn--sm" href=format!("/buat?tema={}", t.slug)>"Pilih"</a>
                     </div>
                 </div>

@@ -2268,6 +2268,13 @@ html.is-pv .toast {
     font-size: 18px;
     font-weight: 600;
 }
+.tcard__body h3 a {
+    color: inherit;
+    text-decoration: none;
+}
+.tcard__body h3 a:hover {
+    text-decoration: underline;
+}
 .tcard__desc {
     font-size: 13px;
     color: var(--muted);
