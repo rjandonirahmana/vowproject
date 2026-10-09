@@ -4215,6 +4215,7 @@ dependencies = [
  "console_error_panic_hook",
  "deadpool-postgres",
  "dotenvy",
+ "futures-util",
  "getrandom 0.3.4",
  "getrandom 0.4.3",
  "image",

@@ -150,6 +150,14 @@ async fn main() -> Result<()> {
         Ok(()) => tracing::info!("konten situs dimuat"),
         Err(e) => tracing::warn!(error = %format!("{e:#}"), "tabel site_content belum siap (jalankan migration/003_admin_konten.sql) — memakai konten bawaan"),
     }
+    // Aset statis di RustFS (migrasi 038) — WAJIB sebelum reload_themes:
+    // CSS tema ditulis ulang memakai peta ini. Bawaan: aktif di produksi,
+    // mati di dev (CORS RustFS tak mengizinkan localhost → mask SVG gagal).
+    if std::env::var("ASET_RUSTFS").map(|v| v == "true").unwrap_or(!dev) {
+        undangan::server::aset::muat(&state.pool).await;
+    } else {
+        tracing::info!("ASET_RUSTFS mati — /img & /video disajikan dari public/");
+    }
     state.seed_animations().await;
     state.reload_templat(true).await;
     match state.reload_themes().await {
@@ -253,6 +261,9 @@ async fn main() -> Result<()> {
         // memakai templat). Di DALAM exchange (?k= sudah jadi cookie)
         // & di dalam kompresi (HTML-nya ikut dikompresi).
         .layer(axum::middleware::from_fn(undangan::server::templat::serve))
+        // /img & /video → RustFS: HTML ditulis ulang (juga HTML templat di
+        // atas), sisa rujukan dialihkan 301. Di dalam kompresi.
+        .layer(axum::middleware::from_fn(undangan::server::aset::layanan))
         .layer(tower_http::compression::CompressionLayer::new())
         // Tautan Kelola ?key= / pratinjau ?k= → cookie HttpOnly + 303 ke URL bersih.
         .layer(axum::middleware::from_fn(undangan::server::owner::exchange))

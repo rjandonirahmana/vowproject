@@ -47,8 +47,20 @@ fn legacy_demo_target(path: &str, query: Option<&str>) -> Option<String> {
     })
 }
 
-/// Middleware: demo lama sudah tersebar (WA, banner) → 301 ke demo baru.
+/// `www.domain` → `https://domain` (path & query ikut). Satu host saja di
+/// mata Google — tanpa ini www & apex sama-sama 200 (konten ganda).
+fn www_target(host: &str, path_and_query: &str) -> Option<String> {
+    let apex = host.strip_prefix("www.")?;
+    (!apex.is_empty()).then(|| format!("https://{apex}{path_and_query}"))
+}
+
+/// Middleware: www → apex, dan demo lama yang sudah tersebar (WA, banner)
+/// → demo baru. Keduanya 301.
 pub async fn legacy_demo(req: Request, next: Next) -> Response {
+    let pq = req.uri().path_and_query().map(|p| p.as_str()).unwrap_or("/");
+    if let Some(to) = request_host(&req).and_then(|h| www_target(&h, pq)) {
+        return (StatusCode::MOVED_PERMANENTLY, [(header::LOCATION, to)]).into_response();
+    }
     match legacy_demo_target(req.uri().path(), req.uri().query()) {
         Some(to) => (StatusCode::MOVED_PERMANENTLY, [(header::LOCATION, to)]).into_response(),
         None => next.run(req).await,
@@ -335,6 +347,13 @@ mod tests {
         std::thread::sleep(Duration::from_millis(40));
         rl.fail(&["ip:baru"]);
         assert_eq!(rl.len(), 1, "entri kedaluwarsa dibuang");
+    }
+
+    #[test]
+    fn www_ke_apex() {
+        assert_eq!(www_target("www.ilyvowcraft.online", "/paket?x=1").as_deref(), Some("https://ilyvowcraft.online/paket?x=1"));
+        assert!(www_target("ilyvowcraft.online", "/").is_none());
+        assert!(www_target("www.", "/").is_none());
     }
 
     #[test]

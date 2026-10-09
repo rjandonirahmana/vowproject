@@ -1026,6 +1026,13 @@ pub async fn ornaments(pool: &Pool) -> Result<Vec<crate::web::ornamen::Ornament>
     Ok(rows.iter().filter_map(|r| serde_json::from_value(r.get::<_, Value>("j")).ok()).collect())
 }
 
+/// Peta aset statis di RustFS (migrasi 038): (jalur situs, URL publik).
+pub async fn aset(pool: &Pool) -> Result<Vec<(String, String)>> {
+    let c = pool.get().await?;
+    let rows = db_rows(&c, "SELECT jalur, url FROM aset", &[]).await.context("select aset")?;
+    Ok(rows.iter().map(|r| (r.get(0), r.get(1))).collect())
+}
+
 /// Simpan ornamen (id 0 = baru). Mengembalikan id.
 pub async fn save_ornament(pool: &Pool, o: &crate::web::ornamen::Ornament) -> Result<i64> {
     let c = pool.get().await?;

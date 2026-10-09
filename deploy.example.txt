@@ -41,6 +41,9 @@ docker run -d \
   `# Buat DB sekali: createdb undangan lalu migrasi manual: psql -f migration/001_init.sql.` \
   -e DATABASE_URL='postgres://USER:SANDI@172.17.0.1:5417/undangan' \
   -e AUTO_MIGRATE=false \
+  -e ASET_RUSTFS='true' \
+  -e GOOGLE_SITE_VERIFICATION='' \
+  -e BING_SITE_VERIFICATION='' \
   `# WA admin untuk tombol konfirmasi pembayaran (boleh 08xx / 62xx).` \
   -e ADMIN_WHATSAPP='62812XXXXXXXX' \
   `# RustFS: foto mempelai & lagu upload. PUBLIC_URL = domain yang dilihat` \

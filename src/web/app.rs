@@ -48,6 +48,7 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
                 <meta name="theme-color" content="#f4fcf0" />
+                {site_verification().iter().map(|(n, c)| view! { <meta name=*n content=c.clone() /> }).collect_view()}
                 <link rel="stylesheet" href="/pkg/undangan.css" />
                 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -172,6 +173,20 @@ pub fn App() -> impl IntoView {
 /// di-cache browser selamanya (dulu ±24 KB inline di SETIAP halaman).
 #[cfg(feature = "ssr")]
 pub const GLOBAL_JS: &str = include_str!("global.js");
+
+/// Tag verifikasi kepemilikan situs dari env (dibaca sekali):
+/// GOOGLE_SITE_VERIFICATION (Search Console, metode "Tag HTML" — isi
+/// `content`-nya saja) & BING_SITE_VERIFICATION (Bing Webmaster).
+#[cfg(feature = "ssr")]
+fn site_verification() -> &'static [(&'static str, String)] {
+    static V: std::sync::OnceLock<Vec<(&'static str, String)>> = std::sync::OnceLock::new();
+    V.get_or_init(|| {
+        [("google-site-verification", "GOOGLE_SITE_VERIFICATION"), ("msvalidate.01", "BING_SITE_VERIFICATION")]
+            .into_iter()
+            .filter_map(|(name, var)| std::env::var(var).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty()).map(|v| (name, v)))
+            .collect()
+    })
+}
 
 /// Hash isi skrip global → `?v=` (berubah otomatis tiap skrip diubah).
 #[cfg(feature = "ssr")]

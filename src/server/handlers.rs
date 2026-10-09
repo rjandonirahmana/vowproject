@@ -850,8 +850,10 @@ pub async fn sitemap(Extension(state): Extension<Arc<AppState>>) -> Response {
     use crate::web::seo::SITE_URL;
     let cat = state.themes();
     let konten = state.konten();
+    // HANYA halaman yang boleh diindeks — /buat, /u/, /kelola/ ber-noindex
+    // (security.rs is_private); mencantumkannya = galat di Search Console.
     let mut urls: Vec<(String, &str, &str)> = [
-        ("/", "daily", "1.0"), ("/paket", "weekly", "0.9"), ("/buat", "monthly", "0.8"), ("/panduan", "monthly", "0.7"),
+        ("/", "daily", "1.0"), ("/paket", "weekly", "0.9"), ("/panduan", "monthly", "0.7"),
         ("/cetak", "monthly", "0.6"), ("/dekorasi", "monthly", "0.6"), ("/mua", "monthly", "0.6"), ("/seserahan", "monthly", "0.6"),
         ("/privasi", "yearly", "0.2"), ("/syarat", "yearly", "0.2"),
     ]

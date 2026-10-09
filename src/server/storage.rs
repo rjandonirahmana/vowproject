@@ -192,11 +192,13 @@ impl StorageService {
     }
 
     /// Kunci objek dari URL publik unggahan KITA (tanpa fragmen #t=/#pos=).
-    /// URL lain (lagu bawaan /music/…, gambar /img/…, situs luar) → None.
+    /// URL lain (lagu bawaan /music/…, gambar /img/…, aset/…, situs luar) → None.
     pub fn key_of(&self, url: &str) -> Option<String> {
         let url = url.split(['#', '?']).next().unwrap_or(url);
         let key = url.strip_prefix(&self.public_url)?.strip_prefix('/')?;
-        (!key.is_empty() && !key.contains("..")).then(|| key.to_string())
+        // aset/… = aset situs bersama semua tema (server/aset.rs): URL-nya
+        // bisa ikut tersimpan di undangan, tapi tak boleh dihapus/ditimpa.
+        (!key.is_empty() && !key.contains("..") && !key.starts_with(super::aset::AWALAN_KUNCI)).then(|| key.to_string())
     }
 
     /// Hapus satu unggahan berdasarkan URL publiknya. `false` = bukan milik kita.
@@ -309,6 +311,7 @@ mod tests {
         assert!(st.key_of("https://evil.example/undangan/foto/a.jpg").is_none());
         assert!(st.key_of(&format!("{base}/../rahasia")).is_none());
         assert!(st.key_of(&format!("{base}-lain/foto/a.jpg")).is_none());
+        assert!(st.key_of(&format!("{base}/aset/img/tema/lily-bg.svg")).is_none());
     }
 
     #[test]

@@ -1,6 +1,7 @@
 //! server — kode khusus native (Postgres, RustFS, handler form multipart).
 //! Tidak pernah dikompilasi ke wasm32.
 
+pub mod aset;
 pub mod auth;
 pub mod cleanup;
 pub mod config;

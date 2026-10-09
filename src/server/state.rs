@@ -80,7 +80,9 @@ pub struct ThemeCatalog {
 impl ThemeCatalog {
     pub fn new(list: Vec<ThemeInfo>, db_anims: Vec<crate::web::anim::AnimInfo>) -> Self {
         let anims = crate::web::anim::merge(db_anims);
-        let css = skin::catalog_css(&list, &anims) + &crate::web::anim::catalog_css(&anims);
+        // "/img/…" → URL RustFS (server/aset.rs) SEBELUM di-hash: peta aset
+        // berubah → ?v= ikut berubah.
+        let css = super::aset::tulis_ulang(&(skin::catalog_css(&list, &anims) + &crate::web::anim::catalog_css(&anims))).into_owned();
         let h = super::util::fnv1a64(&css);
         let css = axum::body::Bytes::from(css);
         let fonts = skin::font_families(&list);
@@ -90,7 +92,7 @@ impl ThemeCatalog {
             .filter(|t| skin::is_slug(&t.slug))
             .map(|t| (t.slug.clone(), axum::body::Bytes::from(theme_css(t, &t.rupa, &anims))))
             .collect();
-        let rupa_all = axum::body::Bytes::from(crate::web::rupa::all_css());
+        let rupa_all = axum::body::Bytes::from(super::aset::tulis_ulang(&crate::web::rupa::all_css()).into_owned());
         Self { list, index, anims, css, version: format!("{:08x}", h as u32), fonts, gaya, rupa_all }
     }
 
@@ -138,7 +140,7 @@ fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, a
         }
     }
     css.push_str(&crate::web::rupa::css(rupa));
-    css
+    super::aset::tulis_ulang(&css).into_owned()
 }
 
 impl AppState {

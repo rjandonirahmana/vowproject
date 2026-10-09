@@ -27,3 +27,16 @@
 .inv.rp-m-potret .person__initial {
     font-size: calc(76px * var(--script-scale, 1));
 }
+/* Tanpa foto mempelai: monogram jangan jadi kotak raksasa selebar kartu —
+   cukup pita rendah bermonogram (audit sistem: 340×357 px kosong). */
+.inv.rp-m-potret .arch-photo--person:has(.person__initial) {
+    aspect-ratio: auto;
+    height: 140px;
+}
+.inv.rp-m-potret .arch-photo__clip:has(> .person__initial)::after {
+    inset: 8px;
+    border-radius: 10px;
+}
+.inv.rp-m-potret .person__initial {
+    font-size: calc(58px * var(--script-scale, 1));
+}
