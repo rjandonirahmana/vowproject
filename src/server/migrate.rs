@@ -173,6 +173,7 @@ const PENANDA: &[(&str, Tanda)] = &[
     ("028_story_hapus.sql", Tanda::Kolom("invitation_stories", "owner_token_hash")),
     ("029_tema_templat.sql", Tanda::Objek("public.theme_templates")),
     ("033_rupa.sql", Tanda::Kolom("themes", "rupa")),
+    ("037_story_panduan.sql", Tanda::Objek("public.site_stories")),
 ];
 
 /// Migrasi data saja (seed tema/animasi/demo) — tak punya objek skema untuk

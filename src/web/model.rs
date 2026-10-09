@@ -645,6 +645,24 @@ pub struct Banner {
     pub status: String,
 }
 
+/// Story PANDUAN beranda (tabel site_stories, migrasi 037) — hanya admin.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SiteStory {
+    pub id: i64,
+    /// Label lingkaran (pendek, mis. "Pilih Tema").
+    pub judul: String,
+    /// Keterangan di bawah gambar.
+    pub teks: String,
+    /// Gambar tegak 9:16.
+    pub img: String,
+    /// Tombol aksi opsional.
+    pub tautan: String,
+    pub tombol: String,
+    pub aktif: bool,
+    pub urutan: i32,
+}
+
 #[cfg(test)]
 mod story_tests {
     use super::STORY_FILTERS;

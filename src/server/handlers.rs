@@ -1535,6 +1535,117 @@ pub async fn admin_save_banner(
     }
 }
 
+/// POST /admin/story-panduan/simpan — tambah/ubah story panduan beranda
+/// (multipart `img_file` → RustFS `foto/panduan/{nama-berkas}.webp`). Gambar
+/// lama milik RustFS dihapus setelah diganti (tak ada berkas yatim).
+pub async fn admin_save_site_story(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    mp: Multipart,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    if let Ok(mut g) = state.panduan.write() {
+        *g = None;
+    }
+    let back = "/admin/story-panduan";
+    let Ok(mut form) = super::form::read(mp, 1).await else {
+        return to(back, "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
+    };
+    let files = std::mem::take(&mut form.files);
+    let get = |k: &str, max: usize| form.get(k, max);
+    let id: i64 = get("id", 20).parse().unwrap_or(0);
+    let mut s = crate::web::model::SiteStory {
+        id,
+        judul: get("judul", 24),
+        teks: get("teks", 220),
+        img: get("img", 500),
+        tautan: get("tautan", 300),
+        tombol: get("tombol", 30),
+        aktif: form.raw("aktif") == "1",
+        urutan: 0,
+    };
+    let lama = if id > 0 {
+        repo::site_stories(&state.pool, false).await.ok().and_then(|v| v.into_iter().find(|x| x.id == id)).map(|x| x.img)
+    } else {
+        None
+    };
+    if let Some(up) = files.into_iter().find(|f| f.field == "img_file") {
+        let Some(st) = state.storage.as_ref() else {
+            return to(back, "galat", "RustFS belum dikonfigurasi — isi alamat gambar saja (mis. /img/panduan/… atau https://…).");
+        };
+        let name = super::storage::StorageService::unique_name(&super::storage::file_stem(&up.file_name, "panduan"), |_| false);
+        match st.upload_image_as(up.data, "panduan", &format!("{name}-{}", &auth::new_token()[..6]), super::storage::Ukuran::Foto).await {
+            Ok(u) => s.img = u,
+            Err(e) => return to(back, "galat", &e.to_string()),
+        }
+    }
+    if s.judul.trim().is_empty() {
+        return to(back, "galat", "Judul (label lingkaran) wajib diisi.");
+    }
+    if !crate::web::skin::is_safe_url(&s.img) {
+        return to(back, "galat", "Gambar wajib diisi (unggah berkas atau alamat /img/… / https://…).");
+    }
+    if !s.tautan.is_empty() && !crate::web::skin::is_safe_url(&s.tautan) {
+        return to(back, "galat", "Tautan tombol harus diawali / (halaman situs) atau https://.");
+    }
+    match repo::save_site_story(&state.pool, &s).await {
+        Ok(new_id) => {
+            // Gambar diganti → berkas lama di RustFS dibuang (bukan aset /img bawaan).
+            if let (Some(lama), Some(st)) = (lama.filter(|l| *l != s.img), state.storage.as_ref()) {
+                if let Err(e) = st.delete_url(&lama).await {
+                    tracing::warn!(error = %format!("{e:#}"), "hapus gambar story panduan lama");
+                }
+            }
+            to(&format!("{back}#story-{new_id}"), "ok", if id == 0 { "Story ditambahkan." } else { "Story tersimpan." })
+        }
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: simpan story panduan");
+            to(back, "galat", "Gagal menyimpan — sudah menjalankan migration/037_story_panduan.sql?")
+        }
+    }
+}
+
+/// POST /admin/story-panduan/urut (id, arah) & /admin/story-panduan/hapus (id).
+pub async fn admin_site_story_action(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    axum::extract::Path(aksi): axum::extract::Path<String>,
+    axum::Form(f): axum::Form<HashMap<String, String>>,
+) -> Response {
+    if let Err(r) = require(&state, &headers, false).await {
+        return r;
+    }
+    if let Ok(mut g) = state.panduan.write() {
+        *g = None;
+    }
+    let back = "/admin/story-panduan";
+    let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let res = match aksi.as_str() {
+        "urut" => repo::move_site_story(&state.pool, id, f.get("arah").is_some_and(|a| a == "naik")).await.map(|_| "Urutan diperbarui."),
+        "hapus" => match repo::delete_site_story(&state.pool, id).await {
+            Ok(img) => {
+                if let (Some(img), Some(st)) = (img, state.storage.as_ref()) {
+                    if let Err(e) = st.delete_url(&img).await {
+                        tracing::warn!(error = %format!("{e:#}"), "hapus gambar story panduan");
+                    }
+                }
+                Ok("Story dihapus (gambar di RustFS ikut dihapus).")
+            }
+            Err(e) => Err(e),
+        },
+        _ => return to(back, "galat", "Aksi tidak dikenal."),
+    };
+    match res {
+        Ok(msg) => to(&format!("{back}#story-{id}"), "ok", msg),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: story panduan {aksi}");
+            to(back, "galat", "Gagal memproses story.")
+        }
+    }
+}
+
 /// POST /admin/banner/urut (id, arah=naik|turun) & /admin/banner/hapus (id).
 pub async fn admin_banner_action(
     Extension(state): Extension<Arc<AppState>>,

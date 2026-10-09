@@ -88,6 +88,8 @@ pub fn KatalogPage() -> impl IntoView {
     let konten = super::use_konten();
     // Banner beranda (tabel banners, /admin/banner).
     let banners = Resource::new(|| (), |_| crate::web::api::get_banners());
+    // Story panduan (tabel site_stories, /admin/story-panduan) — tepat di bawah banner.
+    let panduan = Resource::new(|| (), |_| crate::web::api::get_site_stories());
     let from = move || konten.get().and_then(|r| r.ok()).map(|k| k.min_price()).unwrap_or(0);
     let all = Signal::derive(move || themes.get().and_then(|r| r.ok()).unwrap_or_default());
     // Kartu tambahan yang dimuat di browser (infinite scroll / tombol) — TANPA
@@ -108,6 +110,12 @@ pub fn KatalogPage() -> impl IntoView {
     // (sebelum itu klik = tautan biasa ?tampil=…).
     let ready = RwSignal::new(false);
     Effect::new(move |_| ready.set(true));
+    // HP: panel filter dilipat (dulu terbuka penuh sebelum satu tema pun terlihat).
+    let fopen = RwSignal::new(false);
+    let aktif = move || {
+        let f = filter.get();
+        f.nuansa.len() + usize::from(!f.palet.is_empty()) + usize::from(!f.urut.is_empty())
+    };
     let results = Signal::derive(move || {
         let f = filter.get();
         let mut v: Vec<ThemeInfo> = all.get().into_iter().filter(|t| f.matches(t)).collect();
@@ -151,6 +159,9 @@ pub fn KatalogPage() -> impl IntoView {
             <Suspense fallback=|| ()>
                 {move || banners.get().and_then(|r| r.ok()).map(|items| view! { <BannerCarousel items=items /> })}
             </Suspense>
+            <Suspense fallback=|| ()>
+                {move || panduan.get().and_then(|r| r.ok()).map(|items| view! { <PanduanStories items=items /> })}
+            </Suspense>
 
             <section class="k-hero">
                 <span class="chip chip--soft"><Icon name="auto_awesome" />"Curated Atelier Collection 2026"</span>
@@ -190,12 +201,19 @@ pub fn KatalogPage() -> impl IntoView {
             </Suspense>
 
             <div class="k-layout">
-                <aside class="k-filter card">
+                <aside class="k-filter card" class:is-open=move || fopen.get()>
                     <form method="get" action="/#katalog">
                         <div class="k-filter__head">
-                            <b><Icon name="tune" />"Filter Presisi"</b>
+                            // HP: kepala = tombol buka/tutup panel; desktop: judul biasa.
+                            <button type="button" class="k-filter__toggle" aria-expanded=move || fopen.get().to_string()
+                                on:click=move |_| fopen.update(|o| *o = !*o)>
+                                <Icon name="tune" />"Filter Presisi"
+                                {move || (aktif() > 0).then(|| view! { <span class="k-filter__badge">{aktif()}</span> })}
+                                <Icon name="expand_more" class="k-filter__caret" />
+                            </button>
                             <a href="/#katalog">"Reset"</a>
                         </div>
+                        <div class="k-filter__body">
                         <input type="hidden" name="q" prop:value=move || filter.get().q />
                         <input type="hidden" name="kategori" prop:value=move || filter.get().kategori />
                         <p class="eyebrow">"Nuansa & Budaya"</p>
@@ -240,6 +258,7 @@ pub fn KatalogPage() -> impl IntoView {
                         <div class="k-filter__foot">
                             <button class="btn btn--primary btn--block btn--sm" type="submit"><Icon name="tune" />"Terapkan Filter"</button>
                         </div>
+                        </div>
                     </form>
                 </aside>
 
@@ -271,15 +290,21 @@ pub fn KatalogPage() -> impl IntoView {
                             let f = filter.get();
                             let n = shown.get();
                             let sisa = results.get().len().saturating_sub(n);
+                            let total = results.get().len();
                             (sisa > 0).then(|| view! {
+                                // Paginasi "muat lagi" MANUAL + bilah progres (dulu otomatis
+                                // tanpa ujung → info, CTA & footer tak pernah terjangkau).
+                                // data-load-more hanya dipakai pemulihan posisi saat Back.
                                 <div class="k-more">
-                                    // data-load-more → skrip global (app.rs) mengekliknya otomatis
-                                    // saat tombol mendekati layar.
-                                    <a class="btn btn--soft"
+                                    <p class="k-more__count">{format!("{n} dari {total} tema")}</p>
+                                    <span class="k-more__bar" aria-hidden="true">
+                                        <i style=format!("width:{}%", n * 100 / total.max(1))></i>
+                                    </span>
+                                    <a class="btn btn--outline"
                                         href=f.with("tampil", &(n + PER_HALAMAN).to_string()).replace("#katalog", &format!("#k-{n}"))
                                         data-load-more=move || ready.get().then_some("1")
                                         on:click=move |e| { e.prevent_default(); extra.update(|x| *x += PER_HALAMAN); }>
-                                        <Icon name="expand_more" />{format!("Tampilkan lebih banyak ({sisa} tema lagi)")}
+                                        <Icon name="expand_more" />{format!("Tampilkan {} tema lagi", sisa.min(PER_HALAMAN))}
                                     </a>
                                 </div>
                             })
@@ -318,7 +343,9 @@ pub fn ThemeCard(t: ThemeInfo, from: i64, #[prop(default = None)] anchor: Option
     });
     view! {
         <article class="tcard card" id=anchor>
-            <a class=format!("tcard__art th-{}", t.slug) href=format!("/tema/{}", t.slug) aria-label=format!("Demo {}", t.name)>
+            // Kelas rupa: bentuk kartu mini mengikuti sampul tema (web/rupa.rs) —
+            // dulu semua kartu katalog sama persis.
+            <a class=format!("tcard__art th-{}{}", t.slug, crate::web::rupa::classes(&t.rupa)) href=format!("/tema/{}", t.slug) aria-label=format!("Demo {}", t.name)>
                 {(!t.badge.is_empty()).then(|| view! { <span class="tcard__badge"><Icon name="star" />{t.badge.clone()}</span> })}
                 <div class="mini">
                     <p class="mini__eyebrow">"The Wedding Of"</p>
@@ -440,6 +467,71 @@ fn packages(k: Konten) -> impl IntoView {
     }
 }
 
+/// Story PANDUAN beranda (di bawah banner): lingkaran per langkah (pilih tema →
+/// pembayaran → konfirmasi admin); ketuk = penampil story layar penuh
+/// (global.js, sama dengan story tamu) yang berlanjut ke langkah berikutnya,
+/// progress bersegmen + tombol aksi per langkah. Data JSON ditanam di
+/// halaman — tanpa request tambahan saat dibuka.
+#[component]
+fn PanduanStories(items: Vec<crate::web::model::SiteStory>) -> impl IntoView {
+    use crate::web::skin::is_safe_url;
+    #[derive(serde::Serialize)]
+    struct Item {
+        id: i64,
+        photo: String,
+        name: String,
+        ago: String,
+        caption: String,
+        filter: &'static str,
+        link: String,
+        cta: String,
+    }
+    let items: Vec<_> = items.into_iter().filter(|s| is_safe_url(&s.img)).collect();
+    let n = items.len();
+    (n > 0).then(|| {
+        let data: Vec<Item> = items
+            .iter()
+            .enumerate()
+            .map(|(i, s)| Item {
+                id: s.id,
+                photo: s.img.clone(),
+                name: s.judul.clone(),
+                ago: format!("Panduan · langkah {} dari {n}", i + 1),
+                caption: s.teks.clone(),
+                filter: "normal",
+                link: if is_safe_url(&s.tautan) { s.tautan.clone() } else { String::new() },
+                cta: s.tombol.clone(),
+            })
+            .collect();
+        let json = serde_json::to_string(&data).unwrap_or_else(|_| "[]".into()).replace("</", "<\\/");
+        view! {
+            <section class="pd-stories" aria-label="Panduan memesan undangan" data-story-slug="_panduan">
+                <div class="pd-stories__head">
+                    <p class="pd-stories__label"><span>"Cara Pesan"</span>{format!("{n} langkah mudah")}</p>
+                    <button type="button" class="pd-stories__all" data-story-open="0" data-story-src="panduan-data">"Putar panduan"<Icon name="play_arrow" /></button>
+                </div>
+                <div class="story-bar pd-stories__bar" style=format!("--n:{n}")>
+                    {items.into_iter().enumerate().map(|(i, s)| view! {
+                        <div class="story-item">
+                            <button type="button" class="story-user-btn" data-story-open=i.to_string() data-story-src="panduan-data"
+                                data-story-id=s.id.to_string() aria-label=format!("Panduan langkah {}: {}", i + 1, s.judul)>
+                                <span class="story-avatar-ring">
+                                    <img class="story-avatar-img" src=s.img.clone() alt="" loading="lazy" decoding="async" />
+                                    <b class="pd-stories__no" aria-hidden="true">{(i + 1).to_string()}</b>
+                                </span>
+                                <span class="story-username">{s.judul.clone()}</span>
+                            </button>
+                        </div>
+                    }).collect_view()}
+                </div>
+                // data-fit=contain: gambar panduan berisi teks → tampil utuh (tak dipangkas
+                // sisi seperti foto), sisa layar = warna latar gambar.
+                <script type="application/json" id="panduan-data" data-seg="1" data-fit="contain" inner_html=json></script>
+            </section>
+        }
+    })
+}
+
 /// Carousel banner beranda: geser (scroll-snap, bisa diusap tanpa JS), titik &
 /// tombol ‹ ›; berganti otomatis tiap 6 detik lewat skrip global (app.rs,
 /// `[data-banner]`) — berhenti saat disentuh/di-hover & bila "kurangi animasi".
@@ -519,6 +611,12 @@ fn faq_items(k: &Konten) -> Vec<(&'static str, String)> {
     ]
 }
 
+/// Label bagian bernomor bergaya editorial: `01 / FITUR ……… 01`.
+#[component]
+fn Bab(no: &'static str, label: &'static str) -> impl IntoView {
+    view! { <p class="bab"><span>{format!("{no} / {label}")}</span><span aria-hidden="true">{no}</span></p> }
+}
+
 fn undangan_online_info(k: Konten) -> impl IntoView {
     let faqs = faq_items(&k);
     let prices: Vec<i64> = k.paket.iter().map(|p| p.price).collect();
@@ -536,25 +634,27 @@ fn undangan_online_info(k: Konten) -> impl IntoView {
         <JsonLd data=ld_faq />
         <section class="seo-info" aria-labelledby="seo-info-title">
             <div class="seo-info__intro">
-                <p class="eyebrow eyebrow--gold">"Undangan Digital"</p>
-                <h2 id="seo-info-title">"Undangan Online Pernikahan yang Elegan, Cepat & Mudah Dibagikan"</h2>
+                <Bab no="01" label="Undangan Digital" />
+                <h2 id="seo-info-title">"Undangan Online Pernikahan yang "<em>"Elegan"</em>", Cepat & Mudah Dibagikan"</h2>
                 <p>
                     {crate::brand!()}" adalah layanan undangan online pernikahan — dikenal juga sebagai undangan digital atau undangan website — "
                     "dengan tema adat Nusantara dan desain premium. Cukup kirim satu tautan lewat WhatsApp, tamu langsung melihat detail akad & resepsi, "
                     "lokasi Google Maps, galeri foto, dan mengisi RSVP dari HP. Hemat biaya cetak, ramah lingkungan, dan bisa diperbarui kapan saja."
                 </p>
             </div>
+            <Bab no="02" label="Fitur di Setiap Paket" />
             <div class="seo-info__grid">
-                {FITUR.iter().map(|(ic, t, d)| view! {
-                    <article class="seo-info__card card">
-                        <Icon name=ic />
+                {FITUR.iter().enumerate().map(|(i, (ic, t, d))| view! {
+                    <article class="seo-info__card">
+                        <p class="seo-info__no"><Icon name=ic /><span>{format!("{:02}", i + 1)}</span></p>
                         <h3>{*t}</h3>
                         <p>{*d}</p>
                     </article>
                 }).collect_view()}
             </div>
             <div class="seo-info__steps">
-                <h2>"Cara Membuat Undangan Online"</h2>
+                <Bab no="03" label="Cara Pesan" />
+                <h2>"Cara Membuat Undangan "<em>"Online"</em></h2>
                 <ol>
                     <li><b>"Pilih tema"</b>" dari "<a href="/#katalog">"katalog tema undangan"</a>" — adat Jawa, Minang, Bali, hingga modern."</li>
                     <li><b>"Isi data"</b>" mempelai, akad & resepsi, lalu unggah foto dan lagu."</li>
@@ -564,6 +664,7 @@ fn undangan_online_info(k: Konten) -> impl IntoView {
                 <a class="btn btn--primary" href="/buat"><Icon name="edit" />"Buat Undangan Online Sekarang"</a>
             </div>
             <div class="seo-info__faq">
+                <Bab no="04" label="Tanya Jawab" />
                 <h2>"Pertanyaan Seputar Undangan Online"</h2>
                 {faqs.into_iter().map(|(q, a)| view! {
                     <details class="seo-faq card">
@@ -572,6 +673,16 @@ fn undangan_online_info(k: Konten) -> impl IntoView {
                     </details>
                 }).collect_view()}
                 <p class="muted small">"Masih ada pertanyaan? Baca "<a href="/panduan">"panduan lengkap"</a>" atau coba "<a href=format!("/u/{}", crate::web::themes::DEMO_SLUG)>"contoh undangan online"</a>"."</p>
+            </div>
+            // Penutup ala halaman produk editorial: satu kalimat besar + dua aksi.
+            <div class="seo-info__cta">
+                <p class="seo-info__meta">"Pratinjau gratis · Bayar saat siap · Tanpa aplikasi"</p>
+                <h2>"Mulai "<em>"merangkai"</em>" undanganmu."</h2>
+                <p class="muted">"Pilih tema, isi data, dan lihat hasilnya langsung — bayar hanya setelah kamu puas."</p>
+                <div class="seo-info__btns">
+                    <a class="btn btn--primary" href="/buat"><Icon name="edit" />"Buat Undangan"</a>
+                    <a class="btn btn--outline" href=format!("/u/{}", crate::web::themes::DEMO_SLUG)>"Lihat Contoh"</a>
+                </div>
             </div>
         </section>
     }

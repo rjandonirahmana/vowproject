@@ -130,6 +130,7 @@ async fn main() -> Result<()> {
         inflight: std::sync::Arc::new(tokio::sync::Semaphore::new(env_num("MAX_INFLIGHT", 128) as usize)),
         cap_limit: security::RateLimit::new(u32::MAX, std::time::Duration::from_secs(60 * 60)),
         banners: std::sync::RwLock::new(None),
+        panduan: std::sync::RwLock::new(None),
         templat: state::fallback_templat(),
     });
     // Hapus pesanan yang tak dikonfirmasi admin dalam UNPAID_TTL_HOURS (+ file RustFS).
@@ -198,6 +199,8 @@ async fn main() -> Result<()> {
         .route("/admin/ornamen/{aksi}", axum::routing::post(handlers::admin_ornament_action))
         .route("/admin/banner/simpan", axum::routing::post(handlers::admin_save_banner).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
         .route("/admin/banner/{aksi}", axum::routing::post(handlers::admin_banner_action))
+        .route("/admin/story-panduan/simpan", axum::routing::post(handlers::admin_save_site_story).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
+        .route("/admin/story-panduan/{aksi}", axum::routing::post(handlers::admin_site_story_action))
         .route("/admin/templat/simpan", axum::routing::post(handlers::admin_save_templat).layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)))
         .route("/admin/templat/{aksi}", axum::routing::post(handlers::admin_templat_action).layer(axum::extract::DefaultBodyLimit::max(2 * 1024 * 1024)))
         .route("/admin/lagu/simpan", axum::routing::post(handlers::admin_save_song).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))

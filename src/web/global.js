@@ -652,21 +652,9 @@
   var watchBanner=function(){ d.querySelectorAll('[data-banner]').forEach(initBanner); };
   watchBanner();
   onDom(watchBanner);
-  // Katalog: infinite scroll — tombol "Tampilkan lebih banyak" ([data-load-more],
-  // dipasang Leptos setelah hydrate) diklik otomatis saat ±600px dari layar.
-  // Kliknya ditangani Leptos (tanpa navigasi) → halaman tak melompat ke atas.
-  if('IntersectionObserver' in window){
-    var moreSeen=new Set();
-    var moreIO=new IntersectionObserver(function(es){
-      es.forEach(function(e){ if(e.isIntersecting && e.target.isConnected && e.target.dataset.loadMore==='1') e.target.click(); });
-    }, {rootMargin:'0px 0px 600px 0px'});
-    var watchMore=function(){
-      moreSeen.forEach(function(el){ if(!el.isConnected){ moreIO.unobserve(el); moreSeen.delete(el); } });
-      d.querySelectorAll('[data-load-more="1"]').forEach(function(el){ if(!moreSeen.has(el)){ moreSeen.add(el); moreIO.observe(el); } });
-    };
-    watchMore();
-    onDom(watchMore);
-  }
+  // Katalog: paginasi "Tampilkan N tema lagi" kini MANUAL (dulu diklik otomatis
+  // = scroll tanpa ujung → info, CTA & footer beranda tak terjangkau).
+  // [data-load-more] tetap dipakai restorePos untuk memuat ulang saat Back.
   // ── Pratinjau tema di katalog ───────────────────────────────────────────
   // Kartu tema punya wadah kosong `.tcard__pv[data-pv=URL demo]` (dirender
   // Leptos tanpa anak → iframe yang disisipkan tak mengganggu hydrate).
@@ -784,20 +772,28 @@
   // foto termuat), tap kiri = mundur / kanan = maju, tahan = jeda, geser
   // kiri-kanan = kubus 3D pindah tamu, tarik ke bawah = tutup, ←/→/Esc.
   // Data dari <script id="story-data"> (JSON dari server). Hanya foto.
+  // Sumber lain lewat [data-story-src] (story panduan beranda: #panduan-data,
+  // data-seg="1" = progress bersegmen, item boleh punya link+cta = tombol aksi).
   (function(){
     var DUR=5000, AXIS=12, COMMIT=0.25, FLICK=0.55, CLOSE_PX=130, HOLD_MS=220;
     var S=null;
-    function list(){ var el=d.getElementById('story-data'); try{ return el ? JSON.parse(el.textContent||'[]') : []; }catch(_){ return []; } }
-    function seenKey(){ var b=d.querySelector('[data-story-slug]'); return 'ily_story_seen_'+(b ? b.getAttribute('data-story-slug') : ''); }
-    function seen(){ try{ return JSON.parse(localStorage.getItem(seenKey())||'[]'); }catch(_){ return []; } }
-    function markSeen(id){
-      var a=seen(); if(a.indexOf(id)<0){ a.push(id); try{ localStorage.setItem(seenKey(), JSON.stringify(a.slice(-300))); }catch(_){} }
-      d.querySelectorAll('[data-story-id="'+id+'"]').forEach(function(b){ b.classList.add('is-seen'); });
+    function srcEl(id){ return d.getElementById(id||'story-data'); }
+    function list(el){ try{ return el ? JSON.parse(el.textContent||'[]') : []; }catch(_){ return []; } }
+    // Tanda "sudah dilihat" per baris story (data-story-slug) — undangan & panduan terpisah.
+    function keyOf(bar){ return 'ily_story_seen_'+(bar ? bar.getAttribute('data-story-slug') : ''); }
+    // Tombol di luar baris (grid story / Kelola) → baris story undangan di halaman ini.
+    function barOf(b){ return b.closest('[data-story-slug]') || (b.getAttribute('data-story-src') ? null : d.querySelector('[data-story-slug]:not([data-story-slug="_panduan"])')); }
+    function seen(key){ try{ return JSON.parse(localStorage.getItem(key)||'[]'); }catch(_){ return []; } }
+    function markSeen(key, id){
+      var a=seen(key); if(a.indexOf(id)<0){ a.push(id); try{ localStorage.setItem(key, JSON.stringify(a.slice(-300))); }catch(_){} }
+      d.querySelectorAll('[data-story-id="'+id+'"]').forEach(function(b){ if(keyOf(barOf(b))===key) b.classList.add('is-seen'); });
     }
-    function paintSeen(){ var a=seen(); d.querySelectorAll('[data-story-id]').forEach(function(b){ b.classList.toggle('is-seen', a.indexOf(+b.getAttribute('data-story-id'))>=0); }); }
+    function paintSeen(){
+      d.querySelectorAll('[data-story-id]').forEach(function(b){ var a=seen(keyOf(barOf(b))); b.classList.toggle('is-seen', a.indexOf(+b.getAttribute('data-story-id'))>=0); });
+    }
     // Penampil hidup di <body> (di luar akar Leptos): halaman Story ditinggal
     // (Back / pindah tab SPA) → tutup, agar gulir tak terkunci & foto dilepas.
-    onDom(function(){ paintSeen(); if(S && !d.getElementById('story-data')) close(true); });
+    onDom(function(){ paintSeen(); if(S && !S.src.isConnected) close(true); });
     window.addEventListener('popstate', function(){ if(S) close(true); });
     function el(tag, cls, html){ var e=d.createElement(tag); if(cls) e.className=cls; if(html!=null) e.innerHTML=html; return e; }
     function esc(t){ return String(t==null?'':t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -806,7 +802,7 @@
     // Hapus story milik perangkat ini (cookie pembuat) — POST biasa ke server.
     // Pengelola undangan (Kelola): data-owner → boleh menghapus SEMUA story.
     function delMine(id){
-      var src=d.getElementById('story-data'); if(!src) return;
+      var src=S && S.src; if(!src) return;
       var owner=src.getAttribute('data-owner')==='1';
       if(!confirm(owner ? 'Hapus story tamu ini secara permanen? Foto ikut terhapus.' : 'Hapus story Anda secara permanen?')) return;
       var f=d.createElement('form'); f.method='post'; f.action=owner ? src.getAttribute('data-del-owner') : src.getAttribute('data-del');
@@ -821,25 +817,32 @@
         '<div class="sv-face-id"><div class="sv-avatar-ring sv-face-avatar"><img class="sv-avatar '+fcls(it.filter)+'" src="'+esc(it.photo)+'" alt=""></div><span class="sv-face-username">'+esc(it.name)+'</span></div>';
       return f;
     }
-    function open(i){
-      var items=list(); if(!items.length) return;
+    function open(i, srcId, key){
+      var src=srcEl(srcId), items=list(src); if(!items.length) return;
       close(true);
+      var segN=src.getAttribute('data-seg')==='1' ? items.length : 1, segs='';
+      for(var k=0;k<segN;k++) segs+='<div class="sv-seg"><div class="sv-seg-fill"></div></div>';
       var root=el('div','sv-portal');
       root.innerHTML='<div class="sv-backdrop"></div><div class="sv-scene"><div class="sv-cube"><div class="sv-container">'+
-        '<div class="sv-progress-row"><div class="sv-seg"><div class="sv-seg-fill"></div></div></div>'+
+        '<div class="sv-progress-row">'+segs+'</div>'+
         '<div class="sv-header"><div class="sv-header-left"><div class="sv-avatar-ring"><img class="sv-avatar" alt=""></div>'+
         '<div class="sv-user-info"><span class="sv-username"></span><span class="sv-meta"></span></div></div>'+
         '<div class="sv-header-right"><button type="button" class="sv-del-btn" aria-label="Hapus story saya" hidden>'+DEL_SVG+'</button><button type="button" class="sv-close-btn" aria-label="Tutup story">'+X_SVG+'</button></div></div>'+
         '<div class="sv-media-area"><div class="sv-img-shell sv-img-loading"><div class="sv-shimmer"></div><img class="sv-media" alt="" draggable="false"></div></div>'+
-        '<p class="sv-caption"></p></div></div></div>';
+        '<p class="sv-caption"></p><a class="btn btn--primary sv-cta" hidden></a></div></div></div>';
+      if(src.getAttribute('data-fit')==='contain') root.classList.add('sv-contain');
       d.body.appendChild(root);
       d.documentElement.classList.add('sv-open');
-      S={items:items, i:-1, root:root, scene:root.querySelector('.sv-scene'), cube:root.querySelector('.sv-cube'), box:root.querySelector('.sv-container'),
-         bd:root.querySelector('.sv-backdrop'), fill:root.querySelector('.sv-seg-fill'), img:root.querySelector('.sv-media-area .sv-media'),
+      S={items:items, i:-1, src:src, key:key||keyOf(null), root:root, scene:root.querySelector('.sv-scene'), cube:root.querySelector('.sv-cube'), box:root.querySelector('.sv-container'),
+         bd:root.querySelector('.sv-backdrop'), fills:root.querySelectorAll('.sv-seg-fill'), fill:null, img:root.querySelector('.sv-media-area .sv-media'),
          shell:root.querySelector('.sv-img-shell'), raf:0, start:0, elapsed:0, paused:false, ready:false, settling:false, drag:null};
       S.bd.addEventListener('click', function(){ close(); });
       root.querySelector('.sv-close-btn').addEventListener('click', function(e){ e.stopPropagation(); close(); });
       root.querySelector('.sv-close-btn').addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+      // Tombol aksi: jangan dianggap "tap maju"; tutup penampil lalu navigasi biasa.
+      var cta=root.querySelector('.sv-cta');
+      cta.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
+      cta.addEventListener('click', function(){ close(true); });
       var del=root.querySelector('.sv-del-btn');
       del.addEventListener('pointerdown', function(e){ e.stopPropagation(); });
       del.addEventListener('click', function(e){ e.stopPropagation(); if(S) delMine(S.items[S.i].id); });
@@ -856,7 +859,10 @@
       if(i<0) i=0;
       if(i>=S.items.length){ close(); return; }
       var it=S.items[i]; S.i=i; S.elapsed=0; S.ready=false;
-      cancelAnimationFrame(S.raf); S.fill.style.transform='scaleX(0)';
+      cancelAnimationFrame(S.raf);
+      // Bersegmen: segmen sebelumnya penuh, sesudahnya kosong.
+      if(S.fills.length>1){ S.fills.forEach(function(f, k){ f.style.transform='scaleX('+(k<i?1:0)+')'; }); S.fill=S.fills[i]; }
+      else { S.fill=S.fills[0]; S.fill.style.transform='scaleX(0)'; }
       S.shell.classList.add('sv-img-loading'); S.img.classList.remove('sv-img-visible');
       S.img.className='sv-media '+fcls(it.filter);
       S.img.src=it.photo;
@@ -864,11 +870,13 @@
       S.root.querySelector('.sv-username').textContent=it.name;
       S.root.querySelector('.sv-meta').textContent=it.ago||'';
       var cap=S.root.querySelector('.sv-caption'); cap.textContent=it.caption||''; cap.hidden=!it.caption;
-      var src=d.getElementById('story-data'), mine=(src && src.getAttribute('data-mine')||'').split(',');
-      var owner=!!src && src.getAttribute('data-owner')==='1';
+      var cta=S.root.querySelector('.sv-cta'), go=it.link && /^(\/(?!\/)|https:\/\/)/.test(it.link);
+      cta.hidden=!go; if(go){ cta.href=it.link; cta.textContent=it.cta||'Buka'; }
+      var src=S.src, mine=(src.getAttribute('data-mine')||'').split(',');
+      var owner=src.getAttribute('data-owner')==='1';
       S.root.querySelector('.sv-del-btn').hidden=!owner && mine.indexOf(String(it.id))<0;
       if(S.img.complete && S.img.naturalWidth){ S.shell.classList.remove('sv-img-loading'); S.img.classList.add('sv-img-visible'); S.ready=true; S.start=performance.now(); tick(); }
-      markSeen(it.id);
+      markSeen(S.key, it.id);
       var nx=S.items[i+1]; if(nx){ var p=new Image(); p.src=nx.photo; }
     }
     function tick(){
@@ -970,12 +978,12 @@
       var b=e.target.closest && e.target.closest('[data-story-open]'); if(!b) return;
       // Tombol/form di dalam kartu (hapus) bukan "buka story".
       var inner=e.target.closest('button, form, a'); if(inner && inner!==b && b.contains(inner)) return;
-      e.preventDefault(); open(+b.getAttribute('data-story-open'));
+      e.preventDefault(); open(+b.getAttribute('data-story-open'), b.getAttribute('data-story-src'), keyOf(barOf(b)));
     });
     // Kartu non-tombol (figure role=button di Kelola): Enter / spasi = buka.
     d.addEventListener('keydown', function(e){
       if((e.key!=='Enter' && e.key!==' ') || !e.target.matches || !e.target.matches('[data-story-open][role=button]')) return;
-      e.preventDefault(); open(+e.target.getAttribute('data-story-open'));
+      e.preventDefault(); open(+e.target.getAttribute('data-story-open'), e.target.getAttribute('data-story-src'), keyOf(barOf(e.target)));
     });
     d.addEventListener('keydown', function(e){
       if(!S) return;

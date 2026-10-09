@@ -15,7 +15,7 @@ use super::pages::{
     dekorasi::{DekorasiDetailPage, DekorasiPage},
     info::{PanduanPage, PaketPage, PrivasiPage, SyaratPage},
     katalog::KatalogPage,
-    admin::{AdminAkun, AdminAnimEdit, AdminAnims, AdminBanner, AdminHome, AdminKonten, AdminLagu, AdminOrnaments, AdminStory, AdminTemplat, AdminKontenEdit, AdminProfil, AdminThemeEdit, AdminThemes, AdminUndangan},
+    admin::{AdminAkun, AdminAnimEdit, AdminAnims, AdminBanner, AdminHome, AdminKonten, AdminLagu, AdminOrnaments, AdminStory, AdminStoryPanduan, AdminTemplat, AdminKontenEdit, AdminProfil, AdminThemeEdit, AdminThemes, AdminUndangan},
     kelola::{KelolaPage, ScanPage},
     sunting::SuntingPage,
     mua::MuaPage,
@@ -140,6 +140,7 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/admin/banner") view=AdminBanner />
                 <Route path=path!("/admin/lagu") view=AdminLagu />
                 <Route path=path!("/admin/story") view=AdminStory />
+                <Route path=path!("/admin/story-panduan") view=AdminStoryPanduan />
                 <Route path=path!("/admin/animasi/baru") view=AdminAnimEdit />
                 <Route path=path!("/admin/animasi/:kind/:slug") view=AdminAnimEdit />
                 <Route path=path!("/admin/undangan") view=AdminUndangan />

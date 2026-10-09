@@ -1892,7 +1892,8 @@ select.input {
     align-items: center;
     margin-bottom: 14px;
 }
-.k-filter__head b {
+.k-filter__head b,
+.k-filter__toggle {
     display: flex;
     gap: 6px;
     align-items: center;
@@ -1915,9 +1916,54 @@ select.input {
 .k-filter .btn {
     margin-top: 16px;
 }
+.k-filter__toggle {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+}
+.k-filter__badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--on-primary);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+}
 @media (max-width: 959px) {
     .k-filter {
         position: static;
+        padding: 12px 16px;
+    }
+    /* HP: panel dilipat — tema langsung terlihat; ketuk kepala untuk membuka. */
+    .k-filter .k-filter__head {
+        margin-bottom: 0;
+        min-height: 36px;
+    }
+    .k-filter:not(.is-open) .k-filter__body {
+        display: none;
+    }
+    .k-filter.is-open .k-filter__head {
+        margin-bottom: 12px;
+    }
+    .k-filter__caret {
+        transition: rotate 0.2s;
+    }
+    .k-filter.is-open .k-filter__caret {
+        rotate: 180deg;
+    }
+}
+@media (min-width: 960px) {
+    .k-filter__caret {
+        display: none;
+    }
+    .k-filter__toggle {
+        pointer-events: none;
     }
 }
 /* Panel filter tak boleh lebih tinggi dari layar: bergulir sendiri di desktop,
@@ -2146,6 +2192,36 @@ html.is-pv .toast {
 .tcard:hover .mini {
     transform: scale(1.04) translateY(-4px);
 }
+/* Kartu katalog: bentuk kartu mini mengikuti rupa SAMPUL tema (web/rupa.rs).
+   Mask = bentuk sama dengan sampul (tanpa filter — grid katalog panjang). */
+.tcard__art:is(.rp-s-kubah, .rp-s-gunungan, .rp-s-atap, .rp-s-wajik) .mini {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding-top: 30px;
+    -webkit-mask: var(--mini-mask) center / 100% 100% no-repeat;
+    mask: var(--mini-mask) center / 100% 100% no-repeat;
+}
+.tcard__art.rp-s-kubah .mini { --mini-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 128' preserveAspectRatio='none'%3E%3Cpath d='M50 0 C52 5 60 9 68 14 C86 24 100 34 100 50 L100 128 L0 128 L0 50 C0 34 14 24 32 14 C40 9 48 5 50 0 Z'/%3E%3C/svg%3E"); }
+.tcard__art.rp-s-gunungan .mini { --mini-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 128' preserveAspectRatio='none'%3E%3Cpath d='M50 0 C56 8 66 16 76 26 C90 40 100 56 100 74 L100 128 L0 128 L0 74 C0 56 10 40 24 26 C34 16 44 8 50 0 Z'/%3E%3C/svg%3E"); }
+.tcard__art.rp-s-atap .mini { --mini-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 128' preserveAspectRatio='none'%3E%3Cpath d='M0 0 C22 5 36 13 50 13 C64 13 78 5 100 0 L96 20 L96 128 L4 128 L4 20 Z'/%3E%3C/svg%3E"); }
+.tcard__art.rp-s-wajik .mini { --mini-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 128' preserveAspectRatio='none'%3E%3Cpath d='M50 0 L100 22 L100 106 L50 128 L0 106 L0 22 Z'/%3E%3C/svg%3E"); }
+.tcard__art.rp-s-lingkaran .mini,
+.tcard__art.rp-s-medali .mini {
+    border-radius: 50%;
+    padding: 26px 14px 24px;
+}
+.tcard__art.rp-s-medali .mini {
+    box-shadow: 0 0 0 4px var(--card), 0 0 0 6px var(--gold), 0 16px 30px -10px rgba(0, 0, 0, 0.35);
+}
+.tcard__art.rp-s-jendela .mini {
+    border-radius: 2px;
+    box-shadow: 9px 9px 0 -1px var(--gold), 0 16px 30px -10px rgba(0, 0, 0, 0.3);
+}
+.tcard__art.rp-s-penuh .mini {
+    width: 76%;
+    border-radius: 10px;
+}
 .mini .monogram--sm {
     width: 64px;
 }
@@ -2176,6 +2252,10 @@ html.is-pv .toast {
     color: var(--on-primary);
     font-size: 8.5px;
     font-weight: 600;
+}
+/* "mulai Rp 79.000" dulu pecah dua baris di kartu sempit desktop. */
+.tcard__foot .price b {
+    white-space: nowrap;
 }
 .tcard__body {
     padding: 16px;
@@ -7605,8 +7685,94 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
 }
 .k-more {
     display: flex;
-    justify-content: center;
-    margin: 22px 0 6px;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 28px 0 8px;
+}
+.k-more__count {
+    margin: 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.k-more__bar {
+    width: min(260px, 70%);
+    height: 3px;
+    border-radius: 2px;
+    background: var(--line);
+    overflow: hidden;
+}
+.k-more__bar i {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+}
+/* HP: kartu tema dua kolom ringkas — dulu satu kolom ±600px per kartu
+   (24 kartu ≈ 14.000px). Deskripsi & tag disembunyikan; demo tetap. */
+@media (max-width: 640px) {
+    .theme-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+    .tcard__art {
+        aspect-ratio: 3 / 3.5;
+    }
+    .tcard__body {
+        padding: 10px 10px 12px;
+        gap: 6px;
+    }
+    .tcard__body h3 {
+        font-size: 14.5px;
+        line-height: 1.25;
+    }
+    .tcard__desc,
+    .tcard__tags,
+    .tcard__foot .price small,
+    .tcard__rating {
+        display: none;
+    }
+    .tcard__foot {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding-top: 8px;
+    }
+    .tcard__foot .price b {
+        font-size: 13.5px;
+    }
+    .tcard__btns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    .tcard__btns .btn {
+        justify-content: center;
+        padding-inline: 0;
+    }
+    .tcard__region {
+        left: 8px;
+        bottom: 8px;
+        font-size: 9.5px;
+        letter-spacing: 0.06em;
+    }
+    .tcard__badge {
+        top: 8px;
+        left: 8px;
+        font-size: 10.5px;
+    }
+    .tcard .mini {
+        width: 74%;
+        padding: 12px 6px 10px;
+        gap: 2px;
+    }
+    .tcard .mini .monogram--sm {
+        width: 42px;
+    }
+    .tcard .mini__names {
+        font-size: 12px;
+    }
 }
 
 /* ── /dekorasi/:slug — detail paket & galeri ───────────────────────────── */
@@ -8853,13 +9019,51 @@ html:has(.inv--video:not(.inv--embed)) body {
     color: var(--ink-2);
     line-height: 1.75;
 }
+/* Editorial (terinspirasi halaman produk modern): label bab mono di bilah
+   bergaris rambut, kisi fitur bergaris tanpa bayangan, kata miring emas. */
+.bab {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 4px;
+    padding: 9px 0;
+    border-block: 1px solid var(--line);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.seo-info h2 em {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--gold-deep);
+}
 .seo-info__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-    gap: 14px;
+    gap: 0;
+    border-top: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+    margin-top: -18px;
 }
 .seo-info__card {
-    padding: 18px;
+    padding: 20px 20px 22px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--card) 55%, transparent);
+}
+.seo-info__no {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0;
+}
+.seo-info__no span:not(.ms) {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
 }
 .seo-info__card .ms {
     color: var(--gold-deep);
@@ -8877,11 +9081,57 @@ html:has(.inv--video:not(.inv--embed)) body {
 }
 .seo-info__steps ol {
     margin: 0 0 18px;
-    padding-left: 20px;
+    padding: 0;
+    list-style: none;
+    counter-reset: langkah;
     display: grid;
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    border-top: 1px solid var(--line);
     color: var(--ink-2);
     line-height: 1.6;
+}
+.seo-info__steps li {
+    counter-increment: langkah;
+    padding: 16px 18px 18px 0;
+    border-bottom: 1px solid var(--line);
+}
+.seo-info__steps li::before {
+    content: counter(langkah, decimal-leading-zero);
+    display: block;
+    margin-bottom: 6px;
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 1;
+    color: var(--gold-deep);
+}
+.seo-info__steps li b {
+    color: var(--ink);
+}
+.seo-info__cta {
+    margin-top: 12px;
+    padding: 46px 18px 50px;
+    border-block: 1px solid var(--line);
+    text-align: center;
+}
+.seo-info__cta h2 {
+    margin: 10px 0 8px;
+    font-size: clamp(32px, 5vw, 48px);
+    letter-spacing: -0.01em;
+}
+.seo-info__meta {
+    margin: 0;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.seo-info__btns {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
 }
 .seo-info a:not(.btn) {
     color: var(--gold-deep);
@@ -9625,6 +9875,205 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     pointer-events: none;
 }
 .sv-caption[hidden] { display: none; }
+/* Tombol aksi story panduan (mis. "Buat Undangan") di bawah keterangan. */
+.sv-cta {
+    position: absolute;
+    left: 50%;
+    bottom: max(22px, env(safe-area-inset-bottom, 0px) + 16px);
+    z-index: 11;
+    translate: -50% 0;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.6);
+}
+.sv-cta[hidden] { display: none; }
+/* Story panduan (gambar berteks): tampil utuh, bukan dipangkas sisi. */
+.sv-contain .sv-container { background: #f6f2e8; }
+.sv-contain .sv-media-area .sv-media { object-fit: contain; }
+.sv-contain .sv-header { color: #1d2a22; text-shadow: none; }
+.sv-contain .sv-header :is(.sv-username, .sv-meta) { color: #1d2a22; text-shadow: none; }
+.sv-contain .sv-close-btn { color: #1d2a22; }
+.sv-contain .sv-caption { color: #1d2a22; text-shadow: none; background: linear-gradient(to top, #f6f2e8 62%, rgb(246 242 232 / 0)); }
+.sv-contain .sv-seg { background: rgb(29 42 34 / 0.18); }
+.sv-contain .sv-seg-fill { background: #1d2a22; }
+.sv-container:has(.sv-cta:not([hidden])) .sv-caption {
+    padding-bottom: calc(max(22px, env(safe-area-inset-bottom, 0px) + 16px) + 58px);
+}
+
+/* ── Story PANDUAN beranda, di bawah banner (site_stories) ───────────────
+ * HP: deret lingkaran digeser (snap + pudar di tepi kanan = "masih ada").
+ * Desktop: STEPPER — lingkaran tersebar rata & disambung garis putus-putus,
+ * terbaca sebagai alur langkah 1→8, bukan deretan avatar menumpuk di kiri. */
+.pd-stories {
+    max-width: 1240px;
+    margin: 14px auto 0;
+    padding: 0 20px;
+}
+.pd-stories__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-block: 1px solid var(--line);
+}
+.pd-stories__label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+.pd-stories__label span {
+    padding: 3px 8px;
+    border: 1px solid var(--line-gold);
+    border-radius: 4px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+}
+.pd-stories__all {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    min-height: 36px;
+    padding: 0 2px;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold-deep);
+    cursor: pointer;
+}
+.pd-stories__bar {
+    margin: 0 -20px;
+    padding: 12px 14px 4px;
+    scroll-snap-type: x proximity;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 40px), transparent);
+}
+.pd-stories__bar .story-item {
+    position: relative;
+    z-index: 1;
+    scroll-snap-align: start;
+}
+.pd-stories__bar .story-avatar-img {
+    object-position: 50% 18%;
+}
+.pd-stories__no {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    background: var(--primary);
+    color: var(--on-primary);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+@media (min-width: 900px) {
+    .pd-stories__bar {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr));
+        margin: 0;
+        padding: 16px 0 6px;
+        overflow: visible;
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+    /* garis alur antar-langkah, setinggi pusat lingkaran (16 + 4 + 38) */
+    .pd-stories__bar::before {
+        content: "";
+        position: absolute;
+        top: 58px;
+        left: calc(100% / var(--n, 8) / 2);
+        right: calc(100% / var(--n, 8) / 2);
+        height: 1px;
+        background: repeating-linear-gradient(to right, var(--gold) 0 6px, transparent 6px 12px);
+    }
+    .pd-stories__bar .story-avatar-ring {
+        width: 76px;
+        height: 76px;
+    }
+    .pd-stories__bar .story-username {
+        max-width: 130px;
+        font-size: 13px;
+    }
+}
+/* Banner + panduan sudah di atas → hero tak perlu ruang kosong besar. */
+.pd-stories ~ .k-hero {
+    padding-top: 30px;
+}
+
+/* Admin: kartu story panduan (gambar tegak seperti layar HP). */
+.adm-pd {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+}
+.adm-pd__card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+}
+.adm-pd__card.is-off .adm-pd__img img {
+    opacity: 0.45;
+}
+.adm-pd__img {
+    position: relative;
+    aspect-ratio: 9 / 16;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface-low);
+}
+.adm-pd__img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.adm-pd__no,
+.adm-pd__off {
+    position: absolute;
+    top: 8px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.adm-pd__no {
+    left: 8px;
+    color: var(--on-primary);
+    background: var(--primary);
+}
+.adm-pd__off {
+    right: 8px;
+    color: #fff;
+    background: rgb(0 0 0 / 0.6);
+}
+.adm-pd__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.adm-pd__body .chip {
+    align-self: flex-start;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
 /* ── Demo tema templat di /tema/:slug (iframe halaman undangan asli) ──── */
 .demo-phone--frame {

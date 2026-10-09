@@ -56,6 +56,7 @@ fn AdminShell(
                                 <a href="/admin/tema" class:is-active=active == "tema"><Icon name="palette" />"Tema"</a>
                                 <a href="/admin/animasi" class:is-active=active == "animasi"><Icon name="animation" />"Animasi"</a>
                                 <a href="/admin/banner" class:is-active=active == "banner"><Icon name="view_carousel" />"Banner"</a>
+                                <a href="/admin/story-panduan" class:is-active=active == "panduan"><Icon name="auto_stories" />"Story Panduan"</a>
                                 <a href="/admin/lagu" class:is-active=active == "lagu"><Icon name="library_music" />"Lagu"</a>
                                 <a href="/admin/story" class:is-active=active == "story"><Icon name="photo_camera" />"Story"</a>
                                 <a href="/admin/konten" class:is-active=active == "konten"><Icon name="edit_note" />"Konten & Harga"</a>
@@ -1311,6 +1312,112 @@ fn banner_status(s: &str) -> (&'static str, &'static str) {
         "terjadwal" => ("Terjadwal", "status--ragu"),
         "berakhir" => ("Berakhir", "status--tidak"),
         _ => ("Nonaktif", ""),
+    }
+}
+
+/// /admin/story-panduan — story PANDUAN di atas beranda (hanya admin yang
+/// membuat): gambar tegak 9:16 per langkah memesan, ditonton seperti story.
+#[component]
+pub fn AdminStoryPanduan() -> impl IntoView {
+    let list = Resource::new(|| (), |_| crate::web::api::admin_site_stories());
+    view! {
+        <AdminShell active="panduan" title="Story Panduan">
+            <div class="adm-head">
+                <h1 class="adm-h1">"Story Panduan Beranda"</h1>
+                <a class="btn btn--soft btn--sm" href="/" target="_blank"><Icon name="visibility" />"Lihat beranda"</a>
+            </div>
+            <div class="adm-anim-help">
+                <p>"Lingkaran story di beranda, tepat di bawah banner. Tamu mengetuk satu lingkaran lalu story berlanjut ke langkah berikutnya — cocok untuk panduan memesan dari memilih tema sampai pembayaran dikonfirmasi admin."</p>
+                <p class="muted small">"Gambar tegak 1080×1920 px (9:16), JPG/PNG/WebP maks 5 MB — diunggah ke RustFS & dioptimasi otomatis. Hapus / ganti gambar = berkas lama di RustFS ikut dihapus. Judul = label di bawah lingkaran (maks 24 huruf)."</p>
+            </div>
+            <Suspense fallback=|| ()>
+                {move || list.get().map(|r| match r {
+                    Err(e) => view! { <p class="notice notice--err">{crate::web::components::err_msg(&e)}</p> }.into_any(),
+                    Ok(items) => {
+                        let n = items.len();
+                        view! {
+                            <div class="adm-pd">
+                                {items.into_iter().enumerate().map(|(i, s)| view! { <PanduanCard s=s pos=i total=n /> }).collect_view()}
+                            </div>
+                            <details class="card adm-banner adm-banner--new" open=n == 0>
+                                <summary><Icon name="add" />"Tambah story panduan"</summary>
+                                <PanduanFields s=crate::web::model::SiteStory { aktif: true, ..Default::default() } />
+                            </details>
+                        }
+                        .into_any()
+                    }
+                })}
+            </Suspense>
+        </AdminShell>
+    }
+}
+
+#[component]
+fn PanduanCard(s: crate::web::model::SiteStory, pos: usize, total: usize) -> impl IntoView {
+    let id = s.id.to_string();
+    view! {
+        <article class="card adm-pd__card" id=format!("story-{}", s.id) class:is-off=!s.aktif>
+            <div class="adm-pd__img">
+                <img src=s.img.clone() alt="" loading="lazy" decoding="async" />
+                <span class="adm-pd__no">{pos + 1}</span>
+                {(!s.aktif).then(|| view! { <span class="adm-pd__off">"Nonaktif"</span> })}
+            </div>
+            <div class="adm-pd__body">
+                <b>{s.judul.clone()}</b>
+                <small class="muted">{s.teks.clone()}</small>
+                {(!s.tombol.is_empty()).then(|| view! { <span class="chip">{format!("Tombol: {} → {}", s.tombol, s.tautan)}</span> })}
+                <span class="adm-banner__move">
+                    <form method="post" action="/admin/story-panduan/urut">
+                        <input type="hidden" name="id" value=id.clone() /><input type="hidden" name="arah" value="naik" />
+                        <button class="icon-btn" type="submit" disabled=pos == 0 aria-label="Naikkan urutan"><Icon name="arrow_upward" /></button>
+                    </form>
+                    <form method="post" action="/admin/story-panduan/urut">
+                        <input type="hidden" name="id" value=id.clone() /><input type="hidden" name="arah" value="turun" />
+                        <button class="icon-btn" type="submit" disabled=pos + 1 == total aria-label="Turunkan urutan"><Icon name="arrow_downward" /></button>
+                    </form>
+                </span>
+            </div>
+            <details class="adm-pd__edit">
+                <summary>"Sunting"</summary>
+                <PanduanFields s=s.clone() />
+                <form method="post" action="/admin/story-panduan/hapus" class="adm-banner__del" data-confirm="Hapus story ini? Gambar di RustFS ikut dihapus.">
+                    <input type="hidden" name="id" value=id />
+                    <button class="btn btn--sm adm-btn-danger" type="submit"><Icon name="delete" />"Hapus story ini"</button>
+                </form>
+            </details>
+        </article>
+    }
+}
+
+#[component]
+fn PanduanFields(s: crate::web::model::SiteStory) -> impl IntoView {
+    let new = s.id == 0;
+    view! {
+        <form class="adm-banner__form" method="post" action="/admin/story-panduan/simpan" enctype="multipart/form-data">
+            <input type="hidden" name="id" value=s.id.to_string() />
+            <label class="field"><span class="field__label">"Judul / label lingkaran"</span>
+                <input class="input" name="judul" maxlength="24" required value=s.judul.clone() placeholder="Pilih Tema" /></label>
+            <label class="field"><span class="field__label">"Keterangan (di bawah gambar)"</span>
+                <textarea class="input" name="teks" maxlength="220" rows="2" placeholder="Jelajahi katalog — saring menurut daerah…" inner_html=textarea_isi(&s.teks)></textarea></label>
+            <div class="field adm-wide">
+                <span class="field__label">"Gambar 9:16"</span>
+                <div class="adm-img">
+                    {(!s.img.is_empty()).then(|| view! { <img src=s.img.clone() alt="" loading="lazy" decoding="async" /> })}
+                    <div class="adm-img__in">
+                        <input class="input" name="img" maxlength="500" value=s.img.clone() placeholder="/img/panduan/… atau https://…" />
+                        <input class="input" type="file" name="img_file" accept="image/jpeg,image/png,image/webp" />
+                    </div>
+                </div>
+            </div>
+            <div class="field-row">
+                <label class="field"><span class="field__label">"Teks tombol (opsional)"</span>
+                    <input class="input" name="tombol" maxlength="30" value=s.tombol.clone() placeholder="Buat Undangan" /></label>
+                <label class="field"><span class="field__label">"Tautan tombol"</span>
+                    <input class="input" name="tautan" maxlength="300" value=s.tautan.clone() placeholder="/buat, /#katalog, atau https://…" /></label>
+            </div>
+            <label class="check"><input type="checkbox" name="aktif" value="1" checked=s.aktif />"Tampil di beranda"</label>
+            <button class="btn btn--primary btn--sm" type="submit"><Icon name="check" />{if new { "Tambahkan" } else { "Simpan" }}</button>
+        </form>
     }
 }
 

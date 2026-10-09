@@ -51,6 +51,8 @@ pub struct AppState {
     pub cap_limit: super::security::RateLimit,
     /// Banner beranda (dibaca tiap katalog dibuka) — cache 30 dtk.
     pub banners: RwLock<Option<(std::time::Instant, Arc<Vec<crate::web::model::Banner>>)>>,
+    /// Story panduan beranda (dibaca tiap katalog dibuka) — cache 30 dtk.
+    pub panduan: RwLock<Option<(std::time::Instant, Arc<Vec<crate::web::model::SiteStory>>)>>,
     /// Tema templat (migrasi 029) — HTML+CSS dari tabel theme_templates,
     /// sudah dikompilasi; dimuat ulang tiap admin menyimpan templat.
     pub templat: RwLock<Arc<super::templat::TemplatSet>>,

@@ -673,6 +673,35 @@ pub async fn get_banners() -> Result<Vec<Banner>, ServerFnError> {
     Ok(v)
 }
 
+/// Story panduan beranda (aktif, urut). Tabel belum ada (037) = kosong.
+#[server]
+pub async fn get_site_stories() -> Result<Vec<SiteStory>, ServerFnError> {
+    let st = srv::state()?;
+    if let Some((t, v)) = st.panduan.read().ok().and_then(|g| g.clone()) {
+        if t.elapsed() < std::time::Duration::from_secs(30) {
+            return Ok((*v).clone());
+        }
+    }
+    let v = srv::repo::site_stories(&st.pool, true).await.unwrap_or_else(|e| {
+        tracing::debug!(error = %format!("{e:#}"), "site_stories belum ada — jalankan migration/037_story_panduan.sql");
+        Vec::new()
+    });
+    if let Ok(mut g) = st.panduan.write() {
+        *g = Some((std::time::Instant::now(), std::sync::Arc::new(v.clone())));
+    }
+    Ok(v)
+}
+
+/// Semua story panduan untuk /admin/story-panduan.
+#[server]
+pub async fn admin_site_stories() -> Result<Vec<SiteStory>, ServerFnError> {
+    let (st, _) = require_admin(false).await?;
+    srv::repo::site_stories(&st.pool, false).await.map_err(|e| {
+        tracing::error!(error = %format!("{e:#}"), "admin: site_stories");
+        ServerFnError::new("Tabel story panduan belum ada — jalankan migration/037_story_panduan.sql.")
+    })
+}
+
 /// Semua banner untuk /admin/banner.
 #[server]
 pub async fn admin_banners() -> Result<Vec<Banner>, ServerFnError> {

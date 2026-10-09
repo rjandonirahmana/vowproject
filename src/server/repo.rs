@@ -1187,6 +1187,82 @@ pub async fn move_banner(pool: &Pool, id: i64, up: bool) -> Result<()> {
     Ok(())
 }
 
+// ── Story panduan beranda (migrasi 037) ────────────────────────────────────
+
+fn site_story_row(r: &tokio_postgres::Row) -> crate::web::model::SiteStory {
+    crate::web::model::SiteStory {
+        id: r.get("id"),
+        judul: r.get("judul"),
+        teks: r.get("teks"),
+        img: r.get("img"),
+        tautan: r.get("tautan"),
+        tombol: r.get("tombol"),
+        aktif: r.get("aktif"),
+        urutan: r.get("urutan"),
+    }
+}
+
+/// `aktif_saja` = beranda; admin melihat semuanya.
+pub async fn site_stories(pool: &Pool, aktif_saja: bool) -> Result<Vec<crate::web::model::SiteStory>> {
+    let c = pool.get().await?;
+    let rows = db_rows(&c,
+        "SELECT id, judul, teks, img, tautan, tombol, aktif, urutan FROM site_stories
+          WHERE aktif OR NOT $1 ORDER BY urutan, id",
+        &[&aktif_saja],
+    )
+    .await
+    .context("select site_stories")?;
+    Ok(rows.iter().map(site_story_row).collect())
+}
+
+/// Simpan (id 0 = baru, paling akhir). Mengembalikan id.
+pub async fn save_site_story(pool: &Pool, s: &crate::web::model::SiteStory) -> Result<i64> {
+    let c = pool.get().await?;
+    let row = if s.id == 0 {
+        db_row(&c,
+            "INSERT INTO site_stories (judul, teks, img, tautan, tombol, aktif, urutan)
+             VALUES ($1, $2, $3, $4, $5, $6, (SELECT COALESCE(MAX(urutan), 0) + 10 FROM site_stories)) RETURNING id",
+            &[&s.judul, &s.teks, &s.img, &s.tautan, &s.tombol, &s.aktif],
+        )
+        .await
+    } else {
+        db_row(&c,
+            "UPDATE site_stories SET judul = $2, teks = $3, img = $4, tautan = $5, tombol = $6, aktif = $7, updated_at = NOW()
+              WHERE id = $1 RETURNING id",
+            &[&s.id, &s.judul, &s.teks, &s.img, &s.tautan, &s.tombol, &s.aktif],
+        )
+        .await
+    }
+    .context("simpan story panduan")?;
+    Ok(row.get(0))
+}
+
+/// Hapus; mengembalikan URL gambar agar berkas RustFS-nya ikut dihapus.
+pub async fn delete_site_story(pool: &Pool, id: i64) -> Result<Option<String>> {
+    let c = pool.get().await?;
+    Ok(db_opt(&c, "DELETE FROM site_stories WHERE id = $1 RETURNING img", &[&id]).await?.map(|r| r.get(0)))
+}
+
+/// Geser naik/turun lalu rapikan urutan 10, 20, 30, …
+pub async fn move_site_story(pool: &Pool, id: i64, up: bool) -> Result<()> {
+    let mut c = pool.get().await?;
+    let tx = c.transaction().await?;
+    let mut ids: Vec<i64> = tx.query("SELECT id FROM site_stories ORDER BY urutan, id FOR UPDATE", &[]).await?.iter().map(|r| r.get(0)).collect();
+    if let Some(i) = ids.iter().position(|x| *x == id) {
+        let j = if up { i.checked_sub(1) } else { (i + 1 < ids.len()).then_some(i + 1) };
+        if let Some(j) = j {
+            ids.swap(i, j);
+        }
+    }
+    tx.execute(
+        "UPDATE site_stories s SET urutan = (v.n * 10)::INT FROM unnest($1::BIGINT[]) WITH ORDINALITY AS v(id, n) WHERE s.id = v.id",
+        &[&ids],
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
 // ── Story tamu (migrasi 026) ───────────────────────────────────────────────
 
 /// Story undangan, terbaru dulu. `my_hash` = SHA-256 token cookie pembuat
