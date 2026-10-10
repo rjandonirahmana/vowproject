@@ -16,6 +16,7 @@ pub mod api;
 pub mod app;
 pub mod components;
 pub mod fmt;
+pub mod i18n;
 pub mod icons;
 pub mod konten;
 pub mod layanan;

@@ -259,6 +259,8 @@ impl RateLimit {
 fn statis(path: &str) -> bool {
     ["/pkg/", "/img/", "/music/", "/video/"].iter().any(|p| path.starts_with(p))
         || path.starts_with("/gaya/")
+        || path.starts_with("/fonts/")
+        || path == "/fonts.css"
         || matches!(path, "/healthz" | "/readyz" | "/favicon.svg" | "/robots.txt" | "/tata.js" | "/tata.css" | "/app.js" | "/tema.css" | "/sitemap.xml")
 }
 

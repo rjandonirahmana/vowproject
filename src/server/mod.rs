@@ -6,6 +6,7 @@ pub mod auth;
 pub mod cleanup;
 pub mod config;
 pub mod db;
+pub mod fonts;
 pub mod form;
 pub mod gambar;
 pub mod handlers;

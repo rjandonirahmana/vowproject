@@ -32,17 +32,46 @@
   onDom(function(){ tracked.forEach(function(t){ t.els.forEach(function(el){ if(!el.isConnected){ t.io.unobserve(el); t.els.delete(el); } }); }); });
   function runDom(){ domPending=false; domTasks.forEach(function(fn){ fn(); }); }
   function audio(){ return d.getElementById('bgm'); }
+  // Undangan mana & tema demo mana (dipakai aturan tautan & gerbang).
+  function slugOf(p){ var m=/^\/u\/([^\/]+)/.exec(p||''); return m ? m[1] : ''; }
+  function temaOf(q){ try{ return new URLSearchParams(q||'').get('tema')||''; }catch(_){ return ''; } }
+  // Gerbang boleh dilewati HANYA bila tamu masih "di dalam" undangan yang
+  // sama: muat ulang, atau datang dari halaman undangan yang sama (tab Story
+  // → Sampul). Klik Demo dari beranda / tema lain → selalu mulai dari sampul.
+  // Dulu penanda sesi berlaku untuk SEMUA undangan & tema demo di tab ini.
+  function masihDiUndangan(){
+    try{
+      var nav=performance.getEntriesByType('navigation')[0];
+      if(nav && nav.type==='reload') return true;
+      var r=d.referrer ? new URL(d.referrer) : null;
+      return !!r && r.origin===location.origin && !!slugOf(location.pathname)
+        && slugOf(r.pathname)===slugOf(location.pathname) && temaOf(r.search)===temaOf(location.search);
+    }catch(_){ return false; }
+  }
+  // Bahasa undangan (atribut lang di .inv, i18n.rs): teks bawaan skrip ini
+  // ikut — T('Tersalin','Copied'). Di luar undangan = Indonesia.
+  function T(id, en){ var r=d.querySelector('.inv[lang]'); return r && r.getAttribute('lang')==='en' ? en : id; }
   function start(a){ var p=a.play(); if(p&&p.catch) p.catch(function(){}); }
   function sync(){ var a=audio(); d.documentElement.classList.toggle('bgm-playing', !!a && !a.paused); }
   // fade=true (tombol "Buka Undangan"): volume naik 0→1 dalam ±0,9 dtk.
   // iOS mengabaikan volume (hanya-baca) — musik langsung penuh, tak apa.
+  // SATU pengatur volume: naik saat dibuka, turun saat ditutup. Token `fadeId`
+  // membatalkan fade lama — buka lagi di tengah fade-turun tak ikut dijeda.
+  var fadeId=0;
+  function fadeTo(a, to, ms, done){
+    var id=++fadeId, from=a.volume, t0=0;
+    var step=function(t){
+      if(id!==fadeId) return; if(!t0) t0=t;
+      var k=Math.min(1,(t-t0)/ms), e=to>from ? k*k : 1-(1-k)*(1-k);
+      try{ a.volume=from+(to-from)*e; }catch(_){}
+      if(k<1) requestAnimationFrame(step); else if(done) done();
+    };
+    requestAnimationFrame(step);
+  }
   function play(fade){
     if(PV) return; var a=audio(); if(!a||!a.getAttribute('src')) return;
-    if(fade && a.paused){
-      a.volume=0; var t0=0;
-      var step=function(t){ if(!t0) t0=t; var k=Math.min(1,(t-t0)/900); a.volume=k*k; if(k<1 && !a.paused) requestAnimationFrame(step); else a.volume=1; };
-      requestAnimationFrame(step);
-    }
+    if(fade && a.paused){ try{ a.volume=0; }catch(_){} fadeTo(a, 1, 900); }
+    else fadeId++; // jeda/putar manual menghentikan fade yang sedang jalan
     start(a); try{sessionStorage.setItem(KEY,'1')}catch(e){}
   }
   function pause(){ var a=audio(); if(a) a.pause(); if(!PV) try{sessionStorage.setItem(KEY,'0')}catch(e){} }
@@ -61,6 +90,23 @@
     var t=d.createElement('div'); t.className='toast'; t.textContent=msg; d.body.appendChild(t);
     setTimeout(function(){t.classList.add('toast--out')},2200); setTimeout(function(){t.remove()},2700);
   };
+  // Masuk ke undangan (/u/…) dari halaman LAIN — atau ke tema demo lain
+  // (?tema= beda) — SELALU dimuat penuh, bukan navigasi SPA router Leptos:
+  // tema templat dirender middleware server (SPA menampilkan versi komponen
+  // yang salah), CSS halaman asal (/tema.css semua tema) tak boleh terbawa
+  // (tampilan bertabrakan), dan hydration undangan sengaja malas. Fase
+  // capture → jalan sebelum router; pindah tab di undangan yang sama tetap SPA.
+  // SATU aturan untuk semua tautan, termasuk yang ditambahkan nanti.
+  d.addEventListener('click', function(e){
+    if(e.defaultPrevented || e.button!==0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a=e.target.closest && e.target.closest('a[href]');
+    if(!a || a.target==='_blank' || a.hasAttribute('download')) return;
+    var u; try{ u=new URL(a.href, location.href); }catch(_){ return; }
+    if(u.origin!==location.origin || !/^\/u\//.test(u.pathname)) return;
+    if(slugOf(location.pathname) && slugOf(location.pathname)===slugOf(u.pathname) && temaOf(location.search)===temaOf(u.search)) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    location.assign(u.href);
+  }, true);
   d.addEventListener('click', function(e){
     // Tampilkan/sembunyikan sandi (form admin): .pw > input + [data-pw-toggle].
     var pw=e.target.closest('[data-pw-toggle]');
@@ -71,8 +117,9 @@
       var t=show?'Sembunyikan sandi':'Tampilkan sandi'; pw.setAttribute('aria-label', t); pw.title=t;
       inp.focus(); return;
     }
-    var el=e.target.closest('[data-music],[data-open],[data-copy],[data-song],[data-demo-open]');
+    var el=e.target.closest('[data-music],[data-open],[data-copy],[data-song],[data-demo-open],[data-close-inv]');
     if(!el) return;
+    if(el.hasAttribute('data-close-inv')){ e.preventDefault(); closeInv(); return; }
     if(el.hasAttribute('data-demo-open')){
       // Demo tema: buka gerbang HANYA di pratinjau ini (bukan html.inv-opened).
       burst(el);
@@ -88,12 +135,16 @@
       // tab Story / Acara, muat ulang) disembunyikan CSS `.inv-seen` — pintu
       // & video pembuka tak diputar lagi.
       var g0=d.querySelector('.gate:not(.gate--embed)'); if(g0) g0.setAttribute('data-live','1');
+      // Dibuka lagi di tengah gerak tutup → batalkan sisa penutupan.
+      if(closing){ clearTimeout(closing); closing=0; d.documentElement.classList.remove('inv-closing'); }
       burst(el); play(true); d.documentElement.classList.add('inv-opened','inv-seen');
       if(d.querySelector('.gate')) window.scrollTo(0,0);
       if(!openGate(g0, d)){ playBg(d); holdReveal(gateReveal(g0)); }
       // Setelah benar-benar tersembunyi (transisi visibility tiap animasi buka
       // berbeda; gerbang video menunggu videonya), lepas dari render.
-      if(g0){ var off=function(){ if(!g0.isConnected) return; if(getComputedStyle(g0).visibility==='hidden') g0.classList.add('gate--selesai'); else setTimeout(off, 700); }; setTimeout(off, 1600); }
+      // SATU pemeriksa saja (dibatalkan saat ditutup) — tak menumpuk tiap buka.
+      clearTimeout(offT);
+      if(g0){ var off=function(){ if(!g0.isConnected || !d.documentElement.classList.contains('inv-opened')) return; if(getComputedStyle(g0).visibility==='hidden') g0.classList.add('gate--selesai'); else offT=setTimeout(off, 700); }; offT=setTimeout(off, 1600); }
     }
     if(el.dataset.music==='toggle'){ var a=audio(); if(a&&!a.paused) pause(); else play(); }
     if(el.hasAttribute('data-song')){
@@ -108,11 +159,39 @@
     }
     if(el.hasAttribute('data-copy')){
       e.preventDefault(); var v=el.getAttribute('data-copy');
-      var ok=function(){ toast(el.getAttribute('data-copied')||'Tersalin'); };
+      var ok=function(){ toast(el.getAttribute('data-copied')||T('Tersalin','Copied')); };
       if(navigator.clipboard) navigator.clipboard.writeText(v).then(ok,ok);
       else { var ta=d.createElement('textarea'); ta.value=v; d.body.appendChild(ta); ta.select(); try{d.execCommand('copy')}catch(_){} ta.remove(); ok(); }
     }
   });
+  // Tutup undangan → kembali ke sampul: gerbang dipasang lagi, `inv-opened`
+  // dicabut, dan `.inv-closing` (main.css) memainkan gerak MENUTUP — panel
+  // gerbang bertema merapat, lalu isi sampul muncul. Lama: --gate-close (ms),
+  // bawaan 1400.
+  var closing=0, offT=0;
+  function closeInv(){
+    var h=d.documentElement, g=d.querySelector('.gate:not(.gate--embed)');
+    if(!g || closing || !h.classList.contains('inv-opened')) return;
+    clearTimeout(offT);
+    var ms=calm || h.classList.contains('motion-min') ? 0 : (parseInt(getComputedStyle(g).getPropertyValue('--gate-close'),10) || 1400);
+    var a=audio(); if(a && !a.paused) fadeTo(a, 0, 500, function(){ pause(); try{ a.volume=1; }catch(_){} });
+    try{ sessionStorage.setItem(KEY,'0'); }catch(_){}
+    g.setAttribute('data-live','1');
+    g.classList.remove('gate--selesai','is-done');
+    // Video pintu kembali ke bingkai pertama (pintu tertutup); diputar lagi saat dibuka.
+    g.querySelectorAll('video[data-gatevideo]').forEach(function(v){
+      dropFin(v);
+      v.pause(); try{ v.currentTime=0; }catch(_){}
+    });
+    void g.offsetWidth; // gaya "terbuka" dihitung dulu agar transisi punya titik awal
+    h.classList.add('inv-closing');
+    requestAnimationFrame(function(){
+      // inv-seen ikut dicabut: gerbang yang dirender ulang (pindah tab lalu
+      // kembali) harus tampil lagi — undangan memang sedang tertutup.
+      h.classList.remove('inv-opened','inv-seen');
+      closing=setTimeout(function(){ closing=0; h.classList.remove('inv-closing'); window.scrollTo(0,0); }, ms + 80);
+    });
+  }
   // Semburan kelopak & kilau emas dari tombol "Buka Undangan".
   function burst(el){
     if(calm) return;
@@ -134,15 +213,19 @@
   // diputar tanpa suara setelah gerbang dibuka; mode hemat → tak dimuat
   // (poster saja). Dijeda saat tab tersembunyi, dilanjutkan saat kembali.
   // Video berulang dari detik `#loop=` (atau dari awal): dipakai latar sampul.
-  function loopFrom(v, start){
+  function loopFrom(v, now){
     var lf=/#loop=([\d.]+)/.exec(v.getAttribute('src')||''), at=lf ? parseFloat(lf[1]) : 0;
     v.muted=true; v.loop=false;
-    var go=function(){ try{ v.currentTime=at; }catch(_){} var q=v.play(); if(q&&q.catch) q.catch(function(){}); };
+    var go=function(){ try{ v.currentTime=at; }catch(_){} start(v); };
     v.addEventListener('ended', go);
-    if(start){ if(v.readyState>=1) go(); else v.addEventListener('loadedmetadata', go, {once:true}); }
+    if(now){ if(v.readyState>=1) go(); else v.addEventListener('loadedmetadata', go, {once:true}); }
   }
   function playGateBg(){
     if(calm || d.documentElement.classList.contains('motion-min')) return;
+    // Setelah `load`: video tak berebut jaringan dengan CSS, font & foto sampul
+    // (poster tampil sampai itu). Video pintu dipanaskan agar siap saat dibuka.
+    if(d.readyState!=='complete') return;
+    d.querySelectorAll('video[data-gatevideo]').forEach(function(v){ if(v.preload!=='auto') v.preload='auto'; });
     var seen=d.documentElement.classList.contains('inv-seen');
     d.querySelectorAll('video[data-gatebg]:not([data-gb])').forEach(function(v){
       v.setAttribute('data-gb','1');
@@ -163,16 +246,16 @@
   function playBg(root){
     if(d.documentElement.classList.contains('motion-min')) return;
     (root||d).querySelectorAll('video[data-bgvideo]').forEach(function(v){
-      v.muted=true; v.setAttribute('data-bv','1');
-      // `#loop=2.6` di src: bagian pembuka video tampil sekali, pengulangan
-      // mulai dari detik itu (frame akhir = frame detik itu).
-      var lf=/#loop=([\d.]+)/.exec(v.getAttribute('src')||'');
-      if(lf && !v.dataset.lf){ v.dataset.lf=lf[1]; v.loop=false; v.addEventListener('ended', function(){ try{ v.currentTime=parseFloat(v.dataset.lf); }catch(_){} var q=v.play(); if(q&&q.catch) q.catch(function(){}); }); }
+      v.setAttribute('data-bv','1');
+      // Pengulangan (`#loop=`) dipasang SEKALI per video — playBg bisa dipanggil
+      // berkali-kali (buka-tutup undangan, pindah tab).
+      if(!v.dataset.lf){ v.dataset.lf='1'; loopFrom(v, false); }
       if(v.preload!=='auto') v.preload='auto';
-      var p=v.play(); if(p&&p.catch) p.catch(function(){});
+      start(v);
     });
   }
-  onDom(playGateBg); playGateBg();
+  onDom(playGateBg);
+  if(d.readyState==='complete') playGateBg(); else window.addEventListener('load', playGateBg, {once:true});
   onDom(function(){
     // Tanpa gerbang (atau sudah dibuka): langsung putar video baru di halaman.
     var g=d.querySelector('.gate:not(.gate--embed)');
@@ -181,7 +264,7 @@
     d.querySelectorAll('.inv:not(.inv--embed) video[data-bgvideo]:not([data-bv])').forEach(function(v){ playBg(v.parentNode); });
   });
   d.addEventListener('visibilitychange', function(){
-    d.querySelectorAll('video[data-bv]').forEach(function(v){ if(d.hidden) v.pause(); else { var p=v.play(); if(p&&p.catch) p.catch(function(){}); } });
+    d.querySelectorAll('video[data-bv]').forEach(function(v){ if(d.hidden) v.pause(); else start(v); });
   });
   // Video prewedding bersuara diputar → musik latar dijeda.
   d.addEventListener('play', function(e){ var t=e.target; if(t && t.matches && t.matches('video[data-prewed]')) pause(); }, true);
@@ -205,9 +288,19 @@
   // gerbang ditutup (.is-done) setelah video SELESAI (bukan timer — sinyal
   // lambat tak memotong pintu), lalu video latar diputar & isi dianimasikan
   // --gate-reveal ms kemudian. Mode hemat / galat → langsung selesai.
+  // Lepas KEDUA listener penyelesai video pintu. `{once:true}` hanya melepas
+  // yang terpicu — 'error' yang tak pernah terjadi tertinggal & menumpuk
+  // +1 tiap buka-tutup (terukur di audit CDP Okt 2026).
+  function dropFin(v){ if(!v._fin) return; v.removeEventListener('ended', v._fin); v.removeEventListener('error', v._fin); v._fin=null; }
   function openGate(g, root){
     var v=g && g.querySelector('video[data-gatevideo]'); if(!v) return false;
-    var done=false, fin=function(){ if(done) return; done=true; g.classList.add('is-done'); g.querySelectorAll('video[data-gatebg]').forEach(function(x){ x.pause(); }); playBg(root); holdReveal(gateReveal(g)); };
+    // Penyelesai pembukaan SEBELUMNYA (ditutup di tengah video) dilepas —
+    // tanpa ini buka lagi = dua penyelesai (video latar & isi diputar ganda).
+    dropFin(v);
+    // `v._fin!==fin`: pembukaan ini sudah digantikan/ditutup (cadangan 12 dtk
+    // atau play() yang gagal belakangan tak boleh menyelesaikan gerbang tertutup).
+    var done=false, fin=function(){ if(done || v._fin!==fin) return; done=true; dropFin(v); g.classList.add('is-done'); g.querySelectorAll('video[data-gatebg]').forEach(function(x){ x.pause(); }); playBg(root); holdReveal(gateReveal(g)); };
+    v._fin=fin;
     holdReveal(120000);
     if(calm || d.documentElement.classList.contains('motion-min')){ fin(); return true; }
     v.muted=true; try{ v.currentTime=0; }catch(_){}
@@ -320,7 +413,7 @@
     if(inp.dataset.preview==='video'){
       if(!out) return;
       var v=d.createElement('video'); v.src=url; v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true; v.className='preview-video';
-      out.appendChild(v); var pv=v.play(); if(pv&&pv.catch) pv.catch(function(){});
+      out.appendChild(v); start(v);
       return;
     }
     if(inp.dataset.preview==='audio'){
@@ -662,15 +755,20 @@
   // paling tengah di layar setelah gulir berhenti. Hanya SATU iframe hidup.
   if(PV){
     d.documentElement.classList.add('is-pv');
-    // Skrip ini di akhir <body> → DOM sudah lengkap: beri tahu kartu induk
-    // SEKARANG (tak menunggu gambar), buka gerbang, lalu mulai bergulir.
+    // Jabat tangan dengan kartu induk: 'ready' → kartu memunculkan iframe →
+    // balas 'show' → BARU gerbang dibuka (dengan gerak buka tema). Dulu
+    // tombol ditekan pada ms ke-0 saat iframe masih tak terlihat, jadi yang
+    // tampil langsung isi undangan tanpa animasi buka. Cadangan 1,2 dtk.
     try{ parent.postMessage({pv:'ready'}, location.origin); }catch(_){}
     var pvRun=function(){
+      if(pvRun.done) return; pvRun.done=true;
       var o=d.querySelector('.gate [data-open]') || d.querySelector('[data-open]');
       if(o && !d.documentElement.classList.contains('inv-opened')) o.click();
       if(calm) return;
+      // Gulir setelah gerbang selesai terbuka (gerak buka utuh terlihat);
       // ±90 px/dtk ke bawah; di dasar jeda, kembali ke atas, ulangi.
-      var y=0, last=0, wait=performance.now()+(o?900:300);
+      var g=d.querySelector('.gate:not(.gate--embed)');
+      var y=0, last=0, wait=performance.now()+(o ? gateReveal(g)+1600 : 300);
       (function run(t){
         if(t<wait){ last=0; requestAnimationFrame(run); return; }
         var max=d.documentElement.scrollHeight-innerHeight;
@@ -682,7 +780,8 @@
         requestAnimationFrame(run);
       })(performance.now());
     };
-    pvRun();
+    window.addEventListener('message', function(e){ if(e.origin===location.origin && e.data && e.data.pv==='show') pvRun(); });
+    setTimeout(pvRun, 1200);
   } else if(!(navigator.connection && navigator.connection.saveData)){
     var pvCur=null, pvTimer=0, PW=390;
     var pvStop=function(){
@@ -692,6 +791,12 @@
       if(pvCur.parentNode) pvCur.parentNode.classList.remove('is-pv');
       pvCur=null;
     };
+    // Munculkan iframe (pudar 0,2 dtk) lalu minta ia mulai membuka undangan.
+    var pvShow=function(art, f){
+      if(art.classList.contains('is-pv')) return;
+      art.classList.add('is-pv');
+      setTimeout(function(){ try{ f.contentWindow.postMessage({pv:'show'}, location.origin); }catch(_){} }, 220);
+    };
     var pvStart=function(h){
       if(pvCur===h && h.isConnected) return;
       pvStop(); pvCur=h;
@@ -700,7 +805,7 @@
       var f=d.createElement('iframe');
       f.title='Pratinjau tema'; f.tabIndex=-1; f.setAttribute('aria-hidden','true');
       f.style.width=PW+'px'; f.style.height=Math.ceil(r.height/s)+'px'; f.style.transform='scale('+s+')';
-      f.onload=function(){ if(pvCur===h) art.classList.add('is-pv'); };
+      f.onload=function(){ if(pvCur===h) pvShow(art, f); };
       f.src=h.getAttribute('data-pv');
       h.appendChild(f);
     };
@@ -708,7 +813,7 @@
     // Iframe memberi tahu begitu HTML-nya terurai (lebih cepat dari onload).
     window.addEventListener('message', function(e){
       if(e.origin!==location.origin || !e.data || e.data.pv!=='ready' || !pvCur) return;
-      var f=pvCur.querySelector('iframe'); if(f && e.source===f.contentWindow) pvCur.parentNode.classList.add('is-pv');
+      var f=pvCur.querySelector('iframe'); if(f && e.source===f.contentWindow) pvShow(pvCur.parentNode, f);
     });
     // Prefetch HTML pratinjau kartu yang terlihat (di-cache browser 10 mnt,
     // security::is_demo_preview) → saat disentuh/di-hover iframe tampil seketika.
@@ -804,7 +909,7 @@
     function delMine(id){
       var src=S && S.src; if(!src) return;
       var owner=src.getAttribute('data-owner')==='1';
-      if(!confirm(owner ? 'Hapus story tamu ini secara permanen? Foto ikut terhapus.' : 'Hapus story Anda secara permanen?')) return;
+      if(!confirm(owner ? 'Hapus story tamu ini secara permanen? Foto ikut terhapus.' : T('Hapus story Anda secara permanen?','Permanently delete your story?'))) return;
       var f=d.createElement('form'); f.method='post'; f.action=owner ? src.getAttribute('data-del-owner') : src.getAttribute('data-del');
       var fields=owner ? [['id', id], ['key', src.getAttribute('data-key')||'']] : [['id', id], ['back', src.getAttribute('data-back')||'']];
       fields.forEach(function(kv){ var i=d.createElement('input'); i.type='hidden'; i.name=kv[0]; i.value=kv[1]; f.appendChild(i); });
@@ -827,7 +932,7 @@
         '<div class="sv-progress-row">'+segs+'</div>'+
         '<div class="sv-header"><div class="sv-header-left"><div class="sv-avatar-ring"><img class="sv-avatar" alt=""></div>'+
         '<div class="sv-user-info"><span class="sv-username"></span><span class="sv-meta"></span></div></div>'+
-        '<div class="sv-header-right"><button type="button" class="sv-del-btn" aria-label="Hapus story saya" hidden>'+DEL_SVG+'</button><button type="button" class="sv-close-btn" aria-label="Tutup story">'+X_SVG+'</button></div></div>'+
+        '<div class="sv-header-right"><button type="button" class="sv-del-btn" aria-label="'+T('Hapus story saya','Delete my story')+'" hidden>'+DEL_SVG+'</button><button type="button" class="sv-close-btn" aria-label="'+T('Tutup story','Close story')+'">'+X_SVG+'</button></div></div>'+
         '<div class="sv-media-area"><div class="sv-img-shell sv-img-loading"><div class="sv-shimmer"></div><img class="sv-media" alt="" draggable="false"></div></div>'+
         '<p class="sv-caption"></p><a class="btn btn--primary sv-cta" hidden></a></div></div></div>';
       if(src.getAttribute('data-fit')==='contain') root.classList.add('sv-contain');
@@ -1013,5 +1118,5 @@
   new MutationObserver(function(){ if(!domPending){ domPending=true; requestAnimationFrame(runDom); } })
     .observe(d.body, {childList:true, subtree:true, attributes:true, attributeFilter:['data-load-more']});
   // Tamu yang sudah membuka undangan di tab ini: lanjutkan musik saat pindah halaman penuh.
-  try{ if(!PV && sessionStorage.getItem(KEY)==='1'){ d.documentElement.classList.add('inv-opened','inv-seen'); var a=audio(); if(a&&a.dataset.autoplay!=='false') play(); } }catch(e){}
+  try{ if(!PV && sessionStorage.getItem(KEY)==='1' && masihDiUndangan()){ d.documentElement.classList.add('inv-opened','inv-seen'); var a=audio(); if(a&&a.dataset.autoplay!=='false') play(); } }catch(e){}
 })();

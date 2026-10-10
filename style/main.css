@@ -649,19 +649,6 @@ select.input {
 .skl-phone { justify-items: center; padding: 56px 24px; min-height: 100%; }
 .skl-phone > .sk:not(.sk-arch) { justify-self: center; }
 .skl-scan { max-width: 520px; margin: 0 auto; }
-/* Undangan: HP = satu kolom; desktop = kiri & kanan sama besar (.inv--rail). */
-.skl-inv { min-height: 100svh; gap: 0; background: var(--bg); }
-.skl-inv__side { display: none; }
-.skl-inv__mid { display: grid; gap: 18px; }
-.skl-inv__col {
-    display: grid;
-    align-content: start;
-    gap: 18px;
-    width: min(100%, 720px);
-    margin: 0 auto;
-    padding: 16px 16px 110px;
-}
-.skl-inv__cover { display: grid; justify-items: center; gap: 14px; padding: 18px 0; }
 .skl-nav {
     position: fixed;
     left: 50%;
@@ -676,29 +663,118 @@ select.input {
     box-shadow: var(--shadow-lg, 0 8px 30px rgba(0, 0, 0, 0.12));
 }
 .skl-nav__i { display: grid; justify-items: center; gap: 6px; width: 56px; }
-@media (min-width: 960px) {
-    .skl-detail { grid-template-columns: 1.1fr 0.9fr; }
+
+/* ── Layar muat UNDANGAN (/u/…, HP demo /tema) — palet sendiri ──────────────
+   Tak memakai var(--bg)/--ink/--primary: dulu kerangka ikut tema yang sedang
+   aktif (biasanya tema bawaan situs) sehingga tampak seperti "salah satu
+   tema". Gading lembut + kilau emas tipis menyapu kartu sampul. */
+.skl-und {
+    --skl-paper: #f6f1ea;
+    --skl-card: #fffdf9;
+    --skl-gold: #d9c39a;
+    --sk-base: rgba(122, 98, 68, 0.1);
+    --sk-shine: rgba(255, 255, 255, 0.85);
+    color-scheme: light;
+    background: radial-gradient(120% 80% at 50% 0%, #fffaf3, var(--skl-paper) 70%);
 }
-@media (min-width: 1100px) {
-    .skl-inv {
-        --gut: max(0px, (100vw - 1680px) / 2);
-        grid-template-columns: 1fr 1fr;
-        padding: 0 var(--gut);
+.skl-und__card {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    width: min(100%, 360px);
+    margin: 0 auto;
+    padding: 30px 24px 26px;
+    border-radius: 18px;
+    background: var(--skl-card);
+    box-shadow: 0 24px 60px rgba(92, 70, 40, 0.12), inset 0 0 0 1px rgba(217, 195, 154, 0.45);
+}
+.skl-und__card > .sk { justify-self: center; }
+/* Kilau emas menyapu seluruh kartu — ciri khas layar muat undangan. */
+.skl-und__card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 35%, rgba(217, 195, 154, 0.28) 50%, transparent 65%);
+    translate: -100% 0;
+    animation: skl-kilau 2.4s ease-in-out infinite;
+    pointer-events: none;
+}
+@keyframes skl-kilau {
+    60%,
+    100% {
+        translate: 100% 0;
     }
-    .skl-inv__side {
-        --sk-base: color-mix(in srgb, var(--on-primary) 14%, transparent);
-        --sk-shine: color-mix(in srgb, var(--on-primary) 22%, transparent);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
+}
+.skl-und__ring {
+    display: grid;
+    place-items: center;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--skl-gold);
+    animation: skl-denyut 1.8s ease-in-out infinite;
+}
+.skl-und__mono { width: 64px; height: 64px; }
+@keyframes skl-denyut {
+    50% {
+        box-shadow: 0 0 0 7px rgba(217, 195, 154, 0.18), 0 0 0 1px var(--skl-gold);
+    }
+}
+.skl-und__names { height: 34px; border-radius: 12px; }
+.skl-und__rule {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 46%;
+}
+.skl-und__rule::before,
+.skl-und__rule::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--skl-gold);
+}
+.skl-und__rule i {
+    width: 7px;
+    height: 7px;
+    rotate: 45deg;
+    background: var(--skl-gold);
+}
+.skl-und__side { display: none; }
+.skl-inv { min-height: 100svh; gap: 0; }
+.skl-und__stage {
+    display: grid;
+    place-items: center;
+    min-height: 100svh;
+    padding: 24px 16px 110px;
+}
+.skl-und__nav { background: var(--skl-card); }
+@media (min-width: 900px) {
+    .skl-inv { grid-template-columns: 1fr 1fr; }
+    .skl-und__side {
+        --sk-base: rgba(255, 255, 255, 0.14);
+        --sk-shine: rgba(255, 255, 255, 0.3);
+        display: grid;
+        align-content: center;
+        justify-items: center;
+        gap: 18px;
         height: 100svh;
         position: sticky;
         top: 0;
-        padding: clamp(40px, 6vh, 72px) clamp(48px, 5vw, 88px);
-        background: var(--primary);
+        padding: 48px;
+        background: linear-gradient(170deg, #8a7458, #5d4c37);
     }
-    .skl-inv__col { width: min(720px, calc(100% - 112px)); padding-top: 22px; }
-    .skl-nav { left: calc(75%); width: min(560px, calc(50vw - 160px)); }
+    .skl-und__side > .sk { justify-self: center; }
+    .skl-und__nav { left: 75%; width: min(560px, calc(50vw - 64px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .skl-und__card::after,
+    .skl-und__ring { animation: none; }
+}
+@media (min-width: 960px) {
+    .skl-detail { grid-template-columns: 1.1fr 0.9fr; }
 }
 
 .avatar {
@@ -2988,10 +3064,60 @@ html.is-pv .toast {
     background: var(--err-bg);
     color: var(--err);
 }
+/* Pemilih tema di /buat: kotak bergulir sendiri (bukan 76 baris memanjangkan
+ * formulir), cari + chip kategori menempel di atas. */
+.theme-pick-box {
+    margin-top: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    overflow: hidden;
+}
+.theme-pick__tools {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    background: var(--surface-low);
+    border-bottom: 1px solid var(--line);
+}
+.theme-pick__cats {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.theme-pick__cats .chip {
+    flex: none;
+    cursor: pointer;
+}
+.theme-pick__cats .chip.is-on {
+    background: var(--primary-2);
+    color: var(--on-primary);
+}
 .theme-pick {
     display: grid;
     gap: 8px;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 10px;
+}
+.theme-pick__opt.is-hidden {
+    display: none;
+}
+/* Tombol ganti bahasa di bilah atas undangan (teks "EN"/"ID", bukan ikon). */
+.lang-btn {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+}
+.lang-pick {
+    display: grid;
+    gap: 6px;
+    margin: 12px 0 0;
+    padding: 0;
+    border: 0;
 }
 .theme-pick__opt {
     display: flex;
@@ -6722,6 +6848,116 @@ html:not(.inv-opened) body:has(.gate:not(.gate--embed)) {
     opacity: 0;
     transform: scale(0.96);
 }
+/* ── Tutup undangan (global.js closeInv): GERBANG MENUTUP ──────────────────
+ * Bukan gerak buka diputar mundur — gerak buka bertahap (sampul pudar →
+ * adegan → menembus pintu) terasa "terbalik" bila dimundurkan. Saat menutup:
+ * adegan buka disembunyikan; dua panel gerbang (warna & ilustrasi TEMA itu)
+ * bergeser merapat dari kiri-kanan seperti pintu; lalu isi sampul muncul.
+ * Variasi per cara buka: layar-naik → layar turun dari atas; galaksi →
+ * portal menyusut ke tengah. Lama total ±1,4 dtk (--gate-close). */
+@media (prefers-reduced-motion: no-preference) {
+    .inv-closing .gate:not(.gate--embed) {
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: none !important;
+        translate: none !important;
+        scale: none !important;
+        rotate: none !important;
+        filter: none !important;
+        clip-path: none !important;
+        -webkit-mask: none !important;
+        mask: none !important;
+        transition: none !important;
+        animation: none !important;
+        pointer-events: none;
+    }
+    .inv-closing .gate:not(.gate--embed)::before,
+    .inv-closing .gate:not(.gate--embed)::after,
+    .inv-closing .gate:not(.gate--embed) > :not(.gate__panel):not(.gate__content) {
+        visibility: hidden !important;
+    }
+    .inv-closing .gate:not(.gate--embed) > .gate__panel {
+        visibility: visible !important;
+        opacity: 1 !important;
+        filter: none !important;
+        clip-path: none !important;
+        transition: none !important;
+        animation: gate-tutup-kiri 0.85s cubic-bezier(0.7, 0, 0.25, 1) both !important;
+    }
+    .inv-closing .gate:not(.gate--embed) > .gate__panel--r {
+        animation-name: gate-tutup-kanan !important;
+    }
+    .inv-closing .gate--layar-naik:not(.gate--embed) > .gate__panel {
+        animation-name: gate-tutup-turun !important;
+    }
+    .inv-closing .gate--galaksi:not(.gate--embed) > .gate__panel {
+        animation-name: gate-tutup-portal !important;
+        animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1) !important;
+    }
+    .inv-closing .gate:not(.gate--embed) > .gate__content {
+        visibility: visible !important;
+        transition: none !important;
+        animation: gate-tutup-isi 0.6s ease 0.75s both !important;
+    }
+}
+@keyframes gate-tutup-kiri {
+    from {
+        transform: translateX(-102%);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes gate-tutup-kanan {
+    from {
+        transform: translateX(102%);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes gate-tutup-turun {
+    from {
+        transform: translateY(-104%);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes gate-tutup-portal {
+    from {
+        opacity: 0;
+        transform: scale(1.35);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@keyframes gate-tutup-isi {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+/* Tombol tutup: hanya di halaman bergerbang & setelah dibuka (bilah atas
+ * sendiri baru tampil setelah dibuka). Masuk pelan setelah gerbang hilang. */
+.inv:not(:has(.gate:not(.gate--embed))) .inv-close {
+    display: none;
+}
+html.inv-opened .inv-close {
+    animation: inv-close-in 0.5s ease 1.2s both;
+}
+@keyframes inv-close-in {
+    from {
+        opacity: 0;
+        scale: 0.6;
+    }
+}
 /* Gerak tiap cara membuka (tirai, gerbang, amplop, pudar, …) ada di tabel animations → /tema.css. */
 .inv--gate .inv-top,
 .inv--gate .bottom-nav {
@@ -7032,6 +7268,26 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
         display: none;
     }
     html.inv-opened .inv-side__cta--acara {
+        display: inline-flex;
+    }
+    .inv-side__close {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 22px 12px 16px;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: inherit;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .inv-side__close:hover {
+        background: rgba(255, 255, 255, 0.16);
+    }
+    html.inv-opened .inv-side__close {
         display: inline-flex;
     }
     .inv-side__music {

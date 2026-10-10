@@ -37,37 +37,44 @@ pub fn SkelLines(#[prop(default = 3)] n: usize) -> impl IntoView {
     }
 }
 
-/// Halaman undangan /u/…: desktop = panel kiri & kolom kanan SAMA BESAR
-/// (seperti .inv--rail), HP = kolom saja; termasuk bilah navigasi bawah.
+/// Kartu sampul undangan dalam bentuk kerangka — SATU blok untuk layar muat
+/// undangan & layar HP demo /tema: cincin monogram berdenyut, "The Wedding
+/// Of", nama, tanggal, garis, tamu, tombol. Berpalet SENDIRI (`.skl-und`),
+/// tak memakai warna tema mana pun — dulu ikut var(--bg)/--primary tema yang
+/// sedang aktif sehingga loading tampak seperti "salah satu tema".
+#[component]
+fn SkelSampul() -> impl IntoView {
+    view! {
+        <div class="skl-und__card">
+            <span class="skl-und__ring"><Sk class="sk-circle skl-und__mono" /></span>
+            <Sk class="sk-line sk-sm" w="36%" />
+            <Sk class="sk-title skl-und__names" w="72%" />
+            <Sk class="sk-line" w="48%" />
+            <span class="skl-und__rule" aria-hidden="true"><i></i></span>
+            <Sk class="sk-line sk-sm" w="40%" />
+            <Sk class="sk-title" w="58%" />
+            <Sk class="sk-pill" w="62%" />
+        </div>
+    }
+}
+
+/// Layar muat undangan (/u/…). HP = kartu sampul di tengah + navigasi bawah;
+/// desktop = panel kiri : kartu kanan, seperti undangan aslinya.
 #[component]
 pub fn SkelInvitation() -> impl IntoView {
     view! {
-        <SkWrap class="skl-inv">
-            <div class="skl-inv__side">
-                <Sk class="sk-pill sk-sm" w="44%" />
-                <div class="skl-inv__mid">
-                    <Sk class="sk-line" w="38%" />
-                    <Sk class="sk-hero" w="72%" />
-                    <Sk class="sk-line" w="46%" />
-                    <Sk class="sk-pill" w="34%" />
-                </div>
-                <Sk class="sk-line" w="58%" />
+        <SkWrap class="skl-und skl-inv">
+            <div class="skl-und__side" aria-hidden="true">
+                <Sk class="sk-line sk-sm" w="34%" />
+                <Sk class="sk-hero" w="70%" />
+                <Sk class="sk-line" w="44%" />
+                <Sk class="sk-pill" w="38%" />
             </div>
-            <div class="skl-inv__col">
-                <div class="skl-card skl-row">
-                    <Sk class="sk-circle sk-48" />
-                    <div class="skl-grow"><Sk class="sk-line" w="46%" /><Sk class="sk-line" w="30%" /></div>
-                </div>
-                <div class="skl-inv__cover">
-                    <Sk class="sk-line" w="40%" />
-                    <Sk class="sk-arch" />
-                    <Sk class="sk-title" w="64%" />
-                    <Sk class="sk-line" w="44%" />
-                    <Sk class="sk-pill" w="52%" />
-                </div>
-                <div class="skl-nav">
-                    {(0..5).map(|_| view! { <span class="skl-nav__i"><Sk class="sk-circle sk-20" /><Sk class="sk-line sk-xs" /></span> }).collect_view()}
-                </div>
+            <div class="skl-und__stage">
+                <SkelSampul />
+            </div>
+            <div class="skl-nav skl-und__nav">
+                {(0..5).map(|_| view! { <span class="skl-nav__i"><Sk class="sk-circle sk-20" /><Sk class="sk-line sk-xs" /></span> }).collect_view()}
             </div>
         </SkWrap>
     }
@@ -77,12 +84,8 @@ pub fn SkelInvitation() -> impl IntoView {
 #[component]
 pub fn SkelPhone() -> impl IntoView {
     view! {
-        <SkWrap class="skl-phone">
-            <Sk class="sk-line" w="42%" />
-            <Sk class="sk-arch" />
-            <Sk class="sk-title" w="70%" />
-            <Sk class="sk-line" w="48%" />
-            <Sk class="sk-pill" w="56%" />
+        <SkWrap class="skl-und skl-phone">
+            <SkelSampul />
         </SkWrap>
     }
 }

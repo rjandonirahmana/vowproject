@@ -34,7 +34,9 @@ use serde::{Deserialize, Serialize};
 
 use super::repo::{self, InvRow};
 use super::state::AppState;
-use crate::web::fmt;
+use crate::tx;
+use crate::web::i18n::Lang;
+use crate::web::fmt::{self, html_escape as esc};
 use crate::web::model::*;
 
 pub const TATA_JS: &str = include_str!("../../templat/tata.js");
@@ -81,12 +83,20 @@ fn bawaan(slug: &str, html: &str, css: &str, meta: &str) -> Templat {
 
 /// Templat bawaan dari berkas repo (templat/<slug>/).
 pub fn builtins() -> Vec<Templat> {
-    vec![bawaan(
-        "kusuma",
-        include_str!("../../templat/kusuma/templat.html"),
-        include_str!("../../templat/kusuma/gaya.css"),
-        include_str!("../../templat/kusuma/meta.json"),
-    )]
+    vec![
+        bawaan(
+            "kusuma",
+            include_str!("../../templat/kusuma/templat.html"),
+            include_str!("../../templat/kusuma/gaya.css"),
+            include_str!("../../templat/kusuma/meta.json"),
+        ),
+        bawaan(
+            "warkah",
+            include_str!("../../templat/warkah/templat.html"),
+            include_str!("../../templat/warkah/gaya.css"),
+            include_str!("../../templat/warkah/meta.json"),
+        ),
+    ]
 }
 
 // ── Validasi (dipakai saat seed, simpan admin, dan uji) ───────────────────
@@ -197,7 +207,7 @@ impl TemplatSet {
 
 pub fn asset_version() -> &'static str {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    V.get_or_init(|| format!("{:08x}", super::util::fnv1a64(&format!("{TATA_JS}{TATA_CSS}")) as u32))
+    V.get_or_init(|| super::util::hash8(&format!("{TATA_JS}{TATA_CSS}")))
 }
 
 pub async fn tata_js() -> Response {
@@ -232,6 +242,15 @@ struct Ev {
     day: String,
     /// "September 2026"
     month_year: String,
+    /// "September" / "2026" — tanggal terbelah (SABTU | 12 | SEPTEMBER / 2026).
+    month: String,
+    year: String,
+    /// Kalender bulan acara: sel kosong sebelum tanggal 1 (minggu mulai
+    /// Senin) & jumlah hari — templat cukup `range()`.
+    cal_lead: i64,
+    cal_days: i64,
+    /// "08.00" (jam mulai saja) — baris susunan acara.
+    time_start: String,
     date_label: String,
     time_label: String,
     venue: String,
@@ -240,22 +259,31 @@ struct Ev {
     sessions: Vec<Session>,
 }
 
-const BULAN: [&str; 12] = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-
-fn ev(e: &Event) -> Ev {
-    let label = e.date_label();
-    let (day, month_year) = match fmt::parse_date(&e.date) {
-        Some((y, m, d)) => (d.to_string(), format!("{} {y}", BULAN.get((m - 1).clamp(0, 11) as usize).copied().unwrap_or(""))),
-        None => (String::new(), String::new()),
+fn ev(e: &Event, l: Lang) -> Ev {
+    let label = e.date_label_in(l);
+    let parsed = fmt::parse_date(&e.date);
+    let bulan: &[&str; 12] = match l {
+        Lang::Id => &fmt::BULAN,
+        Lang::En => &fmt::MONTH_EN,
     };
+    let month = parsed.map(|(_, m, _)| bulan.get((m - 1).clamp(0, 11) as usize).copied().unwrap_or("").to_string()).unwrap_or_default();
+    let year = parsed.map(|(y, _, _)| y.to_string()).unwrap_or_default();
+    let day = parsed.map(|(_, _, d)| d.to_string()).unwrap_or_default();
+    let month_year = if month.is_empty() { String::new() } else { format!("{month} {year}") };
+    let (cal_lead, cal_days) = parsed.map(|(y, m, _)| (fmt::weekday_mon0(y, m, 1), fmt::days_in_month(y, m))).unwrap_or((0, 0));
     Ev {
         title: e.title.clone(),
         kind: e.kind.clone(),
         day_name: label.split(',').next().filter(|_| label.contains(',')).unwrap_or("").trim().to_string(),
         day,
         month_year,
+        month,
+        year,
+        cal_lead,
+        cal_days,
+        time_start: e.time_start.trim().replace(':', "."),
         date_label: label,
-        time_label: e.time_label(),
+        time_label: e.time_label_in(l),
         venue: e.venue.clone(),
         address: e.address.clone(),
         maps: e.maps_link(),
@@ -286,13 +314,13 @@ struct WishOut {
     initials: String,
 }
 
-fn wish_out(w: &Wish) -> WishOut {
+fn wish_out(w: &Wish, l: Lang) -> WishOut {
     WishOut {
         initials: avatar_initials(&w.name),
         name: w.name.clone(),
         message: w.message.clone(),
-        status: rsvp_label(&w.status).to_string(),
-        ago: w.ago.clone(),
+        status: rsvp_label_in(&w.status, l).to_string(),
+        ago: w.ago_in(l),
     }
 }
 
@@ -306,21 +334,119 @@ struct Page<'a> {
     assets: BTreeMap<String, String>,
     /// Hasil kiriman RSVP tanpa JS (?rsvp=ok|galat setelah 303).
     rsvp_flash: Option<bool>,
+    /// Bahasa teks bawaan (?lang= tamu, atau pilihan pasangan).
+    lang: Lang,
+    /// Tautan tombol ganti bahasa (bahasa lainnya, query lain tetap).
+    lang_href: String,
 }
 
 /// Pesan tetap untuk ?rsvp= — teks tak pernah diambil dari URL.
-fn flash_msg(ok: bool) -> &'static str {
+fn flash_msg(ok: bool, l: Lang) -> &'static str {
     if ok {
-        "Terima kasih! Konfirmasi & ucapan Anda telah kami terima."
+        tx!(l, "Terima kasih! Konfirmasi & ucapan Anda telah kami terima.", "Thank you! We have received your RSVP and wishes.")
     } else {
-        "Gagal mengirim — periksa isian (nama, status kehadiran, jumlah tamu) lalu coba lagi."
+        tx!(l, "Gagal mengirim — periksa isian (nama, status kehadiran, jumlah tamu) lalu coba lagi.", "Could not send — please check your name, attendance and number of guests, then try again.")
+    }
+}
+
+/// Frasa bawaan templat dalam bahasa `l` — templat menulis `{{ t.buka }}`.
+/// SATU tempat untuk semua teks tetap templat (kusuma, warkah, …); teks yang
+/// ditulis pasangan tetap apa adanya.
+fn teks(l: Lang) -> minijinja::Value {
+    macro_rules! t {
+        ($($k:ident: $id:expr, $en:expr;)*) => {
+            minijinja::context! { $($k => tx!(l, $id, $en),)* }
+        };
+    }
+    t! {
+        kepada: "Kepada Yth.", "To";
+        kepada_lengkap: "Kepada Yth. Bapak/Ibu/Saudara/i", "Dear honoured guest";
+        sapaan: "Bapak/Ibu/Saudara/i", "Dear honoured guest";
+        maaf_nama: "*Mohon maaf apabila ada kesalahan penulisan nama/gelar", "*Please forgive any misspelling of names or titles";
+        tamu_spesial: "Tamu Spesial", "Special Guest";
+        buka: "Buka Undangan", "Open Invitation";
+        tutup: "Tutup", "Close";
+        tutup_undangan: "Tutup Undangan", "Close Invitation";
+        gulir: "Gulir ke bawah", "Scroll down";
+        sampul_label: "Sampul undangan", "Invitation cover";
+        salam: "Assalamu’alaikum Warahmatullahi Wabarakatuh", "Assalamu’alaikum Warahmatullahi Wabarakatuh";
+        pembuka_doa: "Maha Suci Allah yang telah menciptakan makhluk-Nya berpasang-pasangan. Ya Allah, semoga ridho-Mu tercurah mengiringi pernikahan kami.",
+            "Glory be to Allah, who created all things in pairs. O Allah, may Your blessings accompany our marriage.";
+        ayat: "Dan di antara tanda-tanda kebesaran-Nya ialah Dia menciptakan pasangan-pasangan untukmu dari jenismu sendiri, agar kamu cenderung dan merasa tenteram kepadanya, dan Dia menjadikan di antaramu rasa kasih dan sayang.",
+            "And among His signs is that He created for you spouses from among yourselves, that you may find tranquillity in them; and He placed between you affection and mercy.";
+        ayat_sumber: "Q.S. Ar-Rum : 21", "Qur'an, Ar-Rum 30:21";
+        mempelai: "Mempelai", "The Couple";
+        putri_dari: "Putri dari", "Daughter of";
+        putra_dari: "Putra dari", "Son of";
+        ortu_kosong: "Bapak & Ibu", "Mr. & Mrs.";
+        info_lead: "Dengan memohon rahmat dan ridho Allah SWT, kami bermaksud menyelenggarakan pernikahan putra-putri kami",
+            "By the grace of Allah SWT, we joyfully announce the marriage of our beloved children";
+        hari_h: "Hari pernikahan, tanggal", "Wedding day,";
+        hari: "hari", "days";
+        jam: "jam", "hours";
+        menit: "menit", "minutes";
+        detik: "detik", "seconds";
+        simpan_tanggal: "Simpan Tanggal", "Save the Date";
+        simpan_kalender: "Simpan ke Kalender", "Add to Calendar";
+        konfirmasi_hadir: "Konfirmasi Kehadiran", "RSVP";
+        waktu_tempat: "Waktu & Tempat", "Time & Venue";
+        lokasi: "Lokasi Acara", "Venue";
+        pukul: "Pukul", "At";
+        petunjuk: "Petunjuk Arah", "Get Directions";
+        susunan: "Susunan Acara", "Schedule";
+        live: "Live Streaming", "Live Streaming";
+        live_teks: "Saksikan acara kami secara virtual.", "Watch our ceremony online.";
+        live_ajak: "Temui kami secara virtual untuk menyaksikan acara pernikahan kami.", "Join us online to witness our wedding.";
+        live_tonton: "Tonton Live", "Watch Live";
+        live_lihat: "Lihat Live Streaming", "Watch Live Streaming";
+        kisah: "Kisah Kami", "Our Story";
+        galeri: "Galeri Foto", "Gallery";
+        foto_sebelum: "Foto sebelumnya", "Previous photo";
+        foto_berikut: "Foto berikutnya", "Next photo";
+        tanda_kasih: "Tanda Kasih", "Wedding Gift";
+        kado_lead: "Doa restu Anda adalah karunia terindah bagi kami. Bila ingin memberi tanda kasih, ketuk kotak di bawah ini.",
+            "Your blessings are the greatest gift to us. If you wish to send a gift, tap the box below.";
+        kado_lead_panjang: "Doa restu Anda merupakan karunia yang sangat berarti bagi kami. Dan jika memberi adalah ungkapan tanda kasih, Anda dapat memberi melalui di bawah ini.",
+            "Your blessings mean the world to us. Should you wish to give a gift, you may do so below.";
+        ketuk_buka: "Ketuk untuk membuka", "Tap to open";
+        no_rek: "No. Rekening", "Account Number";
+        atas_nama: "Atas Nama", "Account Name";
+        an: "a.n.", "Account name:";
+        kirim_kado: "Kirim Kado", "Send a Gift";
+        alamat_penerima: "Alamat Penerima", "Recipient Address";
+        salin: "Salin", "Copy";
+        salin_nomor: "Salin Nomor", "Copy Number";
+        salin_alamat: "Salin Alamat", "Copy Address";
+        buku_tamu: "Buku Tamu", "Guestbook";
+        ucapan_lead: "Kirim doa, ucapan, dan konfirmasi kehadiran Anda.", "Send your wishes and let us know if you can attend.";
+        ucapan_ajak: "Berikan doa dan ucapan terbaik untuk kami.", "Send us your best wishes and prayers.";
+        demo: "Ini undangan demo — kiriman hanya contoh dan tidak disimpan.", "This is a demo invitation — submissions are examples and are not saved.";
+        nama: "Nama", "Name";
+        ucapan_doa: "Ucapan & doa", "Wishes";
+        hadir: "Hadir", "Attending";
+        tidak_hadir: "Tidak Hadir", "Not attending";
+        jumlah_tamu: "Jumlah tamu", "Number of guests";
+        orang: "orang", "guest(s)";
+        sesi: "Sesi", "Session";
+        kirim: "Kirim", "Send";
+        kirim_ucapan: "Kirim Ucapan", "Send Wishes";
+        ucapan_n: "ucapan", "wishes";
+        pertama: "Jadilah yang pertama memberi ucapan.", "Be the first to send your wishes.";
+        story_link: "Lihat & bagikan Story Tamu →", "View & share guest stories →";
+        terima_kasih: "Terima Kasih", "Thank You";
+        penutup: "Merupakan suatu kebahagiaan dan kehormatan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.",
+            "It would be a joy and an honour for us if you could attend and give us your blessings.";
+        yang_berbahagia: "Kami yang berbahagia", "With love,";
+        oleh: "Undangan digital oleh", "Digital invitation by";
+        musik: "Putar / jeda musik", "Play / pause music";
     }
 }
 
 fn page_ctx(p: &Page) -> minijinja::Value {
     let inv = &p.row.inv;
-    let tamu = p.guest.as_ref().map(|g| g.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| if p.to.is_empty() { "Tamu Undangan".into() } else { p.to.clone() });
-    let first = inv.first_event().map(ev);
+    let l = p.lang;
+    let tamu = p.guest.as_ref().map(|g| g.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| if p.to.is_empty() { tx!(l, "Tamu Undangan", "Dear Guest").into() } else { p.to.clone() });
+    let first = inv.first_event().map(|e| ev(e, l));
     let date_num = inv
         .first_event()
         .and_then(|e| fmt::parse_date(&e.date))
@@ -351,10 +477,10 @@ fn page_ctx(p: &Page) -> minijinja::Value {
         couple => inv.couple(),
         bride => person(&inv.bride_nick, &inv.bride_name, &inv.bride_degree, &inv.bride_parents, &inv.bride_ig, &inv.bride_photo),
         groom => person(&inv.groom_nick, &inv.groom_name, &inv.groom_degree, &inv.groom_parents, &inv.groom_ig, &inv.groom_photo),
-        date_label => inv.date_label(),
+        date_label => inv.date_label_in(l),
         date_num => date_num,
         first => first,
-        events => inv.events.iter().map(ev).collect::<Vec<_>>(),
+        events => inv.events.iter().map(|e| ev(e, l)).collect::<Vec<_>>(),
         countdown_ms => inv.countdown_target_ms(),
         calendar_url => inv.calendar_link(),
         quote => minijinja::context! { text => inv.quote_text.clone(), source => inv.quote_source.clone() },
@@ -369,24 +495,22 @@ fn page_ctx(p: &Page) -> minijinja::Value {
         dress_colors => inv.dress_colors.clone(),
         live_url => inv.live_url.clone(),
         music => minijinja::context! { url => inv.music_url.clone(), label => inv.music_label(), autoplay => inv.music_autoplay },
-        wishes => p.wishes.items.iter().map(wish_out).collect::<Vec<_>>(),
+        wishes => p.wishes.items.iter().map(|w| wish_out(w, l)).collect::<Vec<_>>(),
         wish_total => p.wishes.total,
         sessions => sessions,
         rsvp_action => format!("/u/{}/rsvp/kirim", inv.slug),
         story_url => format!("/u/{}/story{}", inv.slug, p.qs),
         prefill_name => if p.guest.is_some() || !p.to.is_empty() { tamu_name(p) } else { String::new() },
         guest_code => p.guest.as_ref().map(|g| g.code.clone()).unwrap_or_default(),
-        rsvp_flash => p.rsvp_flash.map(|ok| minijinja::context! { ok => ok, msg => flash_msg(ok) }),
+        rsvp_flash => p.rsvp_flash.map(|ok| minijinja::context! { ok => ok, msg => flash_msg(ok, l) }),
+        lang => l.code(),
+        t => teks(l),
         a => p.assets.clone(),
     }
 }
 
 fn tamu_name(p: &Page) -> String {
     p.guest.as_ref().map(|g| g.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| p.to.clone())
-}
-
-fn esc(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
 /// Ikon garis 24×24 untuk navigasi bawah (font Material Symbols tidak
@@ -404,17 +528,18 @@ const NAV_ICON: [(&str, &str); 5] = [
 /// setiap templat otomatis punya, cukup sediakan id `sampul`/`acara`/`ucapan`.
 fn bottom_nav(p: &Page, theme: &str) -> String {
     let inv = &p.row.inv;
+    let l = p.lang;
     let mut items = vec![
-        ("#sampul".to_string(), "Sampul", "sampul"),
-        ("#acara".to_string(), "Acara", "acara"),
-        ("#ucapan".to_string(), "Doa & RSVP", "rsvp"),
+        ("#sampul".to_string(), tx!(l, "Sampul", "Cover"), "sampul"),
+        ("#acara".to_string(), tx!(l, "Acara", "Events"), "acara"),
+        ("#ucapan".to_string(), tx!(l, "Doa & RSVP", "Wishes & RSVP"), "rsvp"),
         (format!("/u/{}/story{}", inv.slug, p.qs), "Story", "story"),
     ];
     if inv.is_demo {
-        items.push((format!("/kelola/{}?key=demo&tema={}", inv.slug, fmt::url_encode(theme)), "Kelola", "kelola"));
+        items.push((format!("/kelola/{}?key=demo&tema={}", inv.slug, fmt::url_encode(theme)), tx!(l, "Kelola", "Manage"), "kelola"));
     } else if p.preview {
         // Pratinjau pemilik (belum dibayar): kembali ke dashboard Kelola.
-        items.push((format!("/kelola/{}", inv.slug), "Kelola", "kelola"));
+        items.push((format!("/kelola/{}", inv.slug), tx!(l, "Kelola", "Manage"), "kelola"));
     }
     let links: String = items
         .iter()
@@ -427,37 +552,59 @@ fn bottom_nav(p: &Page, theme: &str) -> String {
             )
         })
         .collect();
-    format!("<nav class=\"t-nav\" aria-label=\"Navigasi undangan\">{links}</nav>\n")
+    format!("<nav class=\"t-nav\" aria-label=\"{}\">{links}</nav>\n", tx!(l, "Navigasi undangan", "Invitation navigation"))
+}
+
+/// Tombol "Tutup Undangan" + ganti bahasa — ditulis platform seperti
+/// navigasi bawah, jadi setiap templat punya; tata.js menyembunyikan tombol
+/// tutup bila templat tanpa gerbang.
+fn top_buttons(p: &Page) -> String {
+    let l = p.lang;
+    format!(
+        "<button type=\"button\" class=\"t-close\" data-close aria-label=\"{aria}\" title=\"{aria}\">\
+<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3.5 8.5 12 3l8.5 5.5v10a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z\"/><path d=\"m3.5 9 8.5 6 8.5-6\"/></svg>\
+<span>{tutup}</span></button>\n\
+<a class=\"t-lang\" href=\"{href}\" hreflang=\"{other}\" aria-label=\"{lang_aria}\">{other_up}</a>\n",
+        aria = tx!(l, "Tutup undangan, kembali ke sampul", "Close the invitation, back to the cover"),
+        tutup = tx!(l, "Tutup", "Close"),
+        href = esc(&p.lang_href),
+        other = l.other().code(),
+        other_up = l.other().code().to_uppercase(),
+        lang_aria = tx!(l, "Baca dalam bahasa Inggris", "Read in Indonesian"),
+    )
 }
 
 /// Bungkus hasil templat menjadi dokumen utuh (head, CSS, data, mesin JS).
 fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: &Page, body: &str, nonce: &str) -> String {
     let inv = &p.row.inv;
-    let desc = format!("{} — {}. Kami mengundang Anda untuk hadir dan berbagi doa restu.", inv.couple(), inv.date_label());
+    let l = p.lang;
+    let desc = format!(
+        "{} — {}. {}",
+        inv.couple(),
+        inv.date_label_in(l),
+        tx!(l, "Kami mengundang Anda untuk hadir dan berbagi doa restu.", "We joyfully invite you to celebrate with us and share your blessings.")
+    );
     let og_image = inv.cover_photo.split('#').next().unwrap_or("");
     let fonts = if t.fonts.is_empty() || !check_fonts(&t.fonts) {
         String::new()
     } else {
-        format!(
-            "<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n<link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family={}&display=swap\">\n",
-            esc(&t.fonts)
-        )
+        format!("<link rel=\"stylesheet\" href=\"{}\">\n", esc(&fmt::font_css(&[t.fonts.as_str()], "swap")))
     };
     let data = serde_json::json!({ "slug": inv.slug, "gate_ms": 1500, "video_delay_ms": 700, "video_max_ms": 9000 }).to_string().replace("</", "<\\/");
     // CSS tema di atas CSS templat; keduanya sudah diperiksa saat disimpan,
     // diperiksa ULANG di sini (baris lama/DB disunting langsung).
     let css_ok = |c: &str| if check_css(c).is_ok() { c.to_string() } else { String::new() };
     format!(
-        "<!DOCTYPE html>\n<html lang=\"id\">\n<head>\n<meta charset=\"utf-8\">\n\
+        "<!DOCTYPE html>\n<html lang=\"{html_lang}\">\n<head>\n<meta charset=\"utf-8\">\n\
 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n\
 <title>{title}</title>\n<meta name=\"description\" content=\"{desc}\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n\
 <meta property=\"og:title\" content=\"The Wedding of {couple}\">\n<meta property=\"og:description\" content=\"{desc}\">\n{og}\
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\">\n{fonts}\
 <link rel=\"stylesheet\" href=\"/tema.css?v={tv}\">\n<link rel=\"stylesheet\" href=\"/tata.css?v={av}\">\n\
-<style>\n{tcss}\n{xcss}\n</style>\n</head>\n<body class=\"t-{tslug} th-{theme} t-has-nav\">\n{body}\n{nav}\
+<style>\n{tcss}\n{xcss}\n</style>\n</head>\n<body class=\"t-{tslug} th-{theme} t-has-nav\">\n{body}\n{buttons}{nav}\
 <script type=\"application/json\" id=\"tata-data\">{data}</script>\n\
 <script nonce=\"{nonce}\" src=\"/tata.js?v={av}\"></script>\n</body>\n</html>\n",
-        title = esc(&format!("Undangan Pernikahan {}", inv.couple())),
+        title = esc(&format!("{} {}", tx!(l, "Undangan Pernikahan", "Wedding Invitation of"), inv.couple())),
         desc = esc(&desc),
         couple = esc(&inv.couple()),
         og = if og_image.is_empty() { String::new() } else { format!("<meta property=\"og:image\" content=\"{}\">\n", esc(og_image)) },
@@ -467,7 +614,9 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
         xcss = css_ok(&theme.template_css),
         tslug = esc(&t.slug),
         nav = bottom_nav(p, &theme.slug),
+        buttons = top_buttons(p),
         theme = esc(&theme.slug),
+        html_lang = p.lang.code(),
     )
 }
 
@@ -509,6 +658,17 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
     if row.inv.is_demo {
         parts.push(format!("tema={}", fmt::url_encode(&theme.slug)));
     }
+    // Bahasa: ?lang= pilihan tamu (dibawa antar tab) atau pilihan pasangan.
+    let chosen = q.get("lang").and_then(|l| Lang::from_code(l));
+    let lang = chosen.unwrap_or_else(|| row.inv.language());
+    let lang_href = {
+        let mut p2 = parts.clone();
+        p2.push(format!("lang={}", lang.other().code()));
+        format!("/u/{}?{}", row.inv.slug, p2.join("&"))
+    };
+    if let Some(l) = chosen {
+        parts.push(format!("lang={}", l.code()));
+    }
     let qs = if parts.is_empty() { String::new() } else { format!("?{}", parts.join("&")) };
     let wishes = repo::wishes(&st.pool, row.id, 30).await.unwrap_or_default();
     let mut assets = t.assets.clone();
@@ -518,9 +678,17 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
         Some("galat") => Some(false),
         _ => None,
     };
-    let page = Page { row: &row, guest, to, qs, preview, wishes, assets, rsvp_flash };
-    let body = set.env.get_template(&t.slug)?.render(page_ctx(&page))?;
+    let page = Page { row: &row, guest, to, qs, preview, wishes, assets, rsvp_flash, lang, lang_href };
+    let body = unslash(set.env.get_template(&t.slug)?.render(page_ctx(&page))?);
     Ok(Some(document(st, t, theme, &page, &body, nonce)))
+}
+
+/// Autoescape minijinja menulis "/" sebagai `&#x2f;`. Di HTML artinya sama
+/// persis, tapi URL "&#x2f;img&#x2f;…" lolos dari penulis-ulang aset RustFS
+/// (server/aset.rs) → tiap gambar kena 301. Templat dilarang memuat <script>
+/// / <style>, jadi semua kemunculannya ada di teks/atribut HTML — aman dibalik.
+fn unslash(html: String) -> String {
+    if html.contains("&#x2f;") { html.replace("&#x2f;", "/") } else { html }
 }
 
 fn url_query(q: &str) -> HashMap<String, String> {
@@ -589,6 +757,8 @@ pub async fn rsvp_kirim(
     let json = headers.get(header::ACCEPT).and_then(|v| v.to_str().ok()).is_some_and(|v| v.contains("application/json"));
     let get = |k: &str| f.get(k).cloned().unwrap_or_default();
     let opt = |k: &str| f.get(k).cloned().filter(|v| !v.is_empty());
+    // Bahasa halaman tempat formulir dikirim (input tersembunyi `lang`).
+    let l = Lang::of(&get("lang"));
     let res = match repo::invitation(&st.pool, &slug).await {
         Ok(Some(row)) => {
             let inv_id = row.id;
@@ -601,6 +771,7 @@ pub async fn rsvp_kirim(
                 pax: opt("pax"),
                 session: opt("session"),
                 message: opt("message"),
+                lang: if get("lang").is_empty() { row.inv.language() } else { l },
             };
             match crate::web::api::rsvp_core(&st, &row, &ip, input).await {
                 // Jumlah ucapan dari DB: kiriman ulang tamu terdaftar memperbarui
@@ -609,10 +780,10 @@ pub async fn rsvp_kirim(
                 Err(e) => Err(e),
             }
         }
-        Ok(None) => Err("Undangan tidak ditemukan.".into()),
+        Ok(None) => Err(tx!(l, "Undangan tidak ditemukan.", "Invitation not found.").into()),
         Err(e) => {
             tracing::error!(error = %format!("{e:#}"), "rsvp templat");
-            Err("Server sedang sibuk, coba lagi sebentar.".into())
+            Err(tx!(l, "Server sedang sibuk, coba lagi sebentar.", "The server is busy, please try again in a moment.").into())
         }
     };
     if !json {
@@ -620,13 +791,14 @@ pub async fn rsvp_kirim(
         let g = g.trim();
         let g = if g.is_empty() || g.len() > 12 { String::new() } else { format!("g={}&", fmt::url_encode(g)) };
         let hasil = if res.is_ok() { "ok" } else { "galat" };
-        return Redirect::to(&format!("/u/{}?{g}rsvp={hasil}#ucapan", fmt::url_encode(&slug))).into_response();
+        let lq = if get("lang").is_empty() { String::new() } else { format!("lang={}&", l.code()) };
+        return Redirect::to(&format!("/u/{}?{g}{lq}rsvp={hasil}#ucapan", fmt::url_encode(&slug))).into_response();
     }
     let body = match res {
         Ok((msg, baru, total)) => {
             let message = super::handlers::clean(&get("message"), 600);
             let wish = (!message.is_empty()).then(|| {
-                wish_out(&Wish { name: super::handlers::clean(&get("name"), 80), status: get("status"), message, ago: "baru saja".into() })
+                wish_out(&Wish { name: super::handlers::clean(&get("name"), 80), status: get("status"), message, ago: "baru saja".into(), age: 0 }, l)
             });
             serde_json::json!({ "ok": true, "msg": msg, "wish": wish, "wish_total": total, "baru": baru })
         }
@@ -675,9 +847,106 @@ mod tests {
     }
 
     #[test]
-    fn templat_kusuma_merender_data_demo() {
+    fn hari_dalam_minggu() {
+        // 1 Okt 2026 = Kamis, 1 Sep 2026 = Selasa, 1 Feb 2024 = Kamis (kabisat), 1 Mar 2026 = Minggu.
+        assert_eq!(fmt::weekday_mon0(2026, 10, 1), 3);
+        assert_eq!(fmt::weekday_mon0(2026, 9, 1), 1);
+        assert_eq!(fmt::weekday_mon0(2024, 2, 1), 3);
+        assert_eq!(fmt::weekday_mon0(2026, 3, 1), 6);
+    }
+
+    #[test]
+    fn templat_bawaan_merender_data_demo() {
+        for slug in ["kusuma", "warkah"] {
+            render_demo(slug);
+        }
+    }
+
+    /// Pratinjau tanpa DB/server: `cargo test --lib pratinjau_templat -- --ignored`
+    /// menulis body templat (data demo lengkap) + CSS-nya ke target/pratinjau/
+    /// untuk dibungkus & dibuka di browser (mis. audit piksel Playwright).
+    #[test]
+    #[ignore]
+    fn pratinjau_templat() {
         let set = TemplatSet::new(builtins());
-        let t = set.get("kusuma").unwrap();
+        let ev = |title: &str, date: &str, t0: &str, t1: &str, venue: &str| Event {
+            title: title.into(),
+            date: date.into(),
+            time_start: t0.into(),
+            time_end: t1.into(),
+            venue: venue.into(),
+            address: "Jl. Dharmawangsa VIII No. 12, Jakarta Selatan".into(),
+            ..Default::default()
+        };
+        let foto = |n: &str| format!("/img/layanan/{n}.jpg");
+        let inv = Invitation {
+            slug: "yona-doni".into(),
+            is_demo: true,
+            bride_name: "Yona Ayu Lestari".into(),
+            bride_nick: "Yona".into(),
+            bride_parents: "Bpk. Hendra Wijaya & Ibu Ratna Sari".into(),
+            groom_name: "Doni Prasetyo".into(),
+            groom_nick: "Doni".into(),
+            groom_parents: "Bpk. Agus Salim & Ibu Dewi Kartika".into(),
+            cover_photo: foto("mua-sekar"),
+            gallery: ["mua-sekar", "dekor-villa", "mua-modern", "dekor-nature", "venue-atsiri", "dekor-jawa"].iter().map(|n| foto(n)).collect(),
+            events: vec![
+                ev("Akad Nikah", "2026-10-24", "08:00", "10:00", "Masjid Agung Al-Azhar"),
+                ev("Resepsi", "2026-10-24", "11:00", "14:00", "Gedung Kirana Ballroom"),
+            ],
+            dress_code: "Nuansa bumi & pastel".into(),
+            dress_colors: vec![DressColor { name: "Cokelat".into(), hex: "#6b4f3a".into() }, DressColor { name: "Pasir".into(), hex: "#d8c3a5".into() }, DressColor { name: "Sage".into(), hex: "#9caf88".into() }],
+            banks: vec![Bank { bank: "BCA".into(), number: "1234567890".into(), holder: "Yona Ayu Lestari".into() }],
+            gift_address: "Jl. Melati No. 8, Bandung".into(),
+            family_name: "Keluarga Besar Wijaya & Salim".into(),
+            music_url: "/music/contoh.mp3".into(),
+            ..Default::default()
+        };
+        let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new() };
+        let wishes = WishPage {
+            total: 2,
+            items: vec![
+                Wish { name: "Budi Santoso".into(), status: "hadir".into(), message: "Selamat menempuh hidup baru, semoga sakinah mawaddah warahmah.".into(), ago: "5 jam yang lalu".into(), age: 5 * 3600 },
+                Wish { name: "Siti Sarah".into(), status: "tidak".into(), message: "Barakallahu lakuma, mohon maaf belum bisa hadir.".into(), ago: "1 hari yang lalu".into(), age: 86_400 },
+            ],
+        };
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/pratinjau");
+        std::fs::create_dir_all(&dir).unwrap();
+        for t in &builtins() {
+            let page = Page { row: &row, guest: None, to: "Bapak Budi & Keluarga".into(), qs: String::new(), preview: false, wishes: wishes.clone(), assets: t.assets.clone(), rsvp_flash: None, lang: Lang::Id, lang_href: String::new() };
+            let body = unslash(set.env.get_template(&t.slug).unwrap().render(page_ctx(&page)).unwrap());
+            std::fs::write(dir.join(format!("{}.body.html", t.slug)), body + &bottom_nav(&page, &t.slug)).unwrap();
+            std::fs::write(dir.join(format!("{}.css", t.slug)), &t.css).unwrap();
+            std::fs::write(dir.join(format!("{}.fonts", t.slug)), &t.fonts).unwrap();
+        }
+    }
+
+    #[test]
+    fn templat_berbahasa_inggris() {
+        let set = TemplatSet::new(builtins());
+        for slug in ["kusuma", "warkah"] {
+            let t = set.get(slug).unwrap();
+            let inv = Invitation {
+                slug: "yona-doni".into(),
+                bride_name: "Yona".into(),
+                groom_name: "Doni".into(),
+                lang: "en".into(),
+                events: vec![Event { title: "Akad".into(), date: "2026-09-12".into(), time_start: "08:00".into(), ..Default::default() }],
+                ..Default::default()
+            };
+            let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new() };
+            let page = Page { row: &row, guest: None, to: String::new(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: None, lang: Lang::En, lang_href: String::new() };
+            let out = set.env.get_template(slug).unwrap().render(page_ctx(&page)).unwrap();
+            assert!(out.contains("Saturday") && out.contains("September 2026"), "{slug}: tanggal Inggris");
+            assert!(out.contains("Open Invitation") && !out.contains("Buka Undangan"), "{slug}: tombol Inggris");
+            assert!(out.contains("name=\"lang\" value=\"en\""), "{slug}: RSVP membawa bahasa");
+            assert!(!out.contains("Kepada Yth"), "{slug}: sapaan masih Indonesia");
+        }
+    }
+
+    fn render_demo(slug: &str) {
+        let set = TemplatSet::new(builtins());
+        let t = set.get(slug).unwrap();
         let inv = Invitation {
             slug: "yona-doni".into(),
             bride_name: "Yona".into(),
@@ -687,15 +956,20 @@ mod tests {
             ..Default::default()
         };
         let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new() };
-        let page = Page { row: &row, guest: None, to: "<b>Budi</b>".into(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: Some(false) };
-        let out = set.env.get_template("kusuma").unwrap().render(page_ctx(&page)).unwrap();
+        let page = Page { row: &row, guest: None, to: "<b>Budi</b>".into(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: Some(false), lang: Lang::Id, lang_href: String::new() };
+        let out = set.env.get_template(slug).unwrap().render(page_ctx(&page)).unwrap();
         assert!(out.contains("Yona") && out.contains("Doni"));
+        assert!(unslash(out.clone()).contains("src=\"/img/"), "{slug}: URL aset polos agar ditulis ulang ke RustFS");
         assert!(out.contains("&lt;b&gt;Budi") && !out.contains("<b>Budi"), "nama tamu wajib di-escape");
-        assert!(out.contains("Sabtu") && out.contains("September 2026"));
-        assert!(out.contains(flash_msg(false)), "pesan ?rsvp=galat tampil tanpa JS");
+        assert!(out.contains("Sabtu") && out.contains("September 2026"), "{slug}: tanggal acara");
+        assert!(out.contains(flash_msg(false, Lang::Id)), "pesan ?rsvp=galat tampil tanpa JS");
         // Templat bawaan wajib punya jangkar yang dipakai navigasi bawah.
         for id in ["sampul", "acara", "ucapan"] {
             assert!(out.contains(&format!("id=\"{id}\"")), "jangkar #{id} untuk navigasi bawah");
+        }
+        if slug == "warkah" {
+            // 12 Sep 2026 = Sabtu; 1 Sep = Selasa → 1 sel kosong, hati di tanggal 12.
+            assert!(out.contains("Hari pernikahan, tanggal 12") && out.contains("data-burst"), "kalender & segel warkah");
         }
         let nav = bottom_nav(&page, "kusuma-jawi");
         assert!(nav.contains("/u/yona-doni/story") && nav.contains("#ucapan") && !nav.contains("Kelola"), "{nav}");

@@ -183,6 +183,9 @@ async fn main() -> Result<()> {
         .route("/kelola/{slug}/story/hapus", axum::routing::post(handlers::owner_delete_story))
         .route("/layanan/wa", axum::routing::get(handlers::layanan_wa))
         .route("/tema.css", axum::routing::get(handlers::theme_css))
+        // Google Fonts dari domain sendiri (server/fonts.rs).
+        .route("/fonts.css", axum::routing::get(undangan::server::fonts::css))
+        .route("/fonts/g/{*path}", axum::routing::get(undangan::server::fonts::file))
         .route("/gaya/{file}", axum::routing::get(handlers::gaya_css))
         .route("/sitemap.xml", axum::routing::get(handlers::sitemap))
         .route("/app.js", axum::routing::get(handlers::app_js))

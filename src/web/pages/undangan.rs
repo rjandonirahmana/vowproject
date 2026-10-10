@@ -14,7 +14,9 @@ use leptos_router::hooks::{use_location, use_params_map, use_query_map};
 use crate::web::api::{get_invitation, list_stories, my_stories, RequestStoryKey};
 use crate::web::components::*;
 use crate::web::icons::{qr_svg, Icon};
+use crate::web::i18n::Lang;
 use crate::web::model::*;
+use crate::tx;
 
 use super::{ErrorCard, NotFoundPage};
 
@@ -25,13 +27,17 @@ pub struct InvCtx {
     pub to: String,
     /// Query yang dibawa antar tab ("?g=KODE" / "?to=…" / "").
     pub qs: String,
+    /// Bahasa teks bawaan undangan: `?lang=` pilihan tamu, atau pilihan pasangan.
+    pub lang: Lang,
+    /// `qs` tanpa `lang` — dasar tautan tombol ganti bahasa.
+    pub qs_base: String,
 }
 
 impl InvCtx {
     pub fn guest_name(&self) -> String {
         self.page.guest.as_ref().map(|g| g.name.clone()).filter(|n| !n.is_empty()).unwrap_or_else(|| {
             if self.to.is_empty() {
-                "Tamu Undangan".into()
+                tx!(self.lang, "Tamu Undangan", "Dear Guest").into()
             } else {
                 self.to.clone()
             }
@@ -39,6 +45,11 @@ impl InvCtx {
     }
     fn href(&self, tab: &str) -> String {
         format!("/u/{}{tab}{}", self.page.inv.slug, self.qs)
+    }
+    /// Query untuk bahasa `l` (dipakai tombol ID/EN; bagian lain query tetap).
+    pub fn qs_for(&self, l: Lang) -> String {
+        let sep = if self.qs_base.is_empty() { "?" } else { "&" };
+        format!("{}{sep}lang={}", self.qs_base, l.code())
     }
 }
 
@@ -76,8 +87,16 @@ pub fn InvitationLayout() -> impl IntoView {
                             parts.push(format!("rupa={}", crate::web::fmt::url_encode(&r)));
                         }
                     }
+                    let qs_base = if parts.is_empty() { String::new() } else { format!("?{}", parts.join("&")) };
+                    // Pilihan bahasa tamu (?lang=) dibawa antar tab; tanpa itu
+                    // ikut pilihan pasangan (invitations.lang).
+                    let chosen = q.get("lang").and_then(|l| Lang::from_code(&l));
+                    if let Some(l) = chosen {
+                        parts.push(format!("lang={}", l.code()));
+                    }
+                    let lang = chosen.unwrap_or_else(|| page.inv.language());
                     let qs = if parts.is_empty() { String::new() } else { format!("?{}", parts.join("&")) };
-                    Either::Left(view! { <InvShell ctx=InvCtx { page, to, qs } /> })
+                    Either::Left(view! { <InvShell ctx=InvCtx { page, to, qs, lang, qs_base } /> })
                 }
                 Err(e) if err_msg(&e) == "NOT_FOUND" => Either::Right(Either::Left(view! { <NotFoundPage /> })),
                 Err(e) if err_msg(&e) == "LOCKED" => Either::Right(Either::Right(view! { <LockedPage /> }.into_any())),
@@ -90,20 +109,28 @@ pub fn InvitationLayout() -> impl IntoView {
 #[component]
 fn InvShell(ctx: InvCtx) -> impl IntoView {
     provide_context(ctx.clone());
+    // Komponen bersama (components.rs) membaca bahasa lewat i18n::lang().
+    provide_context(ctx.lang);
     provide_ornaments(ctx.page.skin.ornaments.clone());
     let inv = ctx.page.inv.clone();
     let loc = use_location();
-    let tabs = [("", "Sampul", "favorite"), ("/acara", "Acara", "event_available"), ("/rsvp", "Doa & RSVP", "mark_email_read"), ("/story", "Story", "photo_camera")];
+    let l = ctx.lang;
+    let tabs = [
+        ("", tx!(l, "Sampul", "Cover"), "favorite"),
+        ("/acara", tx!(l, "Acara", "Events"), "event_available"),
+        ("/rsvp", tx!(l, "Doa & RSVP", "Wishes & RSVP"), "mark_email_read"),
+        ("/story", "Story", "photo_camera"),
+    ];
     let base = format!("/u/{}", inv.slug);
     let tab_label = {
         let base = base.clone();
         move || {
             let p = loc.pathname.get();
             match p.strip_prefix(&base).unwrap_or("") {
-                "/acara" => "Acara",
-                "/rsvp" => "Doa dan RSVP",
-                "/story" => "Story Tamu",
-                _ => "Sampul",
+                "/acara" => tx!(l, "Acara", "Events"),
+                "/rsvp" => tx!(l, "Doa dan RSVP", "Wishes and RSVP"),
+                "/story" => tx!(l, "Story Tamu", "Guest Stories"),
+                _ => tx!(l, "Sampul", "Cover"),
             }
         }
     };
@@ -111,7 +138,12 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
         let base = base.clone();
         move || loc.pathname.get().trim_end_matches('/') == format!("{base}{tab}")
     };
-    let desc = format!("{} — {}. Kami mengundang Anda untuk hadir dan berbagi doa restu.", inv.couple(), inv.date_label());
+    let desc = format!(
+        "{} — {}. {}",
+        inv.couple(),
+        inv.date_label_in(l),
+        tx!(l, "Kami mengundang Anda untuk hadir dan berbagi doa restu.", "We joyfully invite you to celebrate with us and share your blessings.")
+    );
     let skin = ctx.page.skin.clone();
     let single = skin.single;
     // Pratinjau tautan WhatsApp memakai foto sampul bila ada.
@@ -129,7 +161,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
         if single && !skin.open_anim.is_empty() && skin.open_anim != "none" { " inv--gate" } else { "" }
     );
     view! {
-        <Title text=format!("Undangan Pernikahan {}", inv.couple()) />
+        <Title text=format!("{} {}", tx!(l, "Undangan Pernikahan", "Wedding Invitation of"), inv.couple()) />
         <Meta name="description" content=desc.clone() />
         <Meta property="og:title" content=format!("The Wedding of {}", inv.couple()) />
         <Meta property="og:description" content=desc />
@@ -139,7 +171,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
         {(!skin.css.is_empty()).then(|| view! { <Link rel="stylesheet" href=skin.css.clone() /> })}
         {(!skin.fonts.is_empty()).then(|| view! { <Link rel="stylesheet" href=skin.fonts.clone() /> })}
         {(!og_image.is_empty()).then(|| view! { <Meta property="og:image" content=og_image.clone() /> })}
-        <div class=root_class>
+        <div class=root_class lang=l.code()>
             <div class="inv__glow" aria-hidden="true"></div>
             <BgVideo src=video.clone() poster=poster.clone() />
             <FloatDeco kind=skin.float_deco.clone() />
@@ -158,33 +190,39 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
                         <div class="inv-side__top">
                             <span class="inv-side__chip">
                                 <Monogram initials=inv.initials() class="monogram--xs" />
-                                <span><b>"Undangan Pernikahan"</b><small>{format!("Kepada Yth. {}", ctx.guest_name())}</small></span>
+                                <span><b>{tx!(l, "Undangan Pernikahan", "Wedding Invitation")}</b><small>{format!("{} {}", tx!(l, "Kepada Yth.", "To"), ctx.guest_name())}</small></span>
                             </span>
                             {(!date_num.is_empty()).then(|| view! { <span class="inv-side__meta">{date_num}</span> })}
                         </div>
                         <div class="inv-side__text">
                             <p class="inv-side__eyebrow"><i aria-hidden="true"></i><span class="script">"The Wedding Of"</span></p>
                             <h2>{inv.bride_first()}" "<em>"&"</em>" "{inv.groom_first()}</h2>
-                            <p class="inv-side__date">{inv.date_label()}</p>
+                            <p class="inv-side__date">{inv.date_label_in(l)}</p>
                             <div class="inv-side__actions">
                                 {gate_mode.then(|| view! {
                                     <button type="button" class="btn btn--lg inv-side__cta inv-side__cta--open" data-open="1">
-                                        "Buka Lembaran Undangan"<Icon name="arrow_forward" />
+                                        {tx!(l, "Buka Lembaran Undangan", "Open the Invitation")}<Icon name="arrow_forward" />
                                     </button>
                                 })}
                                 <a class=if gate_mode { "btn btn--lg inv-side__cta inv-side__cta--acara" } else { "btn btn--lg inv-side__cta" } href=acara>
-                                    "Lihat Rangkaian Acara"<Icon name="arrow_forward" />
+                                    {tx!(l, "Lihat Rangkaian Acara", "See the Events")}<Icon name="arrow_forward" />
                                 </a>
+                                // Sudah dibuka: kembali ke sampul dengan gerak buka tema yang diputar mundur (global.js).
+                                {gate_mode.then(|| view! {
+                                    <button type="button" class="inv-side__close" data-close-inv aria-label=tx!(l, "Tutup undangan, kembali ke sampul", "Close the invitation, back to the cover")>
+                                        <Icon name="mail" />{tx!(l, "Tutup Undangan", "Close Invitation")}
+                                    </button>
+                                })}
                                 // Judul lagu hanya untuk pemesan (/buat & Kelola) — tamu cukup tombol putar/jeda.
                                 {(!inv.music_url.is_empty()).then(|| view! {
-                                    <button type="button" class="inv-side__music" data-music="toggle" aria-label="Putar / jeda musik">
-                                        <Icon name="album" />"Musik"
+                                    <button type="button" class="inv-side__music" data-music="toggle" aria-label=tx!(l, "Putar / jeda musik", "Play / pause music")>
+                                        <Icon name="album" />{tx!(l, "Musik", "Music")}
                                     </button>
                                 })}
                             </div>
                         </div>
                         <div class="inv-side__foot">
-                            <span>{ev.time_label()}</span>
+                            <span>{ev.time_label_in(l)}</span>
                             <span>{ev.venue.clone()}</span>
                         </div>
                     </aside>
@@ -204,12 +242,28 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
                         <b>{inv.couple()}</b>
                         <small>{tab_label}</small>
                         // Desktop: kartu tamu seperti sampul surat.
-                        <span class="inv-top__guest"><em>"Kepada Yth."</em>{ctx.guest_name()}</span>
+                        <span class="inv-top__guest"><em>{tx!(l, "Kepada Yth.", "To")}</em>{ctx.guest_name()}</span>
                     </span>
                 </a>
                 <div class="inv-top__actions">
+                    {(single && !skin.open_anim.is_empty() && skin.open_anim != "none").then(|| view! {
+                        <button type="button" class="icon-btn inv-close" data-close-inv aria-label=tx!(l, "Tutup undangan, kembali ke sampul", "Close the invitation, back to the cover") title=tx!(l, "Tutup undangan", "Close invitation")>
+                            <Icon name="mail" />
+                        </button>
+                    })}
+                    // Ganti bahasa (muat ulang penuh: teks dirender server).
+                    {
+                        let ctx2 = ctx.clone();
+                        view! {
+                            <a class="icon-btn lang-btn" rel="external" hreflang=l.other().code()
+                                href=move || format!("{}{}", loc.pathname.get(), ctx2.qs_for(l.other()))
+                                aria-label=tx!(l, "Baca dalam bahasa Inggris", "Read in Indonesian")>
+                                {tx!(l, "EN", "ID")}
+                            </a>
+                        }
+                    }
                     {(!inv.music_url.is_empty()).then(|| view! {
-                        <button type="button" class="icon-btn disc" data-music="toggle" aria-label="Putar / jeda musik">
+                        <button type="button" class="icon-btn disc" data-music="toggle" aria-label=tx!(l, "Putar / jeda musik", "Play / pause music")>
                             <Icon name="album" />
                         </button>
                     })}
@@ -223,14 +277,14 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
             <main class="inv__main">
                 <Outlet />
             </main>
-            <nav class="bottom-nav" aria-label="Navigasi undangan">
+            <nav class="bottom-nav" aria-label=tx!(l, "Navigasi undangan", "Invitation navigation")>
                 {if single {
                     // Satu halaman: navigasi = lompat ke bagian. Dari tab Story
                     // (halaman terpisah) jangkar dibawa ke halaman utama.
                     let home = ctx.href("");
                     let on_story = move || loc.pathname.get().trim_end_matches('/').ends_with("/story");
                     view! {
-                        {[("#sampul", "Sampul", "favorite"), ("#acara", "Acara", "event_available"), ("#rsvp", "Doa & RSVP", "mark_email_read")]
+                        {[("#sampul", tx!(l, "Sampul", "Cover"), "favorite"), ("#acara", tx!(l, "Acara", "Events"), "event_available"), ("#rsvp", tx!(l, "Doa & RSVP", "Wishes & RSVP"), "mark_email_read")]
                             .into_iter()
                             .map(|(hash, label, icon)| {
                                 let home = home.clone();
@@ -258,7 +312,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
                 {inv.is_demo.then(|| view! {
                     <a class="bottom-nav__item" href=format!("/kelola/{}?key=demo&tema={}", inv.slug, crate::web::fmt::url_encode(&inv.theme)) rel="external">
                         <Icon name="admin_panel_settings" />
-                        <span>"Kelola"</span>
+                        <span>{tx!(l, "Kelola", "Manage")}</span>
                     </a>
                 })}
             </nav>
@@ -282,7 +336,9 @@ fn short_name(nick: &str, full: &str) -> String {
 /// Sampul: foto berdua dalam bingkai lengkung (atau segel monogram).
 #[component]
 fn Cover() -> impl IntoView {
-    let inv = ctx().page.inv;
+    let c = ctx();
+    let l = c.lang;
+    let inv = c.page.inv;
     let names = couple_names(&inv);
     let photo = inv.cover_photo.clone();
     view! {
@@ -300,7 +356,7 @@ fn Cover() -> impl IntoView {
                 }.into_any()
             }}
             <h1 class="cover__names">{names}</h1>
-            <p class="hero__date"><Icon name="local_florist" />{inv.date_label()}<Icon name="local_florist" /></p>
+            <p class="hero__date"><Icon name="local_florist" />{inv.date_label_in(l)}<Icon name="local_florist" /></p>
         </section>
     }
 }
@@ -308,14 +364,17 @@ fn Cover() -> impl IntoView {
 #[component]
 fn GuestCard() -> impl IntoView {
     let c = ctx();
+    let l = c.lang;
     let vip = c.page.guest.as_ref().is_some_and(|g| matches!(g.category.as_str(), "vip" | "keluarga"));
     view! {
         <section class="guest card">
-            {vip.then(|| view! { <span class="chip chip--gold"><Icon name="verified" />"Tamu Spesial / VIP"</span> })}
-            <p class="muted">"Kepada Yth. Bapak/Ibu/Saudara/i:"</p>
+            {vip.then(|| view! { <span class="chip chip--gold"><Icon name="verified" />{tx!(l, "Tamu Spesial / VIP", "Special Guest / VIP")}</span> })}
+            <p class="muted">{tx!(l, "Kepada Yth. Bapak/Ibu/Saudara/i:", "Dear honoured guest:")}</p>
             <h2 class="guest__name">{c.guest_name()}</h2>
-            <p class="guest__text">"Tanpa mengurangi rasa hormat, kami bermaksud mengundang Anda untuk hadir dan berbagi doa restu di hari bahagia kami."</p>
-            <p class="guest__note">"*Mohon maaf bila ada kesalahan penulisan nama / gelar."</p>
+            <p class="guest__text">{tx!(l,
+                "Tanpa mengurangi rasa hormat, kami bermaksud mengundang Anda untuk hadir dan berbagi doa restu di hari bahagia kami.",
+                "With great joy, we would be honoured by your presence and blessings on our wedding day.")}</p>
+            <p class="guest__note">{tx!(l, "*Mohon maaf bila ada kesalahan penulisan nama / gelar.", "*Please forgive any misspelling of names or titles.")}</p>
         </section>
     }
 }
@@ -328,7 +387,7 @@ fn SampulExtras() -> impl IntoView {
     // Video pasangan; undangan demo tema sinema memamerkan video bawaan tema.
     let prewed = if !inv.video_url.is_empty() { inv.video_url.clone() } else if inv.is_demo { c.page.skin.bg_video.clone() } else { String::new() };
     view! {
-        <Countdown target_ms=inv.countdown_target_ms() date=inv.date_label() calendar=inv.calendar_link() photos=save_date_photos(&inv) />
+        <Countdown target_ms=inv.countdown_target_ms() date=inv.date_label_in(c.lang) calendar=inv.calendar_link() photos=save_date_photos(&inv) />
         <QuoteCard text=inv.quote_text.clone() source=inv.quote_source.clone() />
         <Couple inv=inv.clone() />
         <LoveStorySection items=inv.love_story.clone() photos=inv.gallery.iter().skip(1).cloned().collect() />
@@ -362,7 +421,7 @@ pub fn SampulPage() -> impl IntoView {
                     <Cover />
                     <GuestCard />
                     <button type="button" class="btn btn--gold btn--lg gate__open" data-open="1">
-                        <Icon name="drafts" />"Buka Undangan"
+                        <Icon name="drafts" />{tx!(c.lang, "Buka Undangan", "Open Invitation")}
                     </button>
                 </div>
             </div>
@@ -373,7 +432,7 @@ pub fn SampulPage() -> impl IntoView {
             <Cover />
             <GuestCard />
             <div class="stack">
-                <a href="#isi" class="btn btn--gold btn--block btn--lg" data-open="1"><Icon name="drafts" />"Buka Undangan & Putar Musik"</a>
+                <a href="#isi" class="btn btn--gold btn--block btn--lg" data-open="1"><Icon name="drafts" />{tx!(c.lang, "Buka Undangan & Putar Musik", "Open Invitation & Play Music")}</a>
             </div>
         }
         .into_any()
@@ -384,7 +443,7 @@ pub fn SampulPage() -> impl IntoView {
             <div class="stack">
                 <A href=c.href("/acara") attr:class="btn btn--gold btn--block btn--lg" attr:data-open="1">
                     <Icon name="drafts" />
-                    "Buka Undangan & Putar Musik"
+                    {tx!(c.lang, "Buka Undangan & Putar Musik", "Open Invitation & Play Music")}
                 </A>
             </div>
         }
@@ -411,7 +470,9 @@ pub fn AcaraPage() -> impl IntoView {
 
 #[component]
 fn AcaraBody(countdown: bool) -> impl IntoView {
-    let inv = ctx().page.inv;
+    let c = ctx();
+    let l = c.lang;
+    let inv = c.page.inv;
     let last = inv.events.last().cloned();
     let n = inv.events.len();
     let dress = (inv.dress_code.clone(), inv.dress_colors.clone());
@@ -419,11 +480,13 @@ fn AcaraBody(countdown: bool) -> impl IntoView {
         <section class="intro orn-host">
             <Ornamen bagian="acara" />
             <span class="intro__icon"><Icon name="local_florist" /></span>
-            <p class="eyebrow eyebrow--gold">"Walimatul 'Ursy"</p>
+            <p class="eyebrow eyebrow--gold">{tx!(l, "Walimatul 'Ursy", "Wedding Celebration")}</p>
             <h1 class="section__title">"Wedding Event"</h1>
-            <p class="intro__text">"Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Anda untuk merayakan ikatan suci kami:"</p>
+            <p class="intro__text">{tx!(l,
+                "Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Anda untuk merayakan ikatan suci kami:",
+                "By the grace and blessing of Allah SWT, we joyfully invite you to celebrate our sacred union:")}</p>
         </section>
-        {countdown.then(|| view! { <Countdown target_ms=inv.countdown_target_ms() title="Menghitung Hari Bahagia" date=inv.date_label() calendar=inv.calendar_link() /> })}
+        {countdown.then(|| view! { <Countdown target_ms=inv.countdown_target_ms() title=tx!(l, "Menghitung Hari Bahagia", "Counting Down to Our Day") date=inv.date_label_in(l) calendar=inv.calendar_link() /> })}
         {inv.events.clone().into_iter().enumerate().map(|(i, ev)| {
             // Dress code ditempel di acara terakhir (biasanya resepsi).
             let d = (i + 1 == n).then(|| dress.clone());
@@ -434,7 +497,9 @@ fn AcaraBody(countdown: bool) -> impl IntoView {
         <GuestGuide />
         <figure class="closing">
             <Icon name="local_florist" />
-            <blockquote>"“Semoga Allah memberkahi engkau dalam kebaikan dan menghimpun kalian berdua dalam kebahagiaan.”"</blockquote>
+            <blockquote>{tx!(l,
+                "“Semoga Allah memberkahi engkau dalam kebaikan dan menghimpun kalian berdua dalam kebahagiaan.”",
+                "“May Allah bless you, shower His blessings upon you, and unite you both in goodness.”")}</blockquote>
             <figcaption>"HR. Abu Dawud"</figcaption>
         </figure>
     }
@@ -455,7 +520,7 @@ pub fn session_options(inv: &Invitation) -> Vec<String> {
         }
     }
     if out.is_empty() {
-        out.push("Sesi Utama".into());
+        out.push(tx!(crate::web::i18n::lang(), "Sesi Utama", "Main Session").into());
     }
     out
 }
@@ -468,6 +533,7 @@ pub fn RsvpPage() -> impl IntoView {
 #[component]
 fn RsvpBody() -> impl IntoView {
     let c = ctx();
+    let l = c.lang;
     let inv = c.page.inv.clone();
     let refresh = RwSignal::new(0u32);
     let guest = c.page.guest.clone();
@@ -479,12 +545,14 @@ fn RsvpBody() -> impl IntoView {
         <section class="rsvp-hero card card--soft orn-host">
             <Ornamen bagian="rsvp" />
             <span class="intro__icon"><Icon name="favorite" /></span>
-            <p class="eyebrow eyebrow--gold">"Buku Tamu Digital"</p>
+            <p class="eyebrow eyebrow--gold">{tx!(l, "Buku Tamu Digital", "Digital Guestbook")}</p>
             <h1 class="section__title">"Wedding Wishes"</h1>
-            <p class="intro__text">"Kehadiran dan doa restu Anda merupakan kado terindah bagi kebahagiaan kami berdua."</p>
+            <p class="intro__text">{tx!(l,
+                "Kehadiran dan doa restu Anda merupakan kado terindah bagi kebahagiaan kami berdua.",
+                "Your presence and blessings are the most precious gift to us both.")}</p>
         </section>
         {inv.is_demo.then(|| view! {
-            <p class="notice notice--info">"Ini undangan demo — formulir hanya contoh dan tidak disimpan."</p>
+            <p class="notice notice--info">{tx!(l, "Ini undangan demo — formulir hanya contoh dan tidak disimpan.", "This is a demo invitation — the form is only an example and is not saved.")}</p>
         })}
         <RsvpForm
             slug=inv.slug.clone()
@@ -496,11 +564,11 @@ fn RsvpBody() -> impl IntoView {
             <section class="checkin card">
                 <div class="checkin__qr" inner_html=qr_svg(&g.code)></div>
                 <div>
-                    <p class="eyebrow eyebrow--gold"><Icon name="qr_code_2" />"QR Check-in Resepsi"</p>
+                    <p class="eyebrow eyebrow--gold"><Icon name="qr_code_2" />{tx!(l, "QR Check-in Resepsi", "Reception Check-in QR")}</p>
                     <b class="checkin__code">{g.code.clone()}</b>
                     <p class="muted">
-                        {if g.table_no.is_empty() { "Tunjukkan kode ini di meja penerima tamu.".to_string() }
-                         else { format!("Meja {} • tunjukkan kode ini di meja penerima tamu.", g.table_no) }}
+                        {if g.table_no.is_empty() { tx!(l, "Tunjukkan kode ini di meja penerima tamu.", "Show this code at the reception desk.").to_string() }
+                         else { format!("{} {} • {}", tx!(l, "Meja", "Table"), g.table_no, tx!(l, "tunjukkan kode ini di meja penerima tamu.", "show this code at the reception desk.")) }}
                     </p>
                 </div>
             </section>
@@ -544,6 +612,7 @@ fn closing_photos(inv: &Invitation) -> Vec<String> {
 #[component]
 pub fn StoryPage() -> impl IntoView {
     let c = ctx();
+    let l = c.lang;
     let inv = c.page.inv.clone();
     let slug = inv.slug.clone();
     let query = use_query_map();
@@ -602,11 +671,13 @@ pub fn StoryPage() -> impl IntoView {
         });
     };
     view! {
-        <section class="section story-hero orn-host">
+        <section class="section story-hero orn-host" data-hydrate="">
             <Ornamen bagian="rsvp" />
-            <p class="eyebrow eyebrow--gold eyebrow--center">"Momen Para Tamu"</p>
+            <p class="eyebrow eyebrow--gold eyebrow--center">{tx!(l, "Momen Para Tamu", "Moments from Our Guests")}</p>
             <h1 class="section__title">"Guest Stories"</h1>
-            <p class="intro__text">"Bagikan satu foto terbaikmu untuk kedua mempelai — semua tamu bisa melihatnya seperti story."</p>
+            <p class="intro__text">{tx!(l,
+                "Bagikan satu foto terbaikmu untuk kedua mempelai — semua tamu bisa melihatnya seperti story.",
+                "Share your best photo for the couple — every guest can view it like a story.")}</p>
         </section>
         {move || notice().map(|(ok, m)| view! {
             <p class=if ok { "notice notice--ok" } else { "notice notice--err" }>{m}</p>
@@ -619,14 +690,14 @@ pub fn StoryPage() -> impl IntoView {
                 view! {
                     <div class="story-bar" data-story-slug=slug.clone()>
                         <div class="story-item">
-                            <button type="button" class="story-add-btn" on:click=move |_| open_add() aria-label="Tambah story">
+                            <button type="button" class="story-add-btn" on:click=move |_| open_add() aria-label=tx!(l, "Tambah story", "Add a story")>
                                 <span class="story-avatar-ring story-avatar-ring--add"><span class="story-avatar-inner"><Icon name="add" /></span></span>
-                                <span class="story-username story-username--add">"Story Anda"</span>
+                                <span class="story-username story-username--add">{tx!(l, "Story Anda", "Your Story")}</span>
                             </button>
                         </div>
                         {list.iter().enumerate().map(|(i, s)| view! {
                             <div class="story-item">
-                                <button type="button" class="story-user-btn" data-story-open=i.to_string() data-story-id=s.id.to_string() aria-label=format!("Lihat story {}", s.name)>
+                                <button type="button" class="story-user-btn" data-story-open=i.to_string() data-story-id=s.id.to_string() aria-label=format!("{} {}", tx!(l, "Lihat story", "View story by"), s.name)>
                                     <span class="story-avatar-ring"><img class=format!("story-avatar-img sf-{}", s.filter) src=s.photo.clone() alt="" loading="lazy" decoding="async" /></span>
                                     <span class="story-username">{s.name.clone()}</span>
                                 </button>
@@ -634,7 +705,7 @@ pub fn StoryPage() -> impl IntoView {
                         }).collect_view()}
                     </div>
                     {if n == 0 {
-                        Either::Left(view! { <p class="muted center story-empty">"Belum ada story. Jadilah tamu pertama yang berbagi momen!"</p> })
+                        Either::Left(view! { <p class="muted center story-empty">{tx!(l, "Belum ada story. Jadilah tamu pertama yang berbagi momen!", "No stories yet. Be the first guest to share a moment!")}</p> })
                     } else {
                         Either::Right(view! {
                             <div class="story-grid">
@@ -646,12 +717,12 @@ pub fn StoryPage() -> impl IntoView {
                                         <button type="button" class="story-tile" data-story-open=i.to_string() data-story-id=s.id.to_string()>
                                             <img class=format!("sf-{}", s.filter) src=s.photo alt=format!("Story {}", s.name) loading="lazy" decoding="async" />
                                             <span class="story-tile__who"><b>{s.name}</b><small>{s.ago}</small></span>
-                                            <span class="story-tile__mine" class:is-on=move || is_mine(id)>"Story Anda"</span>
+                                            <span class="story-tile__mine" class:is-on=move || is_mine(id)>{tx!(l, "Story Anda", "Your Story")}</span>
                                         </button>
-                                        <form method="post" action=mine_action class="story-tile__del" class:is-on=move || is_mine(id) data-confirm="Hapus story Anda secara permanen?">
+                                        <form method="post" action=mine_action class="story-tile__del" class:is-on=move || is_mine(id) data-confirm=tx!(l, "Hapus story Anda secara permanen?", "Permanently delete your story?")>
                                             <input type="hidden" name="id" value=id.to_string() />
                                             <input type="hidden" name="back" value=back />
-                                            <button type="submit" class="icon-btn icon-btn--sm" aria-label="Hapus story saya"><Icon name="delete" /></button>
+                                            <button type="submit" class="icon-btn icon-btn--sm" aria-label=tx!(l, "Hapus story saya", "Delete my story")><Icon name="delete" /></button>
                                         </form>
                                     </div>
                                 }}).collect_view()}
@@ -664,11 +735,11 @@ pub fn StoryPage() -> impl IntoView {
         </Suspense>
 
         <section class="card story-add" class:is-open=move || show_add.get() id="tambah-story">
-            <h2 class="story-add__title"><Icon name="add_photo_alternate" />"Tambah Story"</h2>
-            {demo.then(|| view! { <p class="notice notice--info">"Ini undangan demo — story di atas hanya contoh."</p> })}
+            <h2 class="story-add__title"><Icon name="add_photo_alternate" />{tx!(l, "Tambah Story", "Add a Story")}</h2>
+            {demo.then(|| view! { <p class="notice notice--info">{tx!(l, "Ini undangan demo — story di atas hanya contoh.", "This is a demo invitation — the stories above are examples.")}</p> })}
             <ol class="story-steps">
-                <li class:is-done=move || phone().is_some()>"Nomor WhatsApp"</li>
-                <li class:is-on=move || phone().is_some()>"Kunci & Foto"</li>
+                <li class:is-done=move || phone().is_some()>{tx!(l, "Nomor WhatsApp", "WhatsApp Number")}</li>
+                <li class:is-on=move || phone().is_some()>{tx!(l, "Kunci & Foto", "Key & Photo")}</li>
             </ol>
             {move || phone().is_none().then(|| {
                 let (slug_in, name_in) = (slug_in.clone(), name_in.clone());
@@ -676,49 +747,54 @@ pub fn StoryPage() -> impl IntoView {
                 <ActionForm action=req attr:class="story-form">
                     <input type="hidden" name="slug" value=slug_in />
                     <label class="field">
-                        <span class="field__label">"Nama Anda"</span>
-                        <input class="input" name="name" required maxlength="60" value=name_in placeholder="Nama yang tampil di story" />
+                        <span class="field__label">{tx!(l, "Nama Anda", "Your Name")}</span>
+                        <input class="input" name="name" required maxlength="60" value=name_in placeholder=tx!(l, "Nama yang tampil di story", "Name shown on your story") />
                     </label>
                     <label class="field">
-                        <span class="field__label">"Nomor WhatsApp"</span>
+                        <span class="field__label">{tx!(l, "Nomor WhatsApp", "WhatsApp Number")}</span>
                         <input class="input" name="phone" type="tel" inputmode="tel" required maxlength="20" placeholder="0812 3456 7890" />
                     </label>
-                    <p class="muted small">"Kami kirim kunci spesial 6 digit ke WhatsApp ini. Satu nomor hanya bisa membuat satu story."</p>
+                    <p class="muted small">{tx!(l,
+                        "Kami kirim kunci spesial 6 digit ke WhatsApp ini. Satu nomor hanya bisa membuat satu story.",
+                        "We'll send a 6-digit key to this WhatsApp number. One number can create one story.")}</p>
                     {move || req_err().map(|e| view! { <p class="notice notice--err">{e}</p> })}
                     <button class="btn btn--primary btn--block" type="submit" disabled=move || req.pending().get()>
                         <Icon name="send" />
-                        {move || if req.pending().get() { "Mengirim kunci…" } else { "Kirim Kunci ke WhatsApp" }}
+                        {move || if req.pending().get() { tx!(l, "Mengirim kunci…", "Sending key…") } else { tx!(l, "Kirim Kunci ke WhatsApp", "Send Key via WhatsApp") }}
                     </button>
                 </ActionForm>
                 }
             })}
             {move || phone().filter(|k| k.has_story).map(|k| view! {
-                <form class="story-form" method="post" action=del_action.clone() data-confirm="Hapus story Anda secara permanen?">
+                <form class="story-form" method="post" action=del_action.clone() data-confirm=tx!(l, "Hapus story Anda secara permanen?", "Permanently delete your story?")>
                     <input type="hidden" name="phone" value=k.phone.clone() />
                     <input type="hidden" name="back" value=back_del.clone() />
-                    <p class="notice notice--info">{format!("Nomor +{} sudah punya story di undangan ini. Kunci sudah dikirim ke WhatsApp — masukkan untuk MENGHAPUS story Anda (setelah itu bisa membuat yang baru).", k.phone)}</p>
+                    <p class="notice notice--info">{match l {
+                        Lang::Id => format!("Nomor +{} sudah punya story di undangan ini. Kunci sudah dikirim ke WhatsApp — masukkan untuk MENGHAPUS story Anda (setelah itu bisa membuat yang baru).", k.phone),
+                        Lang::En => format!("+{} already has a story on this invitation. A key was sent via WhatsApp — enter it to DELETE your story (then you can create a new one).", k.phone),
+                    }}</p>
                     <label class="field">
                         <span class="field__label">"Kunci Spesial (6 digit)"</span>
                         <input class="input story-key" name="key" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="••••••" />
                     </label>
-                    <button class="btn btn--danger btn--block" type="submit"><Icon name="delete" />"Hapus Story Saya Permanen"</button>
+                    <button class="btn btn--danger btn--block" type="submit"><Icon name="delete" />{tx!(l, "Hapus Story Saya Permanen", "Permanently Delete My Story")}</button>
                 </form>
             })}
             {move || phone().filter(|k| !k.has_story).map(|k| k.phone).map(|p| view! {
                 <form class="story-form" method="post" action=action.clone() enctype="multipart/form-data">
                     <input type="hidden" name="phone" value=p.clone() />
                     <input type="hidden" name="back" value=back.clone() />
-                    <p class="notice notice--ok">{format!("Kunci sudah dikirim ke WhatsApp +{p}.")}</p>
+                    <p class="notice notice--ok">{match l { Lang::Id => format!("Kunci sudah dikirim ke WhatsApp +{p}."), Lang::En => format!("A key was sent to WhatsApp +{p}.") }}</p>
                     <label class="field">
                         <span class="field__label">"Kunci Spesial (6 digit)"</span>
                         <input class="input story-key" name="key" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="••••••" />
                     </label>
                     <label class="story-pick">
                         <img class="story-pick__img sf-normal" data-story-preview alt="" hidden />
-                        <span class="story-pick__hint"><Icon name="photo_camera" /><b>"Pilih satu foto"</b><small>"JPEG / PNG / WebP, maks 5 MB — video tidak bisa"</small></span>
+                        <span class="story-pick__hint"><Icon name="photo_camera" /><b>{tx!(l, "Pilih satu foto", "Choose one photo")}</b><small>{tx!(l, "JPEG / PNG / WebP, maks 5 MB — video tidak bisa", "JPEG / PNG / WebP, max 5 MB — no videos")}</small></span>
                         <input type="file" name="foto" accept="image/jpeg,image/png,image/webp" required data-story-file />
                     </label>
-                    <div class="story-filters" role="radiogroup" aria-label="Filter foto">
+                    <div class="story-filters" role="radiogroup" aria-label=tx!(l, "Filter foto", "Photo filter")>
                         {STORY_FILTERS.iter().map(|(k, label)| view! {
                             <label class="story-filter">
                                 <input type="radio" name="filter" value=*k checked=*k == "normal" data-story-filter />
@@ -728,10 +804,10 @@ pub fn StoryPage() -> impl IntoView {
                         }).collect_view()}
                     </div>
                     <label class="field">
-                        <span class="field__label">"Keterangan (opsional)"</span>
-                        <input class="input" name="caption" maxlength="150" placeholder="Tulis ucapan singkat…" />
+                        <span class="field__label">{tx!(l, "Keterangan (opsional)", "Caption (optional)")}</span>
+                        <input class="input" name="caption" maxlength="150" placeholder=tx!(l, "Tulis ucapan singkat…", "Write a short wish…") />
                     </label>
-                    <button class="btn btn--primary btn--block" type="submit"><Icon name="cloud_upload" />"Terbitkan Story"</button>
+                    <button class="btn btn--primary btn--block" type="submit"><Icon name="cloud_upload" />{tx!(l, "Terbitkan Story", "Publish Story")}</button>
                 </form>
             })}
         </section>

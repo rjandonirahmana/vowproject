@@ -13,7 +13,7 @@ use leptos_router::hooks::use_query_map;
 use std::ops::Not;
 
 use crate::web::api::{get_contact, get_theme, list_songs, list_themes};
-use crate::web::components::monogram_svg;
+use crate::web::components::{monogram_svg, BahasaUndangan};
 use crate::web::fmt::{self, rupiah};
 use crate::web::icons::Icon;
 use crate::web::model::initial;
@@ -30,9 +30,13 @@ pub fn BuatPage() -> impl IntoView {
 
     let tema_q = qget("tema");
     let theme = RwSignal::new(if tema_q.is_empty() { DEFAULT_THEME.to_string() } else { tema_q.clone() });
-    // Datang dari detail/kartu tema (?tema=slug): tema sudah dipilih → daftar
-    // pilihan disembunyikan, cukup ringkasan + tombol "Ganti tema".
-    let pick_open = RwSignal::new(tema_q.is_empty());
+    // Selalu mulai dari ringkasan "Tema terpilih" (bawaan: tema populer, atau
+    // ?tema= dari kartu katalog). Dulu tanpa ?tema= 76 pilihan langsung
+    // terbentang ±8 layar sebelum isian mempelai — titik putus pembeli.
+    let pick_open = RwSignal::new(false);
+    // Pemilih: cari nama/daerah/tag + saring kategori.
+    let cari = RwSignal::new(String::new());
+    let kat = RwSignal::new(String::new());
     // Katalog + tema privat dari ?tema= (pesanan custom yang dibuatkan admin).
     let theme_list = Resource::new(
         move || tema_q.clone(),
@@ -109,13 +113,14 @@ pub fn BuatPage() -> impl IntoView {
                                 " — nama kedua mempelai + kunci rahasia, contoh "<code>"/u/yona-doni-k7f3x9m2"</code>". Kunci acak membuat tautan tak bisa ditebak dan tak mungkin sama dengan pasangan lain walau namanya sama. Hanya orang yang Anda kirimi tautan yang bisa membukanya."
                             </span>
                         </div>
+                        // SATU-SATUNYA isian `theme` — tetap terkirim walau pemilih sedang terbuka.
+                        <input type="hidden" name="theme" value=move || theme.get() />
                         <Suspense fallback=|| view! { <SkelOptions n=1 /> }>
                             {move || theme_list.get().and_then(|list| {
                                 let cur = theme.get_untracked();
                                 let t = list.into_iter().find(|t| t.slug == cur)?;
                                 pick_open.get().not().then(|| view! {
                                     <div class="theme-chosen">
-                                        <input type="hidden" name="theme" value=t.slug.clone() />
                                         <span class=format!("theme-pick__sw th-{}", t.slug)><i></i><i></i></span>
                                         <span class="theme-chosen__txt">
                                             <small>"Tema terpilih"</small>
@@ -129,23 +134,54 @@ pub fn BuatPage() -> impl IntoView {
                                     </div>
                                 })
                             })}
-                            <div class="theme-pick">
-                                {move || pick_open.get().then(|| theme_list.get().map(|list| list.into_iter().map(|t| {
-                                    let slug = t.slug.clone();
-                                    let checked = theme.get_untracked() == t.slug;
-                                    view! {
-                                        <label class="theme-pick__opt">
-                                            <input type="radio" name="theme" value=t.slug.clone() checked=checked
-                                                on:change=move |_| theme.set(slug.clone()) />
-                                            <span class=format!("theme-pick__sw th-{}", t.slug)><i></i><i></i></span>
-                                            <span>
-                                                <b>{t.name.clone()}</b>
-                                                <small>{if t.listed { t.region.clone() } else { "Tema custom milik Anda".to_string() }}</small>
-                                            </span>
-                                        </label>
-                                    }
-                                }).collect_view()))}
-                            </div>
+                            {move || pick_open.get().then(|| theme_list.get().map(|list| {
+                                let mut cats: Vec<String> = list.iter().filter(|t| t.listed).map(|t| t.category.clone()).collect();
+                                cats.sort();
+                                cats.dedup();
+                                view! {
+                                    <div class="theme-pick-box">
+                                        <div class="theme-pick__tools">
+                                            <input class="input" type="search" placeholder="Cari tema, daerah, atau gaya…" aria-label="Cari tema"
+                                                prop:value=move || cari.get() on:input=move |e| cari.set(event_target_value(&e)) />
+                                            <div class="theme-pick__cats" role="group" aria-label="Kategori tema">
+                                                {std::iter::once(String::new()).chain(cats).map(|c| {
+                                                    let label = if c.is_empty() { "Semua".to_string() } else { c.clone() };
+                                                    let (c_on, c_aria, c_set) = (c.clone(), c.clone(), c);
+                                                    view! {
+                                                        <button type="button" class="chip" class:is-on=move || kat.get() == c_on
+                                                            aria-pressed=move || (kat.get() == c_aria).to_string()
+                                                            on:click=move |_| kat.set(c_set.clone())>{label}</button>
+                                                    }
+                                                }).collect_view()}
+                                            </div>
+                                        </div>
+                                        <div class="theme-pick">
+                                            {list.into_iter().map(|t| {
+                                                let slug = t.slug.clone();
+                                                let checked = theme.get_untracked() == t.slug;
+                                                let hay = format!("{} {} {} {}", t.name, t.region, t.category, t.tags.join(" ")).to_lowercase();
+                                                let cat = t.category.clone();
+                                                let shown = move || {
+                                                    let q = cari.get().to_lowercase();
+                                                    let k = kat.get();
+                                                    (q.trim().is_empty() || hay.contains(q.trim())) && (k.is_empty() || k == cat)
+                                                };
+                                                view! {
+                                                    <label class="theme-pick__opt" class:is-hidden=move || !shown()>
+                                                        <input type="radio" name="theme_pick" value=t.slug.clone() checked=checked
+                                                            on:change=move |_| { theme.set(slug.clone()); pick_open.set(false); } />
+                                                        <span class=format!("theme-pick__sw th-{}", t.slug)><i></i><i></i></span>
+                                                        <span>
+                                                            <b>{t.name.clone()}</b>
+                                                            <small>{if t.listed { t.region.clone() } else { "Tema custom milik Anda".to_string() }}</small>
+                                                        </span>
+                                                    </label>
+                                                }
+                                            }).collect_view()}
+                                        </div>
+                                    </div>
+                                }
+                            }))}
                         </Suspense>
                     </section>
 
@@ -170,6 +206,7 @@ pub fn BuatPage() -> impl IntoView {
                             <span class="field__label">"Nama Keluarga Pengundang (penutup undangan)"</span>
                             <input class="input" name="family_name" maxlength="120" placeholder="Keluarga Besar Soedibyo & Pratama" />
                         </label>
+                        <BahasaUndangan />
                     </section>
 
                     // ── C. Acara ──

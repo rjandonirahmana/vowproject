@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::fmt;
+use super::i18n::Lang;
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Session {
@@ -44,10 +45,24 @@ pub struct Event {
 
 impl Event {
     pub fn date_label(&self) -> String {
-        fmt::tanggal_panjang(&self.date)
+        self.date_label_in(Lang::Id)
+    }
+    pub fn date_label_in(&self, lang: Lang) -> String {
+        fmt::tanggal_panjang_in(&self.date, lang)
+    }
+    /// Label acara bawaan (/buat) dalam bahasa tamu; label buatan pasangan tetap.
+    pub fn badge_in(&self, lang: Lang) -> String {
+        match (lang, self.badge.as_str()) {
+            (Lang::En, "Pemberkatan & Akad") => "Holy Matrimony".into(),
+            (Lang::En, "Resepsi Agung") => "Wedding Reception".into(),
+            _ => self.badge.clone(),
+        }
     }
     pub fn time_label(&self) -> String {
-        fmt::jam_rentang(&self.time_start, &self.time_end, &self.tz)
+        self.time_label_in(Lang::Id)
+    }
+    pub fn time_label_in(&self, lang: Lang) -> String {
+        fmt::jam_rentang_in(&self.time_start, &self.time_end, &self.tz, lang)
     }
     /// Link peta: yang diisi pengantin, atau pencarian nama tempat.
     pub fn maps_link(&self) -> String {
@@ -122,6 +137,8 @@ pub struct InvSkin {
 #[serde(default)]
 pub struct Invitation {
     pub slug: String,
+    /// "id" | "en" — bahasa teks bawaan undangan untuk tamu (migrasi 040).
+    pub lang: String,
     pub theme: String,
     pub package: String,
     pub status: String,
@@ -181,7 +198,14 @@ impl Invitation {
         self.events.first()
     }
     pub fn date_label(&self) -> String {
-        self.first_event().map(|e| e.date_label()).unwrap_or_default()
+        self.date_label_in(Lang::Id)
+    }
+    pub fn date_label_in(&self, lang: Lang) -> String {
+        self.first_event().map(|e| e.date_label_in(lang)).unwrap_or_default()
+    }
+    /// Bahasa undangan pilihan pasangan (kolom `lang`, migrasi 040).
+    pub fn language(&self) -> Lang {
+        Lang::of(&self.lang)
     }
     /// Epoch ms mulai acara pertama (WIB) — target hitung mundur.
     pub fn countdown_target_ms(&self) -> i64 {
@@ -277,6 +301,15 @@ pub struct Wish {
     pub status: String,
     pub message: String,
     pub ago: String,
+    /// Umur ucapan (detik) — `ago` dalam bahasa lain dibentuk dari sini.
+    #[serde(default)]
+    pub age: i64,
+}
+
+impl Wish {
+    pub fn ago_in(&self, l: Lang) -> String {
+        if l == Lang::Id { self.ago.clone() } else { fmt::lalu_in(self.age, l) }
+    }
 }
 
 /// Lagu di pustaka musik admin (migrasi 027) — satu-satunya sumber musik latar.
@@ -492,11 +525,15 @@ pub const CATEGORIES: &[(&str, &str)] = &[
 ];
 
 pub fn rsvp_label(s: &str) -> &'static str {
+    rsvp_label_in(s, Lang::Id)
+}
+
+pub fn rsvp_label_in(s: &str, l: Lang) -> &'static str {
     match s {
-        "hadir" => "Hadir",
-        "ragu" => "Masih Ragu",
-        "tidak" => "Berhalangan",
-        _ => "Belum Respon",
+        "hadir" => crate::tx!(l, "Hadir", "Attending"),
+        "ragu" => crate::tx!(l, "Masih Ragu", "Not sure yet"),
+        "tidak" => crate::tx!(l, "Berhalangan", "Unable to attend"),
+        _ => crate::tx!(l, "Belum Respon", "No response"),
     }
 }
 

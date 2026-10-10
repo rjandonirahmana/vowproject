@@ -1,0 +1,369 @@
+{#- ═════════════════════════════════════════════════════════════════════════
+    Warkah — templat undangan "surat bersegel".
+
+    Bahan: bedah 73 template chungdoi.com (Okt 2026) — semuanya satu mesin &
+    satu susunan; yang membedakan hanya palet, ornamen, dan font. Gerak khas
+    yang diambil (ditulis ulang dari nol, tanpa kode/aset mereka):
+      sampul kartu kaca + segel berdenyut → segel pecah, partikel memancar,
+      kartu terbang ke atas → amplop dengan foto polaroid meluncur keluar →
+      kartu info bertanggal terbelah → galeri coverflow 3D → kalender bulan
+      berhati → susunan acara bergaris waktu → kotak kado yang meletup.
+    Warna & ornamen per tema lewat themes.template_css / template_assets.
+    Data & atribut gerak: templat/README.md.
+    ═════════════════════════════════════════════════════════════════════════ -#}
+
+{%- macro hati(cls) -%}
+<svg class="{{ cls }}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.6 4.4 13.4A4.9 4.9 0 0 1 12 7.1a4.9 4.9 0 0 1 7.6 6.3Z" fill="currentColor"/></svg>
+{%- endmacro -%}
+
+{%- macro tanggal(e) -%}
+<div class="w-date">
+  <span class="w-date__side">{{ e.day_name }}</span>
+  <span class="w-date__day">{{ e.day }}</span>
+  <span class="w-date__side">{{ e.month }}</span>
+  <span class="w-date__year">{{ e.year }}</span>
+</div>
+{%- endmacro -%}
+
+<div class="w-bg" aria-hidden="true">
+  <img class="w-bg__orn w-bg__orn--tl" src="{{ a.sudut }}" alt="">
+  <img class="w-bg__orn w-bg__orn--br" src="{{ a.sudut }}" alt="">
+  <div class="w-petals">{% for i in range(10) %}<i style="--i:{{ i }}"></i>{% endfor %}</div>
+</div>
+
+{#- ── Desktop ≥900px: panel kiri tetap (seperti tema lain), undangan di kanan.
+    Tombolnya mengikuti keadaan: Buka (sebelum) · Waktu & Tempat + Tutup (sesudah). #}
+<aside class="w-side" data-pre>
+  <img class="w-side__orn w-side__orn--tl" src="{{ a.sudut }}" alt="" aria-hidden="true">
+  <img class="w-side__orn w-side__orn--br" src="{{ a.sudut }}" alt="" aria-hidden="true">
+  <div class="w-side__in">
+    <span class="w-seal w-seal--side" aria-hidden="true"><span class="w-seal__ring"></span><span class="w-seal__core">{{ hati("w-seal__heart") }}</span></span>
+    <p class="w-eyebrow w-side__eyebrow" data-a="fadeInDown" data-ad="200">The Wedding Of</p>
+    <p class="w-script w-side__names" data-a="zoomIn" data-ad="400">{{ bride.first }}<i>&amp;</i>{{ groom.first }}</p>
+    <p class="w-side__date" data-a="fadeInUp" data-ad="700">{{ date_label }}</p>
+    <p class="w-side__to" data-a="fadeInUp" data-ad="900">{{ t.kepada }} <b>{{ tamu }}</b></p>
+    <div class="w-side__btns" data-a="fadeInUp" data-ad="1100">
+      <button type="button" class="w-btn w-btn--shine w-side__open" data-open data-burst="24">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h18v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m3 8 9 6.5L21 8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        {{ t.buka }}
+      </button>
+      <a class="w-btn w-side__acara" href="#acara">{{ t.waktu_tempat }}</a>
+      <button type="button" class="w-btn w-btn--line w-side__close" data-close>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.5 12 3l8.5 5.5v10a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m3.5 9 8.5 6 8.5-6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+        {{ t.tutup_undangan }}
+      </button>
+    </div>
+  </div>
+</aside>
+
+{#- ── SAMPUL (gerbang): kartu kaca bersegel ───────────────────────────────── #}
+<section class="w-gate" data-gate aria-label="{{ t.sampul_label }}">
+  <div class="w-gate__card">
+    <img class="w-gate__orn w-gate__orn--tl" src="{{ a.sudut }}" alt="" aria-hidden="true">
+    <img class="w-gate__orn w-gate__orn--br" src="{{ a.sudut }}" alt="" aria-hidden="true">
+    <span class="w-seal" aria-hidden="true"><span class="w-seal__ring"></span><span class="w-seal__core">{{ hati("w-seal__heart") }}</span></span>
+    <p class="w-eyebrow" data-a="fadeInDown" data-ad="200">The Wedding Of</p>
+    <h1 class="w-gate__names" data-a="zoomIn" data-ad="400">{{ bride.first }}<i>&amp;</i>{{ groom.first }}</h1>
+    <p class="w-rule" aria-hidden="true"><span></span>{{ hati("w-rule__heart") }}<span></span></p>
+    <p class="w-gate__date" data-a="fadeInUp" data-ad="700">{{ date_label }}</p>
+    <p class="w-gate__to" data-a="fadeInUp" data-ad="900">{{ t.kepada_lengkap }}</p>
+    <p class="w-gate__guest" data-a="fadeInUp" data-ad="1100">{{ tamu }}</p>
+    {%- if guest and guest.vip %}<p class="w-chip" data-a="fadeInUp" data-ad="1200">{{ t.tamu_spesial }}</p>{% endif %}
+    <button type="button" class="w-btn w-btn--shine" data-open data-burst="24" data-a="zoomIn" data-ad="1400">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5h18v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m3 8 9 6.5L21 8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      {{ t.buka }}
+    </button>
+    <p class="w-gate__note" data-a="fadeIn" data-ad="1700">{{ t.maaf_nama }}</p>
+  </div>
+</section>
+
+<main class="w-main">
+
+  {#- ── 1. Amplop & polaroid ───────────────────────────────────────────── #}
+  <section class="w-hero" id="sampul">
+    <img class="w-hero__ranting" src="{{ a.ranting }}" alt="" aria-hidden="true" data-a="fadeInRight" data-ad="300" data-at="1400">
+    <div class="w-env" aria-hidden="true">
+      <span class="w-env__back"></span>
+      <figure class="w-env__photo">
+        {%- if cover_photo %}
+        <img src="{{ cover_photo|foto }}" style="{{ cover_photo|pos }}" alt="" fetchpriority="high">
+        {%- elif gallery %}
+        <img src="{{ gallery[0]|foto }}" style="{{ gallery[0]|pos }}" alt="" fetchpriority="high">
+        {%- else %}
+        <span class="w-env__mono">{{ bride.initial }}<i>&amp;</i>{{ groom.initial }}</span>
+        {%- endif %}
+      </figure>
+      <span class="w-env__front"></span>
+      <span class="w-env__seal">{{ bride.initial }}{{ groom.initial }}</span>
+    </div>
+    <p class="w-eyebrow" data-a="fadeInUp" data-ad="1100">The Wedding Of</p>
+    <h2 class="w-script w-hero__names" data-a="zoomIn" data-ad="1300">{{ bride.first }}<i>&amp;</i>{{ groom.first }}</h2>
+    <p class="w-hero__date" data-a="fadeInUp" data-ad="1600">{{ date_num }}</p>
+    <a class="w-scroll" href="#mempelai" data-a="fadeInDown" data-ad="2000"><span></span>{{ t.gulir }}</a>
+  </section>
+
+  {#- ── 2. Ayat ─────────────────────────────────────────────────────────── #}
+  <section class="w-quote" id="ayat">
+    <img class="w-quote__untai" src="{{ a.untaian }}" alt="" aria-hidden="true" data-s="zoom-in">
+    <blockquote data-s="atas">“{{ quote.text or t.ayat }}”</blockquote>
+    <cite data-s="atas">{{ quote.source or t.ayat_sumber }}</cite>
+  </section>
+
+  {#- ── 3. Kartu info: keluarga & mempelai ─────────────────────────────── #}
+  <section class="w-card w-card--deep w-info" id="mempelai">
+    <img class="w-card__orn w-card__orn--r" src="{{ a.ranting }}" alt="" aria-hidden="true" data-s="kanan">
+    <h2 class="w-title" data-s="atas">{{ t.mempelai }}</h2>
+    <div class="w-parents" data-s="atas">
+      <div>
+        <small>{{ t.putri_dari }}</small>
+        <p>{{ bride.parents or t.ortu_kosong }}</p>
+      </div>
+      <div>
+        <small>{{ t.putra_dari }}</small>
+        <p>{{ groom.parents or t.ortu_kosong }}</p>
+      </div>
+    </div>
+    <p class="w-info__lead" data-s="atas">{{ t.info_lead }}</p>
+    {%- for p in [bride, groom] %}
+    <article class="w-person" data-s="zoom-in">
+      {%- if p.photo %}
+      <img class="w-person__photo" src="{{ p.photo|foto }}" style="{{ p.photo|pos }}" alt="{{ p.name }}" loading="lazy" data-zoom>
+      {%- endif %}
+      <h3 class="w-script w-person__name">{{ p.name }}{% if p.degree %}<small>, {{ p.degree }}</small>{% endif %}</h3>
+      {%- if p.ig %}<a class="w-ig" href="https://instagram.com/{{ p.ig }}" target="_blank" rel="noopener">@{{ p.ig }}</a>{% endif %}
+    </article>
+    {%- if loop.first %}<p class="w-amp" data-s="zoom-in" aria-hidden="true">&amp;</p>{% endif %}
+    {%- endfor %}
+  </section>
+
+  {#- ── 4. Acara (tanggal terbelah) ────────────────────────────────────── #}
+  <section class="w-acara" id="acara">
+    <h2 class="w-title" data-s="atas">{{ t.waktu_tempat }}</h2>
+    {%- for e in events %}
+    <article class="w-card w-card--deep w-event" data-s="zoom-in">
+      <h3 class="w-event__title">{{ e.title }}</h3>
+      {%- if e.day %}{{ tanggal(e) }}{% endif %}
+      <p class="w-event__time">{{ t.pukul }} {{ e.time_label }}</p>
+      {%- for s in e.sessions %}<p class="w-event__session">{{ s.label }} · {{ s.time }}</p>{% endfor %}
+      <p class="w-event__venue"><b>{{ e.venue }}</b>{% if e.address %}<br>{{ e.address }}{% endif %}</p>
+      <a class="w-btn w-btn--line w-btn--sm" href="{{ e.maps }}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="9.8" r="2.3" fill="currentColor"/></svg>
+        {{ t.petunjuk }}
+      </a>
+    </article>
+    {%- endfor %}
+  </section>
+
+  {#- ── 5. Hitung mundur & kalender berhati ────────────────────────────── #}
+  {%- if first and first.cal_days %}
+  <section class="w-save">
+    <h2 class="w-title" data-s="atas">Save The Date</h2>
+    {%- if countdown_ms %}
+    <p class="w-count" data-countdown="{{ countdown_ms }}" data-s="atas">
+      <span><b data-cd="d">0</b> {{ t.hari }}</span>
+      <span><b data-cd="h">0</b> {{ t.jam }}</span>
+      <span><b data-cd="m">0</b> {{ t.menit }}</span>
+      <span><b data-cd="s">0</b> {{ t.detik }}</span>
+    </p>
+    {%- endif %}
+    <div class="w-cal" data-s="zoom-in">
+      <p class="w-script w-cal__month">{{ first.month_year }}</p>
+      <ol class="w-cal__grid">
+        {%- for h in (["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] if lang == "en" else ["Sn", "Sl", "Rb", "Km", "Jm", "Sb", "Mg"]) %}<li class="w-cal__dow">{{ h }}</li>{% endfor %}
+        {%- for i in range(first.cal_lead) %}<li></li>{% endfor %}
+        {%- for n in range(1, first.cal_days + 1) %}
+        {%- if n|string == first.day %}
+        <li class="w-cal__on" aria-label="{{ t.hari_h }} {{ n }}">{{ hati("w-cal__heart") }}<span>{{ n }}</span></li>
+        {%- else %}
+        <li>{{ n }}</li>
+        {%- endif %}
+        {%- endfor %}
+      </ol>
+    </div>
+    <div class="w-save__btns" data-s="atas">
+      {%- if calendar_url %}
+      <a class="w-btn w-btn--line" href="{{ calendar_url }}" target="_blank" rel="noopener">{{ t.simpan_kalender }}</a>
+      {%- endif %}
+      <a class="w-btn" href="#ucapan">{{ t.konfirmasi_hadir }}</a>
+    </div>
+  </section>
+  {%- endif %}
+
+  {#- ── 6. Susunan acara (garis waktu) & dresscode ─────────────────────── #}
+  {%- if events|length > 1 or (first and first.sessions) %}
+  <section class="w-card w-sched">
+    <h2 class="w-title" data-s="atas">{{ t.susunan }}</h2>
+    <ol class="w-line">
+      {%- for e in events %}
+      {%- if e.sessions %}
+      {%- for s in e.sessions %}
+      <li data-s="kiri"><time>{{ s.time }}</time><span>{{ e.title }} — {{ s.label }}</span></li>
+      {%- endfor %}
+      {%- else %}
+      <li data-s="kiri"><time>{{ e.time_start or e.time_label }}</time><span>{{ e.title }}</span></li>
+      {%- endif %}
+      {%- endfor %}
+    </ol>
+  </section>
+  {%- endif %}
+
+  {%- if dress_code or dress_colors or live_url %}
+  <section class="w-card w-extra" data-s="atas">
+    {%- if dress_code or dress_colors %}
+    <h2 class="w-title w-title--sm">Dresscode</h2>
+    {%- if dress_code %}<p>{{ dress_code }}</p>{% endif %}
+    {%- if dress_colors %}
+    <p class="w-dots">{% for c in dress_colors %}<span style="background:{{ c.hex }}" title="{{ c.name }}"></span>{% endfor %}</p>
+    {%- endif %}
+    {%- endif %}
+    {%- if live_url %}
+    <h2 class="w-title w-title--sm">{{ t.live }}</h2>
+    <p>{{ t.live_teks }}</p>
+    <a class="w-btn w-btn--sm" href="{{ live_url }}" target="_blank" rel="noopener">{{ t.live_tonton }}</a>
+    {%- endif %}
+  </section>
+  {%- endif %}
+
+  {#- ── 7. Kisah cinta ──────────────────────────────────────────────────── #}
+  {%- if love_story %}
+  <section class="w-story" id="kisah">
+    <h2 class="w-title" data-s="atas">{{ t.kisah }}</h2>
+    <ol class="w-line w-line--story">
+      {%- for s in love_story %}
+      <li data-s="kanan">
+        {%- if s.year %}<time>{{ s.year }}</time>{% endif %}
+        <div>
+          {%- if s.img %}<img src="{{ s.img|foto }}" style="{{ s.img|pos }}" alt="" loading="lazy" data-zoom>{% endif %}
+          <h3>{{ s.title }}</h3>
+          <p>{{ s.text }}</p>
+        </div>
+      </li>
+      {%- endfor %}
+    </ol>
+  </section>
+  {%- endif %}
+
+  {#- ── 8. Galeri coverflow 3D ──────────────────────────────────────────── #}
+  {%- if gallery %}
+  <section class="w-gallery" id="galeri">
+    <h2 class="w-title" data-s="atas">{{ t.galeri }}</h2>
+    <div class="w-cf" data-coverflow="5000" data-s="zoom-in">
+      <div class="t-cf__stage w-cf__stage">
+        {%- for g in gallery %}
+        <figure class="w-cf__item" data-cf-item><img src="{{ g|foto }}" style="{{ g|pos }}" alt="Momen {{ loop.index }}" loading="lazy" data-zoom></figure>
+        {%- endfor %}
+      </div>
+      <div class="w-cf__nav">
+        <button type="button" class="w-cf__btn" data-cf-prev aria-label="{{ t.foto_sebelum }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+        <span class="w-cf__count" data-cf-count>1 / {{ gallery|length }}</span>
+        <button type="button" class="w-cf__btn" data-cf-next aria-label="{{ t.foto_berikut }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+      </div>
+    </div>
+  </section>
+  {%- endif %}
+
+  {%- if video_url %}
+  <section class="w-video" data-s="zoom-in">
+    <video src="{{ video_url|foto }}" controls playsinline preload="none" poster="{{ cover_photo|foto }}"></video>
+  </section>
+  {%- endif %}
+
+  {#- ── 9. Kotak kado ───────────────────────────────────────────────────── #}
+  {%- if banks or gift_address %}
+  <section class="w-gift" id="hadiah" data-gift-wrap>
+    <h2 class="w-title" data-s="atas">{{ t.tanda_kasih }}</h2>
+    <p class="w-lead" data-s="atas">{{ t.kado_lead }}</p>
+    <button type="button" class="w-kado" data-gift data-burst="18" aria-controls="w-kado-isi">
+      <i class="w-kado__spark" aria-hidden="true"></i><i class="w-kado__spark" aria-hidden="true"></i><i class="w-kado__spark" aria-hidden="true"></i>
+      <svg class="w-kado__box" viewBox="0 0 120 110" aria-hidden="true">
+        <rect class="w-kado__lid" x="8" y="30" width="104" height="22" rx="3"/>
+        <rect class="w-kado__body" x="16" y="52" width="88" height="54" rx="3"/>
+        <rect class="w-kado__ribbon" x="54" y="30" width="12" height="76"/>
+        <path class="w-kado__bow" d="M60 30c-9-16-30-18-30-6 0 8 17 7 30 6Zm0 0c9-16 30-18 30-6 0 8-17 7-30 6Z"/>
+      </svg>
+      <span class="w-kado__shadow" aria-hidden="true"></span>
+      <span class="w-kado__hint">{{ t.ketuk_buka }}</span>
+    </button>
+    <div class="w-kado__isi" id="w-kado-isi">
+      {%- for b in banks %}
+      <div class="w-bank">
+        <p class="w-bank__name">{{ b.bank }}</p>
+        <p class="w-bank__num">{{ b.number }}</p>
+        <p class="w-bank__holder">{{ t.an }} {{ b.holder }}</p>
+        <button type="button" class="w-btn w-btn--sm" data-copy="{{ b.number }}"><span data-copy-label>{{ t.salin_nomor }}</span></button>
+      </div>
+      {%- endfor %}
+      {%- if gift_address %}
+      <div class="w-bank">
+        <p class="w-bank__name">{{ t.kirim_kado }}</p>
+        <p class="w-bank__addr">{{ gift_address }}</p>
+        <button type="button" class="w-btn w-btn--sm" data-copy="{{ gift_address }}"><span data-copy-label>{{ t.salin_alamat }}</span></button>
+      </div>
+      {%- endif %}
+    </div>
+  </section>
+  {%- endif %}
+
+  {#- ── 10. Buku tamu & RSVP ────────────────────────────────────────────── #}
+  <section class="w-card w-wish" id="ucapan">
+    <h2 class="w-title" data-s="atas">{{ t.buku_tamu }}</h2>
+    <p class="w-lead" data-s="atas">{{ t.ucapan_lead }}</p>
+    {%- if is_demo %}<p class="w-note">{{ t.demo }}</p>{% endif %}
+    <form class="w-form" method="post" action="{{ rsvp_action }}" data-rsvp data-s="zoom-out">
+      <input type="hidden" name="guest" value="{{ guest_code }}">
+      <input type="hidden" name="lang" value="{{ lang }}">
+      <label class="w-field"><span>{{ t.nama }}</span><input name="name" required maxlength="80" value="{{ prefill_name }}" autocomplete="name"></label>
+      <label class="w-field"><span>{{ t.ucapan_doa }}</span><textarea name="message" maxlength="600" rows="3"></textarea></label>
+      <fieldset class="w-radio">
+        <legend>{{ t.konfirmasi_hadir }}</legend>
+        <label><input type="radio" name="status" value="hadir" required><span>{{ t.hadir }}</span></label>
+        <label><input type="radio" name="status" value="tidak"><span>{{ t.tidak_hadir }}</span></label>
+      </fieldset>
+      <div class="w-form__row">
+        <label class="w-field"><span>{{ t.jumlah_tamu }}</span>
+          <select name="pax">{% for n in range(1, 6) %}<option value="{{ n }}">{{ n }} {{ t.orang }}</option>{% endfor %}</select>
+        </label>
+        {%- if sessions|length > 1 %}
+        <label class="w-field"><span>{{ t.sesi }}</span>
+          <select name="session">{% for s in sessions %}<option>{{ s }}</option>{% endfor %}</select>
+        </label>
+        {%- endif %}
+      </div>
+      <button class="w-btn w-btn--block" type="submit">{{ t.kirim_ucapan }}</button>
+      {%- if rsvp_flash %}
+      <p class="w-form__msg" data-rsvp-msg role="status" data-ok="{{ '1' if rsvp_flash.ok else '0' }}">{{ rsvp_flash.msg }}</p>
+      {%- else %}
+      <p class="w-form__msg" data-rsvp-msg role="status" hidden></p>
+      {%- endif %}
+    </form>
+    <p class="w-wish__count"><b data-wish-total>{{ wish_total }}</b> {{ t.ucapan_n }}</p>
+    <ul class="w-wishes" data-wishes>
+      {%- for w in wishes %}
+      <li class="w-wishitem"><p class="w-wishitem__head"><b>{{ w.name }}</b><small>{{ w.status }}</small></p><p>{{ w.message }}</p><time>{{ w.ago }}</time></li>
+      {%- endfor %}
+    </ul>
+    {%- if not wishes %}<p class="w-empty" data-wishes-empty>{{ t.pertama }}</p>{% endif %}
+    <template id="wish-tpl"><li class="w-wishitem"><p class="w-wishitem__head"><b data-f="name"></b><small data-f="status"></small></p><p data-f="message"></p><time data-f="ago"></time></li></template>
+    <a class="w-story-link" href="{{ story_url }}">{{ t.story_link }}</a>
+  </section>
+
+  {#- ── 11. Terima kasih ────────────────────────────────────────────────── #}
+  <section class="w-thanks">
+    <img class="w-thanks__untai" src="{{ a.untaian }}" alt="" aria-hidden="true" data-s="zoom-in">
+    <h2 class="w-title" data-s="atas">{{ t.terima_kasih }}</h2>
+    <p data-s="atas">{{ t.penutup }}</p>
+    <p class="w-thanks__by" data-s="atas">{{ t.yang_berbahagia }}</p>
+    <p class="w-script w-thanks__names" data-s="zoom-in">{{ bride.first }} &amp; {{ groom.first }}</p>
+    {%- if family_name %}<p class="w-thanks__family" data-s="atas">{{ family_name }}</p>{% endif %}
+  </section>
+
+  <footer class="w-foot">{{ t.oleh }} <a href="/">{{ brand }}</a></footer>
+</main>
+
+{%- if music.url %}
+<button class="w-music" type="button" data-music-toggle aria-label="{{ t.musik }}">
+  <span class="w-music__disc" aria-hidden="true"></span>
+  <span class="w-music__bars" aria-hidden="true"><i></i><i></i><i></i></span>
+</button>
+<audio data-music src="{{ music.url }}" loop preload="none"></audio>
+{%- endif %}

@@ -149,6 +149,7 @@ pub async fn wishes(pool: &Pool, inv_id: i64, limit: i64) -> Result<WishPage> {
                 status: r.get("status"),
                 message: r.get("message"),
                 ago: lalu(r.get("age")),
+                age: r.get("age"),
             })
             .collect(),
     })
@@ -344,10 +345,7 @@ pub struct NewGuest<'a> {
 
 /// Kode 6 karakter tanpa huruf/angka yang mirip (0/O, 1/I).
 pub fn new_code() -> String {
-    use rand::Rng;
-    const A: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let mut rng = rand::rng();
-    (0..6).map(|_| A[rng.random_range(0..A.len())] as char).collect()
+    super::auth::random_chars(b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6)
 }
 
 pub async fn add_guest(pool: &Pool, inv_id: i64, g: NewGuest<'_>) -> Result<String> {
@@ -440,6 +438,7 @@ pub struct NewInvitation {
     pub live_url: String,
     pub gallery: Value,
     pub dress_colors: Value,
+    pub lang: String,
 }
 
 /// Sunting isi undangan oleh pemilik/admin (/kelola/{slug}/sunting). Paket,
@@ -454,7 +453,7 @@ pub async fn update_invitation_isi(pool: &Pool, id: i64, n: &NewInvitation) -> R
             events = $15, dress_code = $16, quote_text = $17, quote_source = $18,
             music_title = $19, music_artist = $20, music_url = $21, music_autoplay = $22,
             banks = $23, family_name = $24, contact_phone = $25, cover_photo = $26,
-            love_story = $27, live_url = $28, gallery = $29, dress_colors = $30, updated_at = NOW()
+            love_story = $27, live_url = $28, gallery = $29, dress_colors = $30, lang = $31, updated_at = NOW()
           WHERE id = $1 AND NOT is_demo",
         &[
             &id, &n.theme,
@@ -463,7 +462,7 @@ pub async fn update_invitation_isi(pool: &Pool, id: i64, n: &NewInvitation) -> R
             &n.events, &n.dress_code, &n.quote_text, &n.quote_source,
             &n.music_title, &n.music_artist, &n.music_url, &n.music_autoplay,
             &n.banks, &n.family_name, &n.contact_phone, &n.cover_photo,
-            &n.love_story, &n.live_url, &n.gallery, &n.dress_colors,
+            &n.love_story, &n.live_url, &n.gallery, &n.dress_colors, &n.lang,
         ],
     )
     .await
@@ -493,9 +492,9 @@ pub async fn create_invitation(pool: &Pool, n: &NewInvitation) -> Result<()> {
             events, dress_code, quote_text, quote_source,
             music_title, music_artist, music_url, music_autoplay,
             banks, family_name, addons, coupon, total_price, payment_method, contact_phone,
-            cover_photo, love_story, live_url, gallery, dress_colors
+            cover_photo, love_story, live_url, gallery, dress_colors, lang
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-                   $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36)",
+                   $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37)",
         &[
             &n.slug, &n.manage_key_hash, &n.theme, &n.package,
             &b.name, &b.degree, &b.nick, &b.parents, &b.ig, &b.photo,
@@ -503,7 +502,7 @@ pub async fn create_invitation(pool: &Pool, n: &NewInvitation) -> Result<()> {
             &n.events, &n.dress_code, &n.quote_text, &n.quote_source,
             &n.music_title, &n.music_artist, &n.music_url, &n.music_autoplay,
             &n.banks, &n.family_name, &n.addons, &n.coupon, &n.total_price, &n.payment_method, &n.contact_phone,
-            &n.cover_photo, &n.love_story, &n.live_url, &n.gallery, &n.dress_colors,
+            &n.cover_photo, &n.love_story, &n.live_url, &n.gallery, &n.dress_colors, &n.lang,
         ],
     )
     .await
@@ -962,22 +961,27 @@ pub async fn animations(pool: &Pool) -> Result<Vec<crate::web::anim::AnimInfo>> 
         .collect())
 }
 
-pub async fn upsert_animation(pool: &Pool, a: &crate::web::anim::AnimInfo) -> Result<()> {
+/// Simpan animasi. `edited` = disunting admin (animasi bawaan berhenti ikut
+/// pembaruan kode); "Kembalikan ke bawaan" menyimpan dengan `edited = false`.
+pub async fn upsert_animation(pool: &Pool, a: &crate::web::anim::AnimInfo, edited: bool) -> Result<()> {
     let c = pool.get().await?;
     let spec = serde_json::to_value(&a.spec)?;
     db_exec(&c,
-        "INSERT INTO animations (kind, slug, name, spec, css, builtin, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "INSERT INTO animations (kind, slug, name, spec, css, builtin, sort_order, edited) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (kind, slug) DO UPDATE SET name = EXCLUDED.name, spec = EXCLUDED.spec, css = EXCLUDED.css,
-             builtin = EXCLUDED.builtin, sort_order = EXCLUDED.sort_order, updated_at = NOW()",
-        &[&a.kind, &a.slug, &a.name, &spec, &a.css, &a.builtin, &a.sort_order],
+             builtin = EXCLUDED.builtin, sort_order = EXCLUDED.sort_order, edited = EXCLUDED.edited, updated_at = NOW()",
+        &[&a.kind, &a.slug, &a.name, &spec, &a.css, &a.builtin, &a.sort_order, &edited],
     )
     .await
     .context("upsert animation")?;
     Ok(())
 }
 
-/// Isi animasi bawaan yang belum ada (suntingan admin TIDAK ditimpa).
-/// Dipanggil saat start; tabel belum migrasi 008 → error diabaikan pemanggil.
+/// Isi animasi bawaan dari kode: baris baru ditambah, baris bawaan yang
+/// BELUM disunting admin diperbarui bila isinya berubah (migrasi 041) —
+/// perbaikan gerak di repo langsung sampai ke tamu tanpa "Kembalikan ke
+/// bawaan". Suntingan admin (`edited`) tak pernah ditimpa. Dipanggil saat
+/// start; tabel belum migrasi 008/041 → error diabaikan pemanggil.
 pub async fn seed_animations(pool: &Pool, list: &[crate::web::anim::AnimInfo]) -> Result<u64> {
     // Satu pernyataan untuk semua animasi bawaan (bukan satu INSERT per baris).
     let rows: Vec<Value> = list
@@ -990,7 +994,10 @@ pub async fn seed_animations(pool: &Pool, list: &[crate::web::anim::AnimInfo]) -
         "INSERT INTO animations (kind, slug, name, spec, css, builtin, sort_order)
          SELECT x.kind, x.slug, x.name, x.spec, x.css, TRUE, x.sort_order
            FROM jsonb_to_recordset($1) AS x(kind TEXT, slug TEXT, name TEXT, spec JSONB, css TEXT, sort_order INT)
-         ON CONFLICT (kind, slug) DO NOTHING",
+         ON CONFLICT (kind, slug) DO UPDATE
+             SET name = EXCLUDED.name, spec = EXCLUDED.spec, css = EXCLUDED.css, sort_order = EXCLUDED.sort_order, updated_at = NOW()
+           WHERE animations.builtin AND NOT animations.edited
+             AND (animations.css, animations.spec, animations.name) IS DISTINCT FROM (EXCLUDED.css, EXCLUDED.spec, EXCLUDED.name)",
         &[&Value::Array(rows)],
     )
     .await
@@ -1175,23 +1182,7 @@ pub async fn delete_banner(pool: &Pool, id: i64) -> Result<()> {
 
 /// Geser satu banner naik/turun lalu rapikan urutan menjadi 10, 20, 30, …
 pub async fn move_banner(pool: &Pool, id: i64, up: bool) -> Result<()> {
-    let mut c = pool.get().await?;
-    let tx = c.transaction().await?;
-    let mut ids: Vec<i64> = tx.query("SELECT id FROM banners ORDER BY urutan, id FOR UPDATE", &[]).await?.iter().map(|r| r.get(0)).collect();
-    if let Some(i) = ids.iter().position(|x| *x == id) {
-        let j = if up { i.checked_sub(1) } else { (i + 1 < ids.len()).then_some(i + 1) };
-        if let Some(j) = j {
-            ids.swap(i, j);
-        }
-    }
-    // Rapikan urutan 10, 20, 30, … dalam SATU pernyataan.
-    tx.execute(
-        "UPDATE banners b SET urutan = (v.n * 10)::INT FROM unnest($1::BIGINT[]) WITH ORDINALITY AS v(id, n) WHERE b.id = v.id",
-        &[&ids],
-    )
-    .await?;
-    tx.commit().await?;
-    Ok(())
+    move_ordered(pool, Urutan::Banner, id, up).await
 }
 
 // ── Story panduan beranda (migrasi 037) ────────────────────────────────────
@@ -1252,22 +1243,7 @@ pub async fn delete_site_story(pool: &Pool, id: i64) -> Result<Option<String>> {
 
 /// Geser naik/turun lalu rapikan urutan 10, 20, 30, …
 pub async fn move_site_story(pool: &Pool, id: i64, up: bool) -> Result<()> {
-    let mut c = pool.get().await?;
-    let tx = c.transaction().await?;
-    let mut ids: Vec<i64> = tx.query("SELECT id FROM site_stories ORDER BY urutan, id FOR UPDATE", &[]).await?.iter().map(|r| r.get(0)).collect();
-    if let Some(i) = ids.iter().position(|x| *x == id) {
-        let j = if up { i.checked_sub(1) } else { (i + 1 < ids.len()).then_some(i + 1) };
-        if let Some(j) = j {
-            ids.swap(i, j);
-        }
-    }
-    tx.execute(
-        "UPDATE site_stories s SET urutan = (v.n * 10)::INT FROM unnest($1::BIGINT[]) WITH ORDINALITY AS v(id, n) WHERE s.id = v.id",
-        &[&ids],
-    )
-    .await?;
-    tx.commit().await?;
-    Ok(())
+    move_ordered(pool, Urutan::SiteStory, id, up).await
 }
 
 // ── Story tamu (migrasi 026) ───────────────────────────────────────────────
@@ -1508,18 +1484,52 @@ pub async fn delete_song(pool: &Pool, id: i64) -> Result<Option<(String, bool)>>
 
 /// Tukar urutan dengan tetangga atas/bawah (lalu rapikan 10, 20, …).
 pub async fn move_song(pool: &Pool, id: i64, up: bool) -> Result<()> {
+    move_ordered(pool, Urutan::Song, id, up).await
+}
+
+/// Tabel yang punya kolom `urutan` & diurutkan admin (naik/turun).
+#[derive(Clone, Copy)]
+enum Urutan {
+    Banner,
+    SiteStory,
+    Song,
+}
+
+impl Urutan {
+    /// Nama tabel KONSTAN (bukan input) — aman disisipkan ke SQL.
+    fn table(self) -> &'static str {
+        match self {
+            Urutan::Banner => "banners",
+            Urutan::SiteStory => "site_stories",
+            Urutan::Song => "songs",
+        }
+    }
+}
+
+/// Tukar baris `id` dengan tetangga atas/bawah lalu rapikan urutan 10, 20,
+/// 30, … — semua baris dikunci (FOR UPDATE) dan ditulis dalam SATU pernyataan.
+async fn move_ordered(pool: &Pool, t: Urutan, id: i64, up: bool) -> Result<()> {
+    let table = t.table();
     let mut c = pool.get().await?;
     let tx = c.transaction().await?;
-    let mut ids: Vec<i64> = tx.query("SELECT id FROM songs ORDER BY urutan, id FOR UPDATE", &[]).await?.iter().map(|r| r.get(0)).collect();
-    if let Some(i) = ids.iter().position(|&x| x == id) {
+    let mut ids: Vec<i64> = tx
+        .query(&format!("SELECT id FROM {table} ORDER BY urutan, id FOR UPDATE"), &[])
+        .await?
+        .iter()
+        .map(|r| r.get(0))
+        .collect();
+    if let Some(i) = ids.iter().position(|x| *x == id) {
         let j = if up { i.checked_sub(1) } else { (i + 1 < ids.len()).then_some(i + 1) };
         if let Some(j) = j {
             ids.swap(i, j);
         }
     }
-    for (n, sid) in ids.iter().enumerate() {
-        tx.execute("UPDATE songs SET urutan = $2 WHERE id = $1", &[sid, &(((n + 1) * 10) as i32)]).await?;
-    }
+    tx.execute(
+        &format!("UPDATE {table} t SET urutan = (v.n * 10)::INT FROM unnest($1::BIGINT[]) WITH ORDINALITY AS v(id, n) WHERE t.id = v.id"),
+        &[&ids],
+    )
+    .await
+    .with_context(|| format!("urutkan {table}"))?;
     tx.commit().await?;
     Ok(())
 }

@@ -14,7 +14,7 @@ use leptos_router::hooks::{use_params_map, use_query_map};
 use super::buat::FsecHead;
 use super::ErrorCard;
 use crate::web::api::get_sunting;
-use crate::web::components::{err_msg, MusicSeek};
+use crate::web::components::{err_msg, BahasaUndangan, MusicSeek};
 use crate::web::fmt;
 use crate::web::icons::Icon;
 use crate::web::model::{Event, Sunting};
@@ -42,12 +42,6 @@ pub fn SuntingPage() -> impl IntoView {
             })}
         </Suspense>
     }
-}
-
-/// Isi <textarea> lewat inner_html ter-escape (bukan anak teks: textarea kosong
-/// membuat hydration panik — lihat admin.rs textarea_isi).
-fn esc(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
 /// Nilai kolom acara (kosong bila acara itu belum ada).
@@ -117,6 +111,7 @@ fn SuntingForm(d: Sunting, notice: Option<(bool, String)>) -> impl IntoView {
                         </div>
                         <label class="field"><span class="field__label">"Nama Keluarga Pengundang"</span>
                             <input class="input" name="family_name" maxlength="120" value=inv.family_name.clone() /></label>
+                        <BahasaUndangan current=inv.language() />
                     </section>
 
                     // ── Acara ──
@@ -194,7 +189,7 @@ fn SuntingForm(d: Sunting, notice: Option<(bool, String)>) -> impl IntoView {
                                     <input class="input" name=format!("story{}_year", i + 1) maxlength="20" value=s.year.clone() placeholder="Tahun" />
                                     <input class="input" name=format!("story{}_title", i + 1) maxlength="80" value=s.title.clone() placeholder="Judul momen" />
                                     <textarea class="input" name=format!("story{}_text", i + 1) maxlength="500" rows="2" placeholder="Ceritakan singkat momen ini…"
-                                        inner_html=esc(&s.text)></textarea>
+                                        inner_html=crate::web::fmt::textarea_html(&s.text)></textarea>
                                 </div>
                             }
                         }).collect_view()}

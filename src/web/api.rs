@@ -2,11 +2,18 @@
 
 use leptos::prelude::*;
 
+#[cfg(feature = "ssr")]
+use super::i18n::Lang;
 use super::model::*;
+#[cfg(feature = "ssr")]
+use crate::tx;
 
 #[cfg(feature = "ssr")]
 mod srv {
     use std::sync::Arc;
+
+    use crate::tx;
+    use crate::web::i18n::Lang;
 
     use leptos::prelude::*;
 
@@ -93,16 +100,28 @@ mod srv {
 
     /// Tamu tak bisa RSVP / kirim tanda kasih ke undangan yang belum aktif.
     pub fn deny_locked(row: &InvRow) -> Result<(), ServerFnError> {
+        deny_locked_in(row, Lang::Id)
+    }
+
+    pub fn deny_locked_in(row: &InvRow, l: Lang) -> Result<(), ServerFnError> {
         if row.inv.is_locked() {
-            Err(ServerFnError::new("Undangan ini belum diaktifkan — RSVP & ucapan dibuka setelah pembayaran dikonfirmasi."))
+            Err(ServerFnError::new(tx!(l,
+                "Undangan ini belum diaktifkan — RSVP & ucapan dibuka setelah pembayaran dikonfirmasi.",
+                "This invitation is not active yet — RSVP and wishes open once payment is confirmed.")))
         } else {
             Ok(())
         }
     }
 
     pub fn deny_demo(row: &InvRow) -> Result<(), ServerFnError> {
+        deny_demo_in(row, Lang::Id)
+    }
+
+    pub fn deny_demo_in(row: &InvRow, l: Lang) -> Result<(), ServerFnError> {
         if row.inv.is_demo {
-            Err(ServerFnError::new("Ini undangan demo — perubahan tidak disimpan. Pesan tema untuk mencoba penuh."))
+            Err(ServerFnError::new(tx!(l,
+                "Ini undangan demo — perubahan tidak disimpan. Pesan tema untuk mencoba penuh.",
+                "This is a demo invitation — nothing is saved. Order a theme to try it fully.")))
         } else {
             Ok(())
         }
@@ -189,13 +208,15 @@ pub async fn submit_rsvp(
     pax: Option<String>,
     session: Option<String>,
     message: Option<String>,
+    lang: Option<String>,
 ) -> Result<String, ServerFnError> {
     use srv::*;
     let st = state()?;
     let row = load(&slug).await?;
     let headers: axum::http::HeaderMap = leptos_axum::extract().await?;
     let ip = crate::server::security::client_ip(&headers);
-    rsvp_core(&st, &row, &ip, RsvpInput { guest, name, phone, status, pax, session, message })
+    let lang = Lang::of(lang.as_deref().unwrap_or(&row.inv.lang));
+    rsvp_core(&st, &row, &ip, RsvpInput { guest, name, phone, status, pax, session, message, lang })
         .await
         .map(|(msg, _)| msg)
         .map_err(ServerFnError::new)
@@ -212,6 +233,8 @@ pub struct RsvpInput {
     pub pax: Option<String>,
     pub session: Option<String>,
     pub message: Option<String>,
+    /// Bahasa pesan balasan untuk tamu.
+    pub lang: Lang,
 }
 
 /// Validasi + batas kiriman per IP + simpan RSVP. Ok = (pesan, baris baru?);
@@ -229,26 +252,28 @@ pub async fn rsvp_core(
         ServerFnError::ServerError(m) => m,
         e => e.to_string(),
     };
-    srv::deny_demo(row).map_err(msg)?;
-    srv::deny_locked(row).map_err(msg)?;
-    st.write_limit
-        .hit(&format!("rsvp:{}:{ip}", row.inv.slug))
-        .map_err(|secs| format!("Terlalu banyak kiriman dari jaringan ini. Coba lagi dalam {} menit.", secs.div_ceil(60)))?;
+    let l = i.lang;
+    srv::deny_demo_in(row, l).map_err(msg)?;
+    srv::deny_locked_in(row, l).map_err(msg)?;
+    st.write_limit.hit(&format!("rsvp:{}:{ip}", row.inv.slug)).map_err(|secs| match l {
+        Lang::Id => format!("Terlalu banyak kiriman dari jaringan ini. Coba lagi dalam {} menit.", secs.div_ceil(60)),
+        Lang::En => format!("Too many submissions from this network. Please try again in {} minutes.", secs.div_ceil(60)),
+    })?;
     // Per undangan (semua IP): buku ucapan tak bisa dibanjiri bot terdistribusi.
     st.cap_limit
         .hit_max(&format!("rsvp:{}", row.inv.slug), 600)
-        .map_err(|_| "Buku ucapan sedang sangat ramai. Coba lagi beberapa saat lagi.".to_string())?;
+        .map_err(|_| tx!(l, "Buku ucapan sedang sangat ramai. Coba lagi beberapa saat lagi.", "The guestbook is very busy right now. Please try again shortly.").to_string())?;
     let busy = |e: anyhow::Error| {
         tracing::error!(error = %format!("{e:#}"), "rsvp");
-        "Server sedang sibuk, coba lagi sebentar.".to_string()
+        tx!(l, "Server sedang sibuk, coba lagi sebentar.", "The server is busy, please try again in a moment.").to_string()
     };
     let name = clean(&i.name, 80);
     if name.is_empty() {
-        return Err("Nama lengkap wajib diisi.".into());
+        return Err(tx!(l, "Nama lengkap wajib diisi.", "Please enter your full name.").into());
     }
     let status = match i.status.as_str() {
         "hadir" | "ragu" | "tidak" => i.status,
-        _ => return Err("Pilih status kehadiran.".into()),
+        _ => return Err(tx!(l, "Pilih status kehadiran.", "Please choose whether you will attend.").into()),
     };
     // Isian rusak ditolak, bukan diam-diam dijadikan 1 tamu.
     let pax = match (status.as_str(), i.pax.as_deref().map(str::trim).filter(|p| !p.is_empty())) {
@@ -256,14 +281,14 @@ pub async fn rsvp_core(
         (_, None) => 1,
         (_, Some(p)) => match p.parse::<i32>() {
             Ok(n) if (1..=10).contains(&n) => n,
-            _ => return Err("Jumlah tamu harus angka 1–10.".into()),
+            _ => return Err(tx!(l, "Jumlah tamu harus angka 1–10.", "Number of guests must be 1–10.").into()),
         },
     };
     // Kode tamu diisi tapi tak dikenal ≠ tamu umum: jangan diam-diam jadi anonim.
     let guest_id = match i.guest.as_deref().map(str::trim).filter(|g| !g.is_empty()) {
         Some(code) => match repo::guest_id(&st.pool, row.id, code).await.map_err(busy)? {
             Some(id) => Some(id),
-            None => return Err("Kode tamu tidak dikenal — buka undangan dari tautan yang Anda terima.".into()),
+            None => return Err(tx!(l, "Kode tamu tidak dikenal — buka undangan dari tautan yang Anda terima.", "Unknown guest code — please open the invitation from the link you received.").into()),
         },
         None => None,
     };
@@ -283,9 +308,9 @@ pub async fn rsvp_core(
     .await
     .map_err(busy)?;
     let msg = match status.as_str() {
-        "hadir" => "Terima kasih! Konfirmasi kehadiran & doa restu Anda telah kami terima.",
-        "ragu" => "Terima kasih, semoga Anda dapat hadir. Doa restu Anda telah kami terima.",
-        _ => "Terima kasih atas doa restunya, semoga kita dipertemukan di lain kesempatan.",
+        "hadir" => tx!(l, "Terima kasih! Konfirmasi kehadiran & doa restu Anda telah kami terima.", "Thank you! We have received your RSVP and blessings."),
+        "ragu" => tx!(l, "Terima kasih, semoga Anda dapat hadir. Doa restu Anda telah kami terima.", "Thank you — we hope you can make it. Your blessings have been received."),
+        _ => tx!(l, "Terima kasih atas doa restunya, semoga kita dipertemukan di lain kesempatan.", "Thank you for your blessings — we hope to see you another time."),
     };
     Ok((msg.into(), baru))
 }
@@ -298,20 +323,22 @@ pub async fn confirm_gift(
     amount: String,
     channel: Option<String>,
     note: Option<String>,
+    lang: Option<String>,
 ) -> Result<String, ServerFnError> {
     use srv::*;
     let st = state()?;
     let row = load(&slug).await?;
-    deny_demo(&row)?;
-    deny_locked(&row)?;
+    let l = Lang::of(lang.as_deref().unwrap_or(&row.inv.lang));
+    deny_demo_in(&row, l)?;
+    deny_locked_in(&row, l)?;
     limit_write(&st, "gift", &slug).await?;
     if st.cap_limit.hit_max(&format!("gift:{slug}"), 300).is_err() {
-        return Err(ServerFnError::new("Sedang sangat ramai. Coba lagi beberapa saat lagi."));
+        return Err(ServerFnError::new(tx!(l, "Sedang sangat ramai. Coba lagi beberapa saat lagi.", "It's very busy right now. Please try again shortly.")));
     }
     let name = clean(&name, 80);
     let amount: i64 = amount.chars().filter(|c| c.is_ascii_digit()).collect::<String>().parse().unwrap_or(0);
     if name.is_empty() || amount <= 0 {
-        return Err(ServerFnError::new("Isi nama pengirim dan nominal tanda kasih."));
+        return Err(ServerFnError::new(tx!(l, "Isi nama pengirim dan nominal tanda kasih.", "Please enter the sender's name and the amount.")));
     }
     let guest_id = match guest.as_deref().filter(|g| !g.is_empty()) {
         Some(code) => repo::guest_id(&st.pool, row.id, code).await.map_err(internal)?,
@@ -328,7 +355,7 @@ pub async fn confirm_gift(
     )
     .await
     .map_err(internal)?;
-    Ok("Terima kasih! Tanda kasih Anda telah kami catat.".into())
+    Ok(tx!(l, "Terima kasih! Tanda kasih Anda telah kami catat.", "Thank you! Your gift has been noted.").into())
 }
 
 /// Nomor WA admin (62…) untuk tombol konsultasi; kosong bila tak diset.
@@ -658,38 +685,26 @@ pub async fn list_themes() -> Result<Vec<super::skin::ThemeInfo>, ServerFnError>
 pub async fn get_banners() -> Result<Vec<Banner>, ServerFnError> {
     let st = srv::state()?;
     // Dibaca tiap katalog dibuka → cache 30 dtk (jadwal tayang banner per menit).
-    if let Some((t, v)) = st.banners.read().ok().and_then(|g| g.clone()) {
-        if t.elapsed() < std::time::Duration::from_secs(30) {
-            return Ok((*v).clone());
-        }
-    }
-    let v = srv::repo::banners_live(&st.pool).await.unwrap_or_else(|e| {
-        tracing::debug!(error = %format!("{e:#}"), "banners belum ada — jalankan migration/011_banner.sql");
-        Vec::new()
-    });
-    if let Ok(mut g) = st.banners.write() {
-        *g = Some((std::time::Instant::now(), std::sync::Arc::new(v.clone())));
-    }
-    Ok(v)
+    Ok(crate::server::state::cached(&st.banners, std::time::Duration::from_secs(30), async {
+        srv::repo::banners_live(&st.pool).await.unwrap_or_else(|e| {
+            tracing::debug!(error = %format!("{e:#}"), "banners belum ada — jalankan migration/011_banner.sql");
+            Vec::new()
+        })
+    })
+    .await)
 }
 
 /// Story panduan beranda (aktif, urut). Tabel belum ada (037) = kosong.
 #[server]
 pub async fn get_site_stories() -> Result<Vec<SiteStory>, ServerFnError> {
     let st = srv::state()?;
-    if let Some((t, v)) = st.panduan.read().ok().and_then(|g| g.clone()) {
-        if t.elapsed() < std::time::Duration::from_secs(30) {
-            return Ok((*v).clone());
-        }
-    }
-    let v = srv::repo::site_stories(&st.pool, true).await.unwrap_or_else(|e| {
-        tracing::debug!(error = %format!("{e:#}"), "site_stories belum ada — jalankan migration/037_story_panduan.sql");
-        Vec::new()
-    });
-    if let Ok(mut g) = st.panduan.write() {
-        *g = Some((std::time::Instant::now(), std::sync::Arc::new(v.clone())));
-    }
-    Ok(v)
+    Ok(crate::server::state::cached(&st.panduan, std::time::Duration::from_secs(30), async {
+        srv::repo::site_stories(&st.pool, true).await.unwrap_or_else(|e| {
+            tracing::debug!(error = %format!("{e:#}"), "site_stories belum ada — jalankan migration/037_story_panduan.sql");
+            Vec::new()
+        })
+    })
+    .await)
 }
 
 /// Semua story panduan untuk /admin/story-panduan.

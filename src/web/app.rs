@@ -41,6 +41,7 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
     let preview = use_context::<axum::http::request::Parts>().is_some_and(|p| {
         crate::server::security::is_demo_preview(p.uri.path(), p.uri.query().unwrap_or(""))
     });
+    let guest_page = use_context::<axum::http::request::Parts>().is_some_and(|p| p.uri.path().starts_with("/u/"));
     view! {
         <!DOCTYPE html>
         <html lang="id">
@@ -51,20 +52,17 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
                 {site_verification().iter().map(|(n, c)| view! { <meta name=*n content=c.clone() /> }).collect_view()}
                 <link rel="stylesheet" href="/pkg/undangan.css" />
                 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-                <link
-                    rel="stylesheet"
-                    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
-                />
+                // Font lewat domain sendiri (server/fonts.rs) — tanpa koneksi ke Google.
+                <link rel="stylesheet" href=crate::web::fmt::font_css(&["Playfair+Display:ital,wght@0,500;0,600;1,500", "Plus+Jakarta+Sans:wght@400;500;600;700"], "swap") />
                 <link rel="stylesheet" href=icon_font_href() />
                 // Tema dari DB: CSS variabel per tema + font judul yang dipakai tema.
                 {theme_links()}
                 {google_verification()}
-                {(!preview).then(|| view! {
-                    <AutoReload options=options.clone() />
-                    <HydrationScripts options=options.clone() />
-                })}
+                {(!preview).then(|| view! { <AutoReload options=options.clone() /> })}
+                // Undangan tamu (/u/…): WASM ±1,3 MB baru diunduh saat bagian
+                // interaktif mendekat (LazyHydration). Halaman lain: seperti biasa.
+                {(!preview && !guest_page).then(|| view! { <HydrationScripts options=options.clone() /> })}
+                {(!preview && guest_page).then(|| view! { <LazyHydration options=options.clone() nonce=nonce.clone() /> })}
                 <MetaTags />
             </head>
             <body>
@@ -74,6 +72,31 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
         </html>
     }
     .into_any()
+}
+
+/// Hydration MALAS untuk undangan tamu. Hampir semua isi undangan statis
+/// (SSR) + global.js (gerbang, musik, salin, hitung mundur, animasi); hanya
+/// RSVP, kado, ucapan & Story butuh WASM — ditandai `data-hydrate`. WASM
+/// diunduh bila: (1) bagian bertanda ±800px dari layar, (2) disentuh/difokus,
+/// (3) halaman /story, atau (4) perangkat & koneksi kuat sedang menganggur.
+/// Tamu yang hanya membaca undangan di HP lemah tak pernah mengunduhnya.
+/// Pengganti <HydrationScripts>: impor & hydrate() sama, hanya ditunda.
+#[cfg(feature = "ssr")]
+#[component]
+fn LazyHydration(options: leptos::config::LeptosOptions, nonce: Option<leptos::nonce::Nonce>) -> impl IntoView {
+    let pkg = format!("/{}/{}", options.site_pkg_dir, options.output_name);
+    let js = format!(
+        r#"(function(){{var d=document,on=false,io;
+function go(){{if(on)return;on=true;if(io)io.disconnect();import("{pkg}.js").then(function(m){{return m.default({{module_or_path:"{pkg}.wasm"}}).then(function(){{m.hydrate();}});}});}}
+if(/\/story\/?$/.test(location.pathname))return go();
+var c=navigator.connection||{{}},kuat=!c.saveData&&!/2g|3g/.test(c.effectiveType||"")&&!(navigator.deviceMemory<4);
+function arm(){{var els=d.querySelectorAll("[data-hydrate]");
+if("IntersectionObserver"in window){{io=new IntersectionObserver(function(es){{es.forEach(function(e){{if(e.isIntersecting)go();}});}},{{rootMargin:"800px 0px"}});els.forEach(function(el){{io.observe(el);}});}}else if(els.length)go();
+["pointerdown","focusin","keydown"].forEach(function(t){{d.addEventListener(t,function(e){{if(e.target.closest&&e.target.closest("[data-hydrate]"))go();}},{{capture:true,passive:true}});}});
+if(kuat)addEventListener("load",function(){{setTimeout(function(){{(window.requestIdleCallback||setTimeout)(go);}},4000);}});}}
+if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",arm);else arm();}})();"#
+    );
+    view! { <script nonce=nonce inner_html=js></script> }
 }
 
 /// Meta verifikasi Google Search Console dari env GOOGLE_SITE_VERIFICATION
@@ -102,7 +125,7 @@ fn theme_links() -> AnyView {
     };
     let fonts = cat
         .filter(|c| !c.fonts.is_empty())
-        .map(|c| format!("https://fonts.googleapis.com/css2?family={}&display=swap", c.fonts.join("&family=")));
+        .map(|c| crate::web::fmt::font_css(&c.fonts, "swap"));
     view! {
         <link rel="stylesheet" href=css />
         {fonts.map(|href| view! { <link rel="stylesheet" href=href /> })}
@@ -192,5 +215,5 @@ fn site_verification() -> &'static [(&'static str, String)] {
 #[cfg(feature = "ssr")]
 pub fn global_js_version() -> &'static str {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    V.get_or_init(|| format!("{:08x}", crate::server::util::fnv1a64(GLOBAL_JS) as u32))
+    V.get_or_init(|| crate::server::util::hash8(GLOBAL_JS))
 }

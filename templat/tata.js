@@ -7,6 +7,8 @@
 //   [data-gate]                 sampul/gerbang layar penuh (ditutup saat dibuka)
 //   [data-pre]                  bagian yang animasinya jalan SEBELUM gerbang dibuka
 //   [data-open]                 tombol "Buka Undangan" (musik + video pembuka)
+//   [data-close]                tombol "Tutup Undangan" (dipasang platform) → kembali ke
+//                               sampul; gerak mundur milik templat (.t-closing), --t-close ms
 //   video[data-open-video]      video pembuka — gerbang selesai saat video HABIS
 //   video[data-bg-video]        video latar berulang; data-loop-from="2.6" (detik)
 //   [data-a="zoomIn"]           animasi MASUK sekali (data-ad jeda ms, data-at durasi ms)
@@ -19,6 +21,10 @@
 //   form[data-rsvp]             kirim RSVP tanpa muat ulang; [data-rsvp-msg],
 //                               [data-wishes] + <template id="wish-tpl"> ([data-f=…])
 //   [data-zoom]                 klik → foto layar penuh
+//   [data-burst="N"]            ledakan N partikel saat [data-open]/[data-gift] diketuk
+//   [data-coverflow="ms"]       galeri 3D: anak [data-cf-item], [data-cf-count],
+//                               [data-cf-prev]/[data-cf-next]; geser/ketuk sisi
+//   [data-gift aria-controls]   kotak kado: ketuk → meletup, isi #id muncul
 (() => {
   const d = document;
   const html = d.documentElement;
@@ -49,6 +55,8 @@
     },
   };
   html.classList.add("t-js");
+  // Bahasa halaman (<html lang>, dari server) — teks bawaan skrip ini ikut.
+  const T = (id, en) => (html.lang === "en" ? en : id);
   if (reduce) html.classList.add("t-reduce");
   // ── Anggaran media (dihitung PALING AWAL, sebelum video apa pun dimuat) ──
   //   penuh   : video pembuka + video latar + gerak idle
@@ -143,25 +151,40 @@
   // ── Musik ────────────────────────────────────────────────────────────────
   const audio = d.querySelector("audio[data-music]");
   const setPlaying = (on) => html.classList.toggle("t-playing", on);
+  // SATU pengatur volume (naik saat dibuka, turun saat ditutup). Token
+  // `fadeRun` membatalkan fade lama: buka lagi di tengah fade-turun tak ikut dijeda.
+  let fadeRun = 0;
+  const fadeTo = (to, ms, done) => {
+    const run = ++fadeRun;
+    const from = audio.volume;
+    const t0 = performance.now();
+    const step = (t) => {
+      if (run !== fadeRun) return;
+      const k = Math.min(1, (t - t0) / ms);
+      try {
+        audio.volume = from + (to - from) * k;
+      } catch (_) {}
+      if (k < 1) requestAnimationFrame(step);
+      else if (done) done();
+    };
+    requestAnimationFrame(step);
+  };
   const playMusic = () => {
     if (!audio || pv) return;
+    fadeRun++;
     audio.volume = 0;
     audio
       .play()
       .then(() => {
         setPlaying(true);
-        let v = 0;
-        const t = setInterval(() => {
-          v = Math.min(1, v + 0.08);
-          audio.volume = v;
-          if (v >= 1) clearInterval(t);
-        }, 120);
+        fadeTo(1, 1500);
       })
       .catch(() => setPlaying(false));
   };
   q("[data-music-toggle]").forEach((b) =>
     b.addEventListener("click", () => {
       if (!audio) return;
+      fadeRun++; // ketukan manual menghentikan fade yang sedang jalan
       if (audio.paused) {
         audio.volume = 1;
         audio
@@ -211,44 +234,155 @@
     watchA();
     scan();
     setTimeout(() => {
+      if (!opened) return; // sudah ditutup lagi sebelum gerbang sempat dilepas
       if (gate) gate.hidden = true;
       if (openEl) openEl.hidden = true;
     }, 2200);
   };
+  // Tiap pembukaan bernomor (`openRun`); menutup menaikkan nomornya, jadi
+  // timer/listener pembukaan lama yang masih tertunda tak berbuat apa-apa.
+  let openRun = 0;
+  let closeT = 0;
+  let videoEnd = null;
+  const dropVideoEnd = () => {
+    if (!videoEnd || !openVideo) return;
+    openVideo.removeEventListener("ended", videoEnd);
+    openVideo.removeEventListener("error", videoEnd);
+    videoEnd = null;
+  };
   const open = (instant) => {
     if (opened || html.classList.contains("t-opening")) return;
+    // Dibuka lagi di tengah gerak tutup → batalkan sisa penutupan.
+    if (closeT) {
+      clearTimeout(closeT);
+      closeT = 0;
+      html.classList.remove("t-closing");
+    }
+    const run = ++openRun;
+    const fin = () => run === openRun && finish();
     if (!instant) playMusic();
     if (instant || reduce || !openVideo) {
       if (instant) html.classList.add("t-instant");
       html.classList.add("t-opening");
-      return void setTimeout(finish, instant ? 0 : +(data.gate_ms || 900));
+      return void setTimeout(fin, instant ? 0 : +(data.gate_ms || 900));
     }
     html.classList.add("t-opening");
     openVideo.preload = "auto";
+    dropVideoEnd();
     let done = false;
     const end = () => {
-      if (!done) {
-        done = true;
-        html.classList.add("t-video-end");
-        setTimeout(finish, 450);
-      }
+      if (done || run !== openRun) return;
+      done = true;
+      dropVideoEnd();
+      html.classList.add("t-video-end");
+      setTimeout(fin, 450);
     };
+    videoEnd = end;
     openVideo.addEventListener("ended", end, { once: true });
     openVideo.addEventListener("error", end, { once: true });
     // Mulai setelah sampul mulai naik; cadangan bila video tak bisa diputar.
-    setTimeout(() => openVideo.play().catch(end), +(data.video_delay_ms || 600));
+    setTimeout(() => run === openRun && openVideo.play().catch(end), +(data.video_delay_ms || 600));
     setTimeout(end, +(data.video_max_ms || 9000));
+  };
+  // ── Ledakan partikel (data-burst="N") ────────────────────────────────────
+  // Tombol buka / kotak kado: N partikel memancar dari tengah elemen (arah &
+  // jarak acak, sedikit jatuh), berputar, lalu pudar. Bentuk & warna milik
+  // templat: --burst-mask (mask-image), --burst-c1..c3, --burst-size.
+  const burst = (el) => {
+    if (!el || reduce) return;
+    const n = Math.min(40, +el.dataset.burst || 16);
+    const r = el.getBoundingClientRect();
+    const box = d.createElement("div");
+    box.className = "t-burst";
+    box.setAttribute("aria-hidden", "true");
+    box.style.left = r.left + r.width / 2 + "px";
+    box.style.top = r.top + r.height / 2 + "px";
+    for (let i = 0; i < n; i++) {
+      const p = d.createElement("i");
+      const ang = (i / n) * Math.PI * 2 + Math.random() * 0.6;
+      const dist = 80 + Math.random() * 170;
+      p.className = "t-burst__p";
+      p.dataset.v = String(i % 3);
+      p.style.setProperty("--dx", (Math.cos(ang) * dist).toFixed(1) + "px");
+      p.style.setProperty("--dy", (Math.sin(ang) * dist + 70).toFixed(1) + "px");
+      p.style.setProperty("--r", Math.round(Math.random() * 300 - 150) + "deg");
+      p.style.setProperty("--s", (0.6 + Math.random() * 0.8).toFixed(2));
+      p.style.setProperty("--bd", Math.round(Math.random() * 160) + "ms");
+      box.appendChild(p);
+    }
+    d.body.appendChild(box);
+    setTimeout(() => box.remove(), 2000);
   };
   q("[data-open]").forEach((b) =>
     b.addEventListener("click", (e) => {
       e.preventDefault();
+      if (b.dataset.burst) burst(b);
       open(false);
     }),
   );
+  // ── Tutup undangan (tombol platform [data-close]) ─────────────────────────
+  // Kembali ke sampul: gerbang (dan video pembuka) dipasang lagi dalam gaya
+  // "terbuka", lalu t-open dicabut di bawah kelas t-closing — tiap templat
+  // menulis gerak mundurnya sendiri (.t-closing …). Lama: --t-close (ms).
+  const close = () => {
+    if (!opened || !gate || html.classList.contains("t-closing")) return;
+    const ms = reduce ? 0 : parseInt(getComputedStyle(gate).getPropertyValue("--t-close"), 10) || 1200;
+    if (audio && !audio.paused)
+      fadeTo(0, 500, () => {
+        audio.pause();
+        audio.volume = 1;
+        setPlaying(false);
+      });
+    openRun++;
+    dropVideoEnd();
+    store.set(KEY, "0");
+    gate.hidden = false;
+    if (openEl) {
+      openEl.hidden = false;
+      openEl.pause();
+      try {
+        openEl.currentTime = 0;
+      } catch (_) {}
+    }
+    void gate.offsetWidth; // gaya "terbuka" dihitung dulu → transisi punya titik awal
+    html.classList.add("t-closing");
+    requestAnimationFrame(() => {
+      html.classList.remove("t-open", "t-video-end", "t-instant");
+      opened = false;
+      closeT = setTimeout(() => {
+        closeT = 0;
+        html.classList.remove("t-closing");
+        // Instan: html ber-scroll-behavior smooth + body sudah overflow:hidden
+        // → gulir halus terhenti di tengah (sisa ±70px & tepi terang di bawah).
+        scrollTo({ top: 0, behavior: "instant" });
+      }, ms + 80);
+    });
+  };
+  q("[data-close]").forEach((b) => {
+    if (!gate) b.hidden = true;
+    b.addEventListener("click", (e) => {
+      e.preventDefault();
+      close();
+    });
+  });
   if (gate) {
     html.classList.add("t-gated");
     // Sudah dibuka di sesi ini (kembali dari tab Story / muat ulang) → langsung isi.
-    if (store.get(KEY) === "1" && !pv) open(true);
+    // Lewati gerbang HANYA bila masih di undangan yang sama (muat ulang /
+    // kembali dari tab Story); klik Demo dari beranda / tema lain → sampul.
+    // Sama dengan global.js masihDiUndangan().
+    const masihDiUndangan = () => {
+      try {
+        const nav = performance.getEntriesByType("navigation")[0];
+        if (nav && nav.type === "reload") return true;
+        const r = d.referrer ? new URL(d.referrer) : null;
+        const tema = (u) => new URLSearchParams(u.search).get("tema") || "";
+        return !!r && r.origin === location.origin && r.pathname.split("/")[2] === location.pathname.split("/")[2] && tema(r) === tema(location);
+      } catch (_) {
+        return false;
+      }
+    };
+    if (store.get(KEY) === "1" && !pv && masihDiUndangan()) open(true);
   }
 
   // ── Slideshow foto (silang-pudar) ────────────────────────────────────────
@@ -311,6 +445,91 @@
     });
   });
 
+  // ── Galeri coverflow (data-coverflow="5000") ─────────────────────────────
+  // Anak [data-cf-item] disusun 3D: tengah tegak, sisi miring (data-p = posisi
+  // relatif −3…3, gayanya di tata.css). Geser, ketuk foto samping, atau
+  // [data-cf-prev]/[data-cf-next]; ganti otomatis tiap N ms selama terlihat.
+  // Foto tengah tetap bisa [data-zoom]; [data-cf-count] = "3 / 10".
+  q("[data-coverflow]").forEach((box) => {
+    const items = q("[data-cf-item]", box);
+    const N = items.length;
+    if (!N) return;
+    const count = box.querySelector("[data-cf-count]");
+    let cur = 0;
+    let timer = 0;
+    let vis = false;
+    const show = (i) => {
+      cur = (i + N) % N;
+      items.forEach((el, k) => {
+        let p = k - cur;
+        if (p > N / 2) p -= N;
+        if (p < -N / 2) p += N;
+        el.dataset.p = String(Math.max(-3, Math.min(3, p)));
+        el.setAttribute("aria-hidden", p ? "true" : "false");
+      });
+      if (count) count.textContent = cur + 1 + " / " + N;
+    };
+    const auto = () => {
+      clearInterval(timer);
+      const ms = +box.dataset.coverflow || 0;
+      if (ms && vis && !reduce && !pv) timer = setInterval(() => show(cur + 1), ms);
+    };
+    const go = (i) => {
+      show(i);
+      auto();
+    };
+    // Fase tangkap: ketukan foto SAMPING hanya memutar (tak membuka zoom).
+    items.forEach((el, k) =>
+      el.addEventListener(
+        "click",
+        (e) => {
+          if (k === cur) return;
+          e.preventDefault();
+          e.stopPropagation();
+          go(k);
+        },
+        true,
+      ),
+    );
+    q("[data-cf-prev]", box).forEach((b) => b.addEventListener("click", () => go(cur - 1)));
+    q("[data-cf-next]", box).forEach((b) => b.addEventListener("click", () => go(cur + 1)));
+    let x0 = null;
+    box.addEventListener("touchstart", (e) => (x0 = e.touches[0].clientX), { passive: true });
+    box.addEventListener(
+      "touchend",
+      (e) => {
+        if (x0 === null) return;
+        const dx = e.changedTouches[0].clientX - x0;
+        x0 = null;
+        if (Math.abs(dx) > 40) go(cur + (dx < 0 ? 1 : -1));
+      },
+      { passive: true },
+    );
+    new IntersectionObserver((es) => {
+      vis = es[0].isIntersecting;
+      auto();
+    }).observe(box);
+    box.classList.add("is-cf");
+    show(0);
+  });
+
+  // ── Kotak kado (data-gift) ───────────────────────────────────────────────
+  // Tombol [data-gift aria-controls="id"]: ketuk → kotak meletup + partikel,
+  // isi (rekening/alamat) muncul. Tanpa JS isi tetap terlihat.
+  q("[data-gift]").forEach((b) => {
+    const body = d.getElementById(b.getAttribute("aria-controls") || "");
+    const wrap = b.closest("[data-gift-wrap]") || b.parentNode;
+    if (body) body.hidden = true;
+    b.setAttribute("aria-expanded", "false");
+    b.addEventListener("click", () => {
+      const on = !wrap.classList.contains("is-open");
+      wrap.classList.toggle("is-open", on);
+      b.setAttribute("aria-expanded", String(on));
+      if (body) body.hidden = !on;
+      if (on) burst(b);
+    });
+  });
+
   // ── Salin ────────────────────────────────────────────────────────────────
   q("[data-copy]").forEach((b) =>
     b.addEventListener("click", () => {
@@ -318,7 +537,7 @@
       const ok = () => {
         const label = b.querySelector("[data-copy-label]") || b;
         const old = label.textContent;
-        label.textContent = "Tersalin";
+        label.textContent = T("Tersalin", "Copied");
         b.classList.add("is-copied");
         setTimeout(() => {
           label.textContent = old;
@@ -343,14 +562,14 @@
     box.className = "t-lightbox";
     box.setAttribute("role", "dialog");
     box.setAttribute("aria-modal", "true");
-    box.setAttribute("aria-label", el.alt || "Foto");
+    box.setAttribute("aria-label", el.alt || T("Foto", "Photo"));
     const img = d.createElement("img");
     img.src = src;
     img.alt = el.alt || "";
     const x = d.createElement("button");
     x.type = "button";
     x.className = "t-lightbox__x";
-    x.setAttribute("aria-label", "Tutup foto");
+    x.setAttribute("aria-label", T("Tutup foto", "Close photo"));
     x.textContent = "×";
     box.append(img, x);
     // Latar tak bisa digulir / difokus / dibaca pembaca layar selama dialog terbuka.
@@ -387,7 +606,7 @@
     if (!el.hasAttribute("tabindex")) el.tabIndex = 0;
     if (!el.hasAttribute("role")) el.setAttribute("role", "button");
     if (!el.getAttribute("aria-label"))
-      el.setAttribute("aria-label", el.alt ? "Perbesar foto: " + el.alt : "Perbesar foto");
+      el.setAttribute("aria-label", el.alt ? T("Perbesar foto: ", "Enlarge photo: ") + el.alt : T("Perbesar foto", "Enlarge photo"));
     el.addEventListener("click", () => zoom(el));
     el.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
@@ -448,7 +667,7 @@
               el.textContent = String((+el.textContent || 0) + 1);
             });
         })
-        .catch(() => say(false, "Gagal mengirim — periksa koneksi lalu coba lagi."))
+        .catch(() => say(false, T("Gagal mengirim — periksa koneksi lalu coba lagi.", "Could not send — check your connection and try again.")))
         .finally(() => {
           if (btn) btn.disabled = false;
         });
@@ -458,7 +677,21 @@
   // ── Pratinjau katalog (iframe ?pv=1): buka otomatis lalu gulir pelan ────
   if (pv) {
     html.classList.add("t-pv");
-    setTimeout(() => open(true), 250);
+    // Sama dengan global.js: buka DENGAN gerak setelah kartu induk memunculkan
+    // iframe ('show'); dulu open(true) = instan, gerak buka tak pernah tampil.
+    let shown = false;
+    const show = () => {
+      if (shown) return;
+      shown = true;
+      const btn = gate && gate.querySelector("[data-open]");
+      if (btn) burst(btn);
+      open(false);
+      setTimeout(() => requestAnimationFrame(step), +(data.gate_ms || 900) + 1600);
+    };
+    addEventListener("message", (e) => {
+      if (e.origin === location.origin && e.data && e.data.pv === "show") show();
+    });
+    setTimeout(show, 1200);
     let last = 0;
     const step = (t) => {
       if (last) {
@@ -469,7 +702,6 @@
       last = t;
       requestAnimationFrame(step);
     };
-    setTimeout(() => requestAnimationFrame(step), 1800);
     try {
       parent.postMessage({ pv: "ready" }, location.origin);
     } catch (_) {}

@@ -364,10 +364,7 @@ fn ThemeForm(t: ThemeInfo, used: i64, is_new: bool, categories: Vec<String>, nua
         anims_sv.with_value(|a| skin::theme_vars_with(&d, a))
     };
     let set = move |f: fn(&mut ThemeInfo, String)| move |e: leptos::ev::Event| draft.update(|t| f(t, event_target_value(&e)));
-    let fonts_href = format!(
-        "https://fonts.googleapis.com/css2?family={}&display=swap",
-        FONTS.iter().map(|f| f.3).chain(SCRIPT_FONTS.iter().map(|f| f.3)).filter(|f| !f.is_empty()).collect::<Vec<_>>().join("&family=")
-    );
+    let fonts_href = crate::web::fmt::font_css(&FONTS.iter().map(|f| f.3).chain(SCRIPT_FONTS.iter().map(|f| f.3)).collect::<Vec<_>>(), "swap");
     let tok_input = move |k: &'static skin::Token| {
         let init = hex6(&draft.get_untracked().color(k.key));
         view! {
@@ -951,17 +948,30 @@ fn range_field(
     draft: RwSignal<AnimInfo>,
     name: &'static str,
     label: &'static str,
-    (min, max, step): (i32, i32, i32),
+    bounds: (i32, i32, i32),
     unit: &'static str,
     get: SpecGet<i32>,
     set: SpecSet<i32>,
 ) -> impl IntoView {
-    let init = get(&draft.get_untracked().spec);
+    slider(draft, name, label, bounds, unit, move |a: &AnimInfo| get(&a.spec), move |a: &mut AnimInfo, v| set(&mut a.spec, v), || {})
+}
+
+/// Penggeser angka admin — SATU markup untuk editor animasi & ornamen.
+/// `get`/`set` membaca/menulis satu field di sinyal; `on` dipanggil tiap geser.
+#[allow(clippy::too_many_arguments)]
+fn slider<S, G, W, F>(sig: RwSignal<S>, name: &'static str, label: &'static str, (min, max, step): (i32, i32, i32), unit: &'static str, get: G, set: W, on: F) -> impl IntoView
+where
+    S: Send + Sync + 'static,
+    G: Fn(&S) -> i32 + Copy + Send + Sync + 'static,
+    W: Fn(&mut S, i32) + Copy + Send + Sync + 'static,
+    F: Fn() + Copy + Send + Sync + 'static,
+{
+    let init = sig.with_untracked(get);
     view! {
         <label class="field adm-range">
-            <span class="field__label">{label}<b>{move || format!("{}{unit}", draft.with(|a| get(&a.spec)))}</b></span>
+            <span class="field__label">{label}<b>{move || format!("{}{unit}", sig.with(get))}</b></span>
             <input type="range" name=name min=min.to_string() max=max.to_string() step=step.to_string() value=init.to_string()
-                on:input=move |e| { let v = event_target_value(&e).parse().unwrap_or(init); draft.update(|a| set(&mut a.spec, v)); } />
+                on:input=move |e| { let v = event_target_value(&e).parse().unwrap_or(init); on(); sig.update(|x| set(x, v)); } />
         </label>
     }
 }
@@ -974,12 +984,23 @@ fn select_field(
     get: SpecGet<String>,
     set: SpecSet<String>,
 ) -> impl IntoView {
-    let init = get(&draft.get_untracked().spec);
+    pilihan(draft, name, label, opts, move |a: &AnimInfo| get(&a.spec), move |a: &mut AnimInfo, v| set(&mut a.spec, v), || {})
+}
+
+/// Daftar pilihan admin — SATU markup untuk editor animasi & ornamen.
+fn pilihan<S, G, W, F>(sig: RwSignal<S>, name: &'static str, label: &'static str, opts: Vec<(&'static str, &'static str)>, get: G, set: W, on: F) -> impl IntoView
+where
+    S: Send + Sync + 'static,
+    G: Fn(&S) -> String + Copy + Send + Sync + 'static,
+    W: Fn(&mut S, String) + Copy + Send + Sync + 'static,
+    F: Fn() + Copy + Send + Sync + 'static,
+{
+    let init = sig.with_untracked(get);
     view! {
         <label class="field">
             <span class="field__label">{label}</span>
-            <select class="input" name=name prop:value=move || draft.with(|a| get(&a.spec))
-                on:change=move |e| { let v = event_target_value(&e); draft.update(|a| set(&mut a.spec, v)); }>
+            <select class="input" name=name prop:value=move || sig.with(get)
+                on:change=move |e| { let v = event_target_value(&e); on(); sig.update(|x| set(x, v)); }>
                 {opts.into_iter().map(|(k, l)| view! { <option value=k selected=init == k>{l}</option> }).collect_view()}
             </select>
         </label>
@@ -1398,7 +1419,7 @@ fn PanduanFields(s: crate::web::model::SiteStory) -> impl IntoView {
             <label class="field"><span class="field__label">"Judul / label lingkaran"</span>
                 <input class="input" name="judul" maxlength="24" required value=s.judul.clone() placeholder="Pilih Tema" /></label>
             <label class="field"><span class="field__label">"Keterangan (di bawah gambar)"</span>
-                <textarea class="input" name="teks" maxlength="220" rows="2" placeholder="Jelajahi katalog — saring menurut daerah…" inner_html=textarea_isi(&s.teks)></textarea></label>
+                <textarea class="input" name="teks" maxlength="220" rows="2" placeholder="Jelajahi katalog — saring menurut daerah…" inner_html=crate::web::fmt::textarea_html(&s.teks)></textarea></label>
             <div class="field adm-wide">
                 <span class="field__label">"Gambar 9:16"</span>
                 <div class="adm-img">
@@ -1993,28 +2014,12 @@ struct OrnUi {
     playing: RwSignal<bool>,
 }
 
-fn o_range(o: RwSignal<Ornament>, ui: OrnUi, name: &'static str, label: &'static str, (min, max, step): (i32, i32, i32), unit: &'static str, get: OGet<i32>, set: OSet<i32>) -> impl IntoView {
-    let init = get(&o.get_untracked());
-    view! {
-        <label class="field adm-range">
-            <span class="field__label">{label}<b>{move || format!("{}{unit}", o.with(get))}</b></span>
-            <input type="range" name=name min=min.to_string() max=max.to_string() step=step.to_string() value=init.to_string()
-                on:input=move |e| { let v = event_target_value(&e).parse().unwrap_or(init); ui.playing.set(false); o.update(|x| set(x, v)); } />
-        </label>
-    }
+fn o_range(o: RwSignal<Ornament>, ui: OrnUi, name: &'static str, label: &'static str, bounds: (i32, i32, i32), unit: &'static str, get: OGet<i32>, set: OSet<i32>) -> impl IntoView {
+    slider(o, name, label, bounds, unit, get, set, move || ui.playing.set(false))
 }
 
 fn o_select(o: RwSignal<Ornament>, ui: OrnUi, name: &'static str, label: &'static str, opts: Vec<(&'static str, &'static str)>, get: OGet<String>, set: OSet<String>) -> impl IntoView {
-    let init = get(&o.get_untracked());
-    view! {
-        <label class="field">
-            <span class="field__label">{label}</span>
-            <select class="input" name=name
-                on:change=move |e| { let v = event_target_value(&e); ui.playing.set(false); o.update(|x| set(x, v)); }>
-                {opts.into_iter().map(|(k, l)| view! { <option value=k selected=init == k>{l}</option> }).collect_view()}
-            </select>
-        </label>
-    }
+    pilihan(o, name, label, opts, get, set, move || ui.playing.set(false))
 }
 
 fn o_check(o: RwSignal<Ornament>, ui: OrnUi, name: &'static str, label: &'static str, get: OGet<bool>, set: OSet<bool>) -> impl IntoView {
@@ -2545,15 +2550,6 @@ fn TemplatForm(t: crate::web::model::AdminTemplat) -> impl IntoView {
     }
 }
 
-/// Isi <textarea> sebagai HTML ter-escape (`inner_html`), bukan anak teks:
-/// textarea KOSONG tak punya node teks di HTML server sehingga hydration Leptos
-/// panik ("unreachable") — dulu seluruh /admin/templat mati. Parser HTML membuang
-/// satu baris baru pertama di textarea → digandakan bila isinya diawali baris baru.
-fn textarea_isi(s: &str) -> String {
-    let e = s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;");
-    if e.starts_with('\n') { format!("\n{e}") } else { e }
-}
-
 #[component]
 fn TemplatFields(t: crate::web::model::AdminTemplat) -> impl IntoView {
     let new = t.slug.is_empty();
@@ -2568,11 +2564,11 @@ fn TemplatFields(t: crate::web::model::AdminTemplat) -> impl IntoView {
             <label class="field adm-wide"><span class="field__label">"Google Fonts (nilai family=)"</span>
                 <input class="input" name="fonts" maxlength="400" value=t.fonts.clone() placeholder="Pinyon+Script&family=Cormorant+Infant:wght@400;600" /></label>
             <label class="field adm-wide"><span class="field__label">"Aset bawaan (JSON kunci → URL, dipanggil {{ a.kunci }})"</span>
-                <textarea class="input adm-code" name="assets" rows="6" spellcheck="false" inner_html=textarea_isi(&t.assets)></textarea></label>
+                <textarea class="input adm-code" name="assets" rows="6" spellcheck="false" inner_html=crate::web::fmt::textarea_html(&t.assets)></textarea></label>
             <label class="field adm-wide"><span class="field__label">"HTML (Jinja)"</span>
-                <textarea class="input adm-code" name="html" rows="22" spellcheck="false" required inner_html=textarea_isi(&t.html)></textarea></label>
+                <textarea class="input adm-code" name="html" rows="22" spellcheck="false" required inner_html=crate::web::fmt::textarea_html(&t.html)></textarea></label>
             <label class="field adm-wide"><span class="field__label">"CSS"</span>
-                <textarea class="input adm-code" name="css" rows="16" spellcheck="false" inner_html=textarea_isi(&t.css)></textarea></label>
+                <textarea class="input adm-code" name="css" rows="16" spellcheck="false" inner_html=crate::web::fmt::textarea_html(&t.css)></textarea></label>
             <button class="btn btn--primary btn--sm" type="submit"><Icon name="cloud_upload" />{if new { "Buat templat" } else { "Simpan templat" }}</button>
         </form>
     }
@@ -2600,9 +2596,9 @@ fn TemaTemplatForm(t: crate::web::model::TemaTemplat, templates: Vec<(String, St
                     </select>
                 </label>
                 <label class="field adm-wide"><span class="field__label">"Aset tema (JSON, opsional)"</span>
-                    <textarea class="input adm-code" name="assets" rows="4" spellcheck="false" placeholder="{\"bunga\": \"/img/tema/…/mawar.svg\"}" inner_html=textarea_isi(&t.assets)></textarea></label>
+                    <textarea class="input adm-code" name="assets" rows="4" spellcheck="false" placeholder="{\"bunga\": \"/img/tema/…/mawar.svg\"}" inner_html=crate::web::fmt::textarea_html(&t.assets)></textarea></label>
                 <label class="field adm-wide"><span class="field__label">"CSS tema (opsional)"</span>
-                    <textarea class="input adm-code" name="css" rows="4" spellcheck="false" placeholder=".t-kusuma { --k-taupe: #5c6b4f; }" inner_html=textarea_isi(&t.css)></textarea></label>
+                    <textarea class="input adm-code" name="css" rows="4" spellcheck="false" placeholder=".t-kusuma { --k-taupe: #5c6b4f; }" inner_html=crate::web::fmt::textarea_html(&t.css)></textarea></label>
                 <div class="adm-banner__move">
                     <button class="btn btn--primary btn--sm" type="submit"><Icon name="check" />"Simpan"</button>
                     {on.then(|| view! {

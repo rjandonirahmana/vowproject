@@ -55,6 +55,9 @@ mesin `templat/tata.js`:
 | `audio[data-music]` + `[data-music-toggle]` | musik latar |
 | `form[data-rsvp]` + `[data-rsvp-msg]` + `[data-wishes]` + `<template id="wish-tpl">` (`[data-f=name/status/message/ago]`) | RSVP & ucapan tanpa muat ulang (POST `{{ rsvp_action }}`; tanpa JS tetap jalan) |
 | `[data-zoom]` | klik → foto layar penuh |
+| `[data-burst="24"]` | pada `[data-open]` / `[data-gift]`: N partikel memancar saat diketuk. Rupa dari templat: `--burst-mask`, `--burst-c1..c3`, `--burst-size` |
+| `[data-coverflow="5000"]` + `.t-cf__stage` > `[data-cf-item]` | galeri 3D (tengah tegak, sisi miring); geser / ketuk sisi / `[data-cf-prev]` `[data-cf-next]`; `[data-cf-count]` = "3 / 10"; ganti otomatis tiap N ms saat terlihat. Tanpa JS: deret geser |
+| `button[data-gift aria-controls="id"]` (+ `[data-gift-wrap]`) | kotak kado: ketuk → meletup + partikel, isi `#id` muncul (tanpa JS isi tetap tampil) |
 
 Kelas status di `<html>`: `t-gated`, `t-opening`, `t-video-end`, `t-open`,
 `t-playing`, `t-lite` (hemat data / RAM < 4 GB / koneksi 2G–3G atau < 1.5 Mbps: tanpa video), `t-pv` (pratinjau katalog).
@@ -67,14 +70,22 @@ Tips: elemen yang perlu dicerminkan sekaligus dianimasikan — pakai properti
 
 `tamu`, `guest` (code, vip, table_no), `couple`, `bride`/`groom` (first, nick,
 name, degree, parents, ig, photo, initial), `date_label`, `date_num`,
-`first`/`events[]` (title, day_name, day, month_year, date_label, time_label,
-venue, address, maps, sessions), `countdown_ms`, `calendar_url`,
+`first`/`events[]` (title, day_name, day, month, year, month_year, date_label,
+time_label, time_start, venue, address, maps, sessions, cal_lead, cal_days —
+sel kosong sebelum tgl 1 (Senin = kolom pertama) & jumlah hari, untuk kalender), `countdown_ms`, `calendar_url`,
 `quote` (text, source), `love_story[]` (year, title, text, img), `gallery[]`,
 `cover_photo`, `video_url`, `banks[]` (bank, number, holder), `gift_address`,
 `family_name`, `dress_code`, `dress_colors[]` (name, hex), `live_url`,
 `music` (url, label), `wishes[]` (name, status, message, ago, initials),
 `wish_total`, `sessions[]`, `rsvp_action`, `guest_code`, `prefill_name`,
 `story_url`, `is_demo`, `preview`, `brand`, `slug`, `qs`, `a` (aset).
+
+Bahasa: `lang` ("id"/"en" — pilihan pasangan `invitations.lang`, atau `?lang=`
+tamu) dan kamus frasa bawaan `t` (server/templat.rs `teks()`): tulis
+`{{ t.buka }}`, `{{ t.hari|capitalize }}`, `{{ quote.text or t.ayat }}` —
+JANGAN menulis teks tetap Indonesia langsung di templat. Formulir RSVP wajib
+membawa `<input type="hidden" name="lang" value="{{ lang }}">`. Tombol ID/EN &
+"Tutup" ditulis platform.
 
 Filter tambahan: `|foto` (URL tanpa `#pos=…`), `|pos` (gaya object-position
 dari `#pos=`), `|rupiah`, `|inisial`.
@@ -98,3 +109,13 @@ mengembalikannya.
 - `kusuma` — Jawa 3D Motion (tema `kusuma-jawi`): sampul naik → pintu gebyok
   (video) → latar video; susunan & koreografi meniru undangan Jawa everlove
   (m07) dengan aset sendiri.
+- `warkah` — Surat Bersegel (tema `warkah-marun`, `-sakura`, `-biru`, `-emas`,
+  migrasi 039): bahan bedah 73 template chungdoi.com (satu mesin, beda
+  palet/ornamen saja). Kartu kaca bersegel → segel pecah + partikel, kartu
+  terbang → amplop & polaroid, tanggal terbelah, kalender berhati, galeri
+  coverflow 3D, garis waktu, kotak kado. Kulit = `template_css` (variabel
+  `--w-*`) + `template_assets` (sudut/ranting/untaian dari set ornamen 8 warna).
+
+Pratinjau tanpa DB/server: `cargo test --lib pratinjau_templat -- --ignored`
+→ `target/pratinjau/<templat>.body.html` + `.css` + `.fonts`.
+| `[data-close]` | tombol **Tutup Undangan** — dipasang PLATFORM (server/templat.rs, seperti navigasi bawah), tampil setelah dibuka. Kembali ke sampul: gerbang dipasang lagi, `t-open` dicabut di bawah kelas `t-closing`; templat menulis gerak mundurnya (`.t-closing …`), lama `--t-close` (ms) di gerbang. Posisi: `--t-close-right` |

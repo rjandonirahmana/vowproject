@@ -118,16 +118,94 @@ input, textarea, select { font: inherit; }
 .t-lightbox__x:focus-visible, [data-zoom]:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 [data-zoom] { cursor: zoom-in; }
 
+/* ── Tombol "Tutup Undangan" (platform, [data-close]) ─────────────────────
+   Pojok kanan atas kolom undangan; hanya setelah dibuka. Warna mengikuti
+   navigasi bawah (--t-nav-*); templat boleh menggeser lewat --t-close-right. */
+.t-close {
+    position: fixed; z-index: 45; top: max(12px, env(safe-area-inset-top));
+    right: var(--t-close-right, max(12px, calc((100vw - var(--t-col, 100vw)) / 2 + 12px)));
+    display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px 0 11px;
+    border: 0; border-radius: 999px; cursor: pointer;
+    background: var(--t-nav-bg, rgba(255, 255, 255, .9)); color: var(--t-nav-fg, #4a3b2a);
+    font: 600 13px/1 system-ui, sans-serif; letter-spacing: .02em;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .14);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    opacity: 0; translate: 0 -140%; pointer-events: none;
+    transition: opacity .35s ease, translate .5s cubic-bezier(.2, .8, .25, 1);
+}
+.t-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+.t-close:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.t-open:not(.t-closing) .t-close { opacity: 1; translate: none; pointer-events: auto; transition-delay: .9s; }
+.t-pv .t-close { display: none; }
+/* Ganti bahasa ID/EN (platform) — di kiri atas, selalu tersedia. */
+.t-lang {
+    position: fixed; z-index: 45; top: max(12px, env(safe-area-inset-top));
+    left: var(--t-lang-left, max(12px, calc((100vw - var(--t-col, 100vw)) / 2 + 12px)));
+    display: inline-grid; place-items: center; min-width: 38px; height: 38px; padding: 0 10px; border-radius: 999px;
+    background: var(--t-nav-bg, rgba(255, 255, 255, .9)); color: var(--t-nav-fg, #4a3b2a);
+    font: 700 12px/1 system-ui, sans-serif; letter-spacing: .08em; text-decoration: none;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .14);
+}
+.t-lang:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.t-pv .t-lang { display: none; }
+
+/* ── Ledakan partikel (data-burst) ─────────────────────────────────────────
+   Wadah .t-burst ditempel tata.js di <body> (posisi tetap, titik tengah
+   tombol). Templat mengatur rupa: --burst-mask, --burst-c1/2/3, --burst-size. */
+.t-burst { position: fixed; z-index: 120; width: 0; height: 0; pointer-events: none; }
+.t-burst__p {
+    position: absolute; left: 0; top: 0;
+    width: var(--burst-size, 14px); height: var(--burst-size, 14px); margin: calc(var(--burst-size, 14px) / -2);
+    background: var(--burst-c1, #e7a6ae);
+    -webkit-mask: var(--burst-mask, radial-gradient(circle, #000 62%, transparent 64%)) center / contain no-repeat;
+    mask: var(--burst-mask, radial-gradient(circle, #000 62%, transparent 64%)) center / contain no-repeat;
+    opacity: 0; animation: t-burst 1.4s cubic-bezier(.25, .46, .45, .94) var(--bd, 0ms) forwards;
+}
+.t-burst__p[data-v="1"] { background: var(--burst-c2, var(--burst-c1, #d8b25e)); }
+.t-burst__p[data-v="2"] { background: var(--burst-c3, var(--burst-c1, #fff)); }
+@keyframes t-burst {
+    0% { opacity: 0; transform: scale(0); }
+    15% { opacity: 1; transform: translate(calc(var(--dx) * .18), calc(var(--dy) * .12)) scale(calc(var(--s) * 1.3)) rotate(calc(var(--r) * .1)); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(calc(var(--s) * .6)) rotate(var(--r)); }
+}
+
+/* ── Galeri coverflow (data-coverflow) ─────────────────────────────────────
+   Tanpa JS: foto berderet & bisa digeser (scroll-snap). Dengan JS (.is-cf):
+   tumpukan 3D — tengah tegak, sisi bergeser, menjauh, & miring. */
+[data-coverflow] { position: relative; }
+[data-coverflow]:not(.is-cf) .t-cf__stage { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; }
+[data-coverflow]:not(.is-cf) [data-cf-item] { flex: 0 0 72%; scroll-snap-align: center; }
+.is-cf .t-cf__stage { position: relative; perspective: 1000px; transform-style: preserve-3d; }
+.is-cf [data-cf-item] {
+    position: absolute; inset: 0; margin: auto;
+    transition: transform 1.1s cubic-bezier(.4, 0, .2, 1), opacity 1.1s cubic-bezier(.4, 0, .2, 1), filter 1.1s;
+    will-change: transform;
+}
+.is-cf [data-cf-item][data-p="0"] { z-index: 5; transform: none; opacity: 1; }
+.is-cf [data-cf-item][data-p="1"] { z-index: 4; transform: translateX(60%) translateZ(-150px) rotateY(40deg) scale(.85); opacity: .75; }
+.is-cf [data-cf-item][data-p="-1"] { z-index: 4; transform: translateX(-60%) translateZ(-150px) rotateY(-40deg) scale(.85); opacity: .75; }
+.is-cf [data-cf-item][data-p="2"] { z-index: 3; transform: translateX(105%) translateZ(-300px) rotateY(60deg) scale(.7); opacity: .45; }
+.is-cf [data-cf-item][data-p="-2"] { z-index: 3; transform: translateX(-105%) translateZ(-300px) rotateY(-60deg) scale(.7); opacity: .45; }
+.is-cf [data-cf-item][data-p="3"], .is-cf [data-cf-item][data-p="-3"] { z-index: 1; transform: translateZ(-500px) scale(.6); opacity: 0; pointer-events: none; }
+.is-cf [data-cf-item]:not([data-p="0"]) { cursor: pointer; filter: saturate(.85); }
+
+/* ── Kotak kado (data-gift) ────────────────────────────────────────────── */
+[data-gift] { animation: t-kado 3s ease-in-out infinite; }
+.is-open > [data-gift], [data-gift-wrap].is-open [data-gift] { animation: t-kado-pop .7s cubic-bezier(.34, 1.56, .64, 1) forwards; }
+@keyframes t-kado { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes t-kado-pop { 0% { transform: none; } 45% { transform: translateY(-14px) scale(1.08) rotate(-3deg); } 100% { transform: translateY(-8px) scale(1.04); } }
+
 /* ── Pratinjau katalog & perangkat lemah ───────────────────────────────── */
 .t-pv [data-music-toggle] { display: none; }
-.t-lite [data-idle], .t-lite [data-slides] > img.is-on { animation: none; }
+.t-lite [data-idle], .t-lite [data-slides] > img.is-on, .t-lite [data-gift] { animation: none; }
 /* Video pembuka tak dimuat di t-lite/reduce (tata.js) — jangan tampilkan bingkai kosong. */
 .t-lite [data-open-video], .t-reduce [data-open-video] { display: none !important; }
 .t-instant [data-gate] { transition: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
     .t-js [data-a], .t-js [data-s] { opacity: 1; transform: none; transition: none; animation: none !important; }
-    [data-idle], [data-slides] > img.is-on { animation: none; }
+    [data-idle], [data-slides] > img.is-on, [data-gift] { animation: none; }
+    .is-cf [data-cf-item] { transition: none; }
     html { scroll-behavior: auto; }
 }
 

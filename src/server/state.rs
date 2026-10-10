@@ -50,12 +50,37 @@ pub struct AppState {
     /// RateLimit::hit_max.
     pub cap_limit: super::security::RateLimit,
     /// Banner beranda (dibaca tiap katalog dibuka) — cache 30 dtk.
-    pub banners: RwLock<Option<(std::time::Instant, Arc<Vec<crate::web::model::Banner>>)>>,
+    pub banners: Cache<Vec<crate::web::model::Banner>>,
     /// Story panduan beranda (dibaca tiap katalog dibuka) — cache 30 dtk.
-    pub panduan: RwLock<Option<(std::time::Instant, Arc<Vec<crate::web::model::SiteStory>>)>>,
+    pub panduan: Cache<Vec<crate::web::model::SiteStory>>,
     /// Tema templat (migrasi 029) — HTML+CSS dari tabel theme_templates,
     /// sudah dikompilasi; dimuat ulang tiap admin menyimpan templat.
     pub templat: RwLock<Arc<super::templat::TemplatSet>>,
+}
+
+/// Cache singkat di memori: (waktu dimuat, nilai). Lihat [`cached`].
+pub type Cache<T> = RwLock<Option<(std::time::Instant, Arc<T>)>>;
+
+/// Nilai `slot` bila umurnya < `ttl`; selain itu jalankan `load`, simpan, kembalikan.
+/// `load` = future malas — tak dijalankan selama cache masih segar.
+pub async fn cached<T: Clone>(slot: &Cache<T>, ttl: std::time::Duration, load: impl std::future::Future<Output = T>) -> T {
+    if let Some((t, v)) = slot.read().ok().and_then(|g| g.clone()) {
+        if t.elapsed() < ttl {
+            return (*v).clone();
+        }
+    }
+    let v = load.await;
+    if let Ok(mut g) = slot.write() {
+        *g = Some((std::time::Instant::now(), Arc::new(v.clone())));
+    }
+    v
+}
+
+/// Kosongkan cache (admin baru menyimpan) → pembacaan berikut memuat ulang.
+pub fn forget<T>(slot: &Cache<T>) {
+    if let Ok(mut g) = slot.write() {
+        *g = None;
+    }
 }
 
 pub struct ThemeCatalog {
@@ -83,7 +108,7 @@ impl ThemeCatalog {
         // "/img/…" → URL RustFS (server/aset.rs) SEBELUM di-hash: peta aset
         // berubah → ?v= ikut berubah.
         let css = super::aset::tulis_ulang(&(skin::catalog_css(&list, &anims) + &crate::web::anim::catalog_css(&anims))).into_owned();
-        let h = super::util::fnv1a64(&css);
+        let version = super::util::hash8(&css);
         let css = axum::body::Bytes::from(css);
         let fonts = skin::font_families(&list);
         let index = list.iter().enumerate().map(|(i, t)| (t.slug.clone(), i)).collect();
@@ -93,7 +118,7 @@ impl ThemeCatalog {
             .map(|t| (t.slug.clone(), axum::body::Bytes::from(theme_css(t, &t.rupa, &anims))))
             .collect();
         let rupa_all = axum::body::Bytes::from(super::aset::tulis_ulang(&crate::web::rupa::all_css()).into_owned());
-        Self { list, index, anims, css, version: format!("{:08x}", h as u32), fonts, gaya, rupa_all }
+        Self { list, index, anims, css, version, fonts, gaya, rupa_all }
     }
 
     /// Isi `/gaya/{slug}.css`; `rupa` = timpaan demo (`?rupa=`), dihitung saat itu.
@@ -111,7 +136,7 @@ impl ThemeCatalog {
             css.push_str(&format!("&rupa={}", crate::web::fmt::url_encode(rupa_override)));
         }
         let fam = skin::font_families([t]);
-        let fonts = if fam.is_empty() { String::new() } else { format!("https://fonts.googleapis.com/css2?family={}&display=swap", fam.join("&family=")) };
+        let fonts = crate::web::fmt::font_css(&fam, "swap");
         (css, fonts)
     }
 
@@ -153,8 +178,8 @@ impl AppState {
     pub async fn seed_animations(&self) {
         match super::repo::seed_animations(&self.pool, &crate::web::anim::builtins()).await {
             Ok(0) => {}
-            Ok(n) => tracing::info!(n, "animasi bawaan diisikan ke tabel animations"),
-            Err(e) => tracing::warn!(error = %format!("{e:#}"), "animasi bawaan belum bisa disimpan ke DB — jalankan migration/008_animasi_semua.sql"),
+            Ok(n) => tracing::info!(n, "animasi bawaan baru/berubah disinkronkan ke tabel animations"),
+            Err(e) => tracing::warn!(error = %format!("{e:#}"), "animasi bawaan belum bisa disinkronkan ke DB — jalankan migration/008_animasi_semua.sql & 041_animasi_edited.sql (versi DB lama tetap dipakai)"),
         }
     }
 

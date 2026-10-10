@@ -3,8 +3,15 @@
 
 use super::model::Event;
 
+use super::i18n::Lang;
+
+/// Mulai Kamis: 1970-01-01 (hari ke-0 `days_from_civil`) jatuh pada Kamis.
 const HARI: [&str; 7] = ["Kamis", "Jumat", "Sabtu", "Minggu", "Senin", "Selasa", "Rabu"];
-const BULAN: [&str; 12] = [
+const DAY_EN: [&str; 7] = ["Thursday", "Friday", "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday"];
+pub const MONTH_EN: [&str; 12] = [
+    "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December",
+];
+pub const BULAN: [&str; 12] = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November",
     "Desember",
 ];
@@ -18,6 +25,12 @@ pub fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     let doy = (153 * mp + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     era * 146_097 + doe - 719_468
+}
+
+/// Hari dalam minggu dengan Senin = 0 … Minggu = 6 (kolom kalender).
+/// 1970-01-01 = Kamis = 3.
+pub fn weekday_mon0(y: i64, m: i64, d: i64) -> i64 {
+    (days_from_civil(y, m, d) + 3).rem_euclid(7)
 }
 
 pub fn days_in_month(y: i64, m: i64) -> i64 {
@@ -65,10 +78,20 @@ fn tz_info(tz: &str) -> (&'static str, i64, &'static str) {
 
 /// "2026-10-24" → "Sabtu, 24 Oktober 2026".
 pub fn tanggal_panjang(s: &str) -> String {
+    tanggal_panjang_in(s, Lang::Id)
+}
+
+/// Tanggal panjang dalam bahasa `lang`: "Sabtu, 24 Oktober 2026" /
+/// "Saturday, 24 October 2026" (urutan hari-bulan sama di kedua bahasa).
+pub fn tanggal_panjang_in(s: &str, lang: Lang) -> String {
     match parse_date(s) {
         Some((y, m, d)) => {
-            let hari = HARI[days_from_civil(y, m, d).rem_euclid(7) as usize];
-            format!("{hari}, {d} {} {y}", BULAN[(m - 1) as usize])
+            let i = days_from_civil(y, m, d).rem_euclid(7) as usize;
+            let (hari, bulan) = match lang {
+                Lang::Id => (HARI[i], BULAN[(m - 1) as usize]),
+                Lang::En => (DAY_EN[i], MONTH_EN[(m - 1) as usize]),
+            };
+            format!("{hari}, {d} {bulan} {y}")
         }
         None => s.to_string(),
     }
@@ -84,12 +107,17 @@ pub fn tanggal_pendek(s: &str) -> String {
 
 /// "08:00","10:00" → "08.00 – 10.00 WIB"; akhir kosong → "08.00 WIB – selesai".
 pub fn jam_rentang(a: &str, b: &str, tz: &str) -> String {
+    jam_rentang_in(a, b, tz, Lang::Id)
+}
+
+/// Rentang jam dalam bahasa `lang` (akhir kosong: "selesai" / "until finish").
+pub fn jam_rentang_in(a: &str, b: &str, tz: &str, lang: Lang) -> String {
     let a = a.trim().replace(':', ".");
     let b = b.trim().replace(':', ".");
     let z = tz_info(tz).0;
     match (a.is_empty(), b.is_empty()) {
         (true, _) => String::new(),
-        (false, true) => format!("{a} {z} – selesai"),
+        (false, true) => format!("{a} {z} – {}", crate::tx!(lang, "selesai", "until finish")),
         (false, false) => format!("{a} – {b} {z}"),
     }
 }
@@ -172,6 +200,33 @@ pub fn slug(s: &str, max: usize) -> String {
     let k = key(s);
     let cut: String = k.chars().take(max).collect();
     cut.trim_end_matches('-').to_string()
+}
+
+/// URL CSS font — SATU-SATUNYA pembuat URL font. Google Fonts disajikan dari
+/// domain sendiri (server/fonts.rs): `families` = nilai `family=` Google
+/// (mis. "Great+Vibes" atau "Cormorant+Garamond:ital,wght@0,500"). Kosong → "".
+pub fn font_css<S: AsRef<str>>(families: &[S], display: &str) -> String {
+    let f: Vec<&str> = families.iter().map(|s| s.as_ref()).filter(|s| !s.is_empty()).collect();
+    if f.is_empty() {
+        return String::new();
+    }
+    format!("/fonts.css?family={}&display={display}", f.join("&family="))
+}
+
+/// Escape teks untuk HTML — isi elemen & nilai atribut berkutip ganda.
+/// SATU-SATUNYA escape HTML manual (SSR Leptos/minijinja sudah escape sendiri).
+pub fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+}
+
+/// Isi <textarea> sebagai HTML ter-escape (`inner_html`), bukan anak teks:
+/// textarea KOSONG tak punya node teks di HTML server sehingga hydration Leptos
+/// panik ("unreachable"). Parser HTML membuang SATU baris baru pertama di
+/// textarea → digandakan bila isinya diawali baris baru (kalau tidak, baris
+/// kosong pertama hilang tiap kali formulir disimpan).
+pub fn textarea_html(s: &str) -> String {
+    let e = html_escape(s);
+    if e.starts_with('\n') { format!("\n{e}") } else { e }
 }
 
 /// Kode berbentuk slug: huruf kecil, angka, tanda minus; 1…`max` karakter.
@@ -299,13 +354,22 @@ pub fn rupiah_ringkas(n: i64) -> String {
 
 /// Selisih detik → "10 menit yang lalu".
 pub fn lalu(secs: i64) -> String {
+    lalu_in(secs, Lang::Id)
+}
+
+/// "5 jam yang lalu" / "5 hours ago".
+pub fn lalu_in(secs: i64, lang: Lang) -> String {
     let s = secs.max(0);
-    match s {
-        0..=59 => "baru saja".into(),
-        60..=3599 => format!("{} menit yang lalu", s / 60),
-        3600..=86_399 => format!("{} jam yang lalu", s / 3600),
-        86_400..=2_591_999 => format!("{} hari yang lalu", s / 86_400),
-        _ => format!("{} bulan yang lalu", s / 2_592_000),
+    let (n, id, en) = match s {
+        0..=59 => return crate::tx!(lang, "baru saja", "just now").into(),
+        60..=3599 => (s / 60, "menit", "minute"),
+        3600..=86_399 => (s / 3600, "jam", "hour"),
+        86_400..=2_591_999 => (s / 86_400, "hari", "day"),
+        _ => (s / 2_592_000, "bulan", "month"),
+    };
+    match lang {
+        Lang::Id => format!("{n} {id} yang lalu"),
+        Lang::En => format!("{n} {en}{} ago", if n == 1 { "" } else { "s" }),
     }
 }
 

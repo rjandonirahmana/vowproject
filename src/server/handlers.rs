@@ -50,10 +50,7 @@ pub fn new_invitation_id(bride: &str, groom: &str) -> String {
 }
 
 pub fn random_key(len: usize) -> String {
-    use rand::Rng;
-    const A: &[u8] = b"abcdefghijkmnpqrstuvwxyz23456789";
-    let mut rng = rand::rng();
-    (0..len).map(|_| A[rng.random_range(0..A.len())] as char).collect()
+    super::auth::random_chars(b"abcdefghijkmnpqrstuvwxyz23456789", len)
 }
 
 /// Hapus unggahan pesanan yang batal disimpan (best-effort, galat dicatat).
@@ -86,6 +83,8 @@ pub struct IsiTeks {
     pub live_url: String,
     pub dress_colors: serde_json::Value,
     pub music_autoplay: bool,
+    /// "id" | "en" — bahasa teks bawaan undangan untuk tamu (migrasi 040).
+    pub lang: String,
 }
 
 pub fn baca_isi(form: &super::form::Form) -> Result<IsiTeks, &'static str> {
@@ -198,6 +197,7 @@ pub fn baca_isi(form: &super::form::Form) -> Result<IsiTeks, &'static str> {
         live_url,
         dress_colors: json!(dress_colors),
         music_autoplay: form.has("music_autoplay"),
+        lang: crate::web::i18n::Lang::of(&get("lang", 2)).code().to_string(),
     })
 }
 
@@ -361,7 +361,7 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     // ±200 bit acak; yang disimpan hanya hash-nya — kunci polos tampil sekali
     // di tautan Kelola setelah pesan (dan bisa diterbitkan ulang oleh admin).
     let manage_key = random_key(40);
-    let IsiTeks { mut bride, mut groom, events, dress_code, quote_text, quote_source, banks, family_name, love_story, live_url, dress_colors, music_autoplay } = isi;
+    let IsiTeks { mut bride, mut groom, events, dress_code, quote_text, quote_source, banks, family_name, love_story, live_url, dress_colors, music_autoplay, lang } = isi;
     bride.photo = urls.remove("bride_photo").unwrap_or_default();
     groom.photo = urls.remove("groom_photo").unwrap_or_default();
     let n = NewInvitation {
@@ -379,6 +379,7 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
         music_artist,
         music_url,
         music_autoplay,
+        lang,
         banks,
         family_name,
         addons: json!(addons),
@@ -633,7 +634,7 @@ pub async fn update_invitation(
         }
     }
 
-    let IsiTeks { mut bride, mut groom, events, dress_code, quote_text, quote_source, banks, family_name, live_url, dress_colors, music_autoplay, .. } = isi;
+    let IsiTeks { mut bride, mut groom, events, dress_code, quote_text, quote_source, banks, family_name, live_url, dress_colors, music_autoplay, lang, .. } = isi;
     bride.photo = foto.remove("bride_photo").unwrap_or_default();
     groom.photo = foto.remove("groom_photo").unwrap_or_default();
     let n = NewInvitation {
@@ -651,6 +652,7 @@ pub async fn update_invitation(
         music_artist,
         music_url,
         music_autoplay,
+        lang,
         banks,
         family_name,
         addons: json!([]),
@@ -1386,7 +1388,7 @@ pub async fn admin_save_animation(
             _ => {}
         }
     }
-    if let Err(e) = repo::upsert_animation(&state.pool, &anim).await {
+    if let Err(e) = repo::upsert_animation(&state.pool, &anim, true).await {
         tracing::error!(error = %format!("{e:#}"), "admin: simpan animasi");
         return to(&back, "galat", "Gagal menyimpan animasi — sudah menjalankan migration/008_animasi_semua.sql?");
     }
@@ -1410,7 +1412,7 @@ pub async fn admin_reset_animation(
     let Some(a) = crate::web::anim::builtin(&kind, &slug) else {
         return to(&back, "galat", "Bukan animasi bawaan.");
     };
-    if let Err(e) = repo::upsert_animation(&state.pool, &a).await {
+    if let Err(e) = repo::upsert_animation(&state.pool, &a, false).await {
         tracing::error!(error = %format!("{e:#}"), "admin: reset animasi");
         return to(&back, "galat", "Gagal — sudah menjalankan migration/008_animasi_semua.sql?");
     }
@@ -1462,9 +1464,7 @@ pub async fn admin_save_banner(
         return r;
     }
     // Beranda membaca banner dari cache 30 dtk — kosongkan agar perubahan segera tampil.
-    if let Ok(mut g) = state.banners.write() {
-        *g = None;
-    }
+    super::state::forget(&state.banners);
     let back = "/admin/banner";
     let Ok(mut form) = super::form::read(mp, 2).await else {
         return to(back, "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
@@ -1548,9 +1548,7 @@ pub async fn admin_save_site_story(
     if let Err(r) = require(&state, &headers, false).await {
         return r;
     }
-    if let Ok(mut g) = state.panduan.write() {
-        *g = None;
-    }
+    super::state::forget(&state.panduan);
     let back = "/admin/story-panduan";
     let Ok(mut form) = super::form::read(mp, 1).await else {
         return to(back, "galat", "Unggahan terputus atau terlalu besar (gambar maks 5 MB).");
@@ -1619,9 +1617,7 @@ pub async fn admin_site_story_action(
     if let Err(r) = require(&state, &headers, false).await {
         return r;
     }
-    if let Ok(mut g) = state.panduan.write() {
-        *g = None;
-    }
+    super::state::forget(&state.panduan);
     let back = "/admin/story-panduan";
     let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
     let res = match aksi.as_str() {
@@ -1659,9 +1655,7 @@ pub async fn admin_banner_action(
         return r;
     }
     // Beranda membaca banner dari cache 30 dtk — kosongkan agar perubahan segera tampil.
-    if let Ok(mut g) = state.banners.write() {
-        *g = None;
-    }
+    super::state::forget(&state.banners);
     let back = "/admin/banner";
     let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
     let res = match aksi.as_str() {

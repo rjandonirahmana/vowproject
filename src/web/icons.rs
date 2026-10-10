@@ -145,10 +145,7 @@ pub const ICONS: &[&str] = &[
 
 /// URL CSS Google Fonts untuk subset ikon di atas.
 pub fn icon_font_href() -> String {
-    format!(
-        "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400,0..1,0&icon_names={}&display=block",
-        ICONS.join(",")
-    )
+    super::fmt::font_css(&[format!("Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400,0..1,0&icon_names={}", ICONS.join(","))], "block")
 }
 
 #[component]

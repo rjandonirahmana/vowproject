@@ -75,6 +75,13 @@ pub fn hex(bytes: &[u8]) -> String {
 }
 
 /// `n` byte acak sebagai hex (token sesi = 32 byte, nonce CSP = 16 byte).
+/// `len` karakter acak dari `alphabet` (CSPRNG) — kunci Kelola, kode tamu.
+pub fn random_chars(alphabet: &[u8], len: usize) -> String {
+    use rand::Rng;
+    let mut rng = rand::rng();
+    (0..len).map(|_| alphabet[rng.random_range(0..alphabet.len())] as char).collect()
+}
+
 pub fn random_hex(n: usize) -> String {
     use rand::RngCore;
     let mut b = vec![0u8; n];

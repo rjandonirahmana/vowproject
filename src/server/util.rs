@@ -10,3 +10,8 @@ pub fn fnv1a64(s: &str) -> u64 {
     }
     h
 }
+
+/// 8 hex dari FNV-1a — versi aset `?v=` (app.js, tata.*, /tema.css).
+pub fn hash8(s: &str) -> String {
+    format!("{:08x}", fnv1a64(s) as u32)
+}
