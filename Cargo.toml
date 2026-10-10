@@ -45,6 +45,11 @@ ssr = [
     "dep:leptos_axum",
 ]
 hydrate = ["leptos/hydrate", "leptos/nonce"]
+# Pecah WASM per rute (web/app.rs rute_terpisah) — WAJIB bersama `--split`:
+#   cargo leptos build --release --split --lib-features hydrate,split
+# Tanpa --split fitur ini merusak WASM (impor placeholder), jadi dev biasa
+# (`cargo leptos watch`) tak menyalakannya.
+split = []
 
 # ── Shared deps (native SSR + WASM) ────────────────────────────────────────────
 # ATURAN: jangan taruh dep yang menarik tokio/mio/axum di sini.

@@ -6991,6 +6991,12 @@ html:not(.inv-opened) body:has(.gate:not(.gate--embed)) {
 .gate--ulang .gate__content .gate__open {
     animation: gate-pulse 2.4s ease-in-out 1s infinite !important;
 }
+/* Pratinjau tema (iframe ?pv=1: kartu katalog, etalase HP) — sampul langsung
+ * utuh, tanpa gerak masuk per baris: yang dipamerkan gerak BUKA-nya. Dulu
+ * layar pratinjau kosong ±0,5 dtk menunggu baris-baris sampul muncul. */
+html.is-pv .gate__content :is(.cover__eyebrow, .arch-photo, .hero__seal, .cover__names, .hero__date, .pill, .guest, .gate__open) {
+    animation: none !important;
+}
 @keyframes gate-tutup-helai {
     from {
         transform: translateX(-104%) skewX(-8deg);
@@ -10064,7 +10070,9 @@ html.sv-open, html.sv-open body { overflow: hidden; }
 .etalase {
     --lw: 230px;
     --lh: 480px;
-    --sp: calc(var(--lw) - 44px);
+    /* --m = tumpang-tindih kartu (margin negatif); --sp = jarak antar pusat. */
+    --m: 22px;
+    --sp: calc(var(--lw) - 2 * var(--m));
     max-width: 1240px;
     margin: 30px auto 6px;
     padding: 0 20px;
@@ -10111,8 +10119,12 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     position: relative;
     display: flex;
     overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    padding: 40px calc(50% - var(--lw) / 2) 44px;
+    /* TANPA CSS scroll-snap: snap dikerjakan global.js (luncuran ke kartu
+     * terdekat setelah gulir berhenti). Snap bawaan "mengejar" kartu terkunci
+     * selama luncuran (geometrinya ikut transform) & mengingat kartu lama. */
+    /* + --m: kartu pertama/terakhir pun tepat di tengah (margin negatif
+     * menggeser kotaknya --m ke luar). */
+    padding: 40px calc(50% - var(--lw) / 2 + var(--m)) 44px;
     scrollbar-width: none;
     overscroll-behavior-x: contain;
 }
@@ -10123,9 +10135,8 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     flex: 0 0 var(--lw);
     height: var(--lh);
     aspect-ratio: auto;
-    margin: 0 -22px;
+    margin: 0 calc(-1 * var(--m));
     border-radius: 30px;
-    scroll-snap-align: center;
     box-shadow: 0 22px 40px -20px rgba(0, 0, 0, 0.45);
     /* transform/opacity/z-index ditulis global.js; isolasi layout & lukis.
      * will-change: raster kartu dipakai ulang saat skalanya berubah (tanpa
@@ -10229,7 +10240,8 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity 0.25s;
+    /* Keluar cepat saat bergeser; masuk lembut di atas kartu mini. */
+    transition: opacity 0.2s ease-out;
 }
 .etalase__pv iframe {
     position: absolute;
@@ -10241,6 +10253,106 @@ html.sv-open, html.sv-open body { overflow: hidden; }
 }
 .etalase__layar.is-pv .etalase__pv {
     opacity: 1;
+    transition: opacity 0.45s ease;
+}
+/* Tepi kiri-kanan memudar ke latar (lapisan statis di atas jajaran kartu,
+ * bukan mask pada wadah gulir — tetap murah tiap frame). */
+.etalase__tepi {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 45;
+    width: min(16%, 140px);
+    pointer-events: none;
+}
+.etalase__tepi--l {
+    left: 0;
+    background: linear-gradient(90deg, var(--bg), transparent);
+}
+.etalase__tepi--r {
+    right: 0;
+    background: linear-gradient(-90deg, var(--bg), transparent);
+}
+/* Bayangan lantai di bawah HP. */
+.etalase__stage::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: calc(40px + var(--lh) + 10px);
+    width: calc(var(--lw) * 1.15);
+    height: 28px;
+    translate: -50% 0;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(0, 0, 0, 0.28), transparent);
+    pointer-events: none;
+}
+.etalase__track {
+    cursor: grab;
+}
+.etalase__track.is-seret {
+    cursor: grabbing;
+    user-select: none;
+}
+.etalase__item img,
+.etalase__item svg {
+    -webkit-user-drag: none;
+}
+/* Posisi + garis progres putar otomatis (scaleX 7 dtk, compositor). */
+.etalase__posisi {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 2px 0 10px;
+}
+.etalase__hitung {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--gold-deep);
+    min-width: 7ch;
+}
+.etalase__progres {
+    position: relative;
+    width: 96px;
+    height: 2px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: var(--line);
+}
+.etalase__progres i {
+    position: absolute;
+    inset: 0;
+    background: var(--gold);
+    transform: scaleX(0);
+    transform-origin: 0 50%;
+}
+.etalase__progres i.is-jalan {
+    animation: etalase-progres 7s linear both;
+}
+.etalase:hover .etalase__progres i {
+    animation-play-state: paused;
+}
+@keyframes etalase-progres {
+    to {
+        transform: scaleX(1);
+    }
+}
+/* Info tema berganti dengan muncul halus (elemen baru tiap ganti tema). */
+.etalase__info > * {
+    animation: etalase-info 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.etalase__info > :nth-child(2) {
+    animation-delay: 0.05s;
+}
+.etalase__info > :nth-child(3) {
+    animation-delay: 0.1s;
+}
+@keyframes etalase-info {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
 }
 .etalase__nav {
     position: absolute;
@@ -10290,15 +10402,126 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     gap: 8px;
     margin-top: 8px;
 }
+/* Laptop (MacBook): layar 16:10 = iframe 1280×800 diskalakan (tata letak
+ * desktop undangan). Bezel hitam + kamera, alas aluminium dgn cekungan
+ * pembuka. Sebelum pratinjau siap: kilau skeleton (bukan teks/pemutar). */
+.etalase__laptop {
+    --tw: min(620px, 92vw);
+    margin: 18px auto 8px;
+    width: var(--tw);
+}
+.etalase__tutup {
+    position: relative;
+    padding: 2.2% 2.2% 3%;
+    border-radius: 18px 18px 6px 6px;
+    background: linear-gradient(180deg, #2a2a2e, #141416);
+    box-shadow:
+        0 0 0 1px #4a4a50,
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+        0 30px 60px -30px rgba(0, 0, 0, 0.55);
+}
+/* Kamera di bezel atas. */
+.etalase__tutup::before {
+    content: "";
+    position: absolute;
+    top: 0.9%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    margin-left: -3px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #3b4b66, #0b0d12 70%);
+}
+.etalase__lyr {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--surface-low);
+}
+/* Kilau skeleton = pita yang DIGESER (transform), bukan background-position. */
+.etalase__lyr::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 60%;
+    background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--card) 70%, transparent), transparent);
+    transform: translateX(-100%);
+    animation: etalase-kilau 1.6s ease-in-out infinite;
+}
+.etalase__lyr.is-pv::before {
+    animation: none;
+    opacity: 0;
+}
+@keyframes etalase-kilau {
+    to {
+        transform: translateX(270%);
+    }
+}
+.etalase__lpv {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+}
+.etalase__lpv iframe {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border: 0;
+    transform-origin: 0 0;
+    background: var(--surface);
+}
+.etalase__lyr.is-pv .etalase__lpv {
+    opacity: 1;
+    transition: opacity 0.5s ease;
+}
+/* Alas aluminium: lebih lebar dari tutup, cekungan pembuka di tengah. */
+.etalase__alas {
+    position: relative;
+    width: 116%;
+    height: calc(var(--tw) * 0.028);
+    min-height: 10px;
+    margin-left: -8%;
+    border-radius: 2px 2px 14px 14px / 2px 2px 100% 100%;
+    background: linear-gradient(180deg, #e9eaee, #c4c6cc 55%, #9a9ca3);
+    box-shadow: 0 18px 30px -16px rgba(0, 0, 0, 0.45);
+}
+.etalase__alas::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 16%;
+    height: 45%;
+    translate: -50% 0;
+    border-radius: 0 0 8px 8px;
+    background: linear-gradient(180deg, #a9abb1, #d3d5da);
+}
+.etalase__ket {
+    margin: 14px 0 0;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+    .etalase__info > *,
+    .etalase__progres i.is-jalan,
+    .etalase__lyr::before {
+        animation: none;
+    }
+}
 @media (max-width: 600px) {
+    .etalase__tepi {
+        width: 12%;
+    }
     .etalase {
         --lw: 186px;
         --lh: 392px;
-        --sp: calc(var(--lw) - 52px);
+        --m: 26px;
         margin-top: 22px;
     }
     .etalase__item.tcard__art {
-        margin: 0 -26px;
         border-radius: 24px;
     }
     .etalase__hp {

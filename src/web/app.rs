@@ -4,8 +4,10 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{
     components::{ParentRoute, Route, Router, Routes},
-    path, SsrMode,
+    path, Lazy, LazyRoute, SsrMode,
 };
+#[cfg(feature = "split")]
+use leptos_router::lazy_route;
 
 #[cfg(feature = "ssr")]
 use super::icons::icon_font_href;
@@ -144,6 +146,66 @@ fn theme_links() -> AnyView {
     .into_any()
 }
 
+/// Rute yang kodenya DIPISAH ke potongan WASM sendiri: admin,
+/// Kelola/Scan/Sunting milik pembeli, dan /buat. Tamu undangan & pengunjung
+/// katalog tak pernah mengunduh kode itu — potongannya baru diunduh saat
+/// rute dibuka (SSR tetap merender penuh).
+///
+/// Pemisahan HANYA dengan fitur `split` + `cargo leptos … --split
+/// --lib-features hydrate,split` (Dockerfile). `#[lazy]` tanpa `--split`
+/// menghasilkan impor `__wasm_split_placeholder__` → WASM gagal dimuat &
+/// seluruh situs mati diam-diam; maka tanpa fitur itu (dev `cargo leptos
+/// watch`) rute tetap LazyRoute biasa dalam satu WASM. Nama potongan diambil
+/// dari nama tipe rute, jadi tiap rute di sini wajib bertipe unik.
+macro_rules! rute_terpisah {
+    ($($rute:ident => $halaman:path),* $(,)?) => {$(
+        #[derive(Debug)]
+        struct $rute;
+        #[cfg(feature = "split")]
+        #[lazy_route]
+        impl LazyRoute for $rute {
+            fn data() -> Self {
+                $rute
+            }
+            fn view(_this: Self) -> AnyView {
+                $halaman().into_any()
+            }
+        }
+        #[cfg(not(feature = "split"))]
+        impl LazyRoute for $rute {
+            fn data() -> Self {
+                $rute
+            }
+            async fn view(_this: Self) -> AnyView {
+                $halaman().into_any()
+            }
+        }
+    )*};
+}
+
+rute_terpisah! {
+    BuatRute => BuatPage,
+    AdminHomeRute => AdminHome,
+    AdminThemesRute => AdminThemes,
+    AdminThemeEditRute => AdminThemeEdit,
+    AdminOrnamentsRute => AdminOrnaments,
+    AdminAnimsRute => AdminAnims,
+    AdminTemplatRute => AdminTemplat,
+    AdminBannerRute => AdminBanner,
+    AdminLaguRute => AdminLagu,
+    AdminStoryRute => AdminStory,
+    AdminStoryPanduanRute => AdminStoryPanduan,
+    AdminAnimEditRute => AdminAnimEdit,
+    AdminUndanganRute => AdminUndangan,
+    AdminKontenRute => AdminKonten,
+    AdminKontenEditRute => AdminKontenEdit,
+    AdminAkunRute => AdminAkun,
+    AdminProfilRute => AdminProfil,
+    KelolaRute => KelolaPage,
+    ScanRute => ScanPage,
+    SuntingRute => SuntingPage,
+}
+
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
@@ -158,7 +220,7 @@ pub fn App() -> impl IntoView {
             <Routes fallback=NotFoundPage>
                 <Route path=path!("/") view=KatalogPage />
                 <Route path=path!("/tema/:tema") view=TemaPage ssr=SsrMode::Async />
-                <Route path=path!("/buat") view=BuatPage />
+                <Route path=path!("/buat") view={Lazy::<BuatRute>::new()} />
                 <Route path=path!("/paket") view=PaketPage />
                 <Route path=path!("/panduan") view=PanduanPage />
                 <Route path=path!("/cetak") view=CetakPage />
@@ -166,23 +228,23 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/dekorasi/:slug") view=DekorasiDetailPage ssr=SsrMode::Async />
                 <Route path=path!("/mua") view=MuaPage />
                 <Route path=path!("/seserahan") view=SeserahanPage />
-                <Route path=path!("/admin") view=AdminHome />
-                <Route path=path!("/admin/tema") view=AdminThemes />
-                <Route path=path!("/admin/tema/:slug") view=AdminThemeEdit />
-                <Route path=path!("/admin/tema/:slug/ornamen") view=AdminOrnaments />
-                <Route path=path!("/admin/animasi") view=AdminAnims />
-                <Route path=path!("/admin/templat") view=AdminTemplat />
-                <Route path=path!("/admin/banner") view=AdminBanner />
-                <Route path=path!("/admin/lagu") view=AdminLagu />
-                <Route path=path!("/admin/story") view=AdminStory />
-                <Route path=path!("/admin/story-panduan") view=AdminStoryPanduan />
-                <Route path=path!("/admin/animasi/baru") view=AdminAnimEdit />
-                <Route path=path!("/admin/animasi/:kind/:slug") view=AdminAnimEdit />
-                <Route path=path!("/admin/undangan") view=AdminUndangan />
-                <Route path=path!("/admin/konten") view=AdminKonten />
-                <Route path=path!("/admin/konten/:key") view=AdminKontenEdit />
-                <Route path=path!("/admin/akun") view=AdminAkun />
-                <Route path=path!("/admin/profil") view=AdminProfil />
+                <Route path=path!("/admin") view={Lazy::<AdminHomeRute>::new()} />
+                <Route path=path!("/admin/tema") view={Lazy::<AdminThemesRute>::new()} />
+                <Route path=path!("/admin/tema/:slug") view={Lazy::<AdminThemeEditRute>::new()} />
+                <Route path=path!("/admin/tema/:slug/ornamen") view={Lazy::<AdminOrnamentsRute>::new()} />
+                <Route path=path!("/admin/animasi") view={Lazy::<AdminAnimsRute>::new()} />
+                <Route path=path!("/admin/templat") view={Lazy::<AdminTemplatRute>::new()} />
+                <Route path=path!("/admin/banner") view={Lazy::<AdminBannerRute>::new()} />
+                <Route path=path!("/admin/lagu") view={Lazy::<AdminLaguRute>::new()} />
+                <Route path=path!("/admin/story") view={Lazy::<AdminStoryRute>::new()} />
+                <Route path=path!("/admin/story-panduan") view={Lazy::<AdminStoryPanduanRute>::new()} />
+                <Route path=path!("/admin/animasi/baru") view={Lazy::<AdminAnimEditRute>::new()} />
+                <Route path=path!("/admin/animasi/:kind/:slug") view={Lazy::<AdminAnimEditRute>::new()} />
+                <Route path=path!("/admin/undangan") view={Lazy::<AdminUndanganRute>::new()} />
+                <Route path=path!("/admin/konten") view={Lazy::<AdminKontenRute>::new()} />
+                <Route path=path!("/admin/konten/:key") view={Lazy::<AdminKontenEditRute>::new()} />
+                <Route path=path!("/admin/akun") view={Lazy::<AdminAkunRute>::new()} />
+                <Route path=path!("/admin/profil") view={Lazy::<AdminProfilRute>::new()} />
                 <Route path=path!("/privasi") view=PrivasiPage />
                 <Route path=path!("/syarat") view=SyaratPage />
                 // Async: <head> (og:title/description untuk pratinjau tautan WhatsApp)
@@ -193,9 +255,9 @@ pub fn App() -> impl IntoView {
                     <Route path=path!("rsvp") view=RsvpPage />
                     <Route path=path!("story") view=StoryPage />
                 </ParentRoute>
-                <Route path=path!("/kelola/:slug") view=KelolaPage ssr=SsrMode::Async />
-                <Route path=path!("/kelola/:slug/scan") view=ScanPage />
-                <Route path=path!("/kelola/:slug/sunting") view=SuntingPage ssr=SsrMode::Async />
+                <Route path=path!("/kelola/:slug") view={Lazy::<KelolaRute>::new()} ssr=SsrMode::Async />
+                <Route path=path!("/kelola/:slug/scan") view={Lazy::<ScanRute>::new()} />
+                <Route path=path!("/kelola/:slug/sunting") view={Lazy::<SuntingRute>::new()} ssr=SsrMode::Async />
             </Routes>
         </Router>
     }

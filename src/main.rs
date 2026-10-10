@@ -131,6 +131,7 @@ async fn main() -> Result<()> {
         cap_limit: security::RateLimit::new(u32::MAX, std::time::Duration::from_secs(60 * 60)),
         banners: std::sync::RwLock::new(None),
         panduan: std::sync::RwLock::new(None),
+        songs: std::sync::RwLock::new(None),
         templat: state::fallback_templat(),
     });
     // Hapus pesanan yang tak dikonfirmasi admin dalam UNPAID_TTL_HOURS (+ file RustFS).

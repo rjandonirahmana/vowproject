@@ -2339,6 +2339,7 @@ pub async fn admin_save_song(
     }
     match repo::save_song(&state.pool, &s).await {
         Ok(id) => {
+            crate::server::state::forget(&state.songs);
             tracing::info!(id, "admin: lagu disimpan");
             to(&format!("{back}#lagu-{id}"), "ok", if s.id == 0 { "Lagu ditambahkan ke pustaka." } else { "Lagu tersimpan." })
         }
@@ -2362,6 +2363,8 @@ pub async fn admin_song_action(
     }
     let back = "/admin/lagu";
     let id: i64 = f.get("id").and_then(|v| v.parse().ok()).unwrap_or(0);
+    // Lagu acak demo membaca pustaka dari cache — segarkan apa pun hasilnya.
+    crate::server::state::forget(&state.songs);
     match aksi.as_str() {
         "urut" => match repo::move_song(&state.pool, id, f.get("arah").is_some_and(|a| a == "naik")).await {
             Ok(()) => to(&format!("{back}#lagu-{id}"), "ok", "Urutan diperbarui."),

@@ -519,10 +519,29 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
                 <div class="etalase__hp" aria-hidden="true">
                     <div class="etalase__layar"><div class="etalase__pv"></div></div>
                 </div>
+                <div class="etalase__tepi etalase__tepi--l" aria-hidden="true"></div>
+                <div class="etalase__tepi etalase__tepi--r" aria-hidden="true"></div>
                 <button type="button" class="etalase__nav etalase__nav--prev" data-etalase-nav="-1" aria-label="Tema sebelumnya"><Icon name="chevron_left" /></button>
                 <button type="button" class="etalase__nav etalase__nav--next" data-etalase-nav="1" aria-label="Tema berikutnya"><Icon name="chevron_right" /></button>
             </div>
+            // Posisi "05 / 24" + garis progres putar otomatis (diisi & diputar global.js).
+            <div class="etalase__posisi" aria-hidden="true">
+                <span class="etalase__hitung" data-etalase-hitung></span>
+                <span class="etalase__progres"><i data-etalase-progres></i></span>
+            </div>
             <div class="etalase__info" data-etalase-info aria-live="polite"></div>
+            // Laptop: tema yang sama dalam tata letak DESKTOP (iframe 1280 px
+            // diskalakan, mesin pratinjau kedua — dimuat setelah HP & hanya
+            // bila terlihat). `data-pv-beku`: gerak buka diputar lalu dibekukan
+            // (halaman desktop yang terus beranimasi = beranda 30 fps).
+            // Layar kosong = kilau skeleton sampai siap.
+            <div class="etalase__laptop" aria-hidden="true">
+                <div class="etalase__tutup">
+                    <div class="etalase__lyr"><div class="etalase__lpv" data-pv-lebar="1280" data-pv-beku=""></div></div>
+                </div>
+                <div class="etalase__alas"></div>
+                <p class="etalase__ket">"Tampilan di laptop & desktop"</p>
+            </div>
         </section>
     }
 }

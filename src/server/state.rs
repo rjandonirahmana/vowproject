@@ -53,6 +53,9 @@ pub struct AppState {
     pub banners: Cache<Vec<crate::web::model::Banner>>,
     /// Story panduan beranda (dibaca tiap katalog dibuka) — cache 30 dtk.
     pub panduan: Cache<Vec<crate::web::model::SiteStory>>,
+    /// Lagu aktif pustaka (lagu acak undangan demo) — cache 60 dtk, dikosongkan
+    /// tiap admin mengubah pustaka lagu.
+    pub songs: Cache<Vec<crate::web::model::Song>>,
     /// Tema templat (migrasi 029) — HTML+CSS dari tabel theme_templates,
     /// sudah dikompilasi; dimuat ulang tiap admin menyimpan templat.
     pub templat: RwLock<Arc<super::templat::TemplatSet>>,
@@ -171,6 +174,38 @@ fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, a
 impl AppState {
     pub fn themes(&self) -> Arc<ThemeCatalog> {
         self.themes.read().map(|g| g.clone()).unwrap_or_else(|e| e.into_inner().clone())
+    }
+
+    /// Undangan DEMO dibuka dengan tema pilihan pengunjung (`?tema=` dari
+    /// "Coba Demo"). Undangan asli selalu memakai temanya sendiri. Satu-satunya
+    /// tempat aturan ini — dipakai halaman Leptos, templat, & dashboard demo.
+    pub fn demo_tema(&self, row: &mut super::repo::InvRow, tema: Option<&str>) {
+        if row.inv.is_demo {
+            if let Some(t) = tema.map(str::trim).filter(|t| self.themes().get(t).is_some()) {
+                row.inv.theme = t.to_string();
+            }
+        }
+    }
+
+    /// Undangan DEMO memutar lagu ACAK dari pustaka lagu aktif (tiap dibuka
+    /// beda), bukan selalu lagu demo yang sama. Pustaka kosong / belum
+    /// migrasi 027 → lagu demo bawaan tetap dipakai.
+    pub async fn demo_lagu(&self, row: &mut super::repo::InvRow) {
+        if !row.inv.is_demo {
+            return;
+        }
+        let list = cached(&self.songs, std::time::Duration::from_secs(60), async {
+            super::repo::songs(&self.pool, true).await.unwrap_or_default()
+        })
+        .await;
+        let list: Vec<_> = list.into_iter().filter(|s| !s.url.is_empty()).collect();
+        if list.is_empty() {
+            return;
+        }
+        let s = &list[rand::random_range(0..list.len())];
+        row.inv.music_title = s.title.clone();
+        row.inv.music_artist = s.artist.clone();
+        row.inv.music_url = s.url.clone();
     }
 
     /// Isi animasi bawaan ke tabel `animations` bila belum ada (sekali saat

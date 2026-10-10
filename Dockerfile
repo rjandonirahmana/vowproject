@@ -5,7 +5,8 @@
 #   Stage 1 (builder): rust:1.95-alpine (musl, STATIS)
 #     a. cargo-leptos DIPIN — layer sendiri, rerun hanya saat toolchain berubah
 #     b. pre-compile dependency dengan dummy src — cache s/d Cargo.toml/lock berubah
-#     c. cargo leptos build --release --precompress → WASM + SSR + .br/.gz sekali jalan
+#     c. cargo leptos build --release --precompress --split → WASM (dipecah per
+#        rute: admin/kelola/sunting/buat terpisah, fitur `split`) + SSR + .br/.gz
 #   Stage 2 (runtime): debian:bookworm-slim, NON-ROOT
 #
 # Pola sama dengan e-ticketing & ppm. TIDAK ADA TEST DI SINI — disengaja: test
@@ -112,7 +113,7 @@ RUN touch src/main.rs src/lib.rs
 # 404 diam-diam yang membuat semua tombol mati (pernah menimpa e-ticketing).
 RUN --mount=type=cache,id=undangan-cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=undangan-target,target=/app/target \
-    cargo leptos build --release --precompress \
+    cargo leptos build --release --precompress --split --lib-features hydrate,split \
     && cp /app/target/release/undangan /app/undangan-bin \
     && cp -r /app/target/site /app/site-out \
     && cd /app/site-out/pkg \

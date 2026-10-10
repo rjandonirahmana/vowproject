@@ -82,16 +82,6 @@ mod srv {
         Ok(ok)
     }
 
-    /// Undangan DEMO boleh ditampilkan dengan tema pilihan pengunjung
-    /// (`?tema=`); undangan asli selalu memakai temanya sendiri.
-    pub fn apply_demo_theme(st: &AppState, row: &mut InvRow, tema: Option<&str>) {
-        if row.inv.is_demo {
-            if let Some(t) = tema.map(str::trim).filter(|t| st.themes().get(t).is_some()) {
-                row.inv.theme = t.to_string();
-            }
-        }
-    }
-
     /// Admin yang sedang masuk (header request ini), tanpa cek peran.
     pub async fn current_admin(st: &AppState) -> Result<Option<crate::web::model::AdminUser>, ServerFnError> {
         let headers: axum::http::HeaderMap = leptos_axum::extract().await?;
@@ -138,7 +128,8 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
     use srv::*;
     let st = state()?;
     let mut row = load(&slug).await?;
-    apply_demo_theme(&st, &mut row, tema.as_deref());
+    st.demo_tema(&mut row, tema.as_deref());
+    st.demo_lagu(&mut row).await;
     let preview = row.inv.is_locked();
     if preview {
         let k = owner_key(&slug, k.as_deref().unwrap_or("")).await?;
@@ -550,7 +541,7 @@ pub async fn get_dashboard(slug: String, key: String, tema: Option<String>) -> R
     // Dibuka admin (tanpa kunci pemilik): kunci rahasia pembeli tak pernah
     // dikirim — manage_key kosong = "mode admin" di halaman Kelola.
     let key = if is_owner(&key, &row) { key } else { String::new() };
-    apply_demo_theme(&st, &mut row, tema.as_deref());
+    st.demo_tema(&mut row, tema.as_deref());
     // Empat query independen → jalan paralel.
     let (stats, guests, activity, minutes_left) = tokio::try_join!(
         repo::stats(&st.pool, row.id),

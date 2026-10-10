@@ -624,14 +624,11 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
 async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, nonce: &str) -> anyhow::Result<Option<String>> {
     let Some(mut row) = repo::invitation(&st.pool, slug).await? else { return Ok(None) };
     let q: HashMap<String, String> = url_query(query);
-    // Demo "Coba Demo" dengan tema pilihan (sama seperti get_invitation).
-    if row.inv.is_demo {
-        if let Some(t) = q.get("tema").map(|t| t.trim()).filter(|t| st.themes().get(t).is_some()) {
-            row.inv.theme = t.to_string();
-        }
-    }
+    // Demo "Coba Demo": tema pilihan & lagu acak (sama seperti get_invitation).
+    st.demo_tema(&mut row, q.get("tema").map(String::as_str));
     let cat = st.themes();
     let Some(theme) = cat.get(&row.inv.theme).filter(|t| !t.template.is_empty()) else { return Ok(None) };
+    st.demo_lagu(&mut row).await;
     let set = st.templat();
     let Some(t) = set.get(&theme.template) else { return Ok(None) };
     // Belum dibayar: hanya pemilik (cookie Kelola) — selain itu Leptos

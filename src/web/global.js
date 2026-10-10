@@ -747,63 +747,87 @@
     // tombol ditekan pada ms ke-0 saat iframe masih tak terlihat, jadi yang
     // tampil langsung isi undangan tanpa animasi buka. Cadangan 1,2 dtk.
     try{ parent.postMessage({pv:'ready'}, location.origin); }catch(_){}
-    var pvRun=function(){
+    var pvRun=function(beku){
       if(pvRun.done) return; pvRun.done=true;
       var o=d.querySelector('.gate [data-open]') || d.querySelector('[data-open]');
       if(o && !d.documentElement.classList.contains('inv-opened')) o.click();
       if(calm) return;
-      // Gulir setelah gerbang selesai terbuka (gerak buka utuh terlihat);
-      // ±90 px/dtk ke bawah; di dasar jeda, kembali ke atas, ulangi.
+      // Mode BEKU (laptop etalase): gerak buka diputar, lalu semua animasi &
+      // video dijeda dan tanpa gulir — halaman desktop 1280 px yang terus
+      // beranimasi di thread induk menurunkan beranda ke 30 fps (diukur).
+      if(beku){
+        setTimeout(function(){
+          d.getAnimations().forEach(function(a){ try{ a.pause(); }catch(_){} });
+          d.querySelectorAll('video').forEach(function(v){ try{ v.pause(); }catch(_){} });
+        }, (o ? gateReveal(d.querySelector('.gate:not(.gate--embed)')) : 0)+1400);
+        return;
+      }
+      // Gulir setelah gerbang selesai terbuka (gerak buka utuh terlihat):
+      // per SEGMEN (±55% layar tiap 2,4 dtk) dengan gulir halus bawaan
+      // browser — dikerjakan compositor, thread utama senggang di antaranya.
+      // Dulu scrollTo tiap frame lewat rAF: pratinjau (berbagi thread dengan
+      // beranda) membuat seluruh beranda turun ke ±30 fps selama diputar.
+      // Di dasar: jeda, kembali ke atas, ulangi.
       var g=d.querySelector('.gate:not(.gate--embed)');
-      var y=0, last=0, wait=performance.now()+(o ? gateReveal(g)+1600 : 300);
-      (function run(t){
-        if(t<wait){ last=0; requestAnimationFrame(run); return; }
-        var max=d.documentElement.scrollHeight-innerHeight;
-        if(y<0){ y=0; window.scrollTo({top:0, behavior:'smooth'}); wait=t+1500; requestAnimationFrame(run); return; }
-        var dt=last ? Math.min(t-last, 50) : 16; last=t;
-        y=Math.min(Math.max(max,0), y+dt*0.09);
-        window.scrollTo({top:y, behavior:'instant'});
-        if(max>0 && y>=max){ y=-1; wait=t+1800; }
-        requestAnimationFrame(run);
-      })(performance.now());
+      var langkah=function(){
+        var max=d.documentElement.scrollHeight-innerHeight, y=window.scrollY;
+        if(max<=0) return;
+        if(y>=max-4){ setTimeout(function(){ window.scrollTo({top:0, behavior:'smooth'}); setTimeout(langkah, 2600); }, 1400); return; }
+        window.scrollTo({top:Math.min(max, y+innerHeight*0.55), behavior:'smooth'});
+        setTimeout(langkah, 2400);
+      };
+      setTimeout(langkah, o ? gateReveal(g)+1600 : 300);
     };
-    window.addEventListener('message', function(e){ if(e.origin===location.origin && e.data && e.data.pv==='show') pvRun(); });
+    window.addEventListener('message', function(e){ if(e.origin===location.origin && e.data && e.data.pv==='show') pvRun(!!e.data.beku); });
     setTimeout(pvRun, 1200);
   } else if(!(navigator.connection && navigator.connection.saveData)){
-    var pvCur=null, pvTimer=0, PW=390;
-    var pvStop=function(){
-      clearTimeout(pvTimer);
-      if(!pvCur) return;
-      var f=pvCur.querySelector('iframe'); if(f){ try{ f.src='about:blank'; }catch(_){} f.remove(); }
-      if(pvCur.parentNode) pvCur.parentNode.classList.remove('is-pv');
-      pvCur._pvu=''; pvCur=null;
+    // Mesin pratinjau: satu mesin = paling banyak SATU iframe hidup. Kartu
+    // katalog & HP etalase berbagi satu mesin; laptop etalase punya mesin
+    // sendiri. Lebar viewport iframe dari `data-pv-lebar` wadah (HP 390,
+    // laptop 1280 = tata letak desktop), diskalakan ke ukuran wadahnya.
+    var pvMesinSemua=[];
+    var pvMesin=function(){
+      var cur=null;
+      var stop=function(){
+        if(!cur) return;
+        var f=cur.querySelector('iframe'); if(f){ try{ f.src='about:blank'; }catch(_){} f.remove(); }
+        if(cur.parentNode) cur.parentNode.classList.remove('is-pv');
+        cur._pvu=''; cur=null;
+      };
+      // Munculkan iframe lalu minta ia mulai membuka undangan.
+      var show=function(art, f){
+        if(art.classList.contains('is-pv')) return;
+        art.classList.add('is-pv');
+        var beku=!!(cur && cur.hasAttribute('data-pv-beku'));
+        setTimeout(function(){ try{ f.contentWindow.postMessage({pv:'show', beku:beku}, location.origin); }catch(_){} }, 220);
+      };
+      // Wadah yang sama boleh berganti URL (layar etalase berganti tema).
+      var start=function(h){
+        var u=h.getAttribute('data-pv');
+        if(!u || (cur===h && h.isConnected && h._pvu===u)) return;
+        stop(); cur=h; h._pvu=u;
+        var art=h.parentNode, r=art.getBoundingClientRect(), PW=+h.getAttribute('data-pv-lebar') || 390, s=r.width/PW;
+        if(!s) return;
+        var f=d.createElement('iframe');
+        f.title='Pratinjau tema'; f.tabIndex=-1; f.setAttribute('aria-hidden','true');
+        f.style.width=PW+'px'; f.style.height=Math.ceil(r.height/s)+'px'; f.style.transform='scale('+s+')';
+        f.onload=function(){ if(cur===h) show(art, f); };
+        f.src=u;
+        h.appendChild(f);
+      };
+      var m={start:start, stop:stop, cur:function(){ return cur; },
+        // Iframe memberi tahu begitu HTML-nya terurai (lebih cepat dari onload).
+        siap:function(src){ if(!cur) return; var f=cur.querySelector('iframe'); if(f && src===f.contentWindow) show(cur.parentNode, f); }};
+      pvMesinSemua.push(m);
+      return m;
     };
-    // Munculkan iframe (pudar 0,2 dtk) lalu minta ia mulai membuka undangan.
-    var pvShow=function(art, f){
-      if(art.classList.contains('is-pv')) return;
-      art.classList.add('is-pv');
-      setTimeout(function(){ try{ f.contentWindow.postMessage({pv:'show'}, location.origin); }catch(_){} }, 220);
-    };
-    // Wadah yang sama boleh berganti URL (layar HP etalase berganti tema).
-    var pvStart=function(h){
-      var u=h.getAttribute('data-pv');
-      if(!u || (pvCur===h && h.isConnected && h._pvu===u)) return;
-      pvStop(); pvCur=h; h._pvu=u;
-      var art=h.parentNode, r=art.getBoundingClientRect(), s=r.width/PW;
-      if(!s) return;
-      var f=d.createElement('iframe');
-      f.title='Pratinjau tema'; f.tabIndex=-1; f.setAttribute('aria-hidden','true');
-      f.style.width=PW+'px'; f.style.height=Math.ceil(r.height/s)+'px'; f.style.transform='scale('+s+')';
-      f.onload=function(){ if(pvCur===h) pvShow(art, f); };
-      f.src=u;
-      h.appendChild(f);
-    };
-    onDom(function(){ if(pvCur && !pvCur.isConnected) pvStop(); });
-    // Iframe memberi tahu begitu HTML-nya terurai (lebih cepat dari onload).
+    onDom(function(){ pvMesinSemua.forEach(function(m){ var c=m.cur(); if(c && !c.isConnected) m.stop(); }); });
     window.addEventListener('message', function(e){
-      if(e.origin!==location.origin || !e.data || e.data.pv!=='ready' || !pvCur) return;
-      var f=pvCur.querySelector('iframe'); if(f && e.source===f.contentWindow) pvShow(pvCur.parentNode, f);
+      if(e.origin!==location.origin || !e.data || e.data.pv!=='ready') return;
+      pvMesinSemua.forEach(function(m){ m.siap(e.source); });
     });
+    var kartu=pvMesin(), pvTimer=0;
+    var pvStart=kartu.start, pvStop=kartu.stop;
     // Prefetch HTML pratinjau kartu yang terlihat (di-cache browser 10 mnt,
     // security::is_demo_preview) → saat disentuh/di-hover iframe tampil seketika.
     // Maks 2 unduhan bersamaan; tiap URL sekali saja.
@@ -831,13 +855,13 @@
     if(matchMedia('(hover: hover) and (pointer: fine)').matches){
       d.addEventListener('mouseover', function(e){
         var art=e.target.closest && e.target.closest('.tcard__art'); if(!art) return;
-        var h=art.querySelector('[data-pv]'); if(!h || h===pvCur) return;
+        var h=art.querySelector('[data-pv]'); if(!h || h===kartu.cur()) return;
         pvStart(h);
       });
       d.addEventListener('mouseout', function(e){
         var art=e.target.closest && e.target.closest('.tcard__art'); if(!art) return;
         if(e.relatedTarget && art.contains(e.relatedTarget)) return;
-        if(pvCur && art.contains(pvCur)){ pvStop(); if(etaResume) etaResume(); }
+        var c=kartu.cur(); if(c && art.contains(c)){ pvStop(); if(etaResume) etaResume(); }
       });
     } else {
       var pvPick=function(){
@@ -855,7 +879,7 @@
         var h=art.querySelector('[data-pv]'); if(h) pvStart(h);
       }, {passive:true});
     }
-    pvApi={start:pvStart, stop:pvStop, cur:function(){ return pvCur; }};
+    pvApi={start:pvStart, stop:pvStop, cur:kartu.cur, mesin:pvMesin};
   }
   // ── Etalase HP beranda ──────────────────────────────────────────────────
   // Tema berjajar (coverflow 3D); yang berhenti di tengah = "di dalam HP":
@@ -872,19 +896,31 @@
   var etaInit=function(){
     d.querySelectorAll('[data-etalase]').forEach(function(tr){
       if(tr._eta) return; tr._eta=1;
-      var sec=tr.closest('.etalase'), hp=sec.querySelector('.etalase__pv'), info=sec.querySelector('[data-etalase-info]');
+      var sec=tr.closest('.etalase'), hp=sec.querySelector('.etalase__pv'), layar=hp.parentNode, info=sec.querySelector('[data-etalase-info]');
+      var hitung=sec.querySelector('[data-etalase-hitung]'), progres=sec.querySelector('[data-etalase-progres]');
+      // Laptop: tema yang sama di tata letak desktop, mesin pratinjau sendiri.
+      var lp=sec.querySelector('.etalase__lpv'), lpLayar=lp && lp.parentNode, lpM=lp && pvApi && pvApi.mesin ? pvApi.mesin() : null, lpView=false, lpT=0;
       var items=[].slice.call(tr.querySelectorAll('.etalase__item')); if(!items.length) return;
-      var act=-1, near=-1, raf=0, idleT=0, startT=0, userT=0, inView=false, seen=new Set();
+      var act=-1, near=-1, raf=0, idleT=0, startT=0, autoT=0, userT=0, inView=false, seen=new Set();
+      var dua=function(n){ return (n<10 ? '0' : '')+n; };
       // Didukung scroll-driven animation → transform/opacity diurus CSS
       // (compositor); JS hanya mencari kartu tengah & z-index.
       var sda=window.CSS && CSS.supports && CSS.supports('animation-timeline: view()');
-      var pos=[], iw=1, last=[];
-      var measure=function(){ iw=items[0].offsetWidth || 1; pos=items.map(function(it){ return it.offsetLeft+it.offsetWidth/2; }); };
+      // sp = jarak antar pusat kartu = --sp di CSS (rumus JS & CSS identik).
+      var pos=[], sp=1, last=[];
+      var measure=function(){ pos=items.map(function(it){ return it.offsetLeft+it.offsetWidth/2; }); sp=(pos[1]-pos[0]) || items[0].offsetWidth || 1; };
+      // Rumus coverflow untuk jarak dd (satuan kartu) dari tengah — sama dengan
+      // keyframes etalase-alir (linear, dijepit ±3). `geserPx` = pergeseran
+      // tambahan (luncuran tombol).
+      var bentuk=function(dd, geserPx){
+        var k=Math.min(Math.abs(dd), 3), sg=dd<0 ? -1 : 1;
+        return {t:'translateX('+(geserPx||0).toFixed(1)+'px) perspective(1100px) translateX('+(-sg*k*24).toFixed(2)+'%) rotateY('+(-sg*k*26).toFixed(2)+'deg) scale('+(1-k*0.13).toFixed(3)+')', o:(1-k*0.2).toFixed(3)};
+      };
       var lay=function(){
         raf=0; if(!pos.length) measure();
         var c=tr.scrollLeft+tr.clientWidth/2, best=0, bd=1e9;
         for(var i=0; i<items.length; i++){
-          var dd=(pos[i]-c)/iw, a=Math.abs(dd);
+          var dd=(pos[i]-c)/sp, a=Math.abs(dd);
           if(a<bd){ bd=a; best=i; }
           // Kartu jauh disembunyikan → tak memegang lapis GPU (will-change).
           var key=a>4.5 ? 'x' : sda ? 'v' : dd.toFixed(3);
@@ -892,10 +928,8 @@
           var st=items[i].style;
           if(key==='x'){ st.visibility='hidden'; continue; }
           if(sda){ st.visibility=''; continue; }
-          var k=Math.min(a, 3), sg=dd<0 ? -1 : 1;
-          st.visibility='';
-          st.opacity=(1-k*0.2).toFixed(3);
-          st.transform='perspective(1100px) translateX('+(-sg*Math.min(a, 3)*24).toFixed(2)+'%) rotateY('+(-sg*k*26).toFixed(2)+'deg) scale('+(1-k*0.13).toFixed(3)+')';
+          var b0=bentuk(dd, 0);
+          st.visibility=''; st.opacity=b0.o; st.transform=b0.t;
         }
         if(best!==near){ near=best; items.forEach(function(it, i){ it.style.zIndex=String(40-Math.abs(i-best)); }); }
         return best;
@@ -910,13 +944,25 @@
         var bt=el('div', 'etalase__btns'), a1=el('a', 'btn btn--soft btn--sm', 'Lihat Demo'), a2=el('a', 'btn btn--primary btn--sm', 'Pilih Tema');
         a1.href=it.getAttribute('href'); a2.href='/buat?tema='+encodeURIComponent(slug);
         bt.appendChild(a1); bt.appendChild(a2); info.appendChild(bt);
+        if(hitung) hitung.textContent=dua(i+1)+' / '+dua(items.length);
         hp.setAttribute('data-pv', it.getAttribute('data-pv'));
+        if(lp) lp.setAttribute('data-pv', it.getAttribute('data-pv'));
       };
       // Pratinjau dimuat saat thread senggang (setelah geseran selesai).
+      // Laptop menyusul ±0,9 dtk setelah HP (dua halaman tak dimuat
+      // bersamaan di thread yang sama), hanya bila laptop terlihat.
+      var mulaiLaptop=function(){
+        clearTimeout(lpT);
+        if(!lpM || !lpView) return;
+        lpT=setTimeout(function(){
+          var run=function(){ if(lpView && lp.isConnected && act>=0) lpM.start(lp); };
+          if(window.requestIdleCallback) requestIdleCallback(run, {timeout:900}); else run();
+        }, 900);
+      };
       var mulai=function(){
         clearTimeout(startT);
         startT=setTimeout(function(){
-          var run=function(){ if(pvApi && inView && hp.isConnected && act>=0) pvApi.start(hp); };
+          var run=function(){ if(pvApi && inView && hp.isConnected && act>=0) pvApi.start(hp); mulaiLaptop(); };
           if(window.requestIdleCallback) requestIdleCallback(run, {timeout:700}); else run();
           // Tema berikutnya diunduh duluan (cache 10 mnt) → tampil seketika.
           var nx=items[(act+1)%items.length].getAttribute('data-pv');
@@ -925,40 +971,187 @@
       };
       // Bergeser / keluar layar → pratinjau dibongkar (diukur: lebih mulus
       // daripada menjedanya — menjeda ratusan animasi iframe justru mahal).
-      var henti=function(){ clearTimeout(startT); if(pvApi && pvApi.cur()===hp) pvApi.stop(); };
-      var settle=function(){ var b2=lay(); if(b2!==act){ act=b2; tampil(b2); } mulai(); };
+      var hidup=function(){ return !!(pvApi && pvApi.cur()===hp) || !!(lpM && lpM.cur()); };
+      // Iframe pratinjau SAMA-ASAL tetap merender & menjalankan animasi/rAF
+      // walau display:none (Chrome hanya menghentikan iframe beda-asal) —
+      // diukur: dua pratinjau tersembunyi tetap membuat beranda 30 fps. Maka
+      // saat bergeser: disembunyikan seketika (murah), luncuran (transisi
+      // compositor) dikirim dulu, lalu DIBONGKAR sesudah frame itu — kerja
+      // thread utama tak mengganggu transisi compositor yang sudah berjalan
+      // (dulu dibongkar duluan: WebKit menahan frame pertama 77–137 ms).
+      // Yang dibongkar hanya iframe yang masih tersembunyi (bukan pratinjau baru).
+      var buang=function(){
+        [[pvApi, hp], [lpM, lp]].forEach(function(x){
+          var m=x[0], h=x[1]; if(!m || !h || m.cur()!==h) return;
+          var f=h.querySelector('iframe'); if(f && f.style.display==='none') m.stop();
+        });
+      };
+      // Di tugas klik hanya kelas `is-pv` dicabut (layar memudar lewat transisi
+      // opacity compositor) — luncuran langsung dikirim. Frame berikutnya
+      // iframe disembunyikan lalu dibongkar.
+      var henti=function(){
+        clearTimeout(startT); clearTimeout(lpT);
+        if(!hidup()) return;
+        layar.classList.remove('is-pv'); if(lpLayar) lpLayar.classList.remove('is-pv');
+        requestAnimationFrame(function(){
+          [hp, lp].forEach(function(h){ var f=h && h.querySelector('iframe'); if(f && !h.parentNode.classList.contains('is-pv')) f.style.display='none'; });
+          setTimeout(buang, 0);
+        });
+      };
+      // Putar otomatis: satu siklus 7 dtk per tema, garis progres (scaleX,
+      // compositor) diputar ulang bersamaan; ditunda selama disentuh/ditunjuk.
+      var jadwal=function(){
+        clearTimeout(autoT);
+        if(progres){ progres.classList.remove('is-jalan'); void progres.offsetWidth; if(!calm && inView) progres.classList.add('is-jalan'); }
+        if(calm || !inView) return;
+        autoT=setTimeout(function(){
+          if(!tr.isConnected) return;
+          if(d.hidden || Date.now()-userT<12000 || sec.matches(':hover')) return jadwal();
+          go(act+1);
+        }, 7000);
+      };
+      // Gulir berhenti: belum pas di tengah (selesai swipe / seret / momentum)
+      // → meluncur ke kartu terdekat (snap sendiri); sudah pas → kartu aktif.
+      var settle=function(){
+        var b2=lay();
+        if(!luncurT && Math.abs(pos[b2]-(tr.scrollLeft+tr.clientWidth/2))>1){ tujuan=b2; geser(b2); return; }
+        if(b2!==act){ act=b2; tampil(b2); } mulai(); jadwal();
+      };
+      // Pindah tema lewat TOMBOL / klik samping / otomatis: TANPA menggulir.
+      // Tiap kartu yang terlihat diberi transisi CSS transform+opacity dari
+      // bentuknya sekarang ke bentuk di posisi tujuan (+ pergeseran px) —
+      // dijalankan compositor (Core Animation di Safari), nol JS per frame,
+      // nol event scroll. Selesai → scrollLeft diset ke tujuan & gaya inline
+      // dilepas di tugas yang sama (coverflow scroll-driven / lay() menghasilkan
+      // bentuk yang identik → tak terlihat). Diukur: menggulir tiap frame lewat
+      // JS tersendat di WebKit bahkan tanpa pratinjau; scrollTo smooth bawaan
+      // terlalu cepat (130–230 ms). Seret jari/mouse tetap memakai gulir asli.
+      var tujuan=-1, luncurT=0, antre=-1;
+      var hentiLuncur=function(){
+        if(!luncurT) return;
+        clearTimeout(luncurT); luncurT=0; antre=-1; selesai();
+      };
+      var akhir=null;
+      var selesai=function(){
+        if(!akhir) return; var f=akhir; akhir=null; f();
+      };
+      var geser=function(i){
+        if(!pos.length) measure();
+        var c0=tr.scrollLeft+tr.clientWidth/2, c1=pos[i], jarak=c1-c0;
+        if(calm || Math.abs(jarak)<1){ tr.scrollTo({left:c1-tr.clientWidth/2, behavior:'instant'}); return; }
+        // Jarak satu kartu = 520 ms; snap pendek (setelah swipe) lebih singkat.
+        var lama=Math.round(260+260*Math.min(1, Math.abs(jarak)/sp)), ikut=[];
+        items.forEach(function(it, k){
+          var d0=(pos[k]-c0)/sp, d1=(pos[k]-c1)/sp;
+          if(Math.min(Math.abs(d0), Math.abs(d1))>4.5) return;
+          ikut.push([it, bentuk(d0, 0), bentuk(d1, -jarak), d1]);
+        });
+        // Web Animations: bentuk awal & akhir diberikan langsung (tanpa reflow
+        // paksa), dijalankan compositor, dan otomatis MENIMPA coverflow CSS
+        // scroll-driven (animasi skrip di atas animasi CSS) — tak ada kelas
+        // yang mematikan/menyalakan ulang animasi 24 kartu (mahal di WebKit).
+        // z-index hanya kartu yang ikut & berubah.
+        ikut.forEach(function(x){
+          var it=x[0], z=String(40-Math.abs(items.indexOf(it)-i));
+          it.style.visibility='';
+          if(it.style.zIndex!==z) it.style.zIndex=z;
+          x.anim=it.animate([{transform:x[1].t, opacity:x[1].o}, {transform:x[2].t, opacity:x[2].o}],
+            {duration:lama, easing:'cubic-bezier(0.22, 0.8, 0.24, 1)', fill:'forwards'});
+        });
+        near=i;
+        // Serah terima: (1) animasi "tahan" di bentuk akhir TANPA pergeseran +
+        // scrollLeft tujuan di tugas yang sama (identik di layar); (2) dua frame
+        // kemudian animasi tahan dilepas — coverflow scroll-driven / lay() sudah
+        // memakai posisi gulir baru (WebKit terlambat satu frame → dulu loncat).
+        akhir=function(){
+          ikut.forEach(function(x){
+            var b1=bentuk(x[3], 0);
+            x.tahan=x[0].animate([{transform:b1.t, opacity:b1.o}, {transform:b1.t, opacity:b1.o}], {duration:1, fill:'forwards'});
+            if(x.anim) x.anim.cancel();
+          });
+          tr.scrollLeft=c1-tr.clientWidth/2;
+          last=[]; lay();
+          requestAnimationFrame(function(){ requestAnimationFrame(function(){
+            ikut.forEach(function(x){ if(x.tahan) x.tahan.cancel(); });
+            if(!luncurT) settle(); // luncuran baru sudah dimulai → ia yang mengurus
+          }); });
+        };
+        luncurT=setTimeout(function(){
+          luncurT=0; selesai();
+          if(antre>=0){ var n=antre; antre=-1; geser(n); }
+        }, lama+40);
+      };
       var go=function(i){
-        i=(i+items.length)%items.length; henti(); if(!pos.length) measure();
-        tr.scrollTo({left:pos[i]-tr.clientWidth/2, behavior:calm ? 'instant' : 'smooth'});
+        tujuan=(i+items.length)%items.length;
+        henti();
+        // Klik saat masih meluncur → diantrikan (berlanjut dari tujuan itu).
+        if(luncurT){ antre=tujuan; return; }
+        geser(tujuan);
       };
       tr.addEventListener('scroll', function(){
         if(!raf) raf=requestAnimationFrame(lay);
         clearTimeout(idleT); idleT=setTimeout(settle, 140);
       }, {passive:true});
-      ['pointerdown', 'wheel', 'touchstart'].forEach(function(t){ tr.addEventListener(t, function(){ userT=Date.now(); henti(); }, {passive:true}); });
+      // Disentuh / diseret → pratinjau disembunyikan seketika & dibongkar sesudahnya.
+      ['pointerdown', 'wheel', 'touchstart'].forEach(function(t){ tr.addEventListener(t, function(){ userT=Date.now(); hentiLuncur(); henti(); }, {passive:true}); });
+      // Desktop: seret dengan mouse seperti di HP. Selama diseret snap
+      // dimatikan; dilepas → meluncur ke kartu terdekat searah seretan.
+      var seret=null;
+      tr.addEventListener('pointerdown', function(e){
+        if(e.pointerType!=='mouse' || e.button!==0) return;
+        seret={x:e.clientX, s:tr.scrollLeft, gerak:false, id:e.pointerId};
+      });
+      tr.addEventListener('pointermove', function(e){
+        if(!seret || e.pointerId!==seret.id) return;
+        var dx=e.clientX-seret.x;
+        if(!seret.gerak && Math.abs(dx)>5){ seret.gerak=true; tr.setPointerCapture(e.pointerId); tr.classList.add('is-seret'); }
+        if(seret.gerak) tr.scrollLeft=seret.s-dx;
+      });
+      var lepasSeret=function(e){
+        if(!seret || e.pointerId!==seret.id) return;
+        var s0=seret; seret=null;
+        if(!s0.gerak) return;
+        tr.classList.remove('is-seret'); tr._abaikanKlik=true;
+        var b=lay(), arah=tr.scrollLeft>s0.s ? 1 : -1;
+        // Seretan pendek tetap pindah satu tema searah seretan.
+        go(b===act ? act+arah : b);
+      };
+      tr.addEventListener('pointerup', lepasSeret);
+      tr.addEventListener('pointercancel', lepasSeret);
       // Klik tema samping → bawa ke tengah (bukan membuka demo).
       tr.addEventListener('click', function(e){
+        if(tr._abaikanKlik){ tr._abaikanKlik=false; e.preventDefault(); return; }
         var it=e.target.closest && e.target.closest('.etalase__item'); if(!it) return;
         var i=items.indexOf(it); if(i!==act){ e.preventDefault(); userT=Date.now(); go(i); }
       });
+      tr.addEventListener('dragstart', function(e){ e.preventDefault(); });
       sec.querySelectorAll('[data-etalase-nav]').forEach(function(b){
-        b.addEventListener('click', function(){ userT=Date.now(); go(act+(+b.getAttribute('data-etalase-nav'))); });
+        // Klik beruntun sebelum geseran selesai → maju dari tujuan terakhir.
+        b.addEventListener('click', function(){ userT=Date.now(); go((tujuan>=0 && tujuan!==act ? tujuan : act)+(+b.getAttribute('data-etalase-nav'))); });
       });
       if('IntersectionObserver' in window){
         track(new IntersectionObserver(function(es){
           inView=es[0].isIntersecting;
-          if(inView) settle(); else henti();
+          if(inView) settle(); else { henti(); clearTimeout(autoT); if(progres) progres.classList.remove('is-jalan'); }
         }, {threshold:0.45}), sec);
+        if(lp) track(new IntersectionObserver(function(es){
+          lpView=es[0].isIntersecting;
+          if(lpView){ if(act>=0 && !(lpM && lpM.cur())) mulaiLaptop(); }
+          else { clearTimeout(lpT); if(lpM) lpM.stop(); }
+        }, {threshold:0.3}), lp.closest('.etalase__laptop'));
       } else { inView=true; settle(); }
       etaResume=function(){ if(inView && hp.isConnected) mulai(); };
       // Ukuran berubah (putar layar / jendela) → ukur ulang posisi kartu.
-      var onRs=function(){ if(!tr.isConnected){ removeEventListener('resize', onRs); return; } pos=[]; last=[]; lay(); };
-      addEventListener('resize', onRs, {passive:true});
-      var auto=setInterval(function(){
-        if(!tr.isConnected){ clearInterval(auto); clearTimeout(startT); clearTimeout(idleT); removeEventListener('resize', onRs); return; }
-        if(calm || !inView || d.hidden || Date.now()-userT<12000 || sec.matches(':hover')) return;
-        go(act+1);
-      }, 7000);
+      // ResizeObserver pada track (bukan listener window) — ikut terbuang
+      // bersama elemennya saat pindah halaman; timer di atas berhenti sendiri
+      // (cek tr.isConnected), jadi tak ada yang menahan etalase lama.
+      if(window.ResizeObserver){
+        var lebar=0;
+        new ResizeObserver(function(es){
+          var w=Math.round(es[0].contentRect.width); if(w===lebar) return; lebar=w;
+          if(pos.length){ pos=[]; last=[]; lay(); }
+        }).observe(tr);
+      }
       // Posisi kartu baru diukur saat etalase pertama terlihat (callback IO,
       // setelah layout selesai) — mengukur di sini memaksa layout seluruh
       // beranda yang belum selesai dimuat.

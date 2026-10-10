@@ -679,28 +679,42 @@
     html.classList.add("t-pv");
     // Sama dengan global.js: buka DENGAN gerak setelah kartu induk memunculkan
     // iframe ('show'); dulu open(true) = instan, gerak buka tak pernah tampil.
+    // `beku` (laptop etalase beranda): gerak buka diputar lalu semua animasi
+    // & video dijeda, tanpa gulir — iframe sama-asal berbagi thread dengan
+    // beranda (sama dengan global.js pvRun).
     let shown = false;
-    const show = () => {
+    const show = (beku) => {
       if (shown) return;
       shown = true;
       const btn = gate && gate.querySelector("[data-open]");
       if (btn) burst(btn);
       open(false);
-      setTimeout(() => requestAnimationFrame(step), +(data.gate_ms || 900) + 1600);
+      const ms = +(data.gate_ms || 900) + 1600;
+      if (beku) {
+        setTimeout(() => {
+          d.getAnimations().forEach((a) => { try { a.pause(); } catch (_) {} });
+          q("video").forEach((v) => { try { v.pause(); } catch (_) {} });
+        }, ms - 200);
+        return;
+      }
+      setTimeout(step, ms);
     };
     addEventListener("message", (e) => {
-      if (e.origin === location.origin && e.data && e.data.pv === "show") show();
+      if (e.origin === location.origin && e.data && e.data.pv === "show") show(!!e.data.beku);
     });
-    setTimeout(show, 1200);
-    let last = 0;
-    const step = (t) => {
-      if (last) {
-        const max = d.documentElement.scrollHeight - innerHeight;
-        const y = scrollY + ((t - last) / 1000) * 90;
-        scrollTo(0, y >= max ? 0 : y);
+    setTimeout(() => show(false), 1200);
+    // Gulir per SEGMEN (±55% layar tiap 2,4 dtk) dengan gulir halus bawaan
+    // (compositor) — dulu scrollTo tiap frame lewat rAF membebani thread
+    // beranda selama pratinjau diputar. Di dasar: jeda, kembali ke atas.
+    const step = () => {
+      const max = d.documentElement.scrollHeight - innerHeight;
+      if (max <= 0) return;
+      if (scrollY >= max - 4) {
+        setTimeout(() => { scrollTo({ top: 0, behavior: "smooth" }); setTimeout(step, 2600); }, 1400);
+        return;
       }
-      last = t;
-      requestAnimationFrame(step);
+      scrollTo({ top: Math.min(max, scrollY + innerHeight * 0.55), behavior: "smooth" });
+      setTimeout(step, 2400);
     };
     try {
       parent.postMessage({ pv: "ready" }, location.origin);
