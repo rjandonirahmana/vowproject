@@ -923,10 +923,16 @@
           var dd=(pos[i]-c)/sp, a=Math.abs(dd);
           if(a<bd){ bd=a; best=i; }
           // Kartu jauh disembunyikan → tak memegang lapis GPU (will-change).
-          var key=a>4.5 ? 'x' : sda ? 'v' : dd.toFixed(3);
+          // Ambang 6 (bukan 4,5): kartu |d| 4,5–6 sudah di luar track, jadi saat
+          // swipe cepat di Safari — event scroll tertinggal beberapa frame dari
+          // gulir compositor — kartu yang masuk sudah berbentuk & tampak.
+          var key=a>6 ? 'x' : sda ? 'v' : dd.toFixed(3);
           if(last[i]===key) continue; last[i]=key;
           var st=items[i].style;
-          if(key==='x'){ st.visibility='hidden'; continue; }
+          // Hanya kartu dekat (is-dekat) yang memegang animasi scroll-driven &
+          // will-change — 95 animasi yang ikut dihitung tiap frame berat di WebKit.
+          if(key==='x'){ st.visibility='hidden'; items[i].classList.remove('is-dekat'); continue; }
+          items[i].classList.add('is-dekat');
           if(sda){ st.visibility=''; continue; }
           var b0=bentuk(dd, 0);
           st.visibility=''; st.opacity=b0.o; st.transform=b0.t;
@@ -1026,10 +1032,16 @@
       // bentuk yang identik → tak terlihat). Diukur: menggulir tiap frame lewat
       // JS tersendat di WebKit bahkan tanpa pratinjau; scrollTo smooth bawaan
       // terlalu cepat (130–230 ms). Seret jari/mouse tetap memakai gulir asli.
-      var tujuan=-1, luncurT=0, antre=-1;
-      var hentiLuncur=function(){
-        if(!luncurT) return;
-        clearTimeout(luncurT); luncurT=0; antre=-1; selesai();
+      var tujuan=-1, luncurT=0, antre=-1, luncurIkut=[], progSL=-1;
+      // Pengguna mulai menggulir sendiri di tengah luncuran → luncuran
+      // dibatalkan di tempat: animasi dilepas, coverflow kembali mengikuti
+      // posisi gulir asli. (Dulu diselesaikan paksa → scrollLeft diloncatkan
+      // ke tujuan, melawan jari/trackpad.)
+      var batalLuncur=function(){
+        if(!luncurT && !luncurIkut.length) return;
+        clearTimeout(luncurT); luncurT=0; antre=-1; akhir=null;
+        luncurIkut.forEach(function(x){ if(x.anim) x.anim.cancel(); if(x.tahan) x.tahan.cancel(); });
+        luncurIkut=[]; last=[]; near=-1; lay();
       };
       var akhir=null;
       var selesai=function(){
@@ -1038,14 +1050,15 @@
       var geser=function(i){
         if(!pos.length) measure();
         var c0=tr.scrollLeft+tr.clientWidth/2, c1=pos[i], jarak=c1-c0;
-        if(calm || Math.abs(jarak)<1){ tr.scrollTo({left:c1-tr.clientWidth/2, behavior:'instant'}); return; }
+        if(calm || Math.abs(jarak)<1){ progSL=Math.round(c1-tr.clientWidth/2); tr.scrollTo({left:c1-tr.clientWidth/2, behavior:'instant'}); return; }
         // Jarak satu kartu = 520 ms; snap pendek (setelah swipe) lebih singkat.
         var lama=Math.round(260+260*Math.min(1, Math.abs(jarak)/sp)), ikut=[];
         items.forEach(function(it, k){
           var d0=(pos[k]-c0)/sp, d1=(pos[k]-c1)/sp;
-          if(Math.min(Math.abs(d0), Math.abs(d1))>4.5) return;
+          if(Math.min(Math.abs(d0), Math.abs(d1))>6) return;
           ikut.push([it, bentuk(d0, 0), bentuk(d1, -jarak), d1]);
         });
+        luncurIkut=ikut;
         // Web Animations: bentuk awal & akhir diberikan langsung (tanpa reflow
         // paksa), dijalankan compositor, dan otomatis MENIMPA coverflow CSS
         // scroll-driven (animasi skrip di atas animasi CSS) — tak ada kelas
@@ -1069,10 +1082,11 @@
             x.tahan=x[0].animate([{transform:b1.t, opacity:b1.o}, {transform:b1.t, opacity:b1.o}], {duration:1, fill:'forwards'});
             if(x.anim) x.anim.cancel();
           });
-          tr.scrollLeft=c1-tr.clientWidth/2;
+          progSL=Math.round(c1-tr.clientWidth/2); tr.scrollLeft=c1-tr.clientWidth/2;
           last=[]; lay();
           requestAnimationFrame(function(){ requestAnimationFrame(function(){
             ikut.forEach(function(x){ if(x.tahan) x.tahan.cancel(); });
+            if(luncurIkut===ikut) luncurIkut=[];
             if(!luncurT) settle(); // luncuran baru sudah dimulai → ia yang mengurus
           }); });
         };
@@ -1088,12 +1102,20 @@
         if(luncurT){ antre=tujuan; return; }
         geser(tujuan);
       };
+      // Gulir oleh PENGGUNA (bukan scrollLeft yang diset luncuran) → luncuran
+      // dibatalkan & pratinjau dibongkar. Sengaja TIDAK di pointerdown /
+      // touchstart / wheel: menggulir HALAMAN naik-turun dengan jari atau
+      // kursor di atas deretan tema memicu event itu tanpa track bergeser —
+      // dulu pratinjau HP dibongkar dan tak pernah dimuat lagi (layar kosong),
+      // dan luncuran yang sedang berjalan diloncatkan.
       tr.addEventListener('scroll', function(){
+        var sl=Math.round(tr.scrollLeft);
+        if(progSL>=0 && Math.abs(sl-progSL)<=1) progSL=-1;
+        else { progSL=-1; if(!seret || seret.gerak){ userT=Date.now(); batalLuncur(); henti(); } }
         if(!raf) raf=requestAnimationFrame(lay);
         clearTimeout(idleT); idleT=setTimeout(settle, 140);
       }, {passive:true});
-      // Disentuh / diseret → pratinjau disembunyikan seketika & dibongkar sesudahnya.
-      ['pointerdown', 'wheel', 'touchstart'].forEach(function(t){ tr.addEventListener(t, function(){ userT=Date.now(); hentiLuncur(); henti(); }, {passive:true}); });
+      ['pointerdown', 'touchstart'].forEach(function(t){ tr.addEventListener(t, function(){ userT=Date.now(); }, {passive:true}); });
       // Desktop: seret dengan mouse seperti di HP. Selama diseret snap
       // dimatikan; dilepas → meluncur ke kartu terdekat searah seretan.
       var seret=null;

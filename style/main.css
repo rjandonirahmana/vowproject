@@ -10142,15 +10142,18 @@ html.sv-open, html.sv-open body { overflow: hidden; }
      * will-change: raster kartu dipakai ulang saat skalanya berubah (tanpa
      * raster ulang tiap frame); kartu jauh = visibility:hidden → tanpa lapis. */
     contain: layout paint;
-    will-change: transform;
     -webkit-tap-highlight-color: transparent;
+}
+/* Lapis GPU hanya untuk kartu dekat tengah (global.js memasang is-dekat). */
+.etalase__item.tcard__art.is-dekat {
+    will-change: transform;
 }
 /* Browser modern: coverflow dihitung COMPOSITOR dari posisi gulir (tanpa JS
  * per frame). --sp = jarak antar kartu; rentang ±3 kartu dari tengah,
  * linear (0% = 3 kartu di kanan, 50% = tengah, 100% = 3 kartu di kiri) —
  * rumusnya sama dengan jalur JS (global.js) untuk browser lama. */
 @supports (animation-timeline: view()) {
-    .etalase__item.tcard__art {
+    .etalase__item.tcard__art.is-dekat {
         animation: etalase-alir linear both;
         animation-timeline: view(inline);
         animation-range: cover calc(50% - var(--sp) * 3) cover calc(50% + var(--sp) * 3);

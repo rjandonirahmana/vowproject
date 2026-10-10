@@ -499,10 +499,13 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
                 <div class="etalase__track" data-etalase>
                     // SEMUA tema (dulu dibatasi 24). Kartu jauh dari tengah disembunyikan
                     // global.js (visibility:hidden → tak dilukis, tanpa lapis GPU).
-                    {themes.into_iter().map(|t| {
+                    // `is-dekat` dari server untuk kartu awal: coverflow sudah benar di
+                    // frame pertama (selanjutnya global.js yang memasang/mencabut).
+                    {themes.into_iter().enumerate().map(|(i, t)| {
                         let demo = format!("/u/{}?tema={}", crate::web::themes::DEMO_SLUG, t.slug);
+                        let dekat = if i < 6 { " is-dekat" } else { "" };
                         view! {
-                            <a class=format!("etalase__item tcard__art th-{}{}", t.slug, crate::web::rupa::classes(&t.rupa)) href=demo.clone()
+                            <a class=format!("etalase__item tcard__art th-{}{}{dekat}", t.slug, crate::web::rupa::classes(&t.rupa)) href=demo.clone()
                                 data-pv=format!("{demo}&pv=1") data-slug=t.slug.clone() data-name=t.name.clone() data-region=t.region.clone()
                                 aria-label=format!("Demo {}", t.name)>
                                 <div class="mini">
