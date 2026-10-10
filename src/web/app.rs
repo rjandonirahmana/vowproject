@@ -80,6 +80,11 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
 /// diunduh bila: (1) bagian bertanda ±800px dari layar, (2) disentuh/difokus,
 /// (3) halaman /story, atau (4) perangkat & koneksi kuat sedang menganggur.
 /// Tamu yang hanya membaca undangan di HP lemah tak pernah mengunduhnya.
+/// Kompilasi + hydrate WASM = satu frame panjang (±70 ms di HP menengah),
+/// jadi tak pernah di TENGAH GERAKAN: ditunda sampai animasi masuk sampul
+/// lewat (±2,5 dtk setelah load) dan gerbang selesai terbuka
+/// (`gate--selesai`), lalu saat thread senggang (maks. tunggu 6 dtk).
+/// Sentuhan pada bagian interaktif tetap memulainya seketika.
 /// Pengganti <HydrationScripts>: impor & hydrate() sama, hanya ditunda.
 #[cfg(feature = "ssr")]
 #[component]
@@ -87,12 +92,18 @@ fn LazyHydration(options: leptos::config::LeptosOptions, nonce: Option<leptos::n
     let pkg = format!("/{}/{}", options.site_pkg_dir, options.output_name);
     let js = format!(
         r#"(function(){{var d=document,on=false,io;
-function go(){{if(on)return;on=true;if(io)io.disconnect();import("{pkg}.js").then(function(m){{return m.default({{module_or_path:"{pkg}.wasm"}}).then(function(){{m.hydrate();}});}});}}
-if(/\/story\/?$/.test(location.pathname))return go();
+var ld=d.readyState==="complete"?Date.now()-3000:0;addEventListener("load",function(){{ld=Date.now();}});
+function run(){{import("{pkg}.js").then(function(m){{return m.default({{module_or_path:"{pkg}.wasm"}}).then(function(){{m.hydrate();}});}});}}
+function sela(f,w){{var g=d.querySelector(".gate:not(.gate--embed)"),h=d.documentElement,n=Date.now();w=w||n;
+var gerak=!ld||n-ld<2500||(g&&h.classList.contains("inv-opened")&&!g.classList.contains("gate--selesai"));
+if(gerak&&n-w<6000)return setTimeout(function(){{sela(f,w);}},250);
+(window.requestIdleCallback||setTimeout)(f,{{timeout:1200}});}}
+function go(now){{if(on)return;on=true;if(io)io.disconnect();if(now===true)run();else sela(run);}}
+if(/\/story\/?$/.test(location.pathname))return go(true);
 var c=navigator.connection||{{}},kuat=!c.saveData&&!/2g|3g/.test(c.effectiveType||"")&&!(navigator.deviceMemory<4);
 function arm(){{var els=d.querySelectorAll("[data-hydrate]");
 if("IntersectionObserver"in window){{io=new IntersectionObserver(function(es){{es.forEach(function(e){{if(e.isIntersecting)go();}});}},{{rootMargin:"800px 0px"}});els.forEach(function(el){{io.observe(el);}});}}else if(els.length)go();
-["pointerdown","focusin","keydown"].forEach(function(t){{d.addEventListener(t,function(e){{if(e.target.closest&&e.target.closest("[data-hydrate]"))go();}},{{capture:true,passive:true}});}});
+["pointerdown","focusin","keydown"].forEach(function(t){{d.addEventListener(t,function(e){{if(e.target.closest&&e.target.closest("[data-hydrate]"))go(true);}},{{capture:true,passive:true}});}});
 if(kuat)addEventListener("load",function(){{setTimeout(function(){{(window.requestIdleCallback||setTimeout)(go);}},4000);}});}}
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",arm);else arm();}})();"#
     );

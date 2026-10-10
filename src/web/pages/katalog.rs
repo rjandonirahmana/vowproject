@@ -162,6 +162,11 @@ pub fn KatalogPage() -> impl IntoView {
             <Suspense fallback=|| ()>
                 {move || panduan.get().and_then(|r| r.ok()).map(|items| view! { <PanduanStories items=items /> })}
             </Suspense>
+            // Etalase HP: tema berjajar (coverflow), yang berhenti di dalam HP
+            // langsung memutar gerak bukanya (global.js, mesin pratinjau kartu).
+            <Suspense fallback=|| ()>
+                {move || themes.get().and_then(|r| r.ok()).filter(|v| !v.is_empty()).map(|v| view! { <EtalaseHp themes=v /> })}
+            </Suspense>
 
             <section class="k-hero">
                 <span class="chip chip--soft"><Icon name="auto_awesome" />"Curated Atelier Collection 2026"</span>
@@ -476,6 +481,52 @@ fn packages(k: Konten) -> impl IntoView {
 /// (global.js, sama dengan story tamu) yang berlanjut ke langkah berikutnya,
 /// progress bersegmen + tombol aksi per langkah. Data JSON ditanam di
 /// halaman — tanpa request tambahan saat dibuka.
+/// Etalase beranda: satu HP di tengah, tema berjajar kiri-kanan (coverflow).
+/// Tema yang berhenti tepat di dalam HP diputar seperti kartu yang di-hover
+/// (iframe ?pv=1 → gerak buka tema, lalu bergulir). Info & tombol diisi
+/// global.js (wadah kosong → tak mengganggu hydrate); tanpa JS, tiap tema
+/// tetap tautan ke demonya.
+#[component]
+fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
+    const MAKS: usize = 24;
+    view! {
+        <section class="etalase" aria-label="Coba tema undangan di layar HP">
+            <div class="etalase__head">
+                <span class="chip chip--soft"><Icon name="smartphone" />"Coba langsung"</span>
+                <h2>"Geser tema, lihat "<em>"gerak bukanya"</em>" di HP"</h2>
+                <p>"Tema yang berhenti di dalam HP langsung diputar seperti undangan sungguhan — sampul terbuka, isi bergulir."</p>
+            </div>
+            <div class="etalase__stage">
+                <div class="etalase__track" data-etalase>
+                    {themes.into_iter().take(MAKS).map(|t| {
+                        let demo = format!("/u/{}?tema={}", crate::web::themes::DEMO_SLUG, t.slug);
+                        view! {
+                            <a class=format!("etalase__item tcard__art th-{}{}", t.slug, crate::web::rupa::classes(&t.rupa)) href=demo.clone()
+                                data-pv=format!("{demo}&pv=1") data-slug=t.slug.clone() data-name=t.name.clone() data-region=t.region.clone()
+                                aria-label=format!("Demo {}", t.name)>
+                                <div class="mini">
+                                    <p class="mini__eyebrow">"The Wedding Of"</p>
+                                    <Monogram initials="A&R" class="monogram--sm" />
+                                    <p class="mini__names">"Yona & Doni"</p>
+                                    <p class="mini__date">"Sabtu, 24 Oktober 2026"</p>
+                                    <span class="mini__btn">"Buka Undangan"</span>
+                                </div>
+                                <span class="etalase__nama">{t.name.clone()}</span>
+                            </a>
+                        }
+                    }).collect_view()}
+                </div>
+                <div class="etalase__hp" aria-hidden="true">
+                    <div class="etalase__layar"><div class="etalase__pv"></div></div>
+                </div>
+                <button type="button" class="etalase__nav etalase__nav--prev" data-etalase-nav="-1" aria-label="Tema sebelumnya"><Icon name="chevron_left" /></button>
+                <button type="button" class="etalase__nav etalase__nav--next" data-etalase-nav="1" aria-label="Tema berikutnya"><Icon name="chevron_right" /></button>
+            </div>
+            <div class="etalase__info" data-etalase-info aria-live="polite"></div>
+        </section>
+    }
+}
+
 #[component]
 fn PanduanStories(items: Vec<crate::web::model::SiteStory>) -> impl IntoView {
     use crate::web::skin::is_safe_url;

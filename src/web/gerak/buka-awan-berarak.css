@@ -1,0 +1,55 @@
+/* Awan Berarak — sampul di langit: 12 gumpal awan membingkai kartu dan
+   berarak pelan. DIBUKA: seperti terbang menembus awan — awan tersibak ke
+   kiri-kanan sambil membesar (yang dekat lebih cepat), langit memudar,
+   isi undangan muncul. DITUTUP: awan berdatangan dari tepi, berkumpul
+   menutup layar, lalu berarak kembali ke tempatnya membuka sampul.
+   Langit = --primary pucat; bayang awan = --gold-pale. */
+{a} { --gate-reveal: 1300; --gate-close: 1800; }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(70% 40% at 50% 0%, color-mix(in srgb, var(--gold-pale, #ffdea5) 60%, #fff), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--primary) 30%, #d6ecf8), color-mix(in srgb, var(--primary) 12%, #f3f9fc) 65%, var(--bg)); }
+{a} .gate__panel { display: none; }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 84%, transparent); border-radius: 26px; max-width: 420px; width: calc(100% - 40px); padding: 22px 16px; box-shadow: 0 20px 44px -20px rgba(0, 0, 0, .35); }
+{a} .cover__eyebrow { animation: aw-melayang 1.1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: aw-melayang 1.3s cubic-bezier(.2, .8, .2, 1) .5s both; }
+{a} .cover__names { animation: aw-melayang 1.1s ease .8s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: aw-melayang 1s ease 1.05s both; }
+{a} .gate__open { animation: aw-melayang 1s ease 1.3s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Awan: tiga bulatan + alas lonjong (gradien, tanpa gambar). Berarak =
+   properti `translate`; buka/tutup = `transform`. Kiri (ganjil) tersibak
+   ke kiri, kanan (genap) ke kanan. */
+{a} .gate__fx { display: block; z-index: 1; }
+{a} .gate__fx i { left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); width: calc(var(--w) * 1%); aspect-ratio: 2.3 / 1; opacity: .96;
+  background: radial-gradient(circle at 30% 62%, #fff 0 21%, transparent 22%), radial-gradient(circle at 52% 44%, #fff 0 27%, transparent 28%), radial-gradient(circle at 72% 60%, #fff 0 19%, transparent 20%),
+    radial-gradient(ellipse 48% 26% at 50% 72%, #fff 0 99%, transparent 100%), radial-gradient(ellipse 52% 30% at 52% 80%, color-mix(in srgb, var(--gold-pale, #ffdea5) 45%, #dfe9f1) 0 99%, transparent 100%);
+  animation: aw-arak calc(9s + var(--i) * .8s) ease-in-out calc(var(--i) * -1.3s) infinite alternate;
+  --keluar: -130%; --kumpul: 40%; }
+{a} .gate__fx i:nth-child(even) { --keluar: 130%; --kumpul: -40%; }
+{a} .gate__fx i:nth-child(1) { --x: -18; --y: -4; --w: 70; }
+{a} .gate__fx i:nth-child(2) { --x: 46; --y: -6; --w: 74; }
+{a} .gate__fx i:nth-child(3) { --x: -24; --y: 12; --w: 58; }
+{a} .gate__fx i:nth-child(4) { --x: 62; --y: 10; --w: 60; }
+{a} .gate__fx i:nth-child(5) { --x: -30; --y: 34; --w: 50; }
+{a} .gate__fx i:nth-child(6) { --x: 78; --y: 38; --w: 52; }
+{a} .gate__fx i:nth-child(7) { --x: -26; --y: 58; --w: 54; }
+{a} .gate__fx i:nth-child(8) { --x: 74; --y: 60; --w: 56; }
+{a} .gate__fx i:nth-child(9) { --x: -20; --y: 76; --w: 72; }
+{a} .gate__fx i:nth-child(10) { --x: 50; --y: 78; --w: 74; }
+{a} .gate__fx i:nth-child(11) { --x: -6; --y: 88; --w: 66; }
+{a} .gate__fx i:nth-child(12) { --x: 40; --y: 90; --w: 80; }
+/* ── Dibuka: menembus awan ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.3s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .9s ease 1s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(1.12); transition: opacity .5s ease, transform .8s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: none; transform: translateX(var(--keluar)) scale(1.9); opacity: 0;
+  transition: transform 1.5s cubic-bezier(.55, 0, .25, 1) calc(.15s + var(--i) * 35ms), opacity .8s ease calc(.85s + var(--i) * 35ms); }
+/* ── Ditutup: awan berkumpul lalu berarak kembali ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: aw-redup .5s ease .3s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: aw-kumpul 1.6s cubic-bezier(.35, .1, .3, 1) calc(var(--i) * 25ms) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.05s !important; }
+}
+@keyframes aw-arak { to { translate: 5% 2%; } }
+@keyframes aw-kumpul { 0% { transform: translateX(var(--keluar)) scale(1.9); opacity: 0; } 20% { opacity: 1; } 55% { transform: translateX(var(--kumpul)) scale(1.5); opacity: 1; } 100% { transform: none; opacity: .96; } }
+@keyframes aw-redup { from { opacity: 0; } to { opacity: 1; } }
+@keyframes aw-melayang { from { opacity: 0; transform: translateY(16px); } }

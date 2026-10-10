@@ -1,0 +1,6 @@
+{
+  // rust-analyzer membangun ke target/rust-analyzer sendiri — tidak bentrok
+  // dengan cargo leptos (target/debug, target/front) dan tak ikut rusak saat
+  // folder build dibersihkan → hindari "proc-macro panicked: failed to load macro".
+  "rust-analyzer.cargo.targetDir": true
+}

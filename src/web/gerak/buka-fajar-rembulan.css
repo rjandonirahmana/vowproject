@@ -1,0 +1,61 @@
+/* Fajar & Rembulan — sampul = langit malam: bulan sabit di kanan atas,
+   bintang berkelip, bukit di cakrawala. DIBUKA: bulan tenggelam, bintang
+   padam, matahari terbit dari balik bukit & langit berubah pagi, cahaya
+   membanjir lalu isi undangan muncul. DITUTUP: senja memerah, malam turun,
+   matahari tenggelam, bulan naik kembali & bintang menyala — kembali ke
+   sampul malam. Bukit = --primary gelap; matahari = --gold. */
+{a} { --gate-reveal: 1900; --gate-close: 1800; }
+/* Langit malam (::before) & langit pagi (::after, muncul saat dibuka). */
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(70% 40% at 50% 100%, color-mix(in srgb, var(--gold) 30%, #3a2f5c), transparent 70%), linear-gradient(180deg, #070b1f, color-mix(in srgb, var(--primary) 18%, #142046) 55%, #2c2a55); }
+{a}::after { content: ""; position: absolute; inset: 0; z-index: 0; opacity: 0; pointer-events: none;
+  background: radial-gradient(80% 50% at 50% 92%, #fff6dc, color-mix(in srgb, var(--gold-c, #fed488) 80%, #ffb37a) 35%, transparent 70%), linear-gradient(180deg, #8ec5ea, #cfe6f2 45%, #ffe2b8); }
+{a} .gate__panel { display: none; }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 88%, transparent); border-radius: 24px; max-width: 420px; width: calc(100% - 36px); padding: 22px 16px; box-shadow: 0 20px 50px -16px rgba(0, 0, 0, .6); }
+{a} .cover__eyebrow { animation: fr-pudar 1.2s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: fr-terbit 1.4s cubic-bezier(.2, .8, .2, 1) .5s both; }
+{a} .cover__names { animation: fr-pudar 1.2s ease .9s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: fr-terbit 1.1s ease 1.15s both; }
+{a} .gate__open { animation: fr-terbit 1s ease 1.4s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Bulan sabit (bayangan dalam statis, bukan dianimasikan) + halo. */
+{a} .gate__orn { display: block; position: absolute; right: 12%; top: 7%; z-index: 1; width: 64px; height: 64px; border-radius: 50%; pointer-events: none;
+  box-shadow: inset -15px 7px 0 0 #f7f0d4, 0 0 40px -6px rgba(247, 240, 212, .55); }
+/* Matahari (fx::before) di balik bukit (fx::after); bintang = 12 butir. */
+{a} .gate__fx { display: block; z-index: 1; }
+{a} .gate__fx::before { content: ""; position: absolute; left: 50%; bottom: 0; width: 46vmin; height: 46vmin; margin-left: -23vmin; border-radius: 50%; transform: translateY(70%);
+  background: radial-gradient(circle, #fffaf0 0 30%, color-mix(in srgb, var(--gold-c, #fed488) 90%, #fff) 42%, color-mix(in srgb, var(--gold) 45%, transparent) 60%, transparent 71%); }
+{a} .gate__fx::after { content: ""; position: absolute; left: -10%; right: -10%; bottom: 0; height: 24%;
+  background: radial-gradient(60% 100% at 22% 100%, color-mix(in srgb, var(--primary) 70%, #050a14) 0 70%, transparent 71%), radial-gradient(70% 90% at 84% 100%, color-mix(in srgb, var(--primary) 55%, #0b1424) 0 70%, transparent 71%), radial-gradient(90% 60% at 50% 100%, color-mix(in srgb, var(--primary) 80%, #03060c) 0 70%, transparent 71%); }
+{a} .gate__fx i { width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px 1px rgba(255, 255, 255, .8);
+  left: calc(4% + var(--i) * 8%); top: calc(var(--y, 6%) + var(--i) * .9%); animation: fr-kelip calc(2s + var(--i) * .23s) ease-in-out calc(var(--i) * -.4s) infinite alternate; }
+{a} .gate__fx i:nth-child(3n) { --y: 20%; }
+{a} .gate__fx i:nth-child(3n+2) { --y: 34%; width: 2px; height: 2px; }
+/* ── Dibuka: fajar ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { opacity: 0; transition: opacity .7s ease 1.85s, visibility 0s 2.6s; }
+.inv-opened {a}:not(.gate--embed)::after, .is-open > {a}::after { opacity: 1; transition: opacity 1.3s ease .35s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: translateY(-30px); transition: opacity .5s ease, transform .7s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__orn, .is-open > {a} .gate__orn { transform: translate(30px, 60vh); opacity: 0; transition: transform 1.3s cubic-bezier(.5, 0, .8, .5), opacity .8s ease .4s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: none; opacity: 0; transition: opacity .7s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__fx::before, .is-open > {a} .gate__fx::before { transform: translateY(-38vh) scale(2.6); transition: transform 1.9s cubic-bezier(.25, .7, .25, 1) .3s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { transform: translateY(45%); transition: transform 1.4s ease .9s; }
+/* ── Ditutup: senja → malam, bulan naik ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: fr-malam 1.1s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed)::after { visibility: visible !important; transition: none !important; animation: fr-senja 1.1s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx,
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn.gate__orn { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn { transition: none !important; animation: fr-bulan 1.2s cubic-bezier(.2, .7, .3, 1) .35s both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::before { transition: none; animation: fr-tenggelam 1.1s cubic-bezier(.5, 0, .7, .4) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::after { transition: none; animation: fr-bukit .6s ease-out both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: fr-nyala .5s ease calc(.85s + var(--i) * 40ms) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.05s !important; }
+}
+@keyframes fr-kelip { from { opacity: .25; } to { opacity: 1; } }
+@keyframes fr-senja { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fr-malam { 0%, 25% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes fr-bulan { from { opacity: 0; transform: translate(30px, 60vh); } 35% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes fr-tenggelam { from { transform: translateY(-30vh) scale(1.6); } to { transform: translateY(70%); } }
+@keyframes fr-bukit { from { transform: translateY(45%); } to { transform: none; } }
+@keyframes fr-nyala { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fr-pudar { from { opacity: 0; transform: scale(.95); } }
+@keyframes fr-terbit { from { opacity: 0; transform: translateY(30px); } }

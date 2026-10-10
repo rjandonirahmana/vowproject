@@ -1,0 +1,64 @@
+/* Kupu-kupu — 12 kupu-kupu hinggap di sekeliling sampul padang bunga,
+   sesekali mengepak. DIBUKA: semuanya terbang berkumpul ke kartu sampul,
+   lalu bersama-sama MENGANGKATNYA ke langit; padang memudar, isi undangan
+   muncul. DITUTUP: kawanan turun dari langit membawa kartu sampul,
+   meletakkannya, lalu kembali ke tempat hinggap masing-masing.
+   Sayap = --primary → --gold-light; padang = --sage. */
+{a} { --gate-reveal: 1500; --gate-close: 1600; }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(120% 40% at 50% 108%, color-mix(in srgb, var(--sage, var(--primary)) 45%, var(--bg)), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--gold-pale, #ffdea5) 40%, var(--bg)), var(--bg) 55%, color-mix(in srgb, var(--sage, var(--primary)) 22%, var(--bg))); }
+{a} .gate__panel { display: none; }
+{a} .gate__content { z-index: 2; background: color-mix(in srgb, var(--bg) 90%, transparent); border-radius: 24px; max-width: 420px; width: calc(100% - 44px); padding: 22px 16px; box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .35); }
+{a} .cover__eyebrow { animation: kk-hinggap 1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: kk-hinggap 1.3s cubic-bezier(.2, .8, .2, 1) .5s both; }
+{a} .cover__names { animation: kk-hinggap 1.1s ease .8s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: kk-hinggap 1s ease 1.05s both; }
+{a} .gate__open { animation: kk-hinggap 1s ease 1.3s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Kupu-kupu: badan (latar butir) + sayap kiri (::before) & kanan (::after,
+   dicerminkan). Kepak = properti `scale`; terbang = `transform`. Satuan
+   cqw/cqh = ukuran gerbang (benar juga di desktop yang gerbangnya separuh). */
+{a} .gate__fx { display: block; z-index: 3; container-type: size; }
+{a} .gate__fx i { width: 46px; height: 32px; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); rotate: var(--r, 0deg);
+  background: linear-gradient(90deg, transparent 46%, color-mix(in srgb, var(--primary) 70%, #000) 46% 54%, transparent 54%) center / 100% 62% no-repeat;
+  --cx: calc((50 - var(--x)) * .8cqw); --cy: calc((44 - var(--y)) * .62cqh); }
+{a} .gate__fx i::before, {a} .gate__fx i::after { content: ""; position: absolute; top: 0; bottom: 0; width: 50%; left: 0; transform-origin: 100% 50%;
+  background: radial-gradient(circle at 34% 30%, var(--gold-light) 0 16%, transparent 17%), radial-gradient(circle at 40% 76%, color-mix(in srgb, var(--gold-light) 70%, #fff) 0 10%, transparent 11%), linear-gradient(150deg, var(--primary), color-mix(in srgb, var(--primary) 45%, var(--gold-light)));
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 28'%3E%3Cpath d='M20 12C14 0 2-2 1 6C0 12 8 14 20 14Z'/%3E%3Cpath d='M20 14C12 14 3 18 5 25C7 30 16 24 20 16Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 28'%3E%3Cpath d='M20 12C14 0 2-2 1 6C0 12 8 14 20 14Z'/%3E%3Cpath d='M20 14C12 14 3 18 5 25C7 30 16 24 20 16Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  animation: kk-kepak 2.6s ease-in-out calc(var(--i) * -.37s) infinite; }
+{a} .gate__fx i::after { transform: scaleX(-1); }
+{a} .gate__fx i:nth-child(1) { --x: 6; --y: 8; --r: -18deg; }
+{a} .gate__fx i:nth-child(2) { --x: 80; --y: 5; --r: 14deg; }
+{a} .gate__fx i:nth-child(3) { --x: 42; --y: 3; --r: -6deg; }
+{a} .gate__fx i:nth-child(4) { --x: 86; --y: 30; --r: 24deg; }
+{a} .gate__fx i:nth-child(5) { --x: 3; --y: 36; --r: -26deg; }
+{a} .gate__fx i:nth-child(6) { --x: 84; --y: 58; --r: 18deg; }
+{a} .gate__fx i:nth-child(7) { --x: 5; --y: 63; --r: -12deg; }
+{a} .gate__fx i:nth-child(8) { --x: 76; --y: 87; --r: 10deg; }
+{a} .gate__fx i:nth-child(9) { --x: 12; --y: 89; --r: -20deg; }
+{a} .gate__fx i:nth-child(10) { --x: 47; --y: 94; --r: 4deg; }
+{a} .gate__fx i:nth-child(11) { --x: 63; --y: 13; --r: 30deg; }
+{a} .gate__fx i:nth-child(12) { --x: 22; --y: 18; --r: -32deg; }
+/* ── Dibuka: kawanan mengangkat kartu sampul ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.4s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .8s ease 1.2s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 1; transform: translateY(-120vh); transition: transform 1.15s cubic-bezier(.55, 0, .7, .3) .75s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: kk-angkat 1.9s cubic-bezier(.45, .05, .55, .95) calc(var(--i) * 25ms) both; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i::before, .inv-opened {a}:not(.gate--embed) .gate__fx i::after,
+.is-open > {a} .gate__fx i::before, .is-open > {a} .gate__fx i::after { animation: kk-terbang .16s ease-in-out infinite alternate; }
+/* ── Ditutup: kawanan menurunkan kartu sampul ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: kk-redup .45s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { animation: kk-datang 1.3s cubic-bezier(.3, .55, .4, 1) calc(var(--i) * 20ms) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i::before,
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i::after { animation: kk-terbang .16s ease-in-out infinite alternate; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation: kk-turun .8s cubic-bezier(.25, .7, .3, 1) .05s both !important; }
+}
+@keyframes kk-kepak { 0%, 62%, 100% { scale: 1 1; } 70% { scale: .25 1; } 78% { scale: 1 1; } 86% { scale: .3 1; } }
+@keyframes kk-terbang { to { scale: .18 1; } }
+@keyframes kk-angkat { 0% { transform: none; } 40% { transform: translate(var(--cx), var(--cy)); } 100% { transform: translate(var(--cx), calc(var(--cy) - 125cqh)); } }
+@keyframes kk-datang { 0% { transform: translate(var(--cx), calc(var(--cy) - 125cqh)); } 55% { transform: translate(var(--cx), var(--cy)); } 100% { transform: none; } }
+@keyframes kk-turun { from { transform: translateY(-120vh); } to { transform: none; } }
+@keyframes kk-redup { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kk-hinggap { from { opacity: 0; transform: translateY(18px) scale(.97); } }

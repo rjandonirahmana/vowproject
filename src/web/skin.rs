@@ -353,6 +353,12 @@ pub const MOTION_PRESETS: &[(&str, &str, &str, &str, &str, &str)] = &[
     ("pura", "Gerbang Pura", "Candi bentar terbelah, isi mengayun seperti ombak, kupu-kupu", "candi-bentar", "ombak", "kupu"),
     ("sinema", "Sinema Kenangan", "Sampul polaroid naik seperti layar bioskop, isi tenang di atas video latar", "layar-naik", "sinema", "none"),
     ("songket", "Tenun Songket", "Helai songket diurai, isi tersingkap seperti benang, kilau emas", "tenun-songket", "tenun", "kilau-emas"),
+    ("air-terjun", "Air Terjun", "Tirai air tersibak, isi naik anggun, daun gugur", "air-terjun", "anggun", "daun-gugur"),
+    ("fajar", "Fajar & Rembulan", "Matahari terbit membuka, bulan naik menutup, kerlip bintang", "fajar-rembulan", "kosmik", "bintang"),
+    ("teratai", "Teratai Mekar", "Kelopak raksasa mekar, isi mekar, kelopak berguguran", "teratai-mekar", "mekar", "kelopak"),
+    ("kupu", "Kupu-kupu", "Kawanan kupu-kupu mengangkat sampul, isi bergeser, kupu-kupu", "kupu-kupu", "geser", "kupu"),
+    ("ombak", "Ombak Laut", "Ombak menyapu layar, isi mengayun, kilau emas", "ombak-laut", "ombak", "kilau-emas"),
+    ("awan", "Awan Berarak", "Menembus awan, isi naik anggun, kawanan burung", "awan-berarak", "anggun", "burung"),
 ];
 
 impl ThemeInfo {

@@ -29,7 +29,15 @@
   var tracked=[];
   function track(io, el){ var t=tracked.find(function(x){ return x.io===io; }); if(!t){ t={io:io, els:new Set()}; tracked.push(t); } t.els.add(el); io.observe(el); }
   function untrack(io, el){ io.unobserve(el); tracked.forEach(function(t){ if(t.io===io) t.els.delete(el); }); }
-  onDom(function(){ tracked.forEach(function(t){ t.els.forEach(function(el){ if(!el.isConnected){ t.io.unobserve(el); t.els.delete(el); } }); }); });
+  // Observer yang tak lagi mengamati apa pun dilepas dari daftar — callback-nya
+  // (closure) sering menahan subpohon halaman lama (mis. etalase beranda).
+  onDom(function(){
+    tracked=tracked.filter(function(t){
+      t.els.forEach(function(el){ if(!el.isConnected){ t.io.unobserve(el); t.els.delete(el); } });
+      if(t.els.size) return true;
+      t.io.disconnect(); return false;
+    });
+  });
   function runDom(){ domPending=false; domTasks.forEach(function(fn){ fn(); }); }
   function audio(){ return d.getElementById('bgm'); }
   // Undangan mana & tema demo mana (dipakai aturan tautan & gerbang).
@@ -730,6 +738,8 @@
   // Leptos tanpa anak → iframe yang disisipkan tak mengganggu hydrate).
   // Desktop: langsung saat hover. Layar sentuh: kartu yang disentuh, atau kartu
   // paling tengah di layar setelah gulir berhenti. Hanya SATU iframe hidup.
+  // Mesin pratinjau dibagi dengan etalase HP beranda (lihat di bawah).
+  var pvApi=null, etaResume=null;
   if(PV){
     d.documentElement.classList.add('is-pv');
     // Jabat tangan dengan kartu induk: 'ready' → kartu memunculkan iframe →
@@ -766,7 +776,7 @@
       if(!pvCur) return;
       var f=pvCur.querySelector('iframe'); if(f){ try{ f.src='about:blank'; }catch(_){} f.remove(); }
       if(pvCur.parentNode) pvCur.parentNode.classList.remove('is-pv');
-      pvCur=null;
+      pvCur._pvu=''; pvCur=null;
     };
     // Munculkan iframe (pudar 0,2 dtk) lalu minta ia mulai membuka undangan.
     var pvShow=function(art, f){
@@ -774,16 +784,18 @@
       art.classList.add('is-pv');
       setTimeout(function(){ try{ f.contentWindow.postMessage({pv:'show'}, location.origin); }catch(_){} }, 220);
     };
+    // Wadah yang sama boleh berganti URL (layar HP etalase berganti tema).
     var pvStart=function(h){
-      if(pvCur===h && h.isConnected) return;
-      pvStop(); pvCur=h;
+      var u=h.getAttribute('data-pv');
+      if(!u || (pvCur===h && h.isConnected && h._pvu===u)) return;
+      pvStop(); pvCur=h; h._pvu=u;
       var art=h.parentNode, r=art.getBoundingClientRect(), s=r.width/PW;
       if(!s) return;
       var f=d.createElement('iframe');
       f.title='Pratinjau tema'; f.tabIndex=-1; f.setAttribute('aria-hidden','true');
       f.style.width=PW+'px'; f.style.height=Math.ceil(r.height/s)+'px'; f.style.transform='scale('+s+')';
       f.onload=function(){ if(pvCur===h) pvShow(art, f); };
-      f.src=h.getAttribute('data-pv');
+      f.src=u;
       h.appendChild(f);
     };
     onDom(function(){ if(pvCur && !pvCur.isConnected) pvStop(); });
@@ -825,12 +837,12 @@
       d.addEventListener('mouseout', function(e){
         var art=e.target.closest && e.target.closest('.tcard__art'); if(!art) return;
         if(e.relatedTarget && art.contains(e.relatedTarget)) return;
-        if(pvCur && art.contains(pvCur)) pvStop();
+        if(pvCur && art.contains(pvCur)){ pvStop(); if(etaResume) etaResume(); }
       });
     } else {
       var pvPick=function(){
         var best=null, bd=1e9, mid=innerHeight/2;
-        d.querySelectorAll('.tcard__art > [data-pv]').forEach(function(h){
+        d.querySelectorAll('.tcard__art > [data-pv], .etalase__layar > [data-pv]').forEach(function(h){
           var r=h.parentNode.getBoundingClientRect();
           if(r.top<0 || r.bottom>innerHeight) return;
           var dd=Math.abs((r.top+r.bottom)/2-mid); if(dd<bd){ bd=dd; best=h; }
@@ -843,7 +855,116 @@
         var h=art.querySelector('[data-pv]'); if(h) pvStart(h);
       }, {passive:true});
     }
+    pvApi={start:pvStart, stop:pvStop, cur:function(){ return pvCur; }};
   }
+  // ── Etalase HP beranda ──────────────────────────────────────────────────
+  // Tema berjajar (coverflow 3D); yang berhenti di tengah = "di dalam HP":
+  // layar HP memutar pratinjaunya lewat mesin kartu di atas (gerak buka tema
+  // → bergulir). Geser / panah / klik tema samping; maju otomatis tiap 7 dtk
+  // selama terlihat & tak disentuh.
+  // KEHALUSAN: iframe pratinjau sama-asal = berbagi thread utama dengan
+  // halaman ini, jadi DIBONGKAR begitu etalase mulai bergeser dan baru
+  // dimuat setelah geseran berhenti & thread senggang. Coverflow: browser
+  // modern → CSS scroll-driven animation (compositor, nol JS per frame);
+  // lainnya → tiap frame hanya membaca scrollLeft (posisi kartu di-cache —
+  // tanpa layout paksa) & menulis transform/opacity kartu yang terlihat.
+  // z-index hanya saat kartu tengah berganti.
+  var etaInit=function(){
+    d.querySelectorAll('[data-etalase]').forEach(function(tr){
+      if(tr._eta) return; tr._eta=1;
+      var sec=tr.closest('.etalase'), hp=sec.querySelector('.etalase__pv'), info=sec.querySelector('[data-etalase-info]');
+      var items=[].slice.call(tr.querySelectorAll('.etalase__item')); if(!items.length) return;
+      var act=-1, near=-1, raf=0, idleT=0, startT=0, userT=0, inView=false, seen=new Set();
+      // Didukung scroll-driven animation → transform/opacity diurus CSS
+      // (compositor); JS hanya mencari kartu tengah & z-index.
+      var sda=window.CSS && CSS.supports && CSS.supports('animation-timeline: view()');
+      var pos=[], iw=1, last=[];
+      var measure=function(){ iw=items[0].offsetWidth || 1; pos=items.map(function(it){ return it.offsetLeft+it.offsetWidth/2; }); };
+      var lay=function(){
+        raf=0; if(!pos.length) measure();
+        var c=tr.scrollLeft+tr.clientWidth/2, best=0, bd=1e9;
+        for(var i=0; i<items.length; i++){
+          var dd=(pos[i]-c)/iw, a=Math.abs(dd);
+          if(a<bd){ bd=a; best=i; }
+          // Kartu jauh disembunyikan → tak memegang lapis GPU (will-change).
+          var key=a>4.5 ? 'x' : sda ? 'v' : dd.toFixed(3);
+          if(last[i]===key) continue; last[i]=key;
+          var st=items[i].style;
+          if(key==='x'){ st.visibility='hidden'; continue; }
+          if(sda){ st.visibility=''; continue; }
+          var k=Math.min(a, 3), sg=dd<0 ? -1 : 1;
+          st.visibility='';
+          st.opacity=(1-k*0.2).toFixed(3);
+          st.transform='perspective(1100px) translateX('+(-sg*Math.min(a, 3)*24).toFixed(2)+'%) rotateY('+(-sg*k*26).toFixed(2)+'deg) scale('+(1-k*0.13).toFixed(3)+')';
+        }
+        if(best!==near){ near=best; items.forEach(function(it, i){ it.style.zIndex=String(40-Math.abs(i-best)); }); }
+        return best;
+      };
+      var el=function(tag, cls, txt){ var x=d.createElement(tag); if(cls) x.className=cls; if(txt!=null) x.textContent=txt; return x; };
+      var tampil=function(i){
+        var it=items[i], slug=it.getAttribute('data-slug');
+        items.forEach(function(x, k){ x.classList.toggle('is-aktif', k===i); });
+        info.textContent='';
+        info.appendChild(el('b', 'etalase__judul', it.getAttribute('data-name')));
+        var rg=it.getAttribute('data-region'); if(rg) info.appendChild(el('small', 'etalase__wilayah', rg));
+        var bt=el('div', 'etalase__btns'), a1=el('a', 'btn btn--soft btn--sm', 'Lihat Demo'), a2=el('a', 'btn btn--primary btn--sm', 'Pilih Tema');
+        a1.href=it.getAttribute('href'); a2.href='/buat?tema='+encodeURIComponent(slug);
+        bt.appendChild(a1); bt.appendChild(a2); info.appendChild(bt);
+        hp.setAttribute('data-pv', it.getAttribute('data-pv'));
+      };
+      // Pratinjau dimuat saat thread senggang (setelah geseran selesai).
+      var mulai=function(){
+        clearTimeout(startT);
+        startT=setTimeout(function(){
+          var run=function(){ if(pvApi && inView && hp.isConnected && act>=0) pvApi.start(hp); };
+          if(window.requestIdleCallback) requestIdleCallback(run, {timeout:700}); else run();
+          // Tema berikutnya diunduh duluan (cache 10 mnt) → tampil seketika.
+          var nx=items[(act+1)%items.length].getAttribute('data-pv');
+          if(window.fetch && !seen.has(nx)){ seen.add(nx); fetch(nx, {credentials:'same-origin', priority:'low'}).catch(function(){}); }
+        }, 120);
+      };
+      // Bergeser / keluar layar → pratinjau dibongkar (diukur: lebih mulus
+      // daripada menjedanya — menjeda ratusan animasi iframe justru mahal).
+      var henti=function(){ clearTimeout(startT); if(pvApi && pvApi.cur()===hp) pvApi.stop(); };
+      var settle=function(){ var b2=lay(); if(b2!==act){ act=b2; tampil(b2); } mulai(); };
+      var go=function(i){
+        i=(i+items.length)%items.length; henti(); if(!pos.length) measure();
+        tr.scrollTo({left:pos[i]-tr.clientWidth/2, behavior:calm ? 'instant' : 'smooth'});
+      };
+      tr.addEventListener('scroll', function(){
+        if(!raf) raf=requestAnimationFrame(lay);
+        clearTimeout(idleT); idleT=setTimeout(settle, 140);
+      }, {passive:true});
+      ['pointerdown', 'wheel', 'touchstart'].forEach(function(t){ tr.addEventListener(t, function(){ userT=Date.now(); henti(); }, {passive:true}); });
+      // Klik tema samping → bawa ke tengah (bukan membuka demo).
+      tr.addEventListener('click', function(e){
+        var it=e.target.closest && e.target.closest('.etalase__item'); if(!it) return;
+        var i=items.indexOf(it); if(i!==act){ e.preventDefault(); userT=Date.now(); go(i); }
+      });
+      sec.querySelectorAll('[data-etalase-nav]').forEach(function(b){
+        b.addEventListener('click', function(){ userT=Date.now(); go(act+(+b.getAttribute('data-etalase-nav'))); });
+      });
+      if('IntersectionObserver' in window){
+        track(new IntersectionObserver(function(es){
+          inView=es[0].isIntersecting;
+          if(inView) settle(); else henti();
+        }, {threshold:0.45}), sec);
+      } else { inView=true; settle(); }
+      etaResume=function(){ if(inView && hp.isConnected) mulai(); };
+      // Ukuran berubah (putar layar / jendela) → ukur ulang posisi kartu.
+      var onRs=function(){ if(!tr.isConnected){ removeEventListener('resize', onRs); return; } pos=[]; last=[]; lay(); };
+      addEventListener('resize', onRs, {passive:true});
+      var auto=setInterval(function(){
+        if(!tr.isConnected){ clearInterval(auto); clearTimeout(startT); clearTimeout(idleT); removeEventListener('resize', onRs); return; }
+        if(calm || !inView || d.hidden || Date.now()-userT<12000 || sec.matches(':hover')) return;
+        go(act+1);
+      }, 7000);
+      // Posisi kartu baru diukur saat etalase pertama terlihat (callback IO,
+      // setelah layout selesai) — mengukur di sini memaksa layout seluruh
+      // beranda yang belum selesai dimuat.
+    });
+  };
+  etaInit(); onDom(etaInit);
   // Formulir berbahaya (hapus permanen): <form data-confirm="Pesan?">.
   d.addEventListener('submit', function(e){
     var f=e.target; if(!f.matches || !f.matches('form[data-confirm]')) return;

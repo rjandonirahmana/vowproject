@@ -1,0 +1,58 @@
+/* Air Terjun — sampul di balik tirai air terjun: 12 aliran jatuh tanpa henti
+   (tekstur digeser lewat transform, satu ubin = tinggi kolom → mulus), kabut
+   bergulung di kaki. DIBUKA: tirai air tersibak dari tengah ke kiri-kanan,
+   kabut naik menyelimuti, isi undangan muncul. DITUTUP: air kembali
+   tercurah dari atas aliran demi aliran, percikan di kaki, lalu sampul.
+   Air = --primary dicampur biru muda; tebing = --primary gelap. */
+{a} { --gate-reveal: 1300; --gate-close: 1700; --air: color-mix(in srgb, var(--primary) 45%, #d7eef5); }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 75%, #06161b), color-mix(in srgb, var(--primary) 50%, #0b2229) 55%, color-mix(in srgb, var(--primary) 30%, #e6f4f7)); }
+{a} .gate__panel { display: none; }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 86%, transparent); border-radius: 24px; max-width: 420px; width: calc(100% - 36px); padding: 22px 16px; box-shadow: 0 20px 44px -18px rgba(0, 0, 0, .55); }
+{a} .cover__eyebrow { animation: at-turun 1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: at-muncul 1.2s cubic-bezier(.2, .8, .2, 1) .5s both; }
+{a} .cover__names { animation: at-turun 1.1s ease .8s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: at-muncul 1s ease 1.05s both; }
+{a} .gate__open { animation: at-muncul 1s ease 1.3s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Aliran: 12 kolom bertumpuk tipis (guratan air vertikal). Kiri bergeser ke kiri saat dibuka, kanan ke kanan;
+   yang dekat tengah lebih dulu (--d). */
+{a} .gate__fx { display: block; z-index: 1; }
+{a} .gate__fx i { top: 0; bottom: 0; left: calc(var(--i) * 100% / 12 - 6px); width: calc(100% / 12 + 12px); overflow: hidden;
+  background: repeating-linear-gradient(90deg, transparent 0 3px, rgba(255, 255, 255, .22) 3px 4px, transparent 4px 7px, rgba(255, 255, 255, .12) 7px 9px, transparent 9px 13px),
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--air) 80%, transparent) 25%, color-mix(in srgb, var(--air) 90%, transparent) 50%, color-mix(in srgb, var(--air) 80%, transparent) 75%, transparent);
+  --far: calc((var(--i) + 1) * -112%); --d: calc((5 - var(--i)) * 45ms); }
+{a} .gate__fx i:nth-child(n+7) { --far: calc((12 - var(--i)) * 112%); --d: calc((var(--i) - 6) * 45ms); }
+/* Kilau panjang yang meluncur turun: satu ubin = tinggi kolom (background-size
+   50% dari lapis 200%) → geser 50% = tepat satu ubin, tanpa sambungan. */
+{a} .gate__fx i::before { content: ""; position: absolute; left: 0; right: 0; top: -100%; height: 200%;
+  background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, .55) 14%, rgba(255, 255, 255, .12) 30%, transparent 42%, rgba(255, 255, 255, .38) 64%, rgba(255, 255, 255, .08) 80%, transparent 92%);
+  background-size: 100% 50%; background-position: 0 calc(var(--i) * 17%);
+  animation: at-alir calc(1.6s + var(--i) * 90ms) linear infinite; }
+/* Bibir tebing di atas & kabut bergulung di kaki. */
+{a} .gate__fx::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 8%; z-index: 1; background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 60%, #04100f), transparent); }
+{a} .gate__fx::after { content: ""; position: absolute; left: -20%; right: -20%; bottom: -8%; height: 34%; z-index: 2;
+  background: radial-gradient(60% 60% at 50% 70%, rgba(255, 255, 255, .9), rgba(255, 255, 255, .4) 45%, transparent 72%);
+  animation: at-kabut 4s ease-in-out infinite alternate; }
+/* ── Dibuka ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.3s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .8s ease 1.1s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: translateY(24px) scale(.96); transition: opacity .5s ease, transform .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { transform: translateX(var(--far)); opacity: .3; transition: transform 1.25s cubic-bezier(.65, 0, .3, 1) calc(.2s + var(--d)), opacity .9s ease calc(.6s + var(--d)); }
+.inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { animation: none; transform: translateY(-150%) scale(2.4); opacity: 0; transition: transform 1.6s ease-out .25s, opacity 1s ease .9s; }
+/* ── Ditutup (global.js closeInv) ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: at-redup .45s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none !important; animation: at-tuang .75s cubic-bezier(.5, 0, .75, .45) var(--t, 0ms) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i:nth-child(3n+1) { --t: 90ms; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i:nth-child(3n+2) { --t: 180ms; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::after { transition: none; animation: at-percik .8s ease-out .6s both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: .95s !important; }
+}
+@keyframes at-alir { to { transform: translateY(50%); } }
+@keyframes at-kabut { to { transform: translateY(-4%) scale(1.06); opacity: .8; } }
+@keyframes at-tuang { from { transform: translateY(-105%); } to { transform: none; } }
+@keyframes at-percik { from { opacity: 0; transform: translateY(30%) scale(.5); } to { opacity: 1; transform: none; } }
+@keyframes at-redup { from { opacity: 0; } to { opacity: 1; } }
+@keyframes at-turun { from { opacity: 0; transform: translateY(-30px); } }
+@keyframes at-muncul { from { opacity: 0; transform: translateY(26px); } }
