@@ -1,0 +1,83 @@
+/* Katedral (Kristiani) — dinding batu gading; bingkai lengkung gotik;
+   jendela mawar kaca patri berwarna di puncak (kaca = gradien kerucut,
+   tracery batu di atasnya); dua daun pintu kayu berengsel besi.
+   DIBUKA: jendela mawar menyala & berkas cahaya merekah, pintu berayun ke
+   dalam (3D), merpati terbang keluar, "kamera" menembus lengkung.
+   DITUTUP: lengkung kembali, pintu berayun menutup, cahaya meredup.
+   Batu = --bg/--surface; kayu = cokelat tetap; aksen = --gold. */
+{a} { --gate-reveal: 2200; --gate-close: 1700; perspective: 1300px; --batu: color-mix(in srgb, var(--bg) 70%, #b9b1a2); }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 58px, rgba(0, 0, 0, .05) 58px 60px), radial-gradient(90% 60% at 50% 20%, color-mix(in srgb, var(--gold-pale, #ffdea5) 40%, var(--bg)), color-mix(in srgb, var(--bg) 80%, #8c8476) 85%); }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 92%, transparent); border-radius: 200px 200px 20px 20px; max-width: 400px; width: calc(100% - 70px); padding: 50px 16px 22px; box-shadow: 0 0 0 1px var(--gold), 0 0 0 6px var(--batu), 0 24px 50px -16px rgba(0, 0, 0, .45); }
+{a} .cover__eyebrow { animation: kt-pudar 1.2s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: kt-zoom 1.3s cubic-bezier(.2, .8, .25, 1.1) .5s both; }
+{a} .cover__names { animation: kt-pudar 1.1s ease .85s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: kt-naik 1s ease 1.1s both; }
+{a} .gate__open { animation: kt-naik 1s ease 1.35s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Daun pintu: papan kayu + dua engsel besi panjang + paku. */
+{a} .gate__panel { top: 0; bottom: 0; width: 50.2%; z-index: 1;
+  background: linear-gradient(0deg, transparent 0 20%, #2a2522 20% 21.6%, transparent 21.6% 76%, #2a2522 76% 77.6%, transparent 77.6%), repeating-linear-gradient(90deg, rgba(0, 0, 0, .18) 0 2px, transparent 2px 46px), linear-gradient(180deg, #6b4428, #4e2f1a 60%, #3a2213);
+  box-shadow: inset 0 0 0 10px #2f1d10, inset 0 0 0 12px color-mix(in srgb, var(--gold) 60%, #2f1d10), inset 0 0 60px rgba(0, 0, 0, .5); }
+{a} .gate__panel--l { left: 0; transform-origin: left center; }
+{a} .gate__panel--r { right: 0; left: auto; transform-origin: right center; }
+{a} .gate__panel::before { content: ""; position: absolute; top: 48%; width: 16px; height: 40px; border-radius: 8px; background: linear-gradient(#3a3330, #1c1816); box-shadow: 0 0 0 3px #57504a; }
+{a} .gate__panel--l::before { right: 24px; }
+{a} .gate__panel--r::before { left: 24px; }
+{a} .gate__panel::after { display: none; }
+/* Bingkai gotik (::before) + tracery jendela mawar (::after). */
+{a} .gate__orn { display: block; position: absolute; inset: 0; z-index: 3; pointer-events: none; transform-origin: 50% 36%; }
+{a} .gate__orn::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--batu) 80%, #000), var(--batu) 30%, color-mix(in srgb, var(--batu) 90%, #fff) 50%, var(--batu) 70%, color-mix(in srgb, var(--batu) 80%, #000));
+  -webkit-mask: url("/img/tema/dunia/gotik.svg") center / 100% 100% no-repeat; mask: url("/img/tema/dunia/gotik.svg") center / 100% 100% no-repeat; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .35)); }
+{a} .gate__orn::after, {a} .gate__fx::before { content: ""; position: absolute; left: 50%; top: 9%; width: min(44vmin, 210px); aspect-ratio: 1; translate: -50% 0; }
+{a} .gate__orn::after { background: #2f2a26; filter: drop-shadow(0 0 1px rgba(255, 240, 210, .5));
+  -webkit-mask: url("/img/tema/dunia/mawar-kaca.svg") center / contain no-repeat; mask: url("/img/tema/dunia/mawar-kaca.svg") center / contain no-repeat; }
+/* Kaca patri (fx::before, di bawah tracery) + berkas cahaya (fx::after). */
+/* fx di BAWAH bingkai (orn z3): tracery batu tampil di atas kaca patri. */
+{a} .gate__fx { display: block; z-index: 2; }
+/* Kaca patri: potongan kecil warna permata (cincin × sektor), pusat terang. */
+{a} .gate__fx::before { border-radius: 50%; opacity: .82;
+  background: radial-gradient(circle, #fff3c4 0 10%, transparent 11%),
+    repeating-radial-gradient(circle, transparent 0 13%, rgba(20, 15, 10, .35) 13% 14%),
+    repeating-conic-gradient(from 7.5deg, #9b1d20 0 15deg, #1f4e9c 15deg 30deg, #d4a017 30deg 45deg, #1f7a4d 45deg 60deg, #6a2c8a 60deg 75deg, #1f4e9c 75deg 90deg),
+    radial-gradient(circle, #fff 0 30%, #ffe9b0 70%); background-blend-mode: normal, multiply, normal, normal; }
+{a} .gate__fx::after { content: ""; position: absolute; left: 50%; top: 18%; width: 180vmax; height: 180vmax; margin: -90vmax 0 0 -90vmax; opacity: 0; z-index: -1;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 244, 210, .32) 0 4deg, transparent 4deg 14deg); -webkit-mask: radial-gradient(closest-side, #000, transparent); mask: radial-gradient(closest-side, #000, transparent); }
+/* Merpati: tersembunyi, terbang keluar saat dibuka. */
+{a} .gate__fx i { width: 46px; height: 30px; left: 46%; top: 44%; opacity: 0; background: #fff; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .25));
+  -webkit-mask: url("/img/tema/dunia/merpati.svg") center / contain no-repeat; mask: url("/img/tema/dunia/merpati.svg") center / contain no-repeat; }
+{a} .gate__fx i:nth-child(n+6) { display: none; }
+{a} .gate__fx i:nth-child(1) { --tx: -46vw; --ty: -52vh; }
+{a} .gate__fx i:nth-child(2) { --tx: 40vw; --ty: -58vh; scale: -1 1; }
+{a} .gate__fx i:nth-child(3) { --tx: -30vw; --ty: -70vh; }
+{a} .gate__fx i:nth-child(4) { --tx: 52vw; --ty: -40vh; scale: -1 1; }
+{a} .gate__fx i:nth-child(5) { --tx: 6vw; --ty: -76vh; scale: -1 1; }
+/* ── Dibuka ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.7s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .8s ease 1.8s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(.94); transition: opacity .45s ease, transform .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__fx::before, .is-open > {a} .gate__fx::before { opacity: 1; transition: opacity .6s ease .1s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { opacity: 1; transform: rotate(12deg) scale(1.15); transition: opacity .8s ease .2s, transform 2.4s ease .2s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: kt-terbang 1.6s cubic-bezier(.4, 0, .6, 1) calc(.8s + var(--i) * .1s) both; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--l, .is-open > {a} .gate__panel--l { rotate: y -106deg; opacity: 0; transition: rotate 1.4s cubic-bezier(.5, 0, .2, 1) .5s, opacity .5s ease 1.8s; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--r, .is-open > {a} .gate__panel--r { rotate: y 106deg; opacity: 0; transition: rotate 1.4s cubic-bezier(.5, 0, .2, 1) .5s, opacity .5s ease 1.8s; }
+.inv-opened {a}:not(.gate--embed) .gate__orn, .is-open > {a} .gate__orn { transform: scale(3); opacity: 0; transition: transform 1.2s cubic-bezier(.55, 0, .7, .4) 1.3s, opacity .6s ease 1.9s; }
+/* ── Ditutup ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: kt-redup .4s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn.gate__orn,
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { display: none; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn { transition: none !important; animation: kt-lengkung 1s cubic-bezier(.2, .7, .3, 1) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::before { transition: none; animation: kt-redup .8s ease .2s both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--l { animation: kt-tutup-l 1.1s cubic-bezier(.3, .7, .25, 1) .35s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--r { animation: kt-tutup-r 1.1s cubic-bezier(.3, .7, .25, 1) .35s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.2s !important; }
+}
+@keyframes kt-terbang { 0% { opacity: 0; transform: none; } 15% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(1.6); } }
+@keyframes kt-lengkung { from { transform: scale(3); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes kt-tutup-l { from { rotate: y -106deg; opacity: 0; } 25% { opacity: 1; } to { rotate: y 0deg; opacity: 1; } }
+@keyframes kt-tutup-r { from { rotate: y 106deg; opacity: 0; } 25% { opacity: 1; } to { rotate: y 0deg; opacity: 1; } }
+@keyframes kt-redup { from { opacity: 0; } }
+@keyframes kt-pudar { from { opacity: 0; transform: scale(.95); } }
+@keyframes kt-naik { from { opacity: 0; transform: translateY(26px); } }
+@keyframes kt-zoom { from { opacity: 0; transform: scale(.82); } }

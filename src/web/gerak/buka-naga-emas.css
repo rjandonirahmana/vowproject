@@ -1,0 +1,75 @@
+/* Naga Emas (Tionghoa) — sampul di depan pintu gerbang pernis merah: paku
+   emas 9×9 berjajar, ketukan singa bercincin, naga emas melayang di atas
+   pintu, lampion merah berayun pada kedalaman berbeda (3D).
+   DIBUKA: daun pintu berayun ke dalam (rotate y, perspektif), naga terbang
+   ke arah tamu & memudar, lampion naik ke langit, isi undangan muncul.
+   DITUTUP: lampion turun, pintu berayun menutup, naga kembali melayang.
+   Pernis = merah tetap (khas); emas = --gold / --foil-deep tema. */
+{a} { --gate-reveal: 2000; --gate-close: 1700; perspective: 1300px; --emas: var(--foil-deep, linear-gradient(135deg, #8a6a2a, #f5d77a 45%, #a07a2a)); }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0; background: radial-gradient(80% 60% at 50% 32%, #c4221f, #7a0b0f 70%, #4a0507); }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 90%, transparent); border-radius: 22px; max-width: 420px; width: calc(100% - 44px); padding: 22px 16px; box-shadow: 0 0 0 2px var(--gold), 0 24px 50px -16px rgba(0, 0, 0, .6); }
+{a} .cover__eyebrow { animation: nm-turun 1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: nm-zoom 1.3s cubic-bezier(.2, .8, .25, 1.1) .5s both; }
+{a} .cover__names { animation: nm-zoom 1.1s ease .85s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: nm-naik 1s ease 1.1s both; }
+{a} .gate__open { animation: nm-naik 1s ease 1.35s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Daun pintu: pernis merah, paku emas (kisi titik), bingkai emas, ketukan. */
+{a} .gate__panel { top: 0; bottom: 0; width: 50.2%; z-index: 1; padding: 46px 34px; background-origin: content-box; background-clip: border-box;
+  background: radial-gradient(circle, #ffe9a6 0 2.5px, #d4a43a 3.5px 5px, #7a5a14 6px, transparent 7px) 0 0 / 34px 34px content-box, linear-gradient(90deg, rgba(0, 0, 0, .3), transparent 14%, transparent 86%, rgba(0, 0, 0, .3)), linear-gradient(180deg, #b3151b, #8e0f14 55%, #680a0e);
+  box-shadow: inset 0 0 0 9px #5e080b, inset 0 0 0 12px #d4a43a, inset 0 0 0 14px #5e080b, inset 0 0 50px rgba(0, 0, 0, .55); }
+{a} .gate__panel--l { left: 0; transform-origin: left center; }
+{a} .gate__panel--r { right: 0; left: auto; transform-origin: right center; }
+{a} .gate__panel::before { content: ""; position: absolute; top: 50%; width: 58px; height: 74px; margin-top: -30px; border-radius: 50% 50% 46% 46%;
+  background: radial-gradient(circle at 50% 64%, transparent 0 15px, #f5d77a 16px 20px, #8a6a2a 21px 23px, transparent 24px), radial-gradient(ellipse 22px 18px at 50% 22%, #f5d77a, #b8860b 70%, transparent 72%);
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .45)); }
+{a} .gate__panel--l::before { right: 22px; }
+{a} .gate__panel--r::before { left: 22px; }
+{a} .gate__panel::after { display: none; }
+/* Naga emas melayang di atas pintu. Melayang = `translate`; buka/tutup = `transform`. */
+{a} .gate__orn { display: block; position: absolute; left: 3%; right: 3%; top: 5%; height: 24%; z-index: 3; pointer-events: none; background: var(--emas);
+  -webkit-mask: url("/img/tema/dunia/naga.svg") center / contain no-repeat; mask: url("/img/tema/dunia/naga.svg") center / contain no-repeat;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .5)); animation: nm-melayang 5s ease-in-out infinite alternate; }
+/* Lampion: 6 buah pada kedalaman berbeda (--s), berayun dari talinya. */
+{a} .gate__fx { display: block; z-index: 2; }
+{a} .gate__fx i { width: 54px; height: 64px; top: var(--y); left: var(--x); scale: var(--s); transform-origin: 50% -46px; border-radius: 50% / 46%;
+  background: linear-gradient(90deg, transparent 0 22%, rgba(255, 215, 130, .3) 23% 25%, transparent 26% 48%, rgba(255, 215, 130, .35) 49% 51%, transparent 52% 74%, rgba(255, 215, 130, .3) 75% 77%, transparent 78%), radial-gradient(ellipse at 50% 42%, #ff7a50, #d01f1f 58%, #8a0c0c);
+  box-shadow: 0 0 34px 6px rgba(255, 90, 40, .45), inset 0 7px 0 -2px #d4a43a, inset 0 -7px 0 -2px #d4a43a;
+  animation: nm-ayun calc(3.2s + var(--i) * .35s) ease-in-out calc(var(--i) * -.6s) infinite alternate; }
+{a} .gate__fx i::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 2px; height: 46px; margin-left: -1px; background: #d4a43a; }
+{a} .gate__fx i::after { content: ""; position: absolute; left: 50%; top: 100%; width: 8px; height: 30px; margin-left: -4px; border-radius: 0 0 4px 4px; background: linear-gradient(#d4a43a 0 4px, #c41a1a 4px); }
+{a} .gate__fx i:nth-child(n+7) { display: none; }
+{a} .gate__fx i:nth-child(1) { --x: 6%; --y: 30%; --s: .8; }
+{a} .gate__fx i:nth-child(2) { --x: 82%; --y: 34%; --s: .9; }
+{a} .gate__fx i:nth-child(3) { --x: 16%; --y: 58%; --s: 1.1; }
+{a} .gate__fx i:nth-child(4) { --x: 74%; --y: 62%; --s: 1; }
+{a} .gate__fx i:nth-child(5) { --x: 2%; --y: 80%; --s: .7; }
+{a} .gate__fx i:nth-child(6) { --x: 88%; --y: 82%; --s: .75; }
+/* ── Dibuka ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.5s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .8s ease 1.5s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(.94); transition: opacity .45s ease, transform .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--l, .is-open > {a} .gate__panel--l { rotate: y -110deg; transition: rotate 1.5s cubic-bezier(.5, 0, .2, 1) .25s, opacity .5s ease 1.7s; opacity: 0; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--r, .is-open > {a} .gate__panel--r { rotate: y 110deg; transition: rotate 1.5s cubic-bezier(.5, 0, .2, 1) .25s, opacity .5s ease 1.7s; opacity: 0; }
+.inv-opened {a}:not(.gate--embed) .gate__orn, .is-open > {a} .gate__orn { transform: translateY(-40%) scale(1.8); opacity: 0; transition: transform 1.6s cubic-bezier(.5, 0, .3, 1) .15s, opacity .8s ease .9s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { transform: translateY(-130vh); transition: transform calc(1.4s + var(--i) * .12s) cubic-bezier(.5, 0, .7, .4) calc(.1s + var(--i) * .06s); }
+/* ── Ditutup ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: nm-redup .4s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--l { animation: nm-tutup-l 1.15s cubic-bezier(.3, .7, .25, 1) .1s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--r { animation: nm-tutup-r 1.15s cubic-bezier(.3, .7, .25, 1) .1s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn.gate__orn,
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn { transition: none !important; animation: nm-naga-kembali 1s cubic-bezier(.2, .7, .3, 1) .55s both, nm-melayang 5s ease-in-out 1.6s infinite alternate; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: nm-lampion-turun 1s cubic-bezier(.2, .7, .3, 1) calc(var(--i) * 60ms) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.15s !important; }
+}
+@keyframes nm-melayang { to { translate: 0 6%; } }
+@keyframes nm-ayun { from { rotate: -7deg; } to { rotate: 7deg; } }
+@keyframes nm-tutup-l { from { rotate: y -110deg; opacity: 0; } 25% { opacity: 1; } to { rotate: y 0deg; opacity: 1; } }
+@keyframes nm-tutup-r { from { rotate: y 110deg; opacity: 0; } 25% { opacity: 1; } to { rotate: y 0deg; opacity: 1; } }
+@keyframes nm-naga-kembali { from { transform: translateY(-40%) scale(1.8); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes nm-lampion-turun { from { transform: translateY(-110vh); } to { transform: none; } }
+@keyframes nm-redup { from { opacity: 0; } to { opacity: 1; } }
+@keyframes nm-turun { from { opacity: 0; transform: translateY(-30px); } }
+@keyframes nm-naik { from { opacity: 0; transform: translateY(26px); } }
+@keyframes nm-zoom { from { opacity: 0; transform: scale(.82); } }

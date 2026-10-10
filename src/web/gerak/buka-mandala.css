@@ -1,0 +1,67 @@
+/* Mandala (Hindu) — latar kunyit-magenta hangat; tiga lapis mandala emas,
+   magenta & kunyit berputar berlawanan arah; untaian marigold menjuntai di
+   tepi atas. DIBUKA: lapis-lapis mandala melesat ke arah tamu pada
+   kecepatan berbeda (kedalaman 3D) sambil berputar, untaian naik, isi
+   undangan muncul dari pusatnya. DITUTUP: lapis-lapis datang kembali dari
+   depan & mengecil ke tempatnya, untaian turun. Berputar = `rotate`;
+   buka/tutup = `transform`. */
+{a} { --gate-reveal: 1600; --gate-close: 1700; }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(70% 55% at 50% 50%, #fde7b0, color-mix(in srgb, var(--primary) 30%, #f59e0b) 55%, color-mix(in srgb, var(--primary) 70%, #7c1d3f) 100%); }
+{a} .gate__panel { display: none; }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 90%, transparent); border-radius: 26px; max-width: 410px; width: calc(100% - 44px); padding: 22px 16px; box-shadow: 0 0 0 2px var(--gold), 0 24px 50px -16px rgba(80, 20, 20, .5); }
+{a} .cover__eyebrow { animation: md-mekar 1.1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: md-mekar 1.3s cubic-bezier(.2, .8, .25, 1.1) .5s both; }
+{a} .cover__names { animation: md-mekar 1.1s ease .85s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: md-naik 1s ease 1.1s both; }
+{a} .gate__open { animation: md-naik 1s ease 1.35s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Tiga lapis mandala: orn::before (luar, emas), orn::after (tengah, magenta), fx::before (dalam, kunyit). */
+{a} .gate__orn { display: block; position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+{a} .gate__orn::before, {a} .gate__orn::after, {a} .gate__fx::before { content: ""; position: absolute; left: 50%; top: 50%; aspect-ratio: 1; translate: -50% -50%; }
+{a} .gate__orn::before { width: max(130vmin, 600px); background: var(--foil-deep, linear-gradient(135deg, #8a6a2a, #f5d77a 45%, #a07a2a)); opacity: .9;
+  -webkit-mask: url("/img/tema/dunia/mandala-1.svg") center / contain no-repeat; mask: url("/img/tema/dunia/mandala-1.svg") center / contain no-repeat; animation: md-putar 60s linear infinite; }
+{a} .gate__orn::after { width: max(92vmin, 430px); background: linear-gradient(135deg, #be185d, #9d174d 60%, #831843); opacity: .85;
+  -webkit-mask: url("/img/tema/dunia/mandala-2.svg") center / contain no-repeat; mask: url("/img/tema/dunia/mandala-2.svg") center / contain no-repeat; animation: md-putar 45s linear infinite reverse; }
+{a} .gate__fx { display: block; z-index: 2; }
+{a} .gate__fx::before { width: max(70vmin, 320px); background: linear-gradient(135deg, #f59e0b, #ea580c); opacity: .9;
+  -webkit-mask: url("/img/tema/dunia/mandala-3.svg") center / contain no-repeat; mask: url("/img/tema/dunia/mandala-3.svg") center / contain no-repeat; animation: md-putar 30s linear infinite; }
+/* Untaian marigold: 6 untai di tepi atas (bunga = titik oranye-merah berulang). */
+{a} .gate__fx i { top: -2%; width: 16px; height: var(--h); left: var(--x); transform-origin: 50% 0;
+  background: radial-gradient(circle, #fbbf24 0 3px, #f97316 4px 6px, #c2410c 7px, transparent 8px) 0 0 / 16px 15px repeat-y;
+  animation: md-ayun calc(3.6s + var(--i) * .3s) ease-in-out calc(var(--i) * -.5s) infinite alternate; }
+{a} .gate__fx i:nth-child(even) { background-image: radial-gradient(circle, #fde68a 0 3px, #dc2626 4px 6px, #991b1b 7px, transparent 8px); }
+{a} .gate__fx i:nth-child(n+7) { display: none; }
+{a} .gate__fx i:nth-child(1) { --x: 3%; --h: 46%; }
+{a} .gate__fx i:nth-child(2) { --x: 11%; --h: 32%; }
+{a} .gate__fx i:nth-child(3) { --x: 19%; --h: 20%; }
+{a} .gate__fx i:nth-child(4) { --x: calc(97% - 16px); --h: 46%; }
+{a} .gate__fx i:nth-child(5) { --x: calc(89% - 16px); --h: 32%; }
+{a} .gate__fx i:nth-child(6) { --x: calc(81% - 16px); --h: 20%; }
+/* ── Dibuka: lapis melesat ke depan ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.4s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .9s ease 1.2s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(.9); transition: opacity .45s ease, transform .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__fx::before, .is-open > {a} .gate__fx::before { transform: scale(7); opacity: 0; transition: transform 1.2s cubic-bezier(.55, 0, .6, .3) .2s, opacity .6s ease .8s; }
+.inv-opened {a}:not(.gate--embed) .gate__orn::after, .is-open > {a} .gate__orn::after { transform: scale(4.5); opacity: 0; transition: transform 1.5s cubic-bezier(.55, 0, .6, .3) .35s, opacity .7s ease 1.1s; }
+.inv-opened {a}:not(.gate--embed) .gate__orn::before, .is-open > {a} .gate__orn::before { transform: scale(3); opacity: 0; transition: transform 1.8s cubic-bezier(.55, 0, .6, .3) .5s, opacity .8s ease 1.4s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: none; transform: translateY(-110%); transition: transform 1s cubic-bezier(.5, 0, .7, .4) calc(var(--i) * .05s); }
+/* ── Ditutup: lapis kembali dari depan ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: md-redup .45s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn.gate__orn,
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn::before { transition: none; animation: md-kembali-3 1.2s cubic-bezier(.2, .7, .3, 1) both, md-putar 60s linear infinite; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn::after { transition: none; animation: md-kembali-45 1.2s cubic-bezier(.2, .7, .3, 1) .15s both, md-putar 45s linear infinite reverse; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::before { transition: none; animation: md-kembali-7 1.2s cubic-bezier(.2, .7, .3, 1) .3s both, md-putar 30s linear infinite; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: md-untai-turun .9s cubic-bezier(.2, .7, .3, 1) calc(.4s + var(--i) * 50ms) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.15s !important; }
+}
+@keyframes md-putar { to { rotate: 360deg; } }
+@keyframes md-ayun { from { rotate: -3deg; } to { rotate: 3deg; } }
+@keyframes md-kembali-3 { from { transform: scale(3); opacity: 0; } to { transform: none; opacity: .9; } }
+@keyframes md-kembali-45 { from { transform: scale(4.5); opacity: 0; } to { transform: none; opacity: .85; } }
+@keyframes md-kembali-7 { from { transform: scale(7); opacity: 0; } to { transform: none; opacity: .9; } }
+@keyframes md-untai-turun { from { transform: translateY(-110%); } to { transform: none; } }
+@keyframes md-redup { from { opacity: 0; } to { opacity: 1; } }
+@keyframes md-mekar { from { opacity: 0; transform: scale(.85) rotate(-4deg); } }
+@keyframes md-naik { from { opacity: 0; transform: translateY(26px); } }

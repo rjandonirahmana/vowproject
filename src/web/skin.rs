@@ -359,6 +359,15 @@ pub const MOTION_PRESETS: &[(&str, &str, &str, &str, &str, &str)] = &[
     ("kupu", "Kupu-kupu", "Kawanan kupu-kupu mengangkat sampul, isi bergeser, kupu-kupu", "kupu-kupu", "geser", "kupu"),
     ("ombak", "Ombak Laut", "Ombak menyapu layar, isi mengayun, kilau emas", "ombak-laut", "ombak", "kilau-emas"),
     ("awan", "Awan Berarak", "Menembus awan, isi naik anggun, kawanan burung", "awan-berarak", "anggun", "burung"),
+    ("naga", "Naga Emas", "Pintu pernis berayun, naga terbang, isi zoom, kilau emas", "naga-emas", "zoom", "kilau-emas"),
+    ("mashrabiya", "Mashrabiya", "Pintu kisi bintang, lengkung ditembus, isi anggun, kerlip bintang", "mashrabiya", "anggun", "bintang"),
+    ("katedral", "Katedral", "Jendela mawar menyala, pintu gotik, isi pudar lembut, kelopak", "katedral", "pudar", "kelopak"),
+    ("mandala", "Mandala", "Mandala melesat ke depan, isi mekar, kelopak berguguran", "mandala", "mekar", "kelopak"),
+    ("stupa", "Stupa", "Cahaya fajar & stupa, isi naik anggun, kilau emas", "stupa", "anggun", "kilau-emas"),
+    ("shoji", "Shoji Sakura", "Shoji bergeser melewati torii, isi naik, kelopak sakura", "shoji-sakura", "naik", "kelopak"),
+    ("hanok", "Hanok", "Pintu hanok terlipat ke atas, isi bergeser, kelopak", "hanok", "geser", "kelopak"),
+    ("chofa", "Chofa", "Atap kuil terangkat, isi zoom, kilau emas", "chofa", "zoom", "kilau-emas"),
+    ("hoian", "Lampion Hoi An", "Lampion terbang naik, isi anggun, kunang-kunang", "lampion-hoian", "anggun", "kunang"),
 ];
 
 impl ThemeInfo {

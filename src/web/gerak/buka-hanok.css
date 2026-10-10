@@ -1,0 +1,61 @@
+/* Hanok (Korea) — pintu kisi hanok (changho) berlapis kertas hanji, pita
+   dancheong warna-warni di bawah atap, kelopak bunga plum melayang.
+   DIBUKA: daun pintu TERLIPAT KE ATAS seperti 들어열개 khas hanok (rotateX
+   dari engsel atas, 3D) bergantian kiri-kanan, pita dancheong naik, isi
+   undangan muncul. DITUTUP: pintu terlipat turun kembali, pita turun.
+   Kayu = cokelat tetap; dancheong = hijau-merah-biru-kuning tradisional. */
+{a} { --gate-reveal: 1900; --gate-close: 1700; perspective: 1100px; }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, #f6efe2, #eadcc3); }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 92%, transparent); border-radius: 16px; max-width: 410px; width: calc(100% - 44px); padding: 22px 16px; margin-top: 12vh; box-shadow: 0 0 0 1px var(--gold), 0 24px 50px -18px rgba(60, 30, 10, .4); }
+{a} .cover__eyebrow { animation: hn-pudar 1.1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: hn-zoom 1.3s cubic-bezier(.2, .8, .25, 1.1) .5s both; }
+{a} .cover__names { animation: hn-pudar 1.1s ease .85s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: hn-naik 1s ease 1.1s both; }
+{a} .gate__open { animation: hn-naik 1s ease 1.35s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Daun pintu: hanji (kertas) + kisi kayu changho + bingkai; engsel di ATAS. */
+{a} .gate__panel { top: 60px; bottom: 0; width: 50.2%; z-index: 1; transform-origin: 50% 0;
+  background: radial-gradient(80% 60% at 50% 45%, #fffaf0, #efe2c8);
+  box-shadow: inset 0 0 0 10px #5a3a22, inset 0 0 0 13px #3b2414, inset 0 0 40px rgba(90, 58, 34, .25); }
+{a} .gate__panel--l { left: 0; }
+{a} .gate__panel--r { right: 0; left: auto; }
+{a} .gate__panel::before { content: ""; position: absolute; inset: 16px; background: #5a3a22; opacity: .9;
+  -webkit-mask: url("/img/tema/dunia/kisi-korea.svg") center / 40px 60px repeat; mask: url("/img/tema/dunia/kisi-korea.svg") center / 40px 60px repeat; }
+{a} .gate__panel::after { display: none; }
+/* Pita dancheong di bawah atap: latar hijau tua (orn) + bunga dancheong
+   warna-warni (orn::after, mask ubin 240×60 — tiap bunga satu warna). */
+{a} .gate__orn { display: block; position: absolute; left: 0; right: 0; top: 0; height: 60px; z-index: 3; pointer-events: none;
+  background: linear-gradient(180deg, #1d4a3f, #2f5d50 50%, #1d4a3f); box-shadow: 0 6px 14px rgba(0, 0, 0, .25); }
+{a} .gate__orn::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, #e9f2ee 0 60px, #d6453a 60px 120px, #3d6fc4 120px 180px, #f2c14e 180px 240px) 0 0 / 240px 100%;
+  -webkit-mask: url("/img/tema/dunia/dancheong.svg") left center / 240px 60px repeat-x; mask: url("/img/tema/dunia/dancheong.svg") left center / 240px 60px repeat-x; }
+/* Kelopak plum melayang (6). */
+{a} .gate__fx { display: block; z-index: 5; }
+{a} .gate__fx i { top: -5%; left: calc(var(--i) * 16% + 4%); width: 11px; height: 11px; border-radius: 50% 0 50% 50%; background: radial-gradient(circle at 30% 30%, #fde2e4, #f4a6b8); opacity: .85;
+  animation: hn-gugur calc(9s + var(--i) * .8s) linear calc(var(--i) * -1.5s) infinite; }
+{a} .gate__fx i:nth-child(n+7) { display: none; }
+@keyframes hn-gugur { to { transform: translate3d(-40px, 112vh, 0) rotate3d(.6, 1, .2, 540deg); } }
+/* ── Dibuka: pintu terlipat ke atas ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.6s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .8s ease 1.6s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(.94); transition: opacity .45s ease, transform .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--l, .is-open > {a} .gate__panel--l { transform: rotateX(-86deg); opacity: 0; transition: transform 1.3s cubic-bezier(.5, 0, .2, 1) .25s, opacity .5s ease 1.4s; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--r, .is-open > {a} .gate__panel--r { transform: rotateX(-86deg); opacity: 0; transition: transform 1.3s cubic-bezier(.5, 0, .2, 1) .5s, opacity .5s ease 1.6s; }
+.inv-opened {a}:not(.gate--embed) .gate__orn, .is-open > {a} .gate__orn { transform: translateY(-110%); transition: transform .8s cubic-bezier(.5, 0, .7, .4) 1.4s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx, .is-open > {a} .gate__fx { opacity: 0; transition: opacity .8s ease 1.5s; }
+/* ── Ditutup: pintu terlipat turun ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: hn-redup .4s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn.gate__orn,
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn { transition: none !important; animation: hn-pita .6s cubic-bezier(.2, .7, .3, 1) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx { transition: none !important; animation: hn-redup .6s ease .6s both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--l { animation: hn-turun 1s cubic-bezier(.3, .7, .25, 1) .25s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--r { animation: hn-turun 1s cubic-bezier(.3, .7, .25, 1) .45s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.2s !important; }
+}
+@keyframes hn-turun { from { transform: rotateX(-86deg); opacity: 0; } 20% { opacity: 1; } to { transform: none; opacity: 1; } }
+@keyframes hn-pita { from { transform: translateY(-110%); } to { transform: none; } }
+@keyframes hn-redup { from { opacity: 0; } }
+@keyframes hn-pudar { from { opacity: 0; transform: scale(.95); } }
+@keyframes hn-naik { from { opacity: 0; transform: translateY(26px); } }
+@keyframes hn-zoom { from { opacity: 0; transform: scale(.82); } }

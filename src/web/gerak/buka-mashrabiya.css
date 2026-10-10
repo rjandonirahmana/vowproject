@@ -1,0 +1,74 @@
+/* Mashrabiya (Arab/Islami) — langit malam zamrud bertabur bintang; bingkai
+   lengkung ogee emas dengan bulan sabit & bintang di puncaknya; dua daun
+   pintu berkisi bintang delapan (mashrabiya); fanous (lentera kaca) berayun.
+   DIBUKA: daun pintu berayun ke dalam (3D), "kamera" menembus lengkung
+   (membesar & memudar), fanous naik, isi undangan muncul.
+   DITUTUP: lengkung kembali dari depan, pintu berayun menutup, fanous turun.
+   Kayu = --primary gelap; emas = --foil-deep / --gold tema. */
+{a} { --gate-reveal: 2100; --gate-close: 1700; perspective: 1300px; --emas: var(--foil-deep, linear-gradient(135deg, #8a6a2a, #f5d77a 45%, #a07a2a)); }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: radial-gradient(1.2px 1.2px at 20px 30px, #fff, transparent), radial-gradient(1px 1px at 70px 90px, #fff8d0, transparent), radial-gradient(1.4px 1.4px at 130px 50px, #fff, transparent) 0 0 / 160px 140px,
+    radial-gradient(90% 60% at 50% 18%, color-mix(in srgb, var(--primary) 55%, #0e3b36), #06201d 75%); }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 90%, transparent); border-radius: 160px 160px 22px 22px; max-width: 400px; width: calc(100% - 64px); padding: 46px 16px 22px; box-shadow: 0 0 0 2px var(--gold), 0 0 0 6px color-mix(in srgb, var(--primary) 70%, #000), 0 24px 50px -16px rgba(0, 0, 0, .6); }
+{a} .cover__eyebrow { animation: ms-pudar 1.1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: ms-zoom 1.3s cubic-bezier(.2, .8, .25, 1.1) .5s both; }
+{a} .cover__names { animation: ms-pudar 1.1s ease .85s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: ms-naik 1s ease 1.1s both; }
+{a} .gate__open { animation: ms-naik 1s ease 1.35s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Daun pintu: kayu zamrud tua + kisi bintang emas + bingkai. */
+{a} .gate__panel { top: 0; bottom: 0; width: 50.2%; z-index: 1;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .3), transparent 12%, transparent 88%, rgba(0, 0, 0, .3)), linear-gradient(180deg, color-mix(in srgb, var(--primary) 60%, #082a26), color-mix(in srgb, var(--primary) 45%, #041715));
+  box-shadow: inset 0 0 0 10px color-mix(in srgb, var(--primary) 40%, #021210), inset 0 0 0 13px var(--gold), inset 0 0 60px rgba(0, 0, 0, .55); }
+{a} .gate__panel--l { left: 0; transform-origin: left center; }
+{a} .gate__panel--r { right: 0; left: auto; transform-origin: right center; }
+{a} .gate__panel::before { content: ""; position: absolute; inset: 22px; opacity: .85; background: var(--emas);
+  -webkit-mask: url("/img/tema/dunia/kisi-arab.svg") center / 58px 58px repeat; mask: url("/img/tema/dunia/kisi-arab.svg") center / 58px 58px repeat; }
+{a} .gate__panel::after { display: none; }
+/* Bingkai lengkung ogee (::before) + bulan sabit & bintang (::after). */
+{a} .gate__orn { display: block; position: absolute; inset: 0; z-index: 3; pointer-events: none; transform-origin: 50% 40%; }
+{a} .gate__orn::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 40%, #021210), color-mix(in srgb, var(--primary) 60%, #0b3a34) 50%, color-mix(in srgb, var(--primary) 40%, #021210));
+  -webkit-mask: url("/img/tema/dunia/lengkung-arab.svg") center / 100% 100% no-repeat; mask: url("/img/tema/dunia/lengkung-arab.svg") center / 100% 100% no-repeat; filter: drop-shadow(0 0 1.5px var(--gold)) drop-shadow(0 10px 20px rgba(0, 0, 0, .5)); }
+{a} .gate__orn::after { content: ""; position: absolute; left: 50%; top: 2.5%; width: 64px; height: 64px; margin-left: -32px; background: var(--emas);
+  -webkit-mask: url("/img/tema/dunia/sabit.svg") center / contain no-repeat; mask: url("/img/tema/dunia/sabit.svg") center / contain no-repeat;
+  filter: drop-shadow(0 0 12px rgba(255, 220, 140, .7)); }
+/* Fanous: lentera kaca berwarna berbingkai emas, berayun (4 buah). */
+{a} .gate__fx { display: block; z-index: 2; }
+{a} .gate__fx i { width: 36px; height: 62px; top: var(--y); left: var(--x); scale: var(--s); transform-origin: 50% -40px;
+  clip-path: polygon(50% 0, 66% 12%, 66% 20%, 100% 30%, 100% 76%, 66% 88%, 50% 100%, 34% 88%, 0 76%, 0 30%, 34% 20%, 34% 12%);
+  background: linear-gradient(90deg, #b8860b 0 8%, var(--kaca) 8% 44%, #d4a43a 44% 56%, var(--kaca) 56% 92%, #b8860b 92%), linear-gradient(#d4a43a 0 30%, transparent 30% 76%, #d4a43a 76%);
+  background-blend-mode: normal; filter: drop-shadow(0 0 14px rgba(255, 200, 100, .65));
+  animation: ms-ayun calc(3.4s + var(--i) * .4s) ease-in-out calc(var(--i) * -.7s) infinite alternate; --kaca: rgba(255, 196, 92, .92); }
+{a} .gate__fx i::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 2px; height: 40px; margin-left: -1px; background: #d4a43a; }
+{a} .gate__fx i:nth-child(n+5) { display: none; }
+{a} .gate__fx i:nth-child(1) { --x: 10%; --y: 26%; --s: .9; --kaca: rgba(80, 200, 170, .9); }
+{a} .gate__fx i:nth-child(2) { --x: 80%; --y: 24%; --s: .85; }
+{a} .gate__fx i:nth-child(3) { --x: 4%; --y: 56%; --s: 1.1; }
+{a} .gate__fx i:nth-child(4) { --x: 86%; --y: 58%; --s: 1.05; --kaca: rgba(220, 90, 80, .9); }
+/* ── Dibuka ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.6s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .8s ease 1.7s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(.94); transition: opacity .45s ease, transform .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--l, .is-open > {a} .gate__panel--l { rotate: y -108deg; opacity: 0; transition: rotate 1.4s cubic-bezier(.5, 0, .2, 1) .3s, opacity .5s ease 1.6s; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--r, .is-open > {a} .gate__panel--r { rotate: y 108deg; opacity: 0; transition: rotate 1.4s cubic-bezier(.5, 0, .2, 1) .3s, opacity .5s ease 1.6s; }
+.inv-opened {a}:not(.gate--embed) .gate__orn, .is-open > {a} .gate__orn { transform: scale(3.2); opacity: 0; transition: transform 1.2s cubic-bezier(.55, 0, .7, .4) 1.2s, opacity .6s ease 1.8s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { transform: translateY(-120vh); transition: transform calc(1.4s + var(--i) * .15s) cubic-bezier(.5, 0, .7, .4) calc(.2s + var(--i) * .08s); }
+/* ── Ditutup ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: ms-redup .4s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn.gate__orn,
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn { transition: none !important; animation: ms-lengkung 1s cubic-bezier(.2, .7, .3, 1) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--l { animation: ms-tutup-l 1.1s cubic-bezier(.3, .7, .25, 1) .35s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--r { animation: ms-tutup-r 1.1s cubic-bezier(.3, .7, .25, 1) .35s both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: ms-lentera-turun 1s cubic-bezier(.2, .7, .3, 1) calc(.2s + var(--i) * 70ms) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.2s !important; }
+}
+@keyframes ms-ayun { from { rotate: -6deg; } to { rotate: 6deg; } }
+@keyframes ms-lengkung { from { transform: scale(3.2); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes ms-tutup-l { from { rotate: y -108deg; opacity: 0; } 25% { opacity: 1; } to { rotate: y 0deg; opacity: 1; } }
+@keyframes ms-tutup-r { from { rotate: y 108deg; opacity: 0; } 25% { opacity: 1; } to { rotate: y 0deg; opacity: 1; } }
+@keyframes ms-lentera-turun { from { transform: translateY(-110vh); } to { transform: none; } }
+@keyframes ms-redup { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ms-pudar { from { opacity: 0; transform: scale(.95); } }
+@keyframes ms-naik { from { opacity: 0; transform: translateY(26px); } }
+@keyframes ms-zoom { from { opacity: 0; transform: scale(.82); } }

@@ -488,7 +488,6 @@ fn packages(k: Konten) -> impl IntoView {
 /// tetap tautan ke demonya.
 #[component]
 fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
-    const MAKS: usize = 24;
     view! {
         <section class="etalase" aria-label="Coba tema undangan di layar HP">
             <div class="etalase__head">
@@ -498,7 +497,9 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
             </div>
             <div class="etalase__stage">
                 <div class="etalase__track" data-etalase>
-                    {themes.into_iter().take(MAKS).map(|t| {
+                    // SEMUA tema (dulu dibatasi 24). Kartu jauh dari tengah disembunyikan
+                    // global.js (visibility:hidden → tak dilukis, tanpa lapis GPU).
+                    {themes.into_iter().map(|t| {
                         let demo = format!("/u/{}?tema={}", crate::web::themes::DEMO_SLUG, t.slug);
                         view! {
                             <a class=format!("etalase__item tcard__art th-{}{}", t.slug, crate::web::rupa::classes(&t.rupa)) href=demo.clone()

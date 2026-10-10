@@ -1,0 +1,59 @@
+/* Shoji Sakura (Jepang) — gerbang torii merah vermilion di depan dua panel
+   shoji (kisi kayu + kertas washi bercahaya), kelopak sakura gugur berputar
+   3D. DIBUKA: shoji bergeser ke samping (dengan sedikit kedalaman), "kamera"
+   melewati torii (membesar & memudar), sakura dihembus angin, isi muncul.
+   DITUTUP: shoji bergeser menutup, torii kembali dari depan.
+   Kayu = cokelat tetap; torii = --primary bila merah, else vermilion. */
+{a} { --gate-reveal: 1700; --gate-close: 1600; perspective: 1200px; --torii: #c0392b; }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, #fbf3e4, #efe1c6); }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 92%, transparent); border-radius: 18px; max-width: 410px; width: calc(100% - 44px); padding: 22px 16px; margin-top: 16vh; box-shadow: 0 0 0 1px color-mix(in srgb, var(--torii) 50%, transparent), 0 24px 50px -18px rgba(60, 30, 10, .4); }
+{a} .cover__eyebrow { animation: sj-pudar 1.1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: sj-zoom 1.3s cubic-bezier(.2, .8, .25, 1.1) .5s both; }
+{a} .cover__names { animation: sj-pudar 1.1s ease .85s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: sj-naik 1s ease 1.1s both; }
+{a} .gate__open { animation: sj-naik 1s ease 1.35s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Shoji: kisi kayu (vertikal 4, horizontal 6) di atas kertas washi bercahaya. */
+{a} .gate__panel { top: 0; bottom: 0; width: 50.2%; z-index: 1;
+  background: linear-gradient(90deg, #5b3d27 0 4px, transparent 4px) 0 0 / 25% 100%, linear-gradient(0deg, #5b3d27 0 4px, transparent 4px) 0 0 / 100% 16.66%,
+    radial-gradient(80% 60% at 50% 45%, #fffdf6, #f3e7cf);
+  box-shadow: inset 0 0 0 10px #4a301d, inset 0 0 0 12px #2e1d10; }
+{a} .gate__panel--l { left: 0; }
+{a} .gate__panel--r { right: 0; left: auto; }
+{a} .gate__panel::after { display: none; }
+/* Torii di depan. */
+{a} .gate__orn { display: block; position: absolute; left: 2%; right: 2%; top: 2%; height: 46%; z-index: 3; pointer-events: none; transform-origin: 50% 40%;
+  background: linear-gradient(180deg, #2b211c 0 13%, var(--torii) 13%, color-mix(in srgb, var(--torii) 75%, #000));
+  -webkit-mask: url("/img/tema/dunia/torii.svg") center top / contain no-repeat; mask: url("/img/tema/dunia/torii.svg") center top / contain no-repeat;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .3)); }
+/* Kelopak sakura: 12, gugur berputar 3D (rotate3d) tanpa henti. */
+{a} .gate__fx { display: block; z-index: 5; }
+{a} .gate__fx i { top: -6%; left: calc(var(--i) * 8.3% + 2%); width: 13px; height: 11px; border-radius: 0 100% 0 100%;
+  background: linear-gradient(135deg, #ffd1dc, #f48fb1); opacity: .9;
+  animation: sj-gugur calc(7s + var(--i) * .6s) linear calc(var(--i) * -1.1s) infinite; }
+@keyframes sj-gugur { from { transform: translate3d(0, 0, 0) rotate3d(1, .4, .2, 0deg); } to { transform: translate3d(calc(-60px + var(--i) * 9px), 112vh, 0) rotate3d(1, .4, .2, 720deg); } }
+/* ── Dibuka ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.4s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .8s ease 1.3s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(.94); transition: opacity .45s ease, transform .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--l, .is-open > {a} .gate__panel--l { transform: translate3d(-102%, 0, -60px); transition: transform 1.2s cubic-bezier(.6, 0, .25, 1) .25s; }
+.inv-opened {a}:not(.gate--embed) .gate__panel--r, .is-open > {a} .gate__panel--r { transform: translate3d(102%, 0, -60px); transition: transform 1.2s cubic-bezier(.6, 0, .25, 1) .25s; }
+.inv-opened {a}:not(.gate--embed) .gate__orn, .is-open > {a} .gate__orn { transform: scale(2.8); opacity: 0; transition: transform 1.3s cubic-bezier(.55, 0, .7, .4) .9s, opacity .6s ease 1.5s; }
+.inv-opened {a}:not(.gate--embed) .gate__fx, .is-open > {a} .gate__fx { opacity: 0; transition: opacity .8s ease 1.4s; }
+/* ── Ditutup ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: sj-redup .4s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn.gate__orn,
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx { transition: none !important; animation: sj-redup .6s ease .5s both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--l { animation: sj-tutup-l 1s cubic-bezier(.3, .7, .25, 1) both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__panel.gate__panel--r { animation: sj-tutup-r 1s cubic-bezier(.3, .7, .25, 1) both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn { transition: none !important; animation: sj-torii 1s cubic-bezier(.2, .7, .3, 1) .45s both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.1s !important; }
+}
+@keyframes sj-tutup-l { from { transform: translate3d(-102%, 0, -60px); } to { transform: none; } }
+@keyframes sj-tutup-r { from { transform: translate3d(102%, 0, -60px); } to { transform: none; } }
+@keyframes sj-torii { from { transform: scale(2.8); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes sj-redup { from { opacity: 0; } }
+@keyframes sj-pudar { from { opacity: 0; transform: scale(.95); } }
+@keyframes sj-naik { from { opacity: 0; transform: translateY(26px); } }
+@keyframes sj-zoom { from { opacity: 0; transform: scale(.82); } }

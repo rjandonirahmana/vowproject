@@ -1,0 +1,36 @@
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 043_tema_dunia — 9 tema BUDAYA DUNIA & RELIGI, masing-masing dengan gerbang
+-- 3D sendiri (buka + tutup; CSS di src/web/gerak/, otomatis tersinkron ke
+-- tabel animations saat server mulai) & pola latar khas:
+--   naga-emas          naga-emas      Tionghoa   pintu pernis, naga, lampion
+--   mashrabiya-zamrud  mashrabiya     Islami     lengkung ogee, kisi bintang, fanous
+--   katedral-kudus     katedral       Kristiani  gotik, jendela mawar, merpati
+--   mandala-kalyanam   mandala        Hindu      mandala 3 lapis, marigold
+--   stupa-emas         stupa          Buddhis    stupa, cahaya fajar, bendera doa
+--   sakura-kyoto       shoji-sakura   Jepang     torii, shoji, sakura
+--   hanok-seoul        hanok          Korea      pintu kisi terlipat, dancheong
+--   wat-chofa          chofa          Thailand   atap kuil bertingkat, krathong
+--   hoian-lampion      lampion-hoian  Vietnam    lampion sutra Hoi An
+-- Aset: public/img/tema/dunia/ (scripts/gerak/dunia.py). Idempoten.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+INSERT INTO themes (slug, name, category, nuansa, palette, region, description, tags, badge, layout, ornament, font, tokens, dark, sort_order, script_font, bg_image, frame_image, card_deco, float_deco, open_anim, page_mode, scroll_anim, image_url, image_mode, gerak_judul, gerak_foto, ken_burns, listed) VALUES
+('naga-emas', 'Naga Emas', 'Budaya Dunia', 'Tionghoa', 'terra', 'Tionghoa', 'Pintu gerbang pernis merah berpaku emas dengan naga emas melayang dan lampion berayun; dibuka pintu berayun ke dalam, naga terbang & lampion naik ke langit.', '["Tionghoa", "Naga", "Lampion", "Gerbang 3D"]'::jsonb, 'Baru', 'klasik', 'none', 'cinzel',
+ '{"bg": "#fdf6ec", "card": "#fffaf2", "primary": "#a3161c", "on-primary": "#ffffff", "gold": "#d4a43a", "gold-deep": "#8a6a1f", "ink": "#3a0d0f", "muted": "#7a5a52"}'::jsonb, FALSE, 30, 'great-vibes', '', '', '', 'kilau-emas', 'naga-emas', 'satu', 'zoom', '/img/tema/dunia/cina-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE),
+('mashrabiya-zamrud', 'Mashrabiya Zamrud', 'Religi', 'Islami', 'sage', 'Islami', 'Lengkung ogee emas berhias bulan sabit, pintu berkisi bintang delapan, dan fanous kaca berayun di bawah langit malam; dibuka melewati lengkung, ditutup pintu kembali rapat.', '["Islami", "Mashrabiya", "Fanous", "Gerbang 3D"]'::jsonb, 'Baru', 'gerbang', 'none', 'cormorant',
+ '{"bg": "#f3f6f2", "card": "#ffffff", "primary": "#0f5a50", "on-primary": "#ffffff", "gold": "#c9a24a", "gold-deep": "#7a5e1c", "ink": "#0d2a26", "muted": "#5b6f6a"}'::jsonb, FALSE, 31, 'pinyon', '', '', '', 'bintang', 'mashrabiya', 'satu', 'anggun', '/img/tema/dunia/arab-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE),
+('katedral-kudus', 'Katedral Kudus', 'Religi', 'Kristiani', 'navy', 'Kristiani', 'Lengkung gotik batu dengan jendela mawar kaca patri yang menyala, pintu kayu berengsel besi, dan merpati putih terbang saat undangan dibuka.', '["Kristiani", "Katedral", "Kaca Patri", "Gerbang 3D"]'::jsonb, 'Baru', 'gerbang', 'none', 'cinzel',
+ '{"bg": "#f8f6f1", "card": "#ffffff", "primary": "#3b3f6b", "on-primary": "#ffffff", "gold": "#b9975b", "gold-deep": "#6e5530", "ink": "#1f2033", "muted": "#64667a"}'::jsonb, FALSE, 32, 'parisienne', '', '', '', 'kelopak', 'katedral', 'satu', 'pudar', '/img/tema/dunia/katedral-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE),
+('mandala-kalyanam', 'Mandala Kalyanam', 'Religi', 'Hindu', 'terra', 'Hindu', 'Tiga lapis mandala emas, magenta & kunyit berputar berlawanan arah dengan untaian marigold; dibuka mandala melesat ke arah tamu seperti gerbang cahaya.', '["Hindu", "Mandala", "Marigold", "Gerbang 3D"]'::jsonb, 'Baru', 'klasik', 'none', 'marcellus',
+ '{"bg": "#fff7ed", "card": "#fffbf5", "primary": "#9d174d", "on-primary": "#ffffff", "gold": "#d97706", "gold-deep": "#92400e", "ink": "#4a1024", "muted": "#7c5a5e"}'::jsonb, FALSE, 33, 'great-vibes', '', '', '', 'kelopak', 'mandala', 'satu', 'mekar', '/img/tema/dunia/hindu-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE),
+('stupa-emas', 'Stupa Emas', 'Religi', 'Buddhis', 'gold', 'Buddhis', 'Stupa emas di bawah cahaya fajar dengan sinar berputar dan bendera doa lima warna melambai; dibuka cahaya merekah dan stupa mendekat menembus pandangan.', '["Buddhis", "Stupa", "Bendera Doa", "Gerbang 3D"]'::jsonb, 'Baru', 'klasik', 'none', 'lora',
+ '{"bg": "#fffaf0", "card": "#ffffff", "primary": "#b45309", "on-primary": "#ffffff", "gold": "#d4a017", "gold-deep": "#7c5a10", "ink": "#3f2306", "muted": "#7a6248"}'::jsonb, FALSE, 34, 'allura', '', '', '', 'kilau-emas', 'stupa', 'satu', 'anggun', '/img/tema/dunia/vihara-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE),
+('sakura-kyoto', 'Sakura Kyoto', 'Budaya Dunia', 'Jepang', 'blush', 'Jepang', 'Gerbang torii vermilion di depan pintu shoji berkertas washi, kelopak sakura gugur berputar; dibuka shoji bergeser dan kita melangkah melewati torii.', '["Jepang", "Torii", "Sakura", "Gerbang 3D"]'::jsonb, 'Baru', 'editorial', 'none', 'dm-serif',
+ '{"bg": "#fdf7f5", "card": "#ffffff", "primary": "#b8323a", "on-primary": "#ffffff", "gold": "#c9a46a", "gold-deep": "#7d5a2c", "ink": "#2b1d1d", "muted": "#7a6262"}'::jsonb, FALSE, 35, 'pinyon', '', '', '', 'kelopak', 'shoji-sakura', 'satu', 'naik', '/img/tema/dunia/jepang-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE),
+('hanok-seoul', 'Hanok Seoul', 'Budaya Dunia', 'Korea', 'sage', 'Korea', 'Pintu kisi hanok berkertas hanji di bawah pita dancheong warna-warni; dibuka pintunya terlipat ke atas khas rumah tradisional Korea.', '["Korea", "Hanok", "Dancheong", "Gerbang 3D"]'::jsonb, 'Baru', 'bingkai', 'none', 'lora',
+ '{"bg": "#f7f3ea", "card": "#ffffff", "primary": "#2f5d50", "on-primary": "#ffffff", "gold": "#c99b3a", "gold-deep": "#7a5a20", "ink": "#1f2a26", "muted": "#5f6b66"}'::jsonb, FALSE, 36, 'parisienne', '', '', '', 'kelopak', 'hanok', 'satu', 'geser', '/img/tema/dunia/korea-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE),
+('wat-chofa', 'Wat Chofa', 'Budaya Dunia', 'Thailand', 'gold', 'Thailand', 'Atap kuil emas bertingkat dengan chofa di senja keemasan dan lentera krathong melayang; dibuka atap-atap terangkat mendekat bergiliran.', '["Thailand", "Kuil", "Krathong", "Gerbang 3D"]'::jsonb, 'Baru', 'gerbang', 'none', 'cinzel',
+ '{"bg": "#fdf8ef", "card": "#fffdf7", "primary": "#7a1f2b", "on-primary": "#ffffff", "gold": "#d4a017", "gold-deep": "#8a6410", "ink": "#2d0f12", "muted": "#74585a"}'::jsonb, FALSE, 37, 'great-vibes', '', '', '', 'kilau-emas', 'chofa', 'satu', 'zoom', '/img/tema/dunia/thai-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE),
+('hoian-lampion', 'Hoi An Lampion', 'Budaya Dunia', 'Vietnam', 'blush', 'Vietnam', 'Tirai lampion sutra warna-warni di senja sungai Hoi An; dibuka lampion terbang naik ke langit dengan kedalaman berlapis.', '["Vietnam", "Hoi An", "Lampion", "Gerbang 3D"]'::jsonb, 'Baru', 'klasik', 'none', 'cormorant',
+ '{"bg": "#fbf4ef", "card": "#ffffff", "primary": "#a4243b", "on-primary": "#ffffff", "gold": "#e0a43a", "gold-deep": "#8a5a12", "ink": "#2b1520", "muted": "#765e66"}'::jsonb, FALSE, 38, 'alex-brush', '', '', '', 'kunang', 'lampion-hoian', 'satu', 'anggun', '/img/tema/dunia/vietnam-motif.svg', 'pola', 'ikut', 'ikut', TRUE, TRUE)
+ON CONFLICT (slug) DO NOTHING;

@@ -1,0 +1,57 @@
+/* Lampion Hoi An (Vietnam) — senja di tepi sungai Thu Bồn: langit ungu-
+   jingga & pantulan air; tirai 12 lampion sutra warna-warni bergantung pada
+   kedalaman berbeda (skala, kecerahan), berayun pelan.
+   DIBUKA: lampion terbang naik ke langit — yang dekat lebih cepat (paralaks
+   3D), langit memudar, isi undangan muncul. DITUTUP: lampion turun kembali
+   ke tempatnya, yang jauh lebih dulu. Warna lampion tetap (khas Hoi An). */
+{a} { --gate-reveal: 1700; --gate-close: 1700; }
+{a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(180deg, #2b1f4b, #6b3260 38%, #e07a4f 64%, #f3a35e 70%, #3a2b55 71%, #2a1f45 82%, #1d1634); }
+{a} .gate__panel { display: none; }
+{a} .gate__content { z-index: 4; background: color-mix(in srgb, var(--bg) 90%, transparent); border-radius: 22px; max-width: 410px; width: calc(100% - 44px); padding: 22px 16px; box-shadow: 0 0 0 2px var(--gold), 0 24px 50px -16px rgba(20, 10, 40, .6); }
+{a} .cover__eyebrow { animation: lh-pudar 1.1s ease .3s both; }
+{a} .arch-photo, {a} .hero__seal { animation: lh-zoom 1.3s cubic-bezier(.2, .8, .25, 1.1) .5s both; }
+{a} .cover__names { animation: lh-pudar 1.1s ease .85s both; }
+{a} .hero__date, {a} .cover .pill, {a} .guest { animation: lh-naik 1s ease 1.1s both; }
+{a} .gate__open { animation: lh-naik 1s ease 1.35s both, gate-pulse 2.4s ease-in-out 2.4s infinite; }
+/* Lampion: badan sutra (berusuk), tutup & kaki kayu, rumbai; --s = kedalaman. */
+{a} .gate__fx { display: block; z-index: 2; }
+{a} .gate__fx i { width: 46px; height: 58px; left: var(--x); top: var(--y); scale: var(--s); opacity: var(--o, 1); transform-origin: 50% -60px; border-radius: 46% / 50%;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .18) 0 3%, transparent 3% 30%, rgba(0, 0, 0, .12) 30% 32%, transparent 32% 68%, rgba(0, 0, 0, .12) 68% 70%, transparent 70% 97%, rgba(0, 0, 0, .18) 97%), radial-gradient(ellipse at 50% 42%, color-mix(in srgb, var(--warna) 40%, #fff), var(--warna) 60%, color-mix(in srgb, var(--warna) 70%, #000));
+  box-shadow: 0 0 30px 6px color-mix(in srgb, var(--warna) 45%, transparent), inset 0 6px 0 -2px #3b2414, inset 0 -6px 0 -2px #3b2414;
+  animation: lh-ayun calc(3.8s + var(--i) * .3s) ease-in-out calc(var(--i) * -.6s) infinite alternate; }
+{a} .gate__fx i::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1.5px; height: 60px; margin-left: -.75px; background: rgba(40, 25, 15, .8); }
+{a} .gate__fx i::after { content: ""; position: absolute; left: 50%; top: 100%; width: 6px; height: 22px; margin-left: -3px; background: linear-gradient(#3b2414 0 3px, var(--warna) 3px); border-radius: 0 0 3px 3px; }
+{a} .gate__fx i:nth-child(1) { --x: 4%; --y: 9%; --s: .7; --o: .8; --warna: #e63946; }
+{a} .gate__fx i:nth-child(2) { --x: 24%; --y: 5%; --s: .55; --o: .7; --warna: #f4a261; }
+{a} .gate__fx i:nth-child(3) { --x: 46%; --y: 8%; --s: .62; --o: .75; --warna: #e9c46a; }
+{a} .gate__fx i:nth-child(4) { --x: 68%; --y: 4%; --s: .5; --o: .7; --warna: #b5179e; }
+{a} .gate__fx i:nth-child(5) { --x: 86%; --y: 10%; --s: .72; --o: .8; --warna: #e63946; }
+{a} .gate__fx i:nth-child(6) { --x: 12%; --y: 24%; --s: .95; --warna: #f4a261; }
+{a} .gate__fx i:nth-child(7) { --x: 78%; --y: 22%; --s: .9; --warna: #e9c46a; }
+{a} .gate__fx i:nth-child(8) { --x: 34%; --y: 18%; --s: .8; --o: .85; --warna: #7209b7; }
+{a} .gate__fx i:nth-child(9) { --x: 58%; --y: 16%; --s: .78; --o: .85; --warna: #e76f51; }
+{a} .gate__fx i:nth-child(10) { --x: 2%; --y: 44%; --s: 1.2; --warna: #d62828; }
+{a} .gate__fx i:nth-child(11) { --x: 84%; --y: 46%; --s: 1.15; --warna: #fcbf49; }
+{a} .gate__fx i:nth-child(12) { --x: 90%; --y: 74%; --s: 1.3; --warna: #b5179e; }
+/* Kilau pantulan lampion di air (fx::after, statis). */
+{a} .gate__fx::after { content: ""; position: absolute; left: 0; right: 0; top: 71%; height: 12%; background: repeating-linear-gradient(180deg, rgba(255, 190, 110, .18) 0 2px, transparent 2px 9px); -webkit-mask: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent); mask: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent); }
+/* ── Dibuka: lampion terbang naik (dekat lebih cepat) ── */
+.inv-opened {a}:not(.gate--embed), .is-open > {a} { transition: visibility 0s 2.5s; }
+.inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .9s ease 1.4s; }
+.inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(.94); transition: opacity .45s ease, transform .6s ease; }
+.inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { transform: translateY(-120vh); transition: transform calc(2.2s - var(--s) * .8s) cubic-bezier(.45, 0, .7, .4) calc(.15s + var(--i) * .04s); }
+.inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { opacity: 0; transition: opacity .6s ease .6s; }
+/* ── Ditutup: lampion turun kembali (yang jauh dulu) ── */
+@media (prefers-reduced-motion: no-preference) {
+  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: lh-redup .45s ease both !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: lh-turun calc(.7s + var(--s) * .45s) cubic-bezier(.2, .7, .3, 1) calc(.1s + (1.3 - var(--s)) * .5s) both; }
+  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.15s !important; }
+}
+@keyframes lh-ayun { from { rotate: -4deg; } to { rotate: 4deg; } }
+@keyframes lh-turun { from { transform: translateY(-115vh); } to { transform: none; } }
+@keyframes lh-redup { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lh-pudar { from { opacity: 0; transform: scale(.95); } }
+@keyframes lh-naik { from { opacity: 0; transform: translateY(26px); } }
+@keyframes lh-zoom { from { opacity: 0; transform: scale(.82); } }
