@@ -4,9 +4,9 @@
    ±1,25 dtk, tanpa blur/filter. Urutan dalam satu bagian:
      label (turun) 150ms → judul (zoom in) 300ms → foto/mempelai 500ms
      → teks & kartu (naik) 700ms → ikon (berputar masuk) 900ms.
-   Elemen lain cukup memudar pelan. Ruangan (portal) hanya 3: pintu ke
-   Mempelai, dimensi ke Galeri, gapura ke Acara ("-" = tanpa portal). */
-{a} { --rv-stagger: 0; --ruang-urut: "pintu - dimensi gapura -"; --gate-burst: none; }
+   Elemen lain cukup memudar pelan. Tanpa portal antar bagian — gerak
+   "buka" hanya sekali, di gerbang. */
+{a} { --rv-stagger: 0; --gate-burst: none; }
 /* Kartu kaca tembus pandang (tanpa backdrop blur — ringan di HP). */
 {a} { --card-glass: color-mix(in srgb, var(--card) 62%, transparent); --card-blur: none; }
 .rv-on {a} [data-rv] { --rv-delay: 100ms; transition: opacity .9s ease, transform 1.25s cubic-bezier(.2, .7, .2, 1); }

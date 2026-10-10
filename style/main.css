@@ -6876,9 +6876,10 @@ html:not(.inv-opened) body:has(.gate:not(.gate--embed)) {
     .inv-closing .gate:not(.gate--embed) > :not(.gate__panel):not(.gate__content) {
         visibility: hidden !important;
     }
+    /* opacity:1 ada di keyframes (bukan !important) agar gate-tutup-pudar
+     * bisa memudarkannya — deklarasi !important mengalahkan animasi. */
     .inv-closing .gate:not(.gate--embed) > .gate__panel {
         visibility: visible !important;
-        opacity: 1 !important;
         filter: none !important;
         clip-path: none !important;
         transition: none !important;
@@ -6899,28 +6900,150 @@ html:not(.inv-opened) body:has(.gate:not(.gate--embed)) {
         transition: none !important;
         animation: gate-tutup-isi 0.6s ease 0.75s both !important;
     }
+    /* Sampul tema ini tak memperlihatkan panel (gebyok, candi bentar):
+     * setelah merapat, panel memudar bersamaan isi sampul muncul — tanpa
+     * lompatan saat .inv-closing dicabut. (global.js: data-tutup-pudar) */
+    .inv-closing .gate[data-tutup-pudar]:not(.gate--embed) > .gate__panel {
+        animation-name: gate-tutup-kiri, gate-tutup-pudar !important;
+        animation-duration: 0.85s, 0.45s !important;
+        animation-delay: 0s, 0.9s !important;
+        animation-timing-function: cubic-bezier(0.7, 0, 0.25, 1), ease !important;
+        animation-fill-mode: both, forwards !important;
+    }
+    .inv-closing .gate[data-tutup-pudar]:not(.gate--embed) > .gate__panel--r {
+        animation-name: gate-tutup-kanan, gate-tutup-pudar !important;
+    }
+    /* Latar sampul (::before) dipasang lagi tepat saat pintu rapat, di
+     * belakang panel — isi undangan di bawahnya tak tembus saat panel pudar. */
+    .inv-closing .gate[data-tutup-pudar]:not(.gate--embed)::before {
+        visibility: visible !important;
+        transform: none !important;
+        transition: none !important;
+        animation: gate-tutup-latar 0.05s linear 0.8s both !important;
+    }
+    /* Gerbang tanpa panel pintu — panelnya display:none, jadi adegannya
+     * sendiri yang menutup. Tenun songket: 12 helai ditenun kembali
+     * bergantian dari kiri-kanan. */
+    .inv-closing .gate.gate--tenun-songket:not(.gate--embed) > .gate__fx.gate__fx {
+        visibility: visible !important;
+    }
+    .inv-closing .gate.gate--tenun-songket:not(.gate--embed) > .gate__fx i {
+        transition: none !important;
+        animation: gate-tutup-helai 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) var(--d, 0ms) both;
+    }
+    .inv-closing .gate.gate--tenun-songket:not(.gate--embed) > .gate__fx i:nth-child(even) {
+        animation-name: gate-tutup-helai-r;
+    }
+    /* Video pintu: video latar sampul menyala lagi, sampul turun dari atas. */
+    .inv-closing .gate.gate--video-pintu:not(.gate--embed) > .gate__bg.gate__bg {
+        visibility: visible !important;
+        animation: gate-tutup-redup 0.6s ease both;
+    }
+    .inv-closing .gate.gate--video-pintu:not(.gate--embed) > .gate__content {
+        animation: gate-tutup-turun 0.75s cubic-bezier(0.2, 0.8, 0.3, 1) 0.3s both !important;
+    }
+    /* Pagelaran wayang: panggung meredup kembali & gunungan ditancapkan
+     * di tengah (tancep kayon — tanda pagelaran usai) lalu memudar bersama
+     * sampul muncul; tokoh disembunyikan. */
+    .inv-closing .gate.gate--pagelaran-wayang:not(.gate--embed) > .gate__panel {
+        visibility: hidden !important;
+    }
+    .inv-closing .gate.gate--pagelaran-wayang:not(.gate--embed)::before {
+        visibility: visible !important;
+        animation: gate-tutup-redup 0.5s ease both !important;
+    }
+    .inv-closing .gate.gate--pagelaran-wayang:not(.gate--embed) > .gate__orn.gate__orn {
+        visibility: visible !important;
+        animation:
+            gate-tutup-tancap 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.1) 0.1s both,
+            gate-tutup-pudar 0.4s ease 0.95s forwards;
+    }
+    /* Galaksi: panelnya bintang tembus pandang — langit (::before) ikut
+     * menyusut masuk bersama portal agar isi undangan tertutup. */
+    .inv-closing .gate.gate--galaksi:not(.gate--embed)::before {
+        visibility: visible !important;
+        transition: none !important;
+        animation: gate-tutup-portal 0.85s cubic-bezier(0.2, 0.8, 0.3, 1) both !important;
+    }
+}
+@keyframes gate-tutup-latar {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+@keyframes gate-tutup-pudar {
+    to {
+        opacity: 0;
+    }
+}
+/* Sampul setelah ditutup: gerak masuk per baris (dengan jeda 1–2 dtk) tak
+ * diputar ulang — sampul muncul utuh lewat gate-tutup-isi; tombol tetap
+ * berdenyut. Dicabut saat dibuka lagi. */
+.gate--ulang .gate__content :is(.cover__eyebrow, .arch-photo, .hero__seal, .cover__names, .hero__date, .pill, .guest) {
+    animation: none !important;
+}
+.gate--ulang .gate__content .gate__open {
+    animation: gate-pulse 2.4s ease-in-out 1s infinite !important;
+}
+@keyframes gate-tutup-helai {
+    from {
+        transform: translateX(-104%) skewX(-8deg);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes gate-tutup-helai-r {
+    from {
+        transform: translateX(104%) skewX(8deg);
+    }
+    to {
+        transform: none;
+    }
+}
+@keyframes gate-tutup-redup {
+    from {
+        opacity: 0;
+    }
+}
+@keyframes gate-tutup-tancap {
+    from {
+        transform: translateY(115%);
+    }
+    to {
+        transform: none;
+    }
 }
 @keyframes gate-tutup-kiri {
     from {
+        opacity: 1;
         transform: translateX(-102%);
     }
     to {
+        opacity: 1;
         transform: none;
     }
 }
 @keyframes gate-tutup-kanan {
     from {
+        opacity: 1;
         transform: translateX(102%);
     }
     to {
+        opacity: 1;
         transform: none;
     }
 }
 @keyframes gate-tutup-turun {
     from {
+        opacity: 1;
         transform: translateY(-104%);
     }
     to {
+        opacity: 1;
         transform: none;
     }
 }
@@ -7377,354 +7500,6 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
         right: auto;
         width: var(--half);
         z-index: var(--z-gate);
-    }
-}
-/* ── Ruangan: tiap bagian undangan = ruangan yang dimasuki lewat portal ───
- * Aktif bila koreografi tema menyetel --ruang-urut (mis. "pintu gapura dimensi
- * lengkung"); global.js memasang .ruang.ruang--{jenis} sekali saat bagian
- * masuk layar (gulir ke bawah), lalu membuangnya. Tak menghalangi klik/gulir.
- * Warna: dinding = --ruang-dinding, kayu = --ruang-kayu, ukiran = --foil-deep. */
-.ruang {
-    position: fixed;
-    inset: 0;
-    z-index: 15;
-    pointer-events: none;
-    overflow: hidden;
-    /* Portal diputar SAMBIL tamu menggulir — semua geraknya transform/opacity
-       saja (dikerjakan compositor/GPU, tanpa layout & lukis ulang per frame).
-       JANGAN tambahkan filter, box-shadow raksasa, atau animasi width/height:
-       audit 8 Okt 2026 mengukur raster gulir 711 ms → 52 ms tanpa portal lama. */
-    contain: strict;
-    perspective: 1000px;
-    --rd: var(--ruang-dinding, color-mix(in srgb, var(--bg) 82%, #000));
-    --rk: var(--ruang-kayu, color-mix(in srgb, var(--gold-deep, #775a19) 32%, #2b1a0d));
-}
-.ruang i {
-    position: absolute;
-    display: block;
-    will-change: transform, opacity;
-}
-@media (min-width: 1100px) {
-    .inv--rail .ruang {
-        left: var(--right-x);
-        right: auto;
-        width: var(--half);
-    }
-}
-/* Portal sudah jadi tontonan utama — bagiannya cukup mendarat singkat. */
-.ruang-masuk {
-    animation: ruang-masuk 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.5s both;
-}
-@keyframes ruang-masuk {
-    from {
-        transform: scale(0.96);
-        opacity: 0.4;
-    }
-}
-/* Pintu: kusen ukir + dua daun pintu membuka, lalu ditembus. */
-.ruang--pintu .ruang__a {
-    inset: 0;
-    z-index: 2;
-    background: var(--rk);
-    -webkit-mask:
-        url("/img/tema/gerak/gebyok-mahkota.svg") top center / 100% auto no-repeat,
-        linear-gradient(#000 0 0) left / 11% 100% no-repeat,
-        linear-gradient(#000 0 0) right / 11% 100% no-repeat;
-    mask:
-        url("/img/tema/gerak/gebyok-mahkota.svg") top center / 100% auto no-repeat,
-        linear-gradient(#000 0 0) left / 11% 100% no-repeat,
-        linear-gradient(#000 0 0) right / 11% 100% no-repeat;
-    animation: ruang-frame 1.5s cubic-bezier(0.5, 0, 0.7, 0.4) both;
-}
-.ruang--pintu .ruang__a::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--foil-deep, var(--gold));
-    -webkit-mask:
-        url("/img/tema/gerak/gebyok-mahkota-ukir.svg") top center / 100% auto no-repeat,
-        url("/img/tema/gerak/gebyok-tiang.svg") left 1% top / 9% auto repeat-y,
-        url("/img/tema/gerak/gebyok-tiang.svg") right 1% top / 9% auto repeat-y;
-    mask:
-        url("/img/tema/gerak/gebyok-mahkota-ukir.svg") top center / 100% auto no-repeat,
-        url("/img/tema/gerak/gebyok-tiang.svg") left 1% top / 9% auto repeat-y,
-        url("/img/tema/gerak/gebyok-tiang.svg") right 1% top / 9% auto repeat-y;
-}
-.ruang--pintu .ruang__b,
-.ruang--pintu .ruang__c {
-    top: 0;
-    bottom: 0;
-    width: 39%;
-    z-index: 1;
-    background: var(--rk);
-    box-shadow:
-        inset 0 0 0 6px var(--gold),
-        inset 0 0 0 9px var(--rk),
-        inset 0 0 0 11px var(--gold-light),
-        inset 0 0 40px rgba(0, 0, 0, 0.5);
-}
-.ruang--pintu .ruang__b::after,
-.ruang--pintu .ruang__c::after {
-    content: "";
-    position: absolute;
-    inset: 24% 14px auto;
-    height: 50%;
-    background: var(--foil-deep, var(--gold));
-    -webkit-mask: url("/img/tema/gerak/gebyok-tumpal.svg") center / contain no-repeat;
-    mask: url("/img/tema/gerak/gebyok-tumpal.svg") center / contain no-repeat;
-}
-.ruang--pintu .ruang__b {
-    left: 11%;
-    transform-origin: left center;
-    animation: ruang-daun-l 1.5s ease both;
-}
-.ruang--pintu .ruang__c {
-    right: 11%;
-    transform-origin: right center;
-    animation: ruang-daun-r 1.5s ease both;
-}
-@keyframes ruang-frame {
-    0% {
-        opacity: 0;
-        transform: scale(1.12);
-    }
-    14% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    45% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(3.4);
-        opacity: 0;
-    }
-}
-@keyframes ruang-daun-l {
-    0% {
-        opacity: 0;
-        transform: rotateY(0);
-    }
-    14% {
-        opacity: 1;
-        transform: rotateY(0);
-    }
-    55% {
-        transform: rotateY(-102deg);
-        opacity: 1;
-    }
-    75%,
-    100% {
-        transform: rotateY(-102deg);
-        opacity: 0;
-    }
-}
-@keyframes ruang-daun-r {
-    0% {
-        opacity: 0;
-        transform: rotateY(0);
-    }
-    14% {
-        opacity: 1;
-        transform: rotateY(0);
-    }
-    55% {
-        transform: rotateY(102deg);
-        opacity: 1;
-    }
-    75%,
-    100% {
-        transform: rotateY(102deg);
-        opacity: 0;
-    }
-}
-/* Gapura: dua belahan candi bentar bergeser menjauh sambil membesar. */
-.ruang--gapura .ruang__a {
-    inset: 0;
-    background: radial-gradient(
-        circle at 50% 62%,
-        color-mix(in srgb, var(--gold-c, #fed488) 70%, transparent),
-        transparent 45%
-    );
-    animation: ruang-sinar 1.4s ease both;
-}
-.ruang--gapura .ruang__b,
-.ruang--gapura .ruang__c {
-    top: 0;
-    bottom: 0;
-    width: 50%;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--rk) 75%, var(--gold)), var(--rk));
-    -webkit-mask: url("/img/tema/gerak/candi-bentar.svg") right bottom / contain no-repeat;
-    mask: url("/img/tema/gerak/candi-bentar.svg") right bottom / contain no-repeat;
-}
-.ruang--gapura .ruang__b {
-    left: 0;
-    animation: ruang-gapura 1.4s cubic-bezier(0.5, 0, 0.3, 1) both;
-}
-.ruang--gapura .ruang__c {
-    right: 0;
-    scale: -1 1;
-    animation: ruang-gapura 1.4s cubic-bezier(0.5, 0, 0.3, 1) both;
-}
-@keyframes ruang-gapura {
-    0% {
-        opacity: 0;
-        transform: translate(-16%, 12%);
-    }
-    20% {
-        opacity: 1;
-        transform: translateX(-16%);
-    }
-    45% {
-        transform: translateX(-16%);
-    }
-    100% {
-        transform: translateX(-90%) scale(1.5);
-        opacity: 0.2;
-    }
-}
-@keyframes ruang-sinar {
-    0% {
-        opacity: 0;
-    }
-    35% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 0;
-        transform: scale(2);
-    }
-}
-/* Lengkung: dinding berjendela lengkung yang dilalui (ditembus).
-   Dinding = lapisan layar penuh dengan LUBANG lengkung (mask SVG statis);
-   bingkai emas = lapisan kedua dengan mask cincin berbentuk sama. Keduanya
-   di-scale bersama dari tengah → lubang membesar melewati tepi layar. */
-.ruang--lengkung .ruang__a,
-.ruang--lengkung .ruang__c {
-    inset: 0;
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    animation: ruang-lengkung 1.3s cubic-bezier(0.55, 0, 0.7, 0.3) both;
-}
-.ruang--lengkung .ruang__c {
-    background: var(--rd);
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H100V100H0Z M13 50A37 35 0 0 1 87 50V83Q87 85 85 85H15Q13 85 13 83Z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H100V100H0Z M13 50A37 35 0 0 1 87 50V83Q87 85 85 85H15Q13 85 13 83Z'/%3E%3C/svg%3E");
-}
-.ruang--lengkung .ruang__a {
-    z-index: 1;
-    background: linear-gradient(var(--gold-light), var(--gold));
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23000' stroke-width='1.6' d='M13 50A37 35 0 0 1 87 50V83Q87 85 85 85H15Q13 85 13 83Z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23000' stroke-width='1.6' d='M13 50A37 35 0 0 1 87 50V83Q87 85 85 85H15Q13 85 13 83Z'/%3E%3C/svg%3E");
-}
-.ruang--lengkung .ruang__b {
-    left: 50%;
-    top: 9%;
-    z-index: 2;
-    width: 54px;
-    aspect-ratio: 300 / 470;
-    translate: -50% 0;
-    background: var(--foil-deep, var(--gold));
-    -webkit-mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat;
-    mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat;
-    animation: ruang-lengkung 1.3s cubic-bezier(0.55, 0, 0.7, 0.3) both;
-    transform-origin: 50% 400%;
-}
-@keyframes ruang-lengkung {
-    0% {
-        opacity: 0;
-        transform: scale(0.85);
-    }
-    18% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    40% {
-        transform: scale(1);
-    }
-    100% {
-        transform: scale(4);
-        opacity: 0;
-    }
-}
-/* Dimensi: gunungan berputar di tengah lalu membuka lubang cahaya — pindah ke
-   "dimensi" ruangan lain. Dinding = layar penuh dengan lubang bulat kecil
-   (mask statis) yang di-scale hingga lubangnya menelan layar — dulu
-   width/height + bayangan 200vmax dianimasikan (layout & lukis ulang per frame). */
-.ruang--dimensi .ruang__a {
-    inset: 0;
-    z-index: 0;
-    background: var(--rd);
-    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 1.6vmax, #000 calc(1.6vmax + 1px));
-    mask: radial-gradient(circle at 50% 50%, transparent 0 1.6vmax, #000 calc(1.6vmax + 1px));
-    animation: ruang-lubang 1.5s cubic-bezier(0.6, 0, 0.3, 1) both;
-}
-.ruang--dimensi .ruang__b {
-    left: 50%;
-    top: 50%;
-    width: min(46vw, 210px);
-    aspect-ratio: 300 / 470;
-    translate: -50% -55%;
-    background: var(--foil-deep, var(--gold));
-    -webkit-mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat;
-    mask: url("/img/tema/gerak/gunungan.svg") center / contain no-repeat;
-    z-index: 2;
-    animation: ruang-kayon 1.5s cubic-bezier(0.5, 0, 0.4, 1) both;
-}
-.ruang--dimensi .ruang__c {
-    inset: 0;
-    z-index: 1;
-    background:
-        radial-gradient(circle, color-mix(in srgb, var(--gold-c, #fed488) 55%, transparent), transparent 24%),
-        repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--gold) 22%, transparent) 0 6deg, transparent 6deg 18deg);
-    -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%);
-    mask: radial-gradient(circle, #000 20%, transparent 70%);
-    animation: ruang-pusar 1.5s ease both;
-}
-@keyframes ruang-lubang {
-    0% {
-        opacity: 0;
-        transform: scale(1);
-    }
-    12% {
-        opacity: 1;
-    }
-    45% {
-        transform: scale(1);
-    }
-    100% {
-        transform: scale(70);
-    }
-}
-@keyframes ruang-kayon {
-    0% {
-        opacity: 0;
-        transform: scale(0.3) rotateY(0);
-    }
-    15% {
-        opacity: 1;
-    }
-    55% {
-        transform: scale(1) rotateY(540deg);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(2.6) rotateY(720deg);
-        opacity: 0;
-    }
-}
-@keyframes ruang-pusar {
-    0% {
-        opacity: 0;
-        transform: rotate(0) scale(0.6);
-    }
-    25% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 0;
-        transform: rotate(160deg) scale(2.2);
     }
 }
 

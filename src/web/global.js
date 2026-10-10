@@ -137,8 +137,9 @@
       var g0=d.querySelector('.gate:not(.gate--embed)'); if(g0) g0.setAttribute('data-live','1');
       // Dibuka lagi di tengah gerak tutup → batalkan sisa penutupan.
       if(closing){ clearTimeout(closing); closing=0; d.documentElement.classList.remove('inv-closing'); }
+      if(g0) g0.classList.remove('gate--ulang');
       burst(el); play(true); d.documentElement.classList.add('inv-opened','inv-seen');
-      if(d.querySelector('.gate')) window.scrollTo(0,0);
+      if(d.querySelector('.gate')) window.scrollTo({top:0, behavior:'instant'});
       if(!openGate(g0, d)){ playBg(d); holdReveal(gateReveal(g0)); }
       // Setelah benar-benar tersembunyi (transisi visibility tiap animasi buka
       // berbeda; gerbang video menunggu videonya), lepas dari render.
@@ -185,11 +186,23 @@
     });
     void g.offsetWidth; // gaya "terbuka" dihitung dulu agar transisi punya titik awal
     h.classList.add('inv-closing');
+    // Sampul yang muncul lagi tampil utuh sekaligus (gate-tutup-isi), bukan
+    // memutar ulang gerak masuk tiap baris dengan jedanya masing-masing.
+    g.classList.add('gate--ulang');
     requestAnimationFrame(function(){
       // inv-seen ikut dicabut: gerbang yang dirender ulang (pindah tab lalu
       // kembali) harus tampil lagi — undangan memang sedang tertutup.
       h.classList.remove('inv-opened','inv-seen');
-      closing=setTimeout(function(){ closing=0; h.classList.remove('inv-closing'); window.scrollTo(0,0); }, ms + 80);
+      // Di sampul tema ini panel pintu tak terlihat (gebyok, candi bentar)?
+      // Diukur pada keadaan sampul (inv-closing dilepas sesaat, dalam frame
+      // yang sama) → panel yang baru merapat dipudarkan, bukan hilang mendadak
+      // saat inv-closing dicabut.
+      h.classList.remove('inv-closing');
+      var pl=g.querySelector(':scope > .gate__panel'), cs=pl && getComputedStyle(pl), r=pl && pl.getBoundingClientRect();
+      var tampak=!!pl && cs.display!=='none' && cs.visibility!=='hidden' && +cs.opacity>0.05 && r.right>0 && r.left<innerWidth && r.width*r.height>2000;
+      g.toggleAttribute('data-tutup-pudar', !!pl && !tampak);
+      h.classList.add('inv-closing');
+      closing=setTimeout(function(){ closing=0; window.scrollTo({top:0, behavior:'instant'}); h.classList.remove('inv-closing'); }, ms + 80);
     });
   }
   // Semburan kelopak & kilau emas dari tombol "Buka Undangan".
@@ -635,42 +648,6 @@
     var ornScan=function(){ d.querySelectorAll('.orn-host:not([data-orn-io])').forEach(function(el){ el.setAttribute('data-orn-io','1'); track(ornIO, el); }); };
     ornScan();
     onDom(ornScan);
-    // Ruangan: bila koreografi tema menyetel --ruang-urut, tiap bagian ber-
-    // ornamen (mempelai, kisah, galeri, acara, RSVP) jadi "ruangan" — saat
-    // pertama dimasuki sambil menggulir ke bawah, portalnya (pintu / gapura /
-    // lengkung / dimensi) diputar sekali di atas layar lalu dibuang.
-    // Hanya undangan sungguhan (bukan pratinjau katalog / demo tertanam).
-    if(!PV){
-      var ruangBusy=0, prevY=window.scrollY, goingDown=true;
-      var ruangIO=new IntersectionObserver(function(es){
-        es.forEach(function(e){
-          if(!e.isIntersecting) return;
-          var el=e.target; untrack(ruangIO, el);
-          if(!goingDown || e.boundingClientRect.top<0 || Date.now()<ruangBusy || !el.isConnected) return;
-          ruangBusy=Date.now()+1100;
-          var inv=el.closest('.inv'), p=d.createElement('div');
-          p.className='ruang ruang--'+el.dataset.ruang; p.setAttribute('aria-hidden','true');
-          p.innerHTML='<i class="ruang__a"></i><i class="ruang__b"></i><i class="ruang__c"></i>';
-          inv.appendChild(p); el.classList.add('ruang-masuk');
-          setTimeout(function(){ p.remove(); }, 1700);
-        });
-      }, {rootMargin:'0px 0px -38% 0px'});
-      var ruangScan=function(){
-        var inv=d.querySelector('.inv:not(.inv--embed)'); if(!inv) return;
-        // Perangkat lemah / hemat data: portal layar penuh dilewati.
-        if(d.documentElement.classList.contains('motion-min')) return;
-        if(d.querySelector('.gate:not(.gate--embed)') && !d.documentElement.classList.contains('inv-opened')) return;
-        var seq=getComputedStyle(inv).getPropertyValue('--ruang-urut').replace(/["']/g,'').trim(); if(!seq) return;
-        var list=seq.split(/\s+/), n=0;
-        inv.querySelectorAll('.orn-host:not(.cover)').forEach(function(s){
-          if(s.closest('.gate')) return;
-          if(!s.dataset.ruang){ s.dataset.ruang=list[n % list.length]; if(s.dataset.ruang!=='-') track(ruangIO, s); }
-          n++;
-        });
-      };
-      ruangScan(); onDom(ruangScan);
-      addEventListener('scroll', function(){ var y=window.scrollY, dy=y-prevY; if(Math.abs(dy)>8){ goingDown=dy>0; prevY=y; } }, {passive:true});
-    }
   }
   // Posisi scroll per halaman (navigasi SPA Leptos). Bawaan browser memulihkan
   // posisi lama SEBELUM halaman baru selesai dirender → halaman tema yang
