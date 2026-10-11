@@ -100,6 +100,7 @@ pub fn InvitationLayout() -> impl IntoView {
                 }
                 Err(e) if err_msg(&e) == "NOT_FOUND" => Either::Right(Either::Left(view! { <NotFoundPage /> })),
                 Err(e) if err_msg(&e) == "LOCKED" => Either::Right(Either::Right(view! { <LockedPage /> }.into_any())),
+                Err(e) if err_msg(&e) == "EXPIRED" => Either::Right(Either::Right(view! { <ExpiredPage /> }.into_any())),
                 Err(e) => Either::Right(Either::Right(view! { <ErrorCard msg=err_msg(&e) /> }.into_any())),
             })}
         </Suspense>
@@ -453,12 +454,79 @@ pub fn SampulPage() -> impl IntoView {
     view! {
         {opening}
         <div id="isi" class="inv__isi">
+            {(single && !c.page.skin.panggung.is_empty()).then(|| view! { <Panggung3d /> })}
             <SampulExtras />
             {single.then(|| view! {
                 <div id="acara" class="inv__anchor"><AcaraBody countdown=false /></div>
                 <div id="rsvp" class="inv__anchor"><RsvpBody /></div>
             })}
         </div>
+    }
+}
+
+/// Prolog PANGGUNG 3D (web/panggung.rs): pemandangan berlapis yang "diterbangi"
+/// kamera saat tamu menggulir — judul, ayat di dalam lengkung gerbang, foto &
+/// nama mempelai di depan bangunan utama, acara, lalu salam penutup. Semua
+/// teks dirender server (terbaca mesin pencari & pembaca layar); geraknya
+/// CSS scroll-driven di /gaya/{tema}.css — tanpa JS/WASM.
+#[component]
+fn Panggung3d() -> impl IntoView {
+    let c = ctx();
+    let l = c.lang;
+    let inv = c.page.inv.clone();
+    let adegan = c.page.skin.panggung.clone();
+    // Demo memakai kutipan khas adegan (kutipan demo bawaan bernuansa Islami).
+    let (ayat, sumber) = if inv.is_demo || inv.quote_text.trim().is_empty() {
+        let (a, s) = crate::web::panggung::kutipan(&adegan);
+        (a.to_string(), s.to_string())
+    } else {
+        (inv.quote_text.clone(), inv.quote_source.clone())
+    };
+    let foto = [&inv.cover_photo, inv.gallery.first().unwrap_or(&String::new()), &inv.bride_photo]
+        .into_iter()
+        .find(|u| !u.is_empty())
+        .cloned()
+        .unwrap_or_default();
+    view! {
+        <section class=format!("pg pg--{adegan}") aria-label=tx!(l, "Pembuka undangan", "Invitation prologue")>
+            <div class="pg__layar">
+                <i class="pg__langit" aria-hidden="true"></i>
+                <i class="pg__bulan" aria-hidden="true"></i>
+                <i class="pg__lapis pg__jauh" aria-hidden="true"></i>
+                <i class="pg__lapis pg__utama" aria-hidden="true"></i>
+                <div class="pg__pasangan">
+                    {if foto.is_empty() {
+                        view! { <Monogram initials=inv.initials() caption="THE WEDDING OF" /> }.into_any()
+                    } else {
+                        view! { <img src=foto alt=inv.couple() loading="lazy" decoding="async" /> }.into_any()
+                    }}
+                </div>
+                <i class="pg__lapis pg__depan" aria-hidden="true"></i>
+                <div class="pg__teks pg__t1">
+                    <p class="script">"The Wedding of"</p>
+                    <h2>{inv.bride_first()}" & "{inv.groom_first()}</h2>
+                    <small>{inv.date_label_in(l)}</small>
+                </div>
+                <div class="pg__teks pg__t2"><b>{sumber}</b><p>{ayat}</p></div>
+                <div class="pg__teks pg__t3">
+                    <div><b>{inv.bride_name.clone()}</b><small>{inv.bride_parents.clone()}</small></div>
+                    <div><b>{inv.groom_name.clone()}</b><small>{inv.groom_parents.clone()}</small></div>
+                </div>
+                <div class="pg__teks pg__t4">
+                    {inv.events.iter().take(2).map(|e| view! {
+                        <div class="pg__acara">
+                            <h3>{if e.title.is_empty() { e.badge_in(l) } else { e.title.clone() }}</h3>
+                            <p>{e.date_label_in(l)}<br />{e.time_label_in(l)}<br />{e.venue.clone()}</p>
+                        </div>
+                    }).collect_view()}
+                </div>
+                <div class="pg__teks pg__t5">
+                    <p>{tx!(l, "Merupakan kehormatan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir memberikan doa restu.", "It would be our honour to have you with us and receive your blessing.")}</p>
+                    <p class="script">{inv.bride_first()}" & "{inv.groom_first()}</p>
+                </div>
+                <p class="pg__teks pg__gulir" aria-hidden="true">{tx!(l, "Gulir perlahan", "Scroll slowly")}</p>
+            </div>
+        </section>
     }
 }
 
@@ -812,6 +880,25 @@ pub fn StoryPage() -> impl IntoView {
                 </form>
             })}
         </section>
+    }
+}
+
+/// Masa aktif paket undangan sudah lewat (mis. Silver 1 tahun). Data tetap
+/// tersimpan; pemilik bisa memperpanjang / upgrade lewat admin.
+#[component]
+fn ExpiredPage() -> impl IntoView {
+    view! {
+        <Title text="Masa aktif undangan berakhir" />
+        <Meta name="robots" content="noindex, nofollow" />
+        <div class="inv inv-locked">
+            <div class="inv__glow" aria-hidden="true"></div>
+            <section class="card inv-locked__card">
+                <span class="inv-locked__icon"><Icon name="hourglass_top" /></span>
+                <h1>"Masa aktif undangan telah berakhir"</h1>
+                <p>"Terima kasih telah menjadi bagian dari hari bahagia kedua mempelai. Undangan ini sudah melewati masa aktif paketnya."</p>
+                <p class="muted small">"Pemilik undangan? Semua data, ucapan & story tetap tersimpan — hubungi admin untuk upgrade ke paket aktif selamanya."</p>
+            </section>
+        </div>
     }
 }
 

@@ -339,15 +339,29 @@
     return true;
   }
   function pad(n){ return (n<10?'0':'')+n; }
-  function tick(){
-    if(d.hidden) return;
+  // Hitung mundur: hanya kotak yang TERLIHAT diperbarui (IntersectionObserver),
+  // dan angka hanya ditulis bila berubah — dulu tiap detik seluruh DOM dicari &
+  // semua angka ditulis ulang di setiap halaman, walau tak ada countdown.
+  var cdLihat=new Set();
+  function cdIsi(box){
+    var diff=Math.max(0, +box.getAttribute('data-countdown') - Date.now()), s=Math.floor(diff/1000);
+    var v={d:Math.floor(s/86400), h:Math.floor(s%86400/3600), m:Math.floor(s%3600/60), s:s%60};
+    box.querySelectorAll('[data-cd]').forEach(function(x){ var k=x.getAttribute('data-cd'), t=String(k==='d' ? v.d : pad(v[k])); if(x.textContent!==t) teks(x, t); });
+  }
+  var cdIO='IntersectionObserver' in window ? new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ cdLihat.add(e.target); cdIsi(e.target); } else cdLihat.delete(e.target); });
+  }) : null;
+  function cdPasang(){
     d.querySelectorAll('[data-countdown]').forEach(function(box){
-      var diff=Math.max(0, +box.getAttribute('data-countdown') - Date.now()), s=Math.floor(diff/1000);
-      var v={d:Math.floor(s/86400), h:Math.floor(s%86400/3600), m:Math.floor(s%3600/60), s:s%60};
-      box.querySelectorAll('[data-cd]').forEach(function(x){ var k=x.getAttribute('data-cd'); x.textContent = k==='d' ? v.d : pad(v[k]); });
+      if(box._cd) return; box._cd=1;
+      if(cdIO) track(cdIO, box); else { cdLihat.add(box); cdIsi(box); }
     });
   }
-  tick(); setInterval(tick, 1000);
+  function tick(){
+    if(d.hidden || !cdLihat.size) return;
+    cdLihat.forEach(function(box){ if(box.isConnected) cdIsi(box); else cdLihat.delete(box); });
+  }
+  cdPasang(); onDom(cdPasang); setInterval(tick, 1000);
   // Pemindai QR check-in (/kelola/…/scan): BarcodeDetector bawaan browser.
   d.addEventListener('click', function(e){
     var b=e.target.closest('[data-scan-start]'); if(!b) return;

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><defs>
+<linearGradient id="w" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f4f6"/><stop offset="1" stop-color="#dfe2e7"/></linearGradient>
+<linearGradient id="wv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e6e8ec"/></linearGradient>
+<linearGradient id="s" x1="0" x2="1"><stop offset="0" stop-color="#e3e6ea"/><stop offset="1" stop-color="#c9ced5"/></linearGradient>
+<linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9bfc8"/><stop offset="1" stop-color="#d6dade"/></linearGradient>
+<radialGradient id="dome" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#eceef1"/><stop offset="1" stop-color="#c8cdd4"/></radialGradient>
+<linearGradient id="gold" x1="0" x2="1"><stop offset="0" stop-color="#8a6a2a"/><stop offset=".45" stop-color="#f1d47c"/><stop offset="1" stop-color="#9b7a2e"/></linearGradient>
+<linearGradient id="air" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9d3dc"/><stop offset=".5" stop-color="#e8edf1"/><stop offset="1" stop-color="#b8c4ce"/></linearGradient>
+<linearGradient id="hijau" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d9b6a"/><stop offset="1" stop-color="#46603c"/></linearGradient>
+<pattern id="kisi" width="22" height="22" patternUnits="userSpaceOnUse"><rect width="22" height="22" fill="url(#dome)"/><path d="M11 3 L19 11 L11 19 L3 11Z" fill="#b6bcc5" opacity=".55"/></pattern>
+</defs><path d="M-60 1330L440 820Q540 760 640 820L1140 1330Z" fill="#dfe2e8"/><path d="M440 820Q540 760 640 820L600 860L570 840L540 870L510 842L480 864Z" fill="#ffffff"/><path d="M120 1330V1150" stroke="#d2cdd0" stroke-width="10"/><ellipse cx="120" cy="1120" rx="90" ry="44" fill="#f2dde3"/><ellipse cx="80" cy="1150" rx="60" ry="30" fill="#f6e6ea"/><path d="M960 1330V1150" stroke="#d2cdd0" stroke-width="10"/><ellipse cx="960" cy="1120" rx="90" ry="44" fill="#f2dde3"/><ellipse cx="920" cy="1150" rx="60" ry="30" fill="#f6e6ea"/><rect x="0" y="1320" width="1080" height="600" fill="#ecebe9"/></svg>

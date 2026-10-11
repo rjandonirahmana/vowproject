@@ -7,7 +7,7 @@
 #     b. pre-compile dependency dengan dummy src — cache s/d Cargo.toml/lock berubah
 #     c. cargo leptos build --release --precompress --split → WASM (dipecah per
 #        rute: admin/kelola/sunting/buat terpisah, fitur `split`) + SSR + .br/.gz
-#   Stage 2 (runtime): debian:bookworm-slim, NON-ROOT
+#   Stage 2 (runtime): distroless/static (±2 MB), NON-ROOT, tanpa shell
 #
 # Pola sama dengan e-ticketing & ppm. TIDAK ADA TEST DI SINI — disengaja: test
 # milik job CI terpisah, supaya kegagalan test tak tercampur log build Docker.
@@ -126,28 +126,31 @@ RUN --mount=type=cache,id=undangan-cargo-registry,target=/usr/local/cargo/regist
     && ls -la /app/site-out/pkg/
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
-# Binari musl STATIS (aws-lc ikut tertaut statis) → jalan di distro mana pun. Debian dipilih
-# karena curl (HEALTHCHECK) + ca-certificates (HTTPS ke RustFS) teruji.
+# Binari musl STATIS (aws-lc ikut tertaut statis) → cukup distroless/static
+# (±2 MB: sertifikat CA + tzdata, TANPA shell/paket — permukaan serang kecil).
+# Dulu debian:bookworm-slim + curl (±80 MB). HEALTHCHECK memakai subperintah
+# `undangan healthcheck` (main.rs), bukan curl.
 # JANGAN ganti builder ke target glibc sambil membiarkan runtime ini apa adanya.
-FROM debian:bookworm-slim AS runtime
+#
+# ASET_LOKAL=0 → img/ & video/ dari public/ TIDAK ikut image (±25 MB) — hanya
+# bila semua sudah diunggah ke RustFS (scripts/unggah-aset.sh, tabel aset) dan
+# ASET_RUSTFS aktif; bawaan 1 = tetap disertakan sebagai cadangan.
+FROM builder AS situs
+ARG ASET_LOKAL=1
+RUN if [ "$ASET_LOKAL" = "0" ]; then rm -rf /app/site-out/img /app/site-out/video; fi
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# NON-ROOT: proses memegang kredensial Postgres dan RustFS.
-# UID tetap (10001) supaya kepemilikan volume ter-mount stabil antar rebuild.
-RUN useradd --system --uid 10001 --create-home --shell /usr/sbin/nologin undangan
+FROM gcr.io/distroless/static-debian12:nonroot AS runtime
 
 WORKDIR /app
 
-COPY --from=builder /app/undangan-bin   ./undangan
-COPY --from=builder /app/site-out  ./target/site
+# NON-ROOT: proses memegang kredensial Postgres dan RustFS. UID tetap (10001)
+# supaya kepemilikan volume ter-mount stabil antar rebuild.
+COPY --from=builder --chown=10001:10001 /app/undangan-bin   ./undangan
+COPY --from=situs   --chown=10001:10001 /app/site-out  ./target/site
 # Cargo.toml WAJIB saat runtime: `get_configuration(Some("Cargo.toml"))` membaca
 # [package.metadata.leptos]. Hilang → panic saat start.
-COPY --from=builder /app/Cargo.toml ./Cargo.toml
-
-RUN chown -R undangan:undangan /app
-USER undangan
+COPY --from=builder --chown=10001:10001 /app/Cargo.toml ./Cargo.toml
+USER 10001:10001
 
 # SITE_ADDR dibaca config.rs (default = site-addr Cargo.toml 0.0.0.0:3600 — dev lokal).
 # Di container selalu 3000; pemetaan port host diatur `docker run -p`.
@@ -163,6 +166,6 @@ EXPOSE 3000
 # menjalankan migrasi (AUTO_MIGRATE) di bawah advisory lock, dan
 # memeriksa bucket RustFS (timeout 3 dtk) — jangan sampai di-restart sebelum siap.
 HEALTHCHECK --interval=15s --timeout=3s --start-period=45s --retries=3 \
-    CMD curl -fsS http://localhost:3000/healthz || exit 1
+    CMD ["/app/undangan", "healthcheck"]
 
 CMD ["./undangan"]

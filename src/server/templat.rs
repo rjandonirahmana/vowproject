@@ -631,9 +631,9 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
     st.demo_lagu(&mut row).await;
     let set = st.templat();
     let Some(t) = set.get(&theme.template) else { return Ok(None) };
-    // Belum dibayar: hanya pemilik (cookie Kelola) — selain itu Leptos
-    // merender layar "Undangan belum aktif" (403).
-    let preview = row.inv.is_locked();
+    // Belum dibayar / masa aktif habis: hanya pemilik (cookie Kelola) —
+    // selain itu Leptos merender layar "belum aktif" (403) / "berakhir" (410).
+    let preview = row.inv.is_locked() || st.kedaluwarsa(&row);
     if preview {
         let key = super::owner::key_from(headers, slug).unwrap_or_default();
         let owner = !key.is_empty() && super::auth::same_hash(&super::auth::token_hash(key.trim()), &row.manage_key_hash);
@@ -899,7 +899,7 @@ mod tests {
             music_url: "/music/contoh.mp3".into(),
             ..Default::default()
         };
-        let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new() };
+        let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new(), activated_at: None };
         let wishes = WishPage {
             total: 2,
             items: vec![
@@ -931,7 +931,7 @@ mod tests {
                 events: vec![Event { title: "Akad".into(), date: "2026-09-12".into(), time_start: "08:00".into(), ..Default::default() }],
                 ..Default::default()
             };
-            let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new() };
+            let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new(), activated_at: None };
             let page = Page { row: &row, guest: None, to: String::new(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: None, lang: Lang::En, lang_href: String::new() };
             let out = set.env.get_template(slug).unwrap().render(page_ctx(&page)).unwrap();
             assert!(out.contains("Saturday") && out.contains("September 2026"), "{slug}: tanggal Inggris");
@@ -952,7 +952,7 @@ mod tests {
             banks: vec![Bank { bank: "BCA".into(), number: "123".into(), holder: "Yona".into() }],
             ..Default::default()
         };
-        let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new() };
+        let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new(), activated_at: None };
         let page = Page { row: &row, guest: None, to: "<b>Budi</b>".into(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: Some(false), lang: Lang::Id, lang_href: String::new() };
         let out = set.env.get_template(slug).unwrap().render(page_ctx(&page)).unwrap();
         assert!(out.contains("Yona") && out.contains("Doni"));

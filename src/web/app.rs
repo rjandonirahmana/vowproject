@@ -69,6 +69,10 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
                 // interaktif mendekat (LazyHydration). Halaman lain: seperti biasa.
                 {(!preview && !guest_page && !publik).then(|| view! { <HydrationScripts options=options.clone() /> })}
                 {(!preview && (guest_page || publik)).then(|| view! { <LazyHydration options=options.clone() nonce=nonce.clone() tamu=guest_page /> })}
+                // Navigasi instan (Chrome/Edge): halaman tujuan dirender di latar
+                // saat tautan di-hover (≥200 ms) / mulai disentuh. Hanya halaman
+                // publik ringan — admin, Kelola, API & undangan tak pernah.
+                {(!preview && !guest_page).then(|| view! { <script type="speculationrules" nonce=nonce.clone() inner_html=SPEKULASI></script> })}
                 <MetaTags />
             </head>
             <body>
@@ -79,6 +83,10 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
     }
     .into_any()
 }
+
+/// Aturan prerender (Speculation Rules) — eagerness "moderate".
+#[cfg(feature = "ssr")]
+const SPEKULASI: &str = r#"{"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":["/admin*","/kelola/*","/api/*","/u/*","/layanan/wa*","/buat/kirim*"]}}]},"eagerness":"moderate"}]}"#;
 
 /// Hydration MALAS untuk undangan tamu. Hampir semua isi undangan statis
 /// (SSR) + global.js (gerbang, musik, salin, hitung mundur, animasi); hanya
@@ -255,6 +263,17 @@ rute_terpisah! {
     SeserahanRute => SeserahanPage,
     PrivasiRute => PrivasiPage,
     SyaratRute => SyaratPage,
+    // Beranda, demo tema & undangan tamu juga dipisah: potongan utama tinggal
+    // router + komponen bersama — tamu undangan tak mengunduh kode beranda
+    // (etalase, katalog, filter) dan pengunjung beranda tak mengunduh kode
+    // undangan (RSVP, kado, story).
+    KatalogRute => KatalogPage,
+    TemaRute => TemaPage,
+    UndanganRute => InvitationLayout,
+    SampulRute => SampulPage,
+    AcaraRute => AcaraPage,
+    RsvpRute => RsvpPage,
+    StoryRute => StoryPage,
 }
 
 #[component]
@@ -269,8 +288,8 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=NotFoundPage>
-                <Route path=path!("/") view=KatalogPage />
-                <Route path=path!("/tema/:tema") view=TemaPage ssr=SsrMode::Async />
+                <Route path=path!("/") view={Lazy::<KatalogRute>::new()} />
+                <Route path=path!("/tema/:tema") view={Lazy::<TemaRute>::new()} ssr=SsrMode::Async />
                 <Route path=path!("/buat") view={Lazy::<BuatRute>::new()} />
                 <Route path=path!("/paket") view={Lazy::<PaketRute>::new()} />
                 <Route path=path!("/panduan") view={Lazy::<PanduanRute>::new()} />
@@ -300,11 +319,11 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/syarat") view={Lazy::<SyaratRute>::new()} />
                 // Async: <head> (og:title/description untuk pratinjau tautan WhatsApp)
                 // dan status 404 baru dikirim setelah data undangan siap.
-                <ParentRoute path=path!("/u/:slug") view=InvitationLayout ssr=SsrMode::Async>
-                    <Route path=path!("") view=SampulPage />
-                    <Route path=path!("acara") view=AcaraPage />
-                    <Route path=path!("rsvp") view=RsvpPage />
-                    <Route path=path!("story") view=StoryPage />
+                <ParentRoute path=path!("/u/:slug") view={Lazy::<UndanganRute>::new()} ssr=SsrMode::Async>
+                    <Route path=path!("") view={Lazy::<SampulRute>::new()} />
+                    <Route path=path!("acara") view={Lazy::<AcaraRute>::new()} />
+                    <Route path=path!("rsvp") view={Lazy::<RsvpRute>::new()} />
+                    <Route path=path!("story") view={Lazy::<StoryRute>::new()} />
                 </ParentRoute>
                 <Route path=path!("/kelola/:slug") view={Lazy::<KelolaRute>::new()} ssr=SsrMode::Async />
                 <Route path=path!("/kelola/:slug/scan") view={Lazy::<ScanRute>::new()} />

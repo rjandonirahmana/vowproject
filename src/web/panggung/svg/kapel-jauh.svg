@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><defs>
+<linearGradient id="w" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f4f6"/><stop offset="1" stop-color="#dfe2e7"/></linearGradient>
+<linearGradient id="wv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e6e8ec"/></linearGradient>
+<linearGradient id="s" x1="0" x2="1"><stop offset="0" stop-color="#e3e6ea"/><stop offset="1" stop-color="#c9ced5"/></linearGradient>
+<linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9bfc8"/><stop offset="1" stop-color="#d6dade"/></linearGradient>
+<radialGradient id="dome" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#eceef1"/><stop offset="1" stop-color="#c8cdd4"/></radialGradient>
+<linearGradient id="gold" x1="0" x2="1"><stop offset="0" stop-color="#8a6a2a"/><stop offset=".45" stop-color="#f1d47c"/><stop offset="1" stop-color="#9b7a2e"/></linearGradient>
+<linearGradient id="air" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9d3dc"/><stop offset=".5" stop-color="#e8edf1"/><stop offset="1" stop-color="#b8c4ce"/></linearGradient>
+<linearGradient id="hijau" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d9b6a"/><stop offset="1" stop-color="#46603c"/></linearGradient>
+<pattern id="kisi" width="22" height="22" patternUnits="userSpaceOnUse"><rect width="22" height="22" fill="url(#dome)"/><path d="M11 3 L19 11 L11 19 L3 11Z" fill="#b6bcc5" opacity=".55"/></pattern>
+</defs><path d="M-40 1330Q300 1120 640 1260Q860 1160 1120 1300V1330Z" fill="#e3e8e3"/><ellipse cx="90" cy="1120.0" rx="34" ry="210.0" fill="#cfd8cf"/><ellipse cx="170" cy="1165.0" rx="34" ry="165.0" fill="#cfd8cf"/><ellipse cx="880" cy="1130.0" rx="34" ry="200.0" fill="#cfd8cf"/><ellipse cx="980" cy="1100.0" rx="34" ry="230.0" fill="#cfd8cf"/><ellipse cx="1050" cy="1160.0" rx="34" ry="170.0" fill="#cfd8cf"/><rect x="0" y="1320" width="1080" height="600" fill="#ebeeea"/></svg>

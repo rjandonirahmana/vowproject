@@ -46,6 +46,8 @@ pub struct InvRow {
     pub payment_method: String,
     /// WA pemesan (62…) — hanya untuk admin, tak pernah dikirim ke tamu.
     pub contact_phone: String,
+    /// Kapan diaktifkan admin (migrasi 044) — dasar masa aktif paket.
+    pub activated_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 fn json<T: serde::de::DeserializeOwned + Default>(v: Value) -> T {
@@ -63,6 +65,7 @@ fn row_to_inv(r: &Row) -> InvRow {
         total_price: j.get("total_price").and_then(|v| v.as_i64()).unwrap_or(0),
         payment_method: s("payment_method"),
         contact_phone: s("contact_phone"),
+        activated_at: j.get("activated_at").and_then(|v| v.as_str()).and_then(|t| chrono::DateTime::parse_from_rfc3339(t).ok()).map(|t| t.with_timezone(&chrono::Utc)),
         inv: serde_json::from_value(j.clone()).unwrap_or_default(),
     }
 }
@@ -81,9 +84,16 @@ pub async fn demo_invitation(pool: &Pool) -> Result<Option<InvRow>> {
 
 /// Slug sudah dipakai undangan mana pun (termasuk nonaktif) — dicek SEBELUM
 /// unggah, karena folder RustFS foto/{slug}/ & musik/{slug}/ ikut slug.
-pub async fn slug_taken(pool: &Pool, slug: &str) -> Result<bool> {
+/// Kandidat slug PERTAMA yang belum dipakai — semua dicek dalam SATU query
+/// (`= ANY`), bukan satu query per kandidat di dalam loop.
+pub async fn first_free_slug(pool: &Pool, candidates: &[String]) -> Result<Option<String>> {
     let c = pool.get().await?;
-    Ok(db_opt(&c, "SELECT 1 FROM invitations WHERE slug = $1", &[&slug]).await?.is_some())
+    let taken: std::collections::HashSet<String> = db_rows(&c, "SELECT slug FROM invitations WHERE slug = ANY($1)", &[&candidates])
+        .await?
+        .iter()
+        .map(|r| r.get(0))
+        .collect();
+    Ok(candidates.iter().find(|s| !taken.contains(*s)).cloned())
 }
 
 /// Pelanggaran UNIQUE (kode 23505) — mis. slug direbut pemesan lain.
@@ -717,14 +727,29 @@ pub struct StatusBerubah {
 /// `None` = tak ditemukan / undangan demo.
 pub async fn admin_update_invitation(pool: &Pool, slug: &str, status: &str, theme: &str) -> Result<Option<StatusBerubah>> {
     let c = pool.get().await?;
-    let r = db_opt(&c,
-        "UPDATE invitations i SET status = $2, theme = $3, updated_at = NOW()
+    // Pertama kali aktif → catat activated_at (dasar masa aktif paket);
+    // diaktifkan ulang setelah nonaktif → tanggal awal tetap.
+    let baru = db_opt(&c,
+        "UPDATE invitations i SET status = $2, theme = $3, updated_at = NOW(),
+                activated_at = CASE WHEN $2 = 'aktif' THEN COALESCE(i.activated_at, NOW()) ELSE i.activated_at END
            FROM (SELECT id, status AS lama FROM invitations WHERE slug = $1 AND NOT is_demo FOR UPDATE) o
           WHERE i.id = o.id
           RETURNING o.lama, i.contact_phone, i.bride_name, i.groom_name",
         &[&slug, &status, &theme],
     )
-    .await?;
+    .await;
+    // Migrasi 044 belum jalan (kolom absen) → tetap bisa mengubah status.
+    let r = match baru {
+        Err(e) if format!("{e:#}").contains("activated_at") => db_opt(&c,
+            "UPDATE invitations i SET status = $2, theme = $3, updated_at = NOW()
+               FROM (SELECT id, status AS lama FROM invitations WHERE slug = $1 AND NOT is_demo FOR UPDATE) o
+              WHERE i.id = o.id
+              RETURNING o.lama, i.contact_phone, i.bride_name, i.groom_name",
+            &[&slug, &status, &theme],
+        )
+        .await?,
+        r => r?,
+    };
     Ok(r.map(|r| StatusBerubah {
         lama: r.get("lama"),
         contact_phone: r.get("contact_phone"),
@@ -1376,6 +1401,12 @@ pub struct StoryBaru<'a> {
     pub filter: &'a str,
     pub caption: &'a str,
     pub token_hash: &'a str,
+}
+
+/// Jumlah story di undangan ini (kuota paket `maks_story`).
+pub async fn story_count(pool: &Pool, inv_id: i64) -> Result<i64> {
+    let c = pool.get().await?;
+    Ok(db_opt(&c, "SELECT COUNT(*) FROM invitation_stories WHERE invitation_id = $1", &[&inv_id]).await?.map(|r| r.get(0)).unwrap_or(0))
 }
 
 /// Simpan story; `false` bila nomor ini sudah punya story (UNIQUE).

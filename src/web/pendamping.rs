@@ -123,6 +123,9 @@ fn svg(nama: &str) -> Option<&'static str> {
         "rusa" => include_str!("pendamping/svg/rusa.svg"),
         "rusa-lompat" => include_str!("pendamping/svg/rusa-lompat.svg"),
         "naga-kepala" => include_str!("pendamping/svg/naga-kepala.svg"),
+        "naga-badan" => include_str!("pendamping/svg/naga-badan.svg"),
+        "naga-ekor" => include_str!("pendamping/svg/naga-ekor.svg"),
+        "naga-kaki" => include_str!("pendamping/svg/naga-kaki.svg"),
         "fuji" => include_str!("pendamping/svg/fuji.svg"),
         "fuji-salju" => include_str!("pendamping/svg/fuji-salju.svg"),
         "bangau" => include_str!("pendamping/svg/bangau.svg"),
@@ -164,7 +167,7 @@ fn rakit(jenis: &str, src: &str) -> String {
 }
 
 #[cfg(feature = "ssr")]
-fn data_uri(svg: &str) -> String {
+pub(crate) fn data_uri(svg: &str) -> String {
     let mut s = String::from("url(\"data:image/svg+xml,");
     for c in svg.trim().chars() {
         match c {

@@ -1,0 +1,92 @@
+/* PANGGUNG 3D — prolog sinematik ala video undangan 3D: "kamera" terbang
+   maju menembus gerbang, berhenti di depan bangunan utama bersama foto &
+   nama mempelai, lalu mundur memperlihatkan acara. Digerakkan GULIR:
+   section setinggi 640svh, layar lengket (sticky) 100svh, satu linimasa
+   view-timeline --pg mengatur semua lapisan (transform/opacity saja →
+   compositor). Lapisan = SVG potret 1080×1920 (web/panggung/svg) yang
+   diperbesar dari titik hilang 50% 62% — tiap lapisan beda laju = paralaks
+   kedalaman. Tanpa dukungan scroll-driven / gerak dikurangi: satu layar
+   diam berisi pemandangan lebar & judul. */
+.pg { position: relative; height: 640svh; margin: 0 -20px 28px; view-timeline: --pg block; }
+.pg__layar { position: sticky; top: 0; height: 100svh; overflow: hidden; contain: strict; isolation: isolate;
+  background: var(--pg-langit, linear-gradient(#d7dce2, #eef1f4 58%, #e8ebee)); }
+.pg__layar > * { position: absolute; }
+.pg__lapis, .pg__langit { inset: 0; display: block; background-position: 50% 62%; background-size: cover; background-repeat: no-repeat; transform-origin: 50% 62%; will-change: transform; }
+.pg__bulan { left: 8%; top: 7%; width: 46%; aspect-ratio: 1; border-radius: 50%; background: var(--pg-bulan, radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)); opacity: .9; }
+.pg__teks { left: 0; right: 0; padding: 0 9%; text-align: center; color: var(--pg-tinta, var(--ink)); opacity: 0; text-wrap: balance; }
+.pg__teks h2 { font-size: clamp(30px, 9.5vmin, 54px); line-height: 1.05; margin: 2px 0 6px; }
+.pg__teks p { margin: 0; }
+.pg__t1 { top: 6%; opacity: 1; }
+.pg__t1 .script { font-size: clamp(20px, 6vmin, 30px); color: var(--gold-deep, #8a6a1f); }
+.pg__t1 small, .pg__t3 small, .pg__t4 small { display: block; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--pg-tinta, var(--ink)) 70%, transparent); }
+/* ayat di dalam lengkung gerbang saat didekati */
+.pg__t2 { top: 34%; padding: 0 22%; font-size: clamp(13px, 3.6vmin, 16px); line-height: 1.6; font-style: italic; }
+.pg__t2 b { display: block; font-style: normal; font-size: clamp(16px, 4.6vmin, 22px); margin-bottom: 8px; letter-spacing: .04em; }
+/* foto mempelai di depan bangunan utama */
+.pg__pasangan { left: 50%; bottom: 22%; width: min(46%, 230px); aspect-ratio: 3 / 4; translate: -50% 0; opacity: 0; border-radius: 999px 999px 18px 18px; overflow: hidden;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, .9), 0 0 0 5px color-mix(in srgb, var(--gold) 60%, transparent), 0 24px 40px -18px rgba(0, 0, 0, .45); background: #f3f1ee; }
+.pg__pasangan img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pg__pasangan .monogram { width: 80%; margin: 18% auto 0; }
+.pg__t3 { bottom: 12%; display: flex; justify-content: center; gap: 6%; }
+.pg__t3 > div { flex: 1; max-width: 46%; }
+.pg__t3 b { display: block; font-size: clamp(15px, 4.4vmin, 20px); }
+.pg__t3 small { letter-spacing: .04em; text-transform: none; font-size: 11px; }
+.pg__t4 { top: 5%; }
+.pg__t4 .pg__acara + .pg__acara { margin-top: 14px; }
+.pg__t4 h3 { font-size: clamp(20px, 6vmin, 28px); margin: 0 0 2px; }
+.pg__t4 p { font-size: 13px; line-height: 1.5; }
+.pg__t5 { top: 6%; }
+.pg__t5 p { font-size: 13px; line-height: 1.6; margin-bottom: 8px; }
+.pg__t5 .script { font-size: clamp(34px, 11vmin, 60px); color: var(--primary); }
+.pg__gulir { bottom: 12%; left: 50%; translate: -50% 0; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: color-mix(in srgb, var(--pg-tinta, var(--ink)) 70%, transparent); animation: pg-angguk 1.8s ease-in-out infinite; }
+.pg__gulir::after { content: ""; display: block; width: 1px; height: 26px; margin: 6px auto 0; background: currentColor; }
+@keyframes pg-angguk { 50% { transform: translateY(5px); } }
+.pg__teks, .pg__pasangan { text-shadow: 0 1px 12px rgba(255, 255, 255, .9); }
+/* Kabut cahaya di belakang teks — terbaca di atas kubah/atap mana pun. */
+.pg__t2::before, .pg__t4::before, .pg__t5::before, .pg__t1::before { content: ""; position: absolute; inset: -18% 4%; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 255, 255, .82), rgba(255, 255, 255, .55) 55%, transparent); }
+.pg__teks .script { text-shadow: none; }
+
+/* Gerak kamera (hanya bila didukung & tak dikurangi). */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .pg__layar > * { animation-timeline: --pg; animation-range: contain 0% contain 100%; animation-fill-mode: both; animation-timing-function: linear; animation-duration: auto; }
+    .pg__langit { animation-name: pg-langit; }
+    .pg__bulan { animation-name: pg-bulan; }
+    .pg__jauh { animation-name: pg-jauh; }
+    .pg__utama { animation-name: pg-utama; }
+    .pg__depan { animation-name: pg-depan; }
+    .pg__pasangan { animation-name: pg-pasangan; }
+    .pg__t1 { animation-name: pg-t1; }
+    .pg__t2 { animation-name: pg-t2; }
+    .pg__t3 { animation-name: pg-t3; }
+    .pg__t4 { animation-name: pg-t4; }
+    .pg__t5 { animation-name: pg-t5; }
+    .pg__gulir { animation: pg-angguk 1.8s ease-in-out infinite, pg-gulir linear both; animation-timeline: auto, --pg; animation-range: normal, contain 0% contain 100%; }
+  }
+}
+@keyframes pg-langit { to { transform: scale(1.06); } }
+@keyframes pg-bulan { 0% { transform: none; } 45% { transform: translateY(4%) scale(1.12); } 70% { transform: translateY(14%) scale(1.2); opacity: .5; } 100% { transform: translateY(2%) scale(1.04); opacity: .9; } }
+@keyframes pg-jauh { 0% { transform: none; } 42% { transform: scale(1.18); } 70% { transform: scale(1.26) translateY(3%); } 100% { transform: scale(1.06); } }
+@keyframes pg-utama { 0% { transform: none; } 30% { transform: scale(1.35); } 42% { transform: scale(1.75); } 56% { transform: scale(2.15) translateY(4%); } 68% { transform: scale(2.2) translateY(5%); } 86% { transform: scale(1.2) translateY(9%); } 100% { transform: scale(1.06) translateY(6%); } }
+@keyframes pg-depan { 0% { transform: scale(.42); opacity: 1; } 12% { transform: scale(.55); } 26% { transform: scale(1.5); } 34% { transform: scale(3); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
+@keyframes pg-pasangan { 0%, 44% { opacity: 0; transform: translateY(14%) scale(.9); } 52% { opacity: 1; transform: none; } 66% { opacity: 1; transform: none; } 74%, 100% { opacity: 0; transform: translateY(-8%) scale(.92); } }
+@keyframes pg-t1 { 0%, 8% { opacity: 1; transform: none; } 18%, 100% { opacity: 0; transform: translateY(-30%); } }
+@keyframes pg-t2 { 0%, 17% { opacity: 0; transform: scale(.86); } 23% { opacity: 1; transform: none; } 31% { opacity: 1; transform: scale(1.06); } 36%, 100% { opacity: 0; transform: scale(1.22); } }
+@keyframes pg-t3 { 0%, 48% { opacity: 0; transform: translateY(20%); } 55%, 66% { opacity: 1; transform: none; } 73%, 100% { opacity: 0; transform: translateY(-12%); } }
+@keyframes pg-t4 { 0%, 74% { opacity: 0; transform: translateY(10%); } 79%, 87% { opacity: 1; transform: none; } 91%, 100% { opacity: 0; transform: translateY(-10%); } }
+@keyframes pg-t5 { 0%, 90% { opacity: 0; transform: translateY(10%); } 96%, 100% { opacity: 1; transform: none; } }
+@keyframes pg-gulir { 0%, 4% { opacity: 1; } 9%, 100% { opacity: 0; } }
+
+/* Tanpa gerak: satu layar pemandangan lebar + judul (layar tak lengket). */
+@supports not (animation-timeline: view()) {
+  .pg { height: auto; } .pg__layar { position: relative; }
+  .pg__depan { transform: scale(.42); }
+  .pg__t2, .pg__t3, .pg__t4, .pg__t5, .pg__pasangan, .pg__gulir { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg { height: auto; } .pg__layar { position: relative; }
+  .pg__depan { transform: scale(.42); }
+  .pg__t2, .pg__t3, .pg__t4, .pg__t5, .pg__pasangan, .pg__gulir { display: none; }
+}
+.inv--rail .pg { margin-inline: 0; }

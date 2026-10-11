@@ -12,6 +12,8 @@ pub mod web;
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn hydrate() {
+    // Hanya build dev: pemformat panik menambah puluhan KB ke WASM rilis.
+    #[cfg(debug_assertions)]
     console_error_panic_hook::set_once();
     // Async: halaman yang dibuka langsung di rute terpisah (admin, Kelola, …)
     // menunggu potongan WASM-nya terunduh sebelum di-hydrate.

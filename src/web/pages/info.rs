@@ -63,22 +63,19 @@ fn ConsultButton(#[prop(optional)] text: &'static str) -> impl IntoView {
 
 // ── /paket ─────────────────────────────────────────────────────────────────
 
-/// (fitur, silver, gold, platinum) — "✓" / "—" / teks bebas.
-const FEATURES: &[(&str, &str, &str, &str)] = &[
-    ("Jumlah nama tamu (link pribadi)", "250", "Tanpa batas", "Tanpa batas"),
-    ("Masa aktif undangan", "6 bulan", "Selamanya", "Selamanya"),
-    ("Semua tema katalog", "✓", "✓", "✓"),
-    ("Hitung mundur & Google Calendar", "✓", "✓", "✓"),
-    ("Peta lokasi & petunjuk arah", "✓", "✓", "✓"),
-    ("RSVP & buku ucapan doa", "✓", "✓", "✓"),
-    ("Dashboard pengantin & ekspor CSV", "✓", "✓", "✓"),
-    ("Amplop digital (salin rekening)", "—", "✓", "✓"),
-    ("QR check-in di meja penerima tamu", "—", "✓", "✓"),
-    ("Musik latar pilihan / upload MP3", "Pilihan", "✓", "✓"),
-    ("Foto mempelai", "—", "✓", "✓"),
-    ("Domain pribadi (.wedding)", "Add-on", "Add-on", "✓"),
-    ("Revisi data", "2x", "5x", "Tanpa batas"),
-    ("Bantuan input data & blast WhatsApp", "—", "—", "✓"),
+/// (fitur, silver, gold, platinum, diamond) — "✓" / "—" / teks bebas.
+const FEATURES: &[(&str, &str, &str, &str, &str)] = &[
+    ("Masa aktif undangan", "1 tahun penuh", "Selamanya", "Selamanya", "Selamanya"),
+    ("Unggahan story tamu", "50", "50", "100", "300"),
+    ("Jumlah nama tamu (link pribadi)", "50", "100", "Tanpa batas", "Tanpa batas"),
+    ("Semua tema katalog (termasuk 3D)", "✓", "✓", "✓", "✓"),
+    ("Hitung mundur & Google Calendar", "✓", "✓", "✓", "✓"),
+    ("Peta lokasi & petunjuk arah", "✓", "✓", "✓", "✓"),
+    ("RSVP & buku ucapan doa", "✓", "✓", "✓", "✓"),
+    ("Dashboard pengantin & ekspor CSV", "✓", "✓", "✓", "✓"),
+    ("Amplop digital (salin rekening)", "—", "✓", "✓", "✓"),
+    ("Foto mempelai", "—", "✓", "✓", "✓"),
+    ("Revisi data", "Tanpa batas", "Tanpa batas", "Tanpa batas", "Tanpa batas"),
 ];
 
 #[component]
@@ -132,7 +129,7 @@ pub fn PaketPage() -> impl IntoView {
                 <Faq items=&[
                     ("Apakah harga berbeda per tema?", "Tidak. Semua tema katalog termasuk di setiap paket — harga hanya ditentukan paket & add-on yang Anda pilih."),
                     ("Bisa dicoba dulu sebelum bayar?", "Bisa. Setelah formulir dikirim, Anda bisa melihat pratinjau lengkap dari halaman Kelola. Selama belum dibayar, tautan undangan TERKUNCI untuk tamu. Bila pembayaran belum dikonfirmasi admin dalam 24 jam, undangan beserta foto & lagu yang diunggah dihapus otomatis."),
-                    ("Apakah ada biaya bulanan?", "Tidak. Harga paket dibayar sekali. Paket Gold & Platinum aktif selamanya; Paket Silver aktif 6 bulan."),
+                    ("Apakah ada biaya bulanan?", "Tidak. Harga paket dibayar sekali. Paket Gold, Platinum & Diamond aktif selamanya (selama situs berjalan); Paket Silver aktif 1 tahun penuh sejak diaktifkan."),
                     ("Bisa ganti tema setelah membayar?", "Bisa. Hubungi admin via WhatsApp, tema diganti tanpa biaya tambahan dan seluruh data tamu serta ucapan tetap tersimpan."),
                     ("Bisa upgrade paket?", "Bisa kapan saja — cukup bayar selisih harga paket."),
                     ("Bagaimana jika tidak puas?", "Garansi uang kembali 100% bila undangan tidak bisa dipakai karena kendala teknis dalam 7 hari setelah aktivasi."),
@@ -154,8 +151,8 @@ pub fn PaketPage() -> impl IntoView {
 
 /// Bagian /paket yang bergantung pada harga (konten admin).
 fn paket_body(k: Konten) -> impl IntoView {
-    // Tabel perbandingan statis ditulis untuk 3 kolom paket pertama.
-    let cols: Vec<_> = k.paket.iter().take(3).cloned().collect();
+    // Tabel perbandingan statis ditulis untuk 4 kolom paket pertama.
+    let cols: Vec<_> = k.paket.iter().take(4).cloned().collect();
     view! {
             <div class="pkg-grid">
                 {k.paket.clone().into_iter().map(|p| view! {
@@ -183,6 +180,7 @@ fn paket_body(k: Konten) -> impl IntoView {
                         <li><Icon name="check_circle" />"Warna, huruf & tata letak sesuai konsep acara"</li>
                         <li><Icon name="check_circle" />"Semua fitur Platinum + revisi tanpa batas"</li>
                         <li><Icon name="check_circle" />"Tema privat — tidak dijual ke pasangan lain"</li>
+                        <li><Icon name="check_circle" />"Bisa dengan domain pribadi (custom domain) — harga menyesuaikan"</li>
                     </ul>
                     <a class="btn btn--outline btn--block" href="/layanan/wa?layanan=custom" target="_blank" rel="noopener">"Konsultasi Desain"</a>
                 </article>
@@ -201,10 +199,10 @@ fn paket_body(k: Konten) -> impl IntoView {
                             </tr>
                         </thead>
                         <tbody>
-                            {FEATURES.iter().map(|(f, a, b, c)| view! {
+                            {FEATURES.iter().map(|(f, a, b, c, dd)| view! {
                                 <tr>
                                     <td>{*f}</td>
-                                    {[*a, *b, *c].into_iter().take(cols.len()).enumerate().map(|(i, v)| view! {
+                                    {[*a, *b, *c, *dd].into_iter().take(cols.len()).enumerate().map(|(i, v)| view! {
                                         <td class:is-pop=cols.get(i).is_some_and(|p| p.popular) class:is-no=v == "—">
                                             {if v == "✓" { view! { <Icon name="check_circle" class="ok" /> }.into_any() } else { v.into_any() }}
                                         </td>

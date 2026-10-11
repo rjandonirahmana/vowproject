@@ -177,6 +177,7 @@ const PENANDA: &[(&str, Tanda)] = &[
     ("038_aset.sql", Tanda::Objek("public.aset")),
     ("040_bahasa_undangan.sql", Tanda::Kolom("invitations", "lang")),
     ("041_animasi_edited.sql", Tanda::Kolom("animations", "edited")),
+    ("044_masa_aktif.sql", Tanda::Kolom("invitations", "activated_at")),
 ];
 
 /// Migrasi data saja (seed tema/animasi/demo) — tak punya objek skema untuk
@@ -202,32 +203,43 @@ const HANYA_DATA: &[&str] = &[
     "039_tema_warkah.sql",
     "042_tema_alam.sql",
     "043_tema_dunia.sql",
+    "045_tema_3d.sql",
 ];
 
 /// Migrasi skema yang BELUM diterapkan (dicek dari objek skemanya, bukan dari
 /// schema_migrations — migrasi di proyek ini biasanya dijalankan manual).
 pub async fn missing(pool: &Pool) -> Result<Vec<&'static str>> {
     let c = pool.get().await.context("cek skema: ambil koneksi")?;
-    let mut out = Vec::new();
-    for (nama, tanda) in PENANDA {
-        let ada: bool = match tanda {
-            Tanda::Objek(o) => c.query_one("SELECT to_regclass($1) IS NOT NULL", &[o]).await,
-            Tanda::Kolom(t, k) => {
-                c.query_one(
-                    "SELECT EXISTS (SELECT 1 FROM information_schema.columns
-                                     WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2)",
-                    &[t, k],
-                )
-                .await
-            }
-        }
-        .with_context(|| format!("cek skema {nama}"))?
-        .get(0);
-        if !ada {
-            out.push(*nama);
-        }
-    }
-    Ok(out)
+    // Semua penanda dicek dalam DUA query (objek & kolom), bukan satu query
+    // per migrasi di dalam loop.
+    let objek: Vec<&str> = PENANDA.iter().filter_map(|(_, t)| if let Tanda::Objek(o) = t { Some(*o) } else { None }).collect();
+    let kolom: Vec<String> = PENANDA.iter().filter_map(|(_, t)| if let Tanda::Kolom(t, k) = t { Some(format!("{t}.{k}")) } else { None }).collect();
+    let ada_objek: std::collections::HashSet<String> = c
+        .query("SELECT o FROM unnest($1::text[]) AS o WHERE to_regclass(o) IS NOT NULL", &[&objek])
+        .await
+        .context("cek skema: objek")?
+        .iter()
+        .map(|r| r.get(0))
+        .collect();
+    let ada_kolom: std::collections::HashSet<String> = c
+        .query(
+            "SELECT table_name || '.' || column_name FROM information_schema.columns
+              WHERE table_schema = 'public' AND table_name || '.' || column_name = ANY($1)",
+            &[&kolom],
+        )
+        .await
+        .context("cek skema: kolom")?
+        .iter()
+        .map(|r| r.get(0))
+        .collect();
+    Ok(PENANDA
+        .iter()
+        .filter(|(_, t)| match t {
+            Tanda::Objek(o) => !ada_objek.contains(*o),
+            Tanda::Kolom(t, k) => !ada_kolom.contains(&format!("{t}.{k}")),
+        })
+        .map(|(n, _)| *n)
+        .collect())
 }
 
 /// Galat "sudah ada" (tabel/indeks/constraint/kolom/tipe) dari Postgres.

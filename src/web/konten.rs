@@ -25,6 +25,14 @@ pub struct Paket {
     pub period: String,
     pub features: Vec<String>,
     pub popular: bool,
+    /// Masa aktif sejak diaktifkan admin, dalam hari; 0 = selamanya (selama
+    /// situs masih berjalan). Ditegakkan di server: lewat masa aktif, tamu
+    /// melihat layar "masa aktif berakhir" (data tetap tersimpan).
+    pub aktif_hari: i64,
+    /// Batas unggahan story tamu per undangan; 0 = tanpa batas.
+    pub maks_story: i64,
+    /// Batas nama tamu spesial (link pribadi) per undangan; 0 = tanpa batas.
+    pub maks_tamu: i64,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -320,29 +328,48 @@ impl Default for Konten {
                     slug: s("silver"),
                     name: s("Paket Silver"),
                     price: 79_000,
-                    period: s("Aktif 6 Bulan"),
-                    features: v(&["Maksimal 250 nama tamu spesial", "Navigasi peta lokasi & countdown", "Masa aktif 6 bulan"]),
+                    period: s("Aktif 1 Tahun Penuh"),
+                    features: v(&["Masa aktif 1 tahun penuh", "50 unggahan story tamu", "Maksimal 50 nama tamu spesial", "Revisi tanpa batas"]),
                     popular: false,
+                    aktif_hari: 365,
+                    maks_story: 50,
+                    maks_tamu: 50,
                 },
                 Paket {
                     slug: s("gold"),
                     name: s("Paket Gold"),
-                    price: 149_000,
+                    price: 125_000,
                     period: s("Aktif Selamanya"),
-                    features: v(&["Tamu undangan tanpa batas", "Amplop digital & QRIS", "QR Code check-in resepsi", "Musik latar pilihan / upload sendiri"]),
+                    features: v(&["Aktif selamanya selama situs berjalan", "50 unggahan story tamu", "Maksimal 100 nama tamu spesial", "Revisi tanpa batas"]),
                     popular: true,
+                    aktif_hari: 0,
+                    maks_story: 50,
+                    maks_tamu: 100,
                 },
                 Paket {
                     slug: s("platinum"),
-                    name: s("Paket Platinum VIP"),
-                    price: 249_000,
+                    name: s("Paket Platinum"),
+                    price: 150_000,
                     period: s("Aktif Selamanya"),
-                    features: v(&["Semua fitur Paket Gold", "Domain pribadi (.wedding)", "Revisi tanpa batas", "Bantuan input data & blast WhatsApp"]),
+                    features: v(&["Aktif selamanya selama situs berjalan", "100 unggahan story tamu", "Nama tamu spesial tanpa batas", "Revisi tanpa batas"]),
                     popular: false,
+                    aktif_hari: 0,
+                    maks_story: 100,
+                    maks_tamu: 0,
+                },
+                Paket {
+                    slug: s("diamond"),
+                    name: s("Paket Diamond 3D"),
+                    price: 199_000,
+                    period: s("Aktif Selamanya • 3D Dimensi"),
+                    features: v(&["Aktif selamanya selama situs berjalan", "300 unggahan story tamu", "Nama tamu spesial tanpa batas", "Revisi tanpa batas"]),
+                    popular: false,
+                    aktif_hari: 0,
+                    maks_story: 300,
+                    maks_tamu: 0,
                 },
             ],
             addon: vec![
-                Addon { slug: s("domain"), name: s("Domain Pribadi (.wedding)"), desc: s("nama-pasangan.wedding"), price: 99_000 },
                 Addon { slug: s("wa-blast"), name: s("WhatsApp Broadcast Otomatis"), desc: s("Kuota 500 kontak • anti-banned"), price: 49_000 },
                 Addon { slug: s("tema-custom"), name: s("Warna & Font Custom"), desc: s("Admin meracik palet & huruf sesuai konsep acaramu"), price: 25_000 },
             ],
@@ -945,6 +972,9 @@ pub const SECTIONS: &[Section] = &[
             fh("slug", "Kode", Text, "Kosongkan = dibuat dari nama."),
             f("price", "Harga (Rp)", Money),
             f("period", "Masa aktif (teks)", Text),
+            fh("aktif_hari", "Masa aktif (hari)", Number, "0 = selamanya. Dihitung sejak undangan diaktifkan admin."),
+            fh("maks_story", "Batas story tamu", Number, "0 = tanpa batas."),
+            fh("maks_tamu", "Batas nama tamu spesial", Number, "0 = tanpa batas."),
             f("popular", "Tandai \"Paling Populer\"", Bool),
             fh("features", "Fitur", Lines, "Satu fitur per baris."),
         ],
@@ -1337,12 +1367,12 @@ mod tests {
     #[test]
     fn harga_dari_konten() {
         let mut k = Konten::default();
-        assert_eq!(k.calc_total("gold", &[], ""), (149_000, 0, 149_000));
-        assert_eq!(k.calc_total("platinum", &["tema-custom".into()], "hematnikah40"), (274_000, 40_000, 234_000));
+        assert_eq!(k.calc_total("gold", &[], ""), (125_000, 0, 125_000));
+        assert_eq!(k.calc_total("platinum", &["tema-custom".into()], "hematnikah40"), (175_000, 40_000, 135_000));
         k.kupon[0].active = false;
         assert_eq!(k.calc_total("gold", &[], "HEMATNIKAH40").1, 0);
         // Paket tak dikenal → paket populer.
-        assert_eq!(k.calc_total("tidak-ada", &[], "").0, 149_000);
+        assert_eq!(k.calc_total("tidak-ada", &[], "").0, 125_000);
         assert_eq!(k.min_price(), 79_000);
     }
 
@@ -1354,7 +1384,7 @@ mod tests {
         assert_eq!(k.kupon[0].code, "NIKAH10");
         // Tipe salah → ditolak, isi lama utuh.
         assert!(!k.apply("paket", serde_json::json!("rusak")));
-        assert_eq!(k.paket.len(), 3);
+        assert_eq!(k.paket.len(), 4);
         assert!(!k.apply("tidak_ada", serde_json::json!([])));
     }
 

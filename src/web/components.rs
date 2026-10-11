@@ -51,7 +51,12 @@ pub fn monogram_svg(initials: &str, caption: &str) -> String {
 
 #[component]
 pub fn Monogram(#[prop(into)] initials: String, #[prop(into, optional)] caption: String, #[prop(optional)] class: &'static str) -> impl IntoView {
-    view! { <div class=format!("monogram {class}") inner_html=monogram_svg(&initials, &caption)></div> }
+    // Tanpa keterangan melengkung → versi HTML ringan (lihat .monogram--ringan).
+    if caption.is_empty() {
+        let label = format!("Monogram {initials}");
+        return view! { <div class=format!("monogram monogram--ringan {class}") role="img" aria-label=label><b>{initials}</b></div> }.into_any();
+    }
+    view! { <div class=format!("monogram {class}") inner_html=monogram_svg(&initials, &caption)></div> }.into_any()
 }
 
 // ── Potongan undangan ──────────────────────────────────────────────────────

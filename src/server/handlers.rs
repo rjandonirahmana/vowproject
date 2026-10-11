@@ -236,24 +236,16 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     // diganti sesudahnya — folder RustFS foto/{slug}/ mengikutinya, jadi slug
     // yang berganti setelah unggah = berkas di folder lain / menimpa milik
     // undangan lain.
-    let mut slug = String::new();
-    for _ in 0..5 {
-        let s = new_invitation_id(&bride_name, &groom_name);
-        match repo::slug_taken(&state.pool, &s).await {
-            Ok(false) => {
-                slug = s;
-                break;
-            }
-            Ok(true) => continue,
-            Err(e) => {
-                tracing::error!(error = %format!("{e:#}"), "buat: cek slug");
-                return back_with_error("Gagal menyimpan undangan, coba lagi.");
-            }
+    // 5 kandidat dicek sekaligus dalam satu query (bukan query per kandidat).
+    let calon: Vec<String> = (0..5).map(|_| new_invitation_id(&bride_name, &groom_name)).collect();
+    let slug = match repo::first_free_slug(&state.pool, &calon).await {
+        Ok(Some(s)) => s,
+        Ok(None) => return back_with_error("Gagal menyimpan undangan, coba lagi."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "buat: cek slug");
+            return back_with_error("Gagal menyimpan undangan, coba lagi.");
         }
-    }
-    if slug.is_empty() {
-        return back_with_error("Gagal menyimpan undangan, coba lagi.");
-    }
+    };
 
     let theme = get("theme", 60);
     let theme = if state.themes().get(&theme).is_some() { theme } else { crate::web::skin::DEFAULT_THEME.to_string() };
@@ -2093,6 +2085,7 @@ mod bukti_tests {
             total_price: 149_000,
             payment_method: "shopeepay".into(),
             contact_phone: "0812-3456-7890".into(),
+            activated_at: None,
         };
         let c = proof_caption(&row, "Gold", "ShopeePay", "https://ilyvowcraft.online");
         assert!(c.contains("https://ilyvowcraft.online/u/ani-budi-k7f3x9m2"), "{c}");
@@ -2134,6 +2127,14 @@ pub async fn post_story(
     }
     if row.inv.is_locked() {
         return to(&back, "galat", "Undangan ini belum diaktifkan.");
+    }
+    if state.kedaluwarsa(&row) {
+        return to(&back, "galat", "Masa aktif undangan ini sudah berakhir.");
+    }
+    // Kuota story paket (Silver/Gold 50, Platinum 100, Diamond 300).
+    let kuota = state.kuota_story(&row);
+    if kuota > 0 && repo::story_count(&state.pool, row.id).await.unwrap_or(0) >= kuota {
+        return to(&back, "galat", &format!("Kuota story undangan ini sudah penuh ({kuota} story)."));
     }
     let phone = fmt::wa_number(&form.raw("phone"));
     let key: String = form.raw("key").chars().filter(|c| c.is_ascii_digit()).collect();

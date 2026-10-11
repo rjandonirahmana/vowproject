@@ -174,12 +174,29 @@ fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, a
     }
     css.push_str(&crate::web::rupa::css(rupa));
     css.push_str(crate::web::pendamping::css(t.pendamping()));
+    css.push_str(crate::web::panggung::css(t.panggung()));
     super::aset::tulis_ulang(&css).into_owned()
 }
 
 impl AppState {
     pub fn themes(&self) -> Arc<ThemeCatalog> {
         self.themes.read().map(|g| g.clone()).unwrap_or_else(|e| e.into_inner().clone())
+    }
+
+    /// Masa aktif paket undangan ini sudah lewat (Paket.aktif_hari, dihitung
+    /// sejak activated_at). Demo, belum aktif, paket selamanya, atau tanggal
+    /// aktivasi belum tercatat (migrasi 044 belum jalan) → tidak pernah.
+    pub fn kedaluwarsa(&self, row: &super::repo::InvRow) -> bool {
+        if row.inv.is_demo || row.inv.status != "aktif" {
+            return false;
+        }
+        let hari = self.konten().package_or_default(&row.inv.package).aktif_hari;
+        hari > 0 && row.activated_at.is_some_and(|t| t + chrono::Duration::days(hari) < chrono::Utc::now())
+    }
+
+    /// Batas story tamu paket undangan ini; 0 = tanpa batas.
+    pub fn kuota_story(&self, row: &super::repo::InvRow) -> i64 {
+        self.konten().package_or_default(&row.inv.package).maks_story.max(0)
     }
 
     /// Undangan DEMO dibuka dengan tema pilihan pengunjung (`?tema=` dari

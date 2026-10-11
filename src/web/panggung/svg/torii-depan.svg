@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><defs>
+<linearGradient id="w" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f4f6"/><stop offset="1" stop-color="#dfe2e7"/></linearGradient>
+<linearGradient id="wv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e6e8ec"/></linearGradient>
+<linearGradient id="s" x1="0" x2="1"><stop offset="0" stop-color="#e3e6ea"/><stop offset="1" stop-color="#c9ced5"/></linearGradient>
+<linearGradient id="r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9bfc8"/><stop offset="1" stop-color="#d6dade"/></linearGradient>
+<radialGradient id="dome" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#eceef1"/><stop offset="1" stop-color="#c8cdd4"/></radialGradient>
+<linearGradient id="gold" x1="0" x2="1"><stop offset="0" stop-color="#8a6a2a"/><stop offset=".45" stop-color="#f1d47c"/><stop offset="1" stop-color="#9b7a2e"/></linearGradient>
+<linearGradient id="air" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9d3dc"/><stop offset=".5" stop-color="#e8edf1"/><stop offset="1" stop-color="#b8c4ce"/></linearGradient>
+<linearGradient id="hijau" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d9b6a"/><stop offset="1" stop-color="#46603c"/></linearGradient>
+<pattern id="kisi" width="22" height="22" patternUnits="userSpaceOnUse"><rect width="22" height="22" fill="url(#dome)"/><path d="M11 3 L19 11 L11 19 L3 11Z" fill="#b6bcc5" opacity=".55"/></pattern>
+</defs><rect x="266" y="640" width="68" height="980" fill="#c0392b"/><rect x="250" y="1580" width="100" height="40" fill="#2e2a28"/><rect x="746" y="640" width="68" height="980" fill="#c0392b"/><rect x="730" y="1580" width="100" height="40" fill="#2e2a28"/><path d="M110 600Q540 520 970 600L990 560Q540 470 90 560Z" fill="#2e2a28"/><rect x="150" y="610" width="780" height="50" fill="#c0392b"/><rect x="210" y="760" width="660" height="40" fill="#c0392b"/><rect x="500" y="660" width="80" height="100" fill="#c0392b"/><rect x="60" y="1620" width="960" height="22" fill="#f6f4f0"/><rect x="30" y="1642" width="1020" height="22" fill="#dfdbd4"/><rect x="0" y="1664" width="1080" height="22" fill="#f6f4f0"/><rect x="0" y="1686" width="1080" height="234" fill="#efedea"/></svg>

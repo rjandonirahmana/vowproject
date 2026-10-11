@@ -100,9 +100,12 @@ h3 {
     color: var(--primary);
     margin: 0;
     line-height: 1.25;
+    /* Baris judul seimbang — tak ada "di / HP" tersisa satu kata di baris akhir. */
+    text-wrap: balance;
 }
 p {
     margin: 0;
+    text-wrap: pretty;
 }
 button,
 input,
@@ -845,6 +848,22 @@ select.input {
     width: 100%;
     height: 100%;
     display: block;
+}
+/* Monogram RINGAN (tanpa keterangan melengkung): inisial = teks HTML
+   bergradien emas di atas cincin latar — 2 elemen DOM, bukan SVG ±11 elemen
+   (beranda punya 120+ monogram di kartu tema). */
+.monogram--ringan {
+    display: grid;
+    place-items: center;
+    container-type: inline-size;
+}
+.monogram--ringan b {
+    font: 600 20cqi/1 "Playfair Display", Georgia, serif;
+    translate: 0 3%;
+    background: linear-gradient(135deg, #c5a059, #dfbe72 50%, #997833);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 .monogram--xs {
     width: 40px;
@@ -10213,6 +10232,10 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     -webkit-tap-highlight-color: transparent;
 }
 /* Lapis GPU hanya untuk kartu dekat tengah (global.js memasang is-dekat). */
+.etalase__item.tcard__art:not(.is-dekat) .mini {
+    /* Kartu jauh (tersembunyi): isinya tak dihitung gaya/tata letaknya sama sekali. */
+    content-visibility: hidden;
+}
 .etalase__item.tcard__art.is-dekat {
     will-change: transform;
 }

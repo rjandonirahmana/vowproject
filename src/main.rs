@@ -32,8 +32,29 @@ const MAX_FORM: usize = (3 + handlers::MAX_GALLERY) * undangan::server::storage:
     + 2 * 1024 * 1024;
 use undangan::web::app::{shell, App};
 
+/// `undangan healthcheck` — HEALTHCHECK Docker tanpa curl (image distroless
+/// tak punya shell/curl): GET /healthz ke port sendiri, keluar 0 bila 200.
+fn healthcheck() -> ! {
+    use std::io::{Read, Write};
+    let addr = std::env::var("SITE_ADDR").unwrap_or_else(|_| "0.0.0.0:3000".into());
+    let port = addr.rsplit(':').next().unwrap_or("3000");
+    let ok = std::net::TcpStream::connect_timeout(&format!("127.0.0.1:{port}").parse().expect("alamat"), std::time::Duration::from_secs(2))
+        .and_then(|mut s| {
+            s.set_read_timeout(Some(std::time::Duration::from_secs(2)))?;
+            s.write_all(b"GET /healthz HTTP/1.0\r\nHost: localhost\r\n\r\n")?;
+            let mut buf = [0u8; 32];
+            let n = s.read(&mut buf)?;
+            Ok(buf[..n].windows(3).any(|w| w == b"200"))
+        })
+        .unwrap_or(false);
+    std::process::exit(if ok { 0 } else { 1 })
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    if std::env::args().nth(1).as_deref() == Some("healthcheck") {
+        healthcheck();
+    }
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .expect("gagal memasang rustls crypto provider");

@@ -135,14 +135,16 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
     let mut row = load(&slug).await?;
     st.demo_tema(&mut row, tema.as_deref());
     st.demo_lagu(&mut row).await;
-    let preview = row.inv.is_locked();
+    let habis = st.kedaluwarsa(&row);
+    let preview = row.inv.is_locked() || habis;
     if preview {
         let k = owner_key(&slug, k.as_deref().unwrap_or("")).await?;
         if !is_owner(&k, &row) && !admin_view(&row).await? {
             if let Some(r) = use_context::<leptos_axum::ResponseOptions>() {
-                r.set_status(axum::http::StatusCode::FORBIDDEN);
+                // 410 Gone: masa aktif paket berakhir (bukan galat sementara).
+                r.set_status(if habis { axum::http::StatusCode::GONE } else { axum::http::StatusCode::FORBIDDEN });
             }
-            return Err(ServerFnError::new("LOCKED"));
+            return Err(ServerFnError::new(if habis { "EXPIRED" } else { "LOCKED" }));
         }
     }
     let guest = match guest.as_deref().map(str::trim).filter(|g| !g.is_empty() && g.len() <= 12) {
@@ -166,6 +168,7 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
                 open_anim: t.open_anim.clone(),
                 float_deco: t.float_deco.clone(),
                 pendamping: t.pendamping().to_string(),
+                panggung: t.panggung().to_string(),
                 scroll_anim: t.scroll_anim.clone(),
                 ornaments: t.ornaments.clone(),
                 bg_video: t.bg_video.clone(),
@@ -425,6 +428,10 @@ pub async fn request_story_key(slug: String, name: String, phone: String) -> Res
     // Nomor yang sudah punya story tetap dikirimi kunci — untuk MENGHAPUS
     // story-nya (dari perangkat mana pun); 1 nomor tetap = 1 story.
     let has_story = repo::story_phone_taken(&st.pool, row.id, &phone).await.map_err(internal)?;
+    let kuota = st.kuota_story(&row);
+    if !has_story && kuota > 0 && repo::story_count(&st.pool, row.id).await.map_err(internal)? >= kuota {
+        return Err(ServerFnError::new(format!("Kuota story undangan ini sudah penuh ({kuota} story). Terima kasih sudah ikut berbagi momen!")));
+    }
     if repo::story_keys_recent(&st.pool, row.id, &phone).await.map_err(internal)? >= 3 {
         return Err(ServerFnError::new("Kunci sudah dikirim 3 kali dalam 1 jam terakhir. Cek WhatsApp Anda atau coba lagi nanti."));
     }
@@ -597,6 +604,11 @@ pub async fn add_guest(
     let category = category.unwrap_or_default();
     let category = if CATEGORIES.iter().any(|(k, _)| *k == category) { category } else { "umum".into() };
     let phone = crate::web::fmt::wa_number(phone.as_deref().unwrap_or(""));
+    // Batas nama tamu spesial per paket (Silver 50, Gold 100, lainnya bebas).
+    let maks = st.konten().package_or_default(&row.inv.package).maks_tamu;
+    if maks > 0 && repo::guests(&st.pool, row.id).await.map_err(internal)?.len() as i64 >= maks {
+        return Err(ServerFnError::new(format!("Paket Anda maksimal {maks} nama tamu spesial. Upgrade paket untuk menambah tamu.")));
+    }
     let code = repo::add_guest(
         &st.pool,
         row.id,

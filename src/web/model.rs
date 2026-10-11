@@ -119,6 +119,8 @@ pub struct InvSkin {
     pub float_deco: String,
     /// Jenis lapisan pendamping 3D (`web/pendamping.rs`); "" = tanpa.
     pub pendamping: String,
+    /// Adegan panggung 3D (`web/panggung.rs`); "" = tanpa.
+    pub panggung: String,
     /// Kunci gerak scroll — akar undangan diberi kelas `rvs--{kunci}` (koreografi).
     pub scroll_anim: String,
     /// Lapisan ornamen per bagian (web/ornamen.rs).

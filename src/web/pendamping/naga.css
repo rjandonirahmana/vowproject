@@ -5,24 +5,24 @@
    merah berayun 3D di sudut atas. Emas = --gold tema. */
 {p} { --emas: linear-gradient(135deg, color-mix(in srgb, var(--gold) 70%, #6b4a10), var(--gold) 45%, color-mix(in srgb, var(--gold) 60%, #fff3c4) 60%, color-mix(in srgb, var(--gold) 75%, #5a3a08)); }
 {p} i:nth-child(-n+16) { display: block; }
-{p} i:nth-child(-n+14) { offset-path: path("M -260 560 C 120 260, 420 760, 760 470 S 1220 140, 1820 420"); offset-rotate: auto; offset-anchor: 50% 50%;
-  animation: ng-terbang 19s cubic-bezier(.4, .1, .6, .9) calc(1.5s + var(--i) * .072s) infinite both; }
-@media (max-width: 760px) { {p} i:nth-child(-n+14) { offset-path: path("M -220 470 C -20 300, 140 640, 230 470 S 380 230, 640 400"); } }
-/* kepala */
-{p} i:nth-child(1) { width: 128px; height: 86px; background: var(--emas); z-index: 2;
-  -webkit-mask: {svg:naga-kepala} center / contain no-repeat; mask: {svg:naga-kepala} center / contain no-repeat;
-  filter: drop-shadow(0 2px 4px rgba(80, 20, 0, .35)); }
-/* ruas badan: bulat bersisik + sirip punggung, mengecil ke ekor */
-{p} i:nth-child(n+2):nth-child(-n+14) { --s: calc(1 - (var(--i) - 1) * .055); width: calc(62px * var(--s)); height: calc(48px * var(--s)); border-radius: 50%;
-  background: radial-gradient(circle at 50% 30%, transparent 0 34%, rgba(90, 40, 0, .28) 36% 40%, transparent 42%) 0 0 / 12px 10px, var(--emas);
-  box-shadow: inset 0 -6px 8px rgba(110, 50, 0, .35); }
-{p} i:nth-child(n+2):nth-child(-n+14)::after { content: ""; position: absolute; left: 22%; top: -38%; width: 56%; height: 50%; background: color-mix(in srgb, var(--primary) 80%, #000);
-  clip-path: polygon(0 100%, 20% 20%, 40% 70%, 60% 0, 80% 60%, 100% 100%); }
+{p} i:nth-child(-n+14) { offset-path: path("M -420 600 C 120 260, 420 760, 760 470 S 1220 140, 1900 420"); offset-rotate: auto; offset-anchor: 50% 50%;
+  z-index: calc(30 - var(--i)); background: center / 100% 100% no-repeat;
+  animation: ng-terbang 22s cubic-bezier(.4, .1, .6, .9) calc(1.5s + var(--i) * .17s) infinite both; }
+@media (max-width: 760px) { {p} i:nth-child(-n+14) { offset-path: path("M -380 520 C -40 300, 140 660, 230 470 S 380 220, 760 400"); } }
+/* kepala: tanduk, surai, rahang terbuka, kumis (SVG berwarna penuh) */
+{p} i:nth-child(1) { width: 150px; height: 96px; background-image: {svg:naga-kepala}; filter: drop-shadow(0 3px 5px rgba(90, 30, 0, .35)); }
+/* badan bersisik + sirip punggung, mengecil ke ekor; dua pasang kaki bercakar */
+{p} i:nth-child(n+2):nth-child(-n+13) { --s: calc(1 - (var(--i) - 1) * .045); width: calc(96px * var(--s)); height: calc(60px * var(--s)); background-image: {svg:naga-badan}; filter: drop-shadow(0 2px 3px rgba(90, 30, 0, .25)); }
+{p} i:nth-child(3)::after, {p} i:nth-child(9)::after { content: ""; position: absolute; left: 30%; top: 72%; width: 46%; aspect-ratio: 1; background: {svg:naga-kaki} center / contain no-repeat; transform-origin: 30% 0; animation: ng-cakar 1.4s ease-in-out infinite alternate; }
+{p} i:nth-child(9)::after { animation-delay: -.7s; }
+@keyframes ng-cakar { from { rotate: -14deg; } to { rotate: 18deg; } }
+/* ekor berapi */
+{p} i:nth-child(14) { width: 92px; height: 58px; background-image: {svg:naga-ekor}; }
 @keyframes ng-terbang {
   0% { offset-distance: 0%; scale: .55; opacity: 0; }
-  5% { opacity: .9; }
-  40% { scale: 1.2; }
-  66% { offset-distance: 100%; scale: .7; opacity: .9; }
+  5% { opacity: 1; }
+  40% { scale: 1.15; }
+  66% { offset-distance: 100%; scale: .7; opacity: 1; }
   70%, 100% { offset-distance: 100%; opacity: 0; } }
 /* lampion */
 {p} i:nth-child(15), {p} i:nth-child(16) { left: 6%; top: -2cqh; width: 46px; height: 58px; border-radius: 46% / 50%; transform-origin: 50% -40px;

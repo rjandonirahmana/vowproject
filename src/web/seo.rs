@@ -142,8 +142,8 @@ mod tests {
     #[test]
     fn data_terstruktur() {
         assert_eq!(abs("/paket"), "https://ilyvowcraft.online/paket");
-        let s = service(&[79_000, 149_000, 249_000, 0]);
-        assert_eq!((s["offers"]["lowPrice"].as_i64(), s["offers"]["highPrice"].as_i64()), (Some(79_000), Some(249_000)));
+        let s = service(&[79_000, 125_000, 150_000, 199_000, 0]);
+        assert_eq!((s["offers"]["lowPrice"].as_i64(), s["offers"]["highPrice"].as_i64()), (Some(79_000), Some(199_000)));
         assert!(service(&[]).get("offers").is_none());
         let f = faq(&[("Apa itu?", "Jawab".into())]);
         assert_eq!(f["mainEntity"][0]["acceptedAnswer"]["text"], "Jawab");
