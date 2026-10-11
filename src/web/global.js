@@ -40,6 +40,14 @@
   });
   function runDom(){ domPending=false; domTasks.forEach(function(fn){ fn(); }); }
   function audio(){ return d.getElementById('bgm'); }
+  // Ganti teks elemen hasil SSR TANPA membuang penanda komentar Leptos
+  // (<!---->) di dalamnya: `textContent=` menghapusnya → hydration WASM (yang
+  // kini ditunda) panik "expected a marker node". Node teks pertama diubah;
+  // bila tak ada, teks disisipkan di depan.
+  function teks(el, s){
+    for(var n=el.firstChild; n; n=n.nextSibling){ if(n.nodeType===3){ n.nodeValue=s; return; } }
+    el.insertBefore(d.createTextNode(s), el.firstChild);
+  }
   // Undangan mana & tema demo mana (dipakai aturan tautan & gerbang).
   function slugOf(p){ var m=/^\/u\/([^\/]+)/.exec(p||''); return m ? m[1] : ''; }
   function temaOf(q){ try{ return new URLSearchParams(q||'').get('tema')||''; }catch(_){ return ''; } }
@@ -164,7 +172,7 @@
       if(a.getAttribute('src')===src){ if(a.paused) play(); else pause(); }
       else { a.setAttribute('src',src); play(); }
       d.querySelectorAll('[data-song]').forEach(function(x){ x.classList.toggle('is-active', x===el); });
-      var np=d.querySelector('[data-now-playing]'); if(np) np.textContent=el.getAttribute('data-title')||'';
+      var np=d.querySelector('[data-now-playing]'); if(np) teks(np, el.getAttribute('data-title')||'');
     }
     if(el.hasAttribute('data-copy')){
       e.preventDefault(); var v=el.getAttribute('data-copy');
@@ -485,7 +493,7 @@
   function setStart(v){
     seeks().forEach(function(b){
       var r=b.querySelector('[data-seek-range]'), t=b.querySelector('[data-seek-time]'), h=b.querySelector('[data-seek-value]');
-      r.value=v; t.textContent=mmss(v); if(h) h.value=Math.floor(v);
+      r.value=v; teks(t, mmss(v)); if(h) h.value=Math.floor(v);
     });
   }
   var lastSrc='';
@@ -498,7 +506,7 @@
     var a=e.target; if(a.id!=='bgm' || !isFinite(a.duration)) return;
     seeks().forEach(function(b){
       var r=b.querySelector('[data-seek-range]'); r.max=Math.floor(a.duration); r.disabled=false;
-      var hint=b.querySelector('[data-seek-hint]'); if(hint) hint.textContent='Geser ke bagian favorit (mis. reff) — durasi '+mmss(a.duration)+'. Tamu mendengar lagu mulai dari titik ini.';
+      var hint=b.querySelector('[data-seek-hint]'); if(hint) teks(hint, 'Geser ke bagian favorit (mis. reff) — durasi '+mmss(a.duration)+'. Tamu mendengar lagu mulai dari titik ini.');
     });
   }, true);
   // Mulai dari awal (putar pertama / setelah selesai) → loncat ke titik mulai.
@@ -511,7 +519,7 @@
   d.addEventListener('timeupdate', function(e){
     if(e.target.id!=='bgm') return;
     var txt='Sedang diputar '+mmss(e.target.currentTime);
-    d.querySelectorAll('[data-seek-now]').forEach(function(n){ n.textContent=txt; });
+    d.querySelectorAll('[data-seek-now]').forEach(function(n){ teks(n, txt); });
   }, true);
   d.addEventListener('input', function(e){
     var r=e.target; if(!r.matches || !r.matches('[data-seek-range]')) return;

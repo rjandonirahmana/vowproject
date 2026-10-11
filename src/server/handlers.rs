@@ -805,17 +805,17 @@ pub async fn layanan_wa(
 
 // ── Tema & admin ───────────────────────────────────────────────────────────
 
-pub async fn theme_css(Extension(state): Extension<Arc<AppState>>) -> Response {
+pub async fn theme_css(
+    Extension(state): Extension<Arc<AppState>>,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+) -> Response {
     let cat = state.themes();
-    (
-        [
-            (header::CONTENT_TYPE, "text/css; charset=utf-8"),
-            // URL selalu memuat ?v=hash-isi → aman di-cache lama.
-            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
-        ],
-        cat.css.clone(),
-    )
-        .into_response()
+    // `?ringan=1` = variabel warna saja (beranda & halaman pemasaran).
+    let body = if q.contains_key("ringan") { cat.css_ringan.clone() } else { cat.css.clone() };
+    // Ber-?v=hash-isi → aman di-cache selamanya; tanpa v (dipasang halaman
+    // demo tema lewat navigasi klien) → cache pendek agar perubahan tema sampai.
+    let cache = if q.contains_key("v") { "public, max-age=31536000, immutable" } else { "public, max-age=3600" };
+    ([(header::CONTENT_TYPE, "text/css; charset=utf-8"), (header::CACHE_CONTROL, cache)], body).into_response()
 }
 
 /// GET /gaya/{slug}.css — CSS SATU tema (variabel + animasi + rupa) untuk
@@ -854,19 +854,24 @@ pub async fn sitemap(Extension(state): Extension<Arc<AppState>>) -> Response {
     let konten = state.konten();
     // HANYA halaman yang boleh diindeks — /buat, /u/, /kelola/ ber-noindex
     // (security.rs is_private); mencantumkannya = galat di Search Console.
-    let mut urls: Vec<(String, &str, &str)> = [
+    // (path, changefreq, priority, lastmod YYYY-MM-DD — kosong = tak dicantumkan)
+    let mut urls: Vec<(String, &str, &str, String)> = [
         ("/", "daily", "1.0"), ("/paket", "weekly", "0.9"), ("/panduan", "monthly", "0.7"),
         ("/cetak", "monthly", "0.6"), ("/dekorasi", "monthly", "0.6"), ("/mua", "monthly", "0.6"), ("/seserahan", "monthly", "0.6"),
         ("/privasi", "yearly", "0.2"), ("/syarat", "yearly", "0.2"),
     ]
     .iter()
-    .map(|(p, f, pr)| (p.to_string(), *f, *pr))
+    .map(|(p, f, pr)| (p.to_string(), *f, *pr, String::new()))
     .collect();
-    urls.extend(cat.list.iter().filter(|t| t.listed && crate::web::skin::is_slug(&t.slug)).map(|t| (format!("/tema/{}", t.slug), "weekly", "0.8")));
-    urls.extend(konten.dekor_paket.iter().filter(|p| crate::web::fmt::is_slug(&p.slug, 64)).map(|p| (format!("/dekorasi/{}", p.slug), "monthly", "0.5")));
+    // lastmod halaman tema = tanggal tema dibuat (akurat; Google mengabaikan
+    // lastmod yang selalu "hari ini").
+    let tgl = |epoch: i64| chrono::DateTime::from_timestamp(epoch, 0).map(|d| d.format("%Y-%m-%d").to_string()).unwrap_or_default();
+    urls.extend(cat.list.iter().filter(|t| t.listed && crate::web::skin::is_slug(&t.slug)).map(|t| (format!("/tema/{}", t.slug), "weekly", "0.8", if t.created > 0 { tgl(t.created) } else { String::new() })));
+    urls.extend(konten.dekor_paket.iter().filter(|p| crate::web::fmt::is_slug(&p.slug, 64)).map(|p| (format!("/dekorasi/{}", p.slug), "monthly", "0.5", String::new())));
     let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
-    for (path, freq, prio) in urls {
-        xml.push_str(&format!("  <url><loc>{SITE_URL}{path}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>\n"));
+    for (path, freq, prio, lastmod) in urls {
+        let lm = if lastmod.is_empty() { String::new() } else { format!("<lastmod>{lastmod}</lastmod>") };
+        xml.push_str(&format!("  <url><loc>{SITE_URL}{path}</loc>{lm}<changefreq>{freq}</changefreq><priority>{prio}</priority></url>\n"));
     }
     xml.push_str("</urlset>\n");
     ([(header::CONTENT_TYPE, "application/xml; charset=utf-8"), (header::CACHE_CONTROL, "public, max-age=3600")], xml).into_response()

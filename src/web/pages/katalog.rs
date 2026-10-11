@@ -334,6 +334,9 @@ pub fn KatalogPage() -> impl IntoView {
             </section>
 
             <UndanganOnlineInfo />
+            <Suspense fallback=|| ()>
+                {move || themes.get().and_then(|r| r.ok()).filter(|v| !v.is_empty()).map(|v| view! { <DirektoriTema themes=v /> })}
+            </Suspense>
 
             <SiteFooter />
         </div>
@@ -689,6 +692,40 @@ fn faq_items(k: &Konten) -> Vec<(&'static str, String)> {
     ]
 }
 
+/// Direktori semua tema per budaya/nuansa — tautan HTML biasa ke halaman
+/// demo tiap tema, jadi Google merayapi seluruh halaman tema dari beranda
+/// (kartu katalog dibatasi 24 & etalase menaut ke demo /u yang noindex).
+#[component]
+fn DirektoriTema(themes: Vec<ThemeInfo>) -> impl IntoView {
+    let mut grup: Vec<(String, Vec<ThemeInfo>)> = Vec::new();
+    for t in themes {
+        let label = if t.nuansa.trim().is_empty() { t.category.trim().to_string() } else { t.nuansa.trim().to_string() };
+        match grup.iter_mut().find(|g| g.0 == label) {
+            Some(g) => g.1.push(t),
+            None => grup.push((label, vec![t])),
+        }
+    }
+    grup.sort_by(|a, b| b.1.len().cmp(&a.1.len()).then_with(|| a.0.cmp(&b.0)));
+    view! {
+        <section class="direktori" aria-labelledby="direktori-judul">
+            <Bab no="05" label="Semua Tema" />
+            <h2 id="direktori-judul">"Tema Undangan Online per "<em>"Budaya"</em></h2>
+            <div class="direktori__grid">
+                {grup.into_iter().map(|(label, list)| view! {
+                    <div class="direktori__grup">
+                        <h3>{format!("Undangan Online {label}")}</h3>
+                        <ul>
+                            {list.into_iter().map(|t| view! {
+                                <li><a href=format!("/tema/{}", t.slug) title=format!("Undangan online tema {}", t.name)>{t.name.clone()}</a></li>
+                            }).collect_view()}
+                        </ul>
+                    </div>
+                }).collect_view()}
+            </div>
+        </section>
+    }
+}
+
 /// Label bagian bernomor bergaya editorial: `01 / FITUR ……… 01`.
 #[component]
 fn Bab(no: &'static str, label: &'static str) -> impl IntoView {
@@ -718,6 +755,11 @@ fn undangan_online_info(k: Konten) -> impl IntoView {
                     {crate::brand!()}" adalah layanan undangan online pernikahan — dikenal juga sebagai undangan digital atau undangan website — "
                     "dengan tema adat Nusantara dan desain premium. Cukup kirim satu tautan lewat WhatsApp, tamu langsung melihat detail akad & resepsi, "
                     "lokasi Google Maps, galeri foto, dan mengisi RSVP dari HP. Hemat biaya cetak, ramah lingkungan, dan bisa diperbarui kapan saja."
+                </p>
+                <p>
+                    "Berbeda dari undangan nikah cetak, undangan pernikahan digital tak pernah salah alamat dan tak perlu diantar satu per satu: "
+                    "nama setiap tamu tertulis otomatis di sampul, perubahan jam atau lokasi langsung sampai ke semua tamu, dan buku tamu terisi "
+                    "sendiri lewat QR. Anda bisa mencoba seluruh tema undangan online secara gratis dan baru membayar ketika undangan siap disebar."
                 </p>
             </div>
             <Bab no="02" label="Fitur di Setiap Paket" />

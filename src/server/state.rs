@@ -94,6 +94,10 @@ pub struct ThemeCatalog {
     pub anims: Vec<crate::web::anim::AnimInfo>,
     /// Isi /tema.css (Bytes: clone per request tanpa menyalin isi).
     pub css: axum::body::Bytes,
+    /// Isi `/tema.css?ringan=1`: HANYA variabel warna tiap tema (±150 KB dari
+    /// ±420 KB) — beranda, katalog & halaman pemasaran tak memakai animasi
+    /// gerbang/scroll/hiasan (pratinjau undangan memuat /gaya/{slug}.css sendiri).
+    pub css_ringan: axum::body::Bytes,
     /// Hash isi CSS → `/tema.css?v=…` (cache browser aman selamanya).
     pub version: String,
     /// Parameter `family=` Google Fonts untuk font tema yang terpakai.
@@ -113,6 +117,7 @@ impl ThemeCatalog {
         let css = super::aset::tulis_ulang(&(skin::catalog_css(&list, &anims) + &crate::web::anim::catalog_css(&anims))).into_owned();
         let version = super::util::hash8(&css);
         let css = axum::body::Bytes::from(css);
+        let css_ringan = axum::body::Bytes::from(super::aset::tulis_ulang(&skin::catalog_css(&list, &anims)).into_owned());
         let fonts = skin::font_families(&list);
         let index = list.iter().enumerate().map(|(i, t)| (t.slug.clone(), i)).collect();
         let gaya = list
@@ -121,7 +126,7 @@ impl ThemeCatalog {
             .map(|t| (t.slug.clone(), axum::body::Bytes::from(theme_css(t, &t.rupa, &anims))))
             .collect();
         let rupa_all = axum::body::Bytes::from(super::aset::tulis_ulang(&crate::web::rupa::all_css()).into_owned());
-        Self { list, index, anims, css, version, fonts, gaya, rupa_all }
+        Self { list, index, anims, css, css_ringan, version, fonts, gaya, rupa_all }
     }
 
     /// Isi `/gaya/{slug}.css`; `rupa` = timpaan demo (`?rupa=`), dihitung saat itu.

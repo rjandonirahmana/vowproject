@@ -44,6 +44,10 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
         crate::server::security::is_demo_preview(p.uri.path(), p.uri.query().unwrap_or(""))
     });
     let guest_page = use_context::<axum::http::request::Parts>().is_some_and(|p| p.uri.path().starts_with("/u/"));
+    // Halaman pemasaran (beranda, paket, demo tema, …): isinya SSR penuh &
+    // tautan biasa — WASM tak diperlukan untuk tampil, jadi tak di-preload
+    // (bersaing dengan LCP) dan baru diunduh saat senggang / disentuh.
+    let publik = use_context::<axum::http::request::Parts>().is_some_and(|p| halaman_publik(p.uri.path()));
     view! {
         <!DOCTYPE html>
         <html lang="id">
@@ -63,8 +67,8 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
                 {(!preview).then(|| view! { <AutoReload options=options.clone() /> })}
                 // Undangan tamu (/u/…): WASM ±1,3 MB baru diunduh saat bagian
                 // interaktif mendekat (LazyHydration). Halaman lain: seperti biasa.
-                {(!preview && !guest_page).then(|| view! { <HydrationScripts options=options.clone() /> })}
-                {(!preview && guest_page).then(|| view! { <LazyHydration options=options.clone() nonce=nonce.clone() /> })}
+                {(!preview && !guest_page && !publik).then(|| view! { <HydrationScripts options=options.clone() /> })}
+                {(!preview && (guest_page || publik)).then(|| view! { <LazyHydration options=options.clone() nonce=nonce.clone() tamu=guest_page /> })}
                 <MetaTags />
             </head>
             <body>
@@ -90,8 +94,24 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
 /// Pengganti <HydrationScripts>: impor & hydrate() sama, hanya ditunda.
 #[cfg(feature = "ssr")]
 #[component]
-fn LazyHydration(options: leptos::config::LeptosOptions, nonce: Option<leptos::nonce::Nonce>) -> impl IntoView {
+fn LazyHydration(options: leptos::config::LeptosOptions, nonce: Option<leptos::nonce::Nonce>, tamu: bool) -> impl IntoView {
     let pkg = format!("/{}/{}", options.site_pkg_dir, options.output_name);
+    if !tamu {
+        // Halaman publik: hydrate saat thread senggang setelah `load` (koneksi
+        // kuat), atau seketika saat diketuk / diketik / difokus. Gulir TIDAK
+        // memicu (hydrate di tengah gulir = satu frame panjang). Koneksi lemah /
+        // hemat data: hanya saat berinteraksi.
+        let js = format!(
+            r#"(function(){{var d=document,on=false;
+function go(){{if(on)return;on=true;import("{pkg}.js").then(function(m){{return m.default({{module_or_path:"{pkg}.wasm"}}).then(function(){{m.hydrate();}});}});}}
+["click","keydown","focusin"].forEach(function(t){{d.addEventListener(t,go,{{capture:true,passive:true}});}});
+d.addEventListener("pointerdown",function(e){{if(e.pointerType!=="touch")go();}},{{capture:true,passive:true}});
+var c=navigator.connection||{{}};if(c.saveData||/2g|3g/.test(c.effectiveType||""))return;
+function idle(){{(window.requestIdleCallback||setTimeout)(go,{{timeout:2500}});}}
+if(d.readyState==="complete")idle();else addEventListener("load",idle);}})();"#
+        );
+        return view! { <script nonce=nonce inner_html=js></script> }.into_any();
+    }
     let js = format!(
         r#"(function(){{var d=document,on=false,io;
 var ld=d.readyState==="complete"?Date.now()-3000:0;addEventListener("load",function(){{ld=Date.now();}});
@@ -109,7 +129,15 @@ if("IntersectionObserver"in window){{io=new IntersectionObserver(function(es){{e
 if(kuat)addEventListener("load",function(){{setTimeout(function(){{(window.requestIdleCallback||setTimeout)(go);}},4000);}});}}
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",arm);else arm();}})();"#
     );
-    view! { <script nonce=nonce inner_html=js></script> }
+    view! { <script nonce=nonce inner_html=js></script> }.into_any()
+}
+
+/// Halaman pemasaran publik: hydration malas + CSS tema ringan.
+#[cfg(feature = "ssr")]
+fn halaman_publik(path: &str) -> bool {
+    matches!(path, "/" | "/paket" | "/panduan" | "/cetak" | "/dekorasi" | "/mua" | "/seserahan" | "/privasi" | "/syarat")
+        || path.starts_with("/tema/")
+        || path.starts_with("/dekorasi/")
 }
 
 /// Meta verifikasi Google Search Console dari env GOOGLE_SITE_VERIFICATION
@@ -132,15 +160,27 @@ fn theme_links() -> AnyView {
         return ().into_any();
     }
     let cat = use_context::<std::sync::Arc<crate::server::state::AppState>>().map(|s| s.themes());
+    // Admin & dashboard Kelola memakai animasi (pratinjau gerbang, hiasan);
+    // halaman lain cukup variabel warna (halaman demo tema menambah yang
+    // penuh sendiri, tema.rs).
+    let penuh = use_context::<axum::http::request::Parts>().is_some_and(|p| {
+        let path = p.uri.path();
+        path.starts_with("/admin") || path.starts_with("/kelola")
+    });
+    // Halaman demo tema memasang /tema.css penuh sendiri (tema.rs) — jangan
+    // diunduh dua kali (ringan + penuh).
+    let demo_tema = use_context::<axum::http::request::Parts>().is_some_and(|p| p.uri.path().starts_with("/tema/"));
     let css = match &cat {
-        Some(c) => format!("/tema.css?v={}", c.version),
+        _ if demo_tema => String::new(),
+        Some(c) if penuh => format!("/tema.css?v={}", c.version),
+        Some(c) => format!("/tema.css?v={}&ringan=1", c.version),
         None => "/tema.css".into(),
     };
     let fonts = cat
         .filter(|c| !c.fonts.is_empty())
         .map(|c| crate::web::fmt::font_css(&c.fonts, "swap"));
     view! {
-        <link rel="stylesheet" href=css />
+        {(!css.is_empty()).then(|| view! { <link rel="stylesheet" href=css.clone() /> })}
         {fonts.map(|href| view! { <link rel="stylesheet" href=href /> })}
     }
     .into_any()
@@ -204,6 +244,17 @@ rute_terpisah! {
     KelolaRute => KelolaPage,
     ScanRute => ScanPage,
     SuntingRute => SuntingPage,
+    // Halaman layanan & info: kalkulator harga, formulir, teks panjang —
+    // tamu undangan & pengunjung beranda tak perlu mengunduh kodenya.
+    PaketRute => PaketPage,
+    PanduanRute => PanduanPage,
+    CetakRute => CetakPage,
+    DekorasiRute => DekorasiPage,
+    DekorasiDetailRute => DekorasiDetailPage,
+    MuaRute => MuaPage,
+    SeserahanRute => SeserahanPage,
+    PrivasiRute => PrivasiPage,
+    SyaratRute => SyaratPage,
 }
 
 #[component]
@@ -221,13 +272,13 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/") view=KatalogPage />
                 <Route path=path!("/tema/:tema") view=TemaPage ssr=SsrMode::Async />
                 <Route path=path!("/buat") view={Lazy::<BuatRute>::new()} />
-                <Route path=path!("/paket") view=PaketPage />
-                <Route path=path!("/panduan") view=PanduanPage />
-                <Route path=path!("/cetak") view=CetakPage />
-                <Route path=path!("/dekorasi") view=DekorasiPage />
-                <Route path=path!("/dekorasi/:slug") view=DekorasiDetailPage ssr=SsrMode::Async />
-                <Route path=path!("/mua") view=MuaPage />
-                <Route path=path!("/seserahan") view=SeserahanPage />
+                <Route path=path!("/paket") view={Lazy::<PaketRute>::new()} />
+                <Route path=path!("/panduan") view={Lazy::<PanduanRute>::new()} />
+                <Route path=path!("/cetak") view={Lazy::<CetakRute>::new()} />
+                <Route path=path!("/dekorasi") view={Lazy::<DekorasiRute>::new()} />
+                <Route path=path!("/dekorasi/:slug") view={Lazy::<DekorasiDetailRute>::new()} ssr=SsrMode::Async />
+                <Route path=path!("/mua") view={Lazy::<MuaRute>::new()} />
+                <Route path=path!("/seserahan") view={Lazy::<SeserahanRute>::new()} />
                 <Route path=path!("/admin") view={Lazy::<AdminHomeRute>::new()} />
                 <Route path=path!("/admin/tema") view={Lazy::<AdminThemesRute>::new()} />
                 <Route path=path!("/admin/tema/:slug") view={Lazy::<AdminThemeEditRute>::new()} />
@@ -245,8 +296,8 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/admin/konten/:key") view={Lazy::<AdminKontenEditRute>::new()} />
                 <Route path=path!("/admin/akun") view={Lazy::<AdminAkunRute>::new()} />
                 <Route path=path!("/admin/profil") view={Lazy::<AdminProfilRute>::new()} />
-                <Route path=path!("/privasi") view=PrivasiPage />
-                <Route path=path!("/syarat") view=SyaratPage />
+                <Route path=path!("/privasi") view={Lazy::<PrivasiRute>::new()} />
+                <Route path=path!("/syarat") view={Lazy::<SyaratRute>::new()} />
                 // Async: <head> (og:title/description untuk pratinjau tautan WhatsApp)
                 // dan status 404 baru dikirim setelah data undangan siap.
                 <ParentRoute path=path!("/u/:slug") view=InvitationLayout ssr=SsrMode::Async>

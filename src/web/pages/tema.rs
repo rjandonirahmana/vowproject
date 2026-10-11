@@ -47,6 +47,11 @@ pub fn TemaPage() -> impl IntoView {
                         path=format!("/tema/{}", t.slug)
                         image=t.image_url.clone()
                     />
+                    // Animasi gerbang/hiasan untuk demo di HP (halaman lain cukup
+                    // CSS tema ringan). <link> biasa di body (sah di HTML5): ikut
+                    // terpasang juga saat datang dari beranda lewat navigasi klien,
+                    // dan markupnya identik SSR/klien (aman untuk hydration).
+                    <link rel="stylesheet" href="/tema.css" />
                     // Tema privat (pesanan custom) tak boleh muncul di Google.
                     {(!t.listed).then(|| view! { <Meta name="robots" content="noindex, nofollow" /> })}
                     <JsonLd data=crate::web::seo::breadcrumb(&[("Beranda", "/"), ("Katalog Tema", "/#katalog"), (t.name.as_str(), format!("/tema/{}", t.slug).as_str())]) />
