@@ -488,7 +488,16 @@ select.input {
 .field-row + .btn {
     margin-top: 12px;
 }
+/* RSVP: stepper selebar isinya, pilihan sesi ("Akad Nikah (08.00 – 10.00
+   WIB)") mendapat sisa lebar; di HP ditumpuk agar teks sesi tak terpotong. */
+.rsvp .field-row {
+    grid-template-columns: 140px 1fr;
+}
+.rsvp select.input {
+    text-overflow: ellipsis;
+}
 @media (max-width: 520px) {
+    .rsvp .field-row,
     .field-row--3 {
         grid-template-columns: 1fr;
     }

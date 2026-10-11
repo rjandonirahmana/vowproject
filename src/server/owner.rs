@@ -56,12 +56,9 @@ fn set_cookie(slug: &str, key: &str, headers: &HeaderMap) -> String {
 
 /// `/kelola/{slug}…?key=` → ("slug", "key"); `/u/{slug}…?k=` → ("slug", "k").
 fn target(path: &str) -> Option<(&str, &'static str)> {
-    let (rest, param) = if let Some(r) = path.strip_prefix("/kelola/") {
-        (r, "key")
-    } else if let Some(r) = path.strip_prefix("/u/") {
-        (r, "k")
-    } else {
-        return None;
+    let (rest, param) = match path.strip_prefix("/kelola/") {
+        Some(r) => (r, "key"),
+        None => (path.strip_prefix("/u/")?, "k"),
     };
     let slug = rest.split('/').next().unwrap_or("");
     valid_slug(slug).then_some((slug, param))

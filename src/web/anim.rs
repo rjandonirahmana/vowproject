@@ -10,6 +10,7 @@
 //!     aturan lengkap ber-`{a}` — "koreografi": gerak berbeda per jenis elemen
 //!     (judul, teks, foto, kartu). Akar undangan selalu berkelas `rvs--{scroll}`.
 //!     Animasi bawaan memakai cara ini.
+//!
 //! Hasilnya dilayani di /tema.css; tema memakai animasi lewat kuncinya (= slug)
 //! di kolom open_anim / scroll_anim / float_deco.
 //!
@@ -269,7 +270,7 @@ pub fn check_css_urls(css: &str) -> Result<(), String> {
         let ok = target.starts_with("data:image/")
             || (target.starts_with('/') && !target.starts_with("//"))
             || match (origin_of(target), URL_ORIGINS.get()) {
-                (Some(o), Some(list)) => list.iter().any(|x| *x == o),
+                (Some(o), Some(list)) => list.contains(&o),
                 (Some(_), None) => !cfg!(feature = "ssr"),
                 _ => false,
             };

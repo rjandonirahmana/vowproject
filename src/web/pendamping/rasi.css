@@ -1,0 +1,12 @@
+/* Rasi — langit malam: bulan sabit berpendar, bintang segi empat berkelip
+   di kedalaman berbeda (parallax gulir), dan bintang jatuh sesekali
+   melintas diagonal. */
+{p} i:nth-child(-n+16) { display: block; }
+{p} i:nth-child(1) { left: 8%; top: 8vh; width: min(18vw, 120px); aspect-ratio: 1; background: color-mix(in srgb, var(--gold) 50%, #fff8dc); opacity: .7; filter: drop-shadow(0 0 22px rgba(255, 236, 170, .6));
+  -webkit-mask: {svg:sabit} center / contain no-repeat; mask: {svg:sabit} center / contain no-repeat; rotate: 200deg; }
+{p} i:nth-child(n+2):nth-child(-n+13) { --d: calc(.4 + mod(var(--i) * 7, 6) * .12); left: calc(mod(var(--i) * 43, 96) * 1% + 2%); top: calc(mod(var(--i) * 31, 90) * 1vh + 3vh); width: calc(14px * var(--d)); aspect-ratio: 1; background: color-mix(in srgb, var(--gold) 40%, #fffbe8);
+  clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%); opacity: .3; animation: rs-kelip calc(2s + mod(var(--i), 5) * .6s) ease-in-out calc(var(--i) * -.7s) infinite alternate; }
+@keyframes rs-kelip { to { opacity: .95; transform: scale(1.4); } }
+{p} i:nth-child(n+14):nth-child(-n+16) { left: calc((var(--i) - 13) * 25%); top: calc((var(--i) - 13) * 8vh); width: 140px; height: 2px; border-radius: 2px; opacity: 0; rotate: 28deg;
+  background: linear-gradient(90deg, transparent, #fffbe8 70%, #fff); animation: rs-jatuh 11s ease-in calc(var(--i) * 3.7s) infinite; }
+@keyframes rs-jatuh { 0% { opacity: 0; transform: translateX(0); } 2% { opacity: .9; } 8% { opacity: 0; transform: translateX(60vw); } 100% { opacity: 0; transform: translateX(60vw); } }

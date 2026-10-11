@@ -1,0 +1,24 @@
+/* Lapisan PENDAMPING 3D — makhluk/benda khas tema yang bergerak di BELAKANG
+   isi undangan (z 0, di bawah .inv__main z 1): terlihat di sela-sela kartu
+   dan di tepi layar desktop, tak pernah menutupi teks. Hanya transform &
+   opacity yang dianimasikan (compositor). 3D memakai perspective() di
+   transform elemen itu SENDIRI — tak ada konteks 3D bersama antar saudara
+   (Safari memotong bidang 3D yang berpotongan). Gerak terkait gulir memakai
+   properti `translate` lewat animation-timeline: scroll(root) — terpisah dari
+   gerak waktu di `transform`, jadi keduanya tergabung tanpa bentrok. */
+.pdp { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.pdp i { position: absolute; display: none; left: 0; top: 0; }
+.inv--embed .pdp { position: absolute; }
+html:not(.inv-opened) .inv--gate .pdp { display: none; }
+.motion-min .pdp { display: none; }
+@media (prefers-reduced-motion: reduce) { .pdp { display: none !important; } }
+/* BURUNG (.sy): elemen = wadah tanpa latar; ::before = badan (mask --badan),
+   ::after = sayap dekat — engsel di punggung, ujung menyapu ke belakang,
+   mengepak dengan rotateX ber-perspective SENDIRI (3D, aman di Safari).
+   Mask pada wadah akan ikut memotong sayap, maka mask hanya di pseudo. */
+.pdp .sy::before, .pdp .sy::after { content: ""; position: absolute; background: var(--cb, currentColor); }
+.pdp .sy::before { inset: 0; -webkit-mask: var(--badan) center / contain no-repeat; mask: var(--badan) center / contain no-repeat; }
+.pdp .sy::after { left: var(--sy-x, 20%); bottom: var(--sy-y, 48%); width: var(--sy-w, 50%); aspect-ratio: 5 / 3; transform-origin: 100% 100%; scale: -1 1;
+  -webkit-mask: {svg:sayap} center / 100% 100% no-repeat; mask: {svg:sayap} center / 100% 100% no-repeat;
+  animation: pdp-kepak var(--kepak, .9s) ease-in-out infinite alternate; }
+@keyframes pdp-kepak { from { transform: perspective(240px) rotateX(-10deg); } to { transform: perspective(240px) rotateX(155deg); } }

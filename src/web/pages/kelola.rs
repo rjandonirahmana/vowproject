@@ -126,7 +126,7 @@ fn Dashboard(d: Dashboard, baru: bool, notice: Option<(bool, String)>, add: Serv
 
     let inv_for_blast = inv.clone();
     let blast = move || {
-        let link = format!("{}{}", origin.get(), format!("/u/{}", inv_for_blast.slug));
+        let link = format!("{}/u/{}", origin.get(), inv_for_blast.slug);
         format!("https://wa.me/?text={}", fmt::url_encode(&wa_share_text(&inv_for_blast, "Bapak/Ibu/Saudara/i", &link)))
     };
 
@@ -513,7 +513,7 @@ fn confirm(_msg: &str) -> bool {
 fn now_ms() -> i64 {
     #[cfg(target_arch = "wasm32")]
     {
-        return js_now();
+        js_now()
     }
     #[cfg(not(target_arch = "wasm32"))]
     {

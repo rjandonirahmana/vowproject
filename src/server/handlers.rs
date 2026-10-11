@@ -213,7 +213,7 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     }
     let mut form = match super::form::read(mp, 5 + MAX_GALLERY).await {
         Ok(f) => f,
-        Err(()) => return back_with_error("Unggahan terputus atau terlalu besar (foto maks 5 MB, lagu maks 6 MB)."),
+        Err(super::form::Rusak) => return back_with_error("Unggahan terputus atau terlalu besar (foto maks 5 MB, lagu maks 6 MB)."),
     };
     // Berkas dipisah dulu: satu per input + galeri (banyak berkas, satu nama input).
     let (gallery_files, mut files): (Vec<super::form::Upload>, Vec<super::form::Upload>) =
@@ -928,6 +928,9 @@ fn with_cookie(mut res: Response, cookie: String) -> Response {
 }
 
 /// Admin yang masuk & berperan cukup; selain itu redirect dengan pesan.
+/// `Err` = respons redirect siap dikembalikan handler (jalur langka, ukuran
+/// tak masalah — dibox hanya menambah alokasi di 22 pemanggil).
+#[allow(clippy::result_large_err)]
 async fn require(state: &AppState, headers: &axum::http::HeaderMap, need_admin: bool) -> Result<AdminUser, Response> {
     auth::require(state, headers, need_admin).await.map_err(|d| match d {
         auth::Denied::NotAdmin => to("/admin", "galat", "Hanya peran Admin yang boleh melakukan ini."),
@@ -2165,7 +2168,7 @@ pub async fn post_story(
         Ok(u) => u,
         Err(e) => return to(&back, "galat", &e.to_string()),
     };
-    match repo::insert_story(&state.pool, row.id, &phone, &name, &url, &filter, &caption, &super::auth::token_hash(&token)).await {
+    match repo::insert_story(&state.pool, row.id, &repo::StoryBaru { phone: &phone, name: &name, photo: &url, filter: &filter, caption: &caption, token_hash: &super::auth::token_hash(&token) }).await {
         Ok(true) => {}
         Ok(false) => {
             discard_uploads(&state, std::slice::from_ref(&url)).await;

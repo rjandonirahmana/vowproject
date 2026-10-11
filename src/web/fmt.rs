@@ -323,7 +323,7 @@ pub fn ribuan(n: i64) -> String {
     let s = n.unsigned_abs().to_string();
     let mut out = String::new();
     for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i) % 3 == 0 {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
             out.push('.');
         }
         out.push(c);
@@ -391,6 +391,11 @@ pub fn wa_number(raw: &str) -> String {
     }
 }
 
+/// `document` browser (hanya dipanggil dari Effect — tak pernah jalan saat SSR).
+pub fn document() -> Option<web_sys::Document> {
+    web_sys::window().and_then(|w| w.document())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -456,9 +461,4 @@ mod tests {
         let ms = epoch_ms("2026-10-24", "08:00", "WIB").unwrap();
         assert_eq!(gcal_stamp(ms), "20261024T010000Z");
     }
-}
-
-/// `document` browser (hanya dipanggil dari Effect — tak pernah jalan saat SSR).
-pub fn document() -> Option<web_sys::Document> {
-    web_sys::window().and_then(|w| w.document())
 }

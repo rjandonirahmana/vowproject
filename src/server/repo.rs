@@ -989,7 +989,7 @@ pub async fn seed_animations(pool: &Pool, list: &[crate::web::anim::AnimInfo]) -
         .map(|a| serde_json::json!({ "kind": a.kind, "slug": a.slug, "name": a.name, "spec": a.spec, "css": a.css, "sort_order": a.sort_order }))
         .collect();
     let c = pool.get().await?;
-    Ok(db_exec(
+    db_exec(
         &c,
         "INSERT INTO animations (kind, slug, name, spec, css, builtin, sort_order)
          SELECT x.kind, x.slug, x.name, x.spec, x.css, TRUE, x.sort_order
@@ -1001,7 +1001,7 @@ pub async fn seed_animations(pool: &Pool, list: &[crate::web::anim::AnimInfo]) -
         &[&Value::Array(rows)],
     )
     .await
-    .context("seed animations")?)
+    .context("seed animations")
 }
 
 /// Tema yang memakai animasi `key` jenis `kind` — animasi dipakai tak boleh dihapus.
@@ -1368,8 +1368,19 @@ pub async fn use_story_key(pool: &Pool, key_id: i64) -> Result<()> {
     Ok(())
 }
 
+/// Isi story baru dari tamu (lihat [`insert_story`]).
+pub struct StoryBaru<'a> {
+    pub phone: &'a str,
+    pub name: &'a str,
+    pub photo: &'a str,
+    pub filter: &'a str,
+    pub caption: &'a str,
+    pub token_hash: &'a str,
+}
+
 /// Simpan story; `false` bila nomor ini sudah punya story (UNIQUE).
-pub async fn insert_story(pool: &Pool, inv_id: i64, phone: &str, name: &str, photo: &str, filter: &str, caption: &str, token_hash: &str) -> Result<bool> {
+pub async fn insert_story(pool: &Pool, inv_id: i64, s: &StoryBaru<'_>) -> Result<bool> {
+    let StoryBaru { phone, name, photo, filter, caption, token_hash } = *s;
     let c = pool.get().await?;
     let n = db_exec(&c,
         "INSERT INTO invitation_stories (invitation_id, phone, name, photo_url, filter, caption, owner_token_hash)
@@ -1554,7 +1565,7 @@ pub async fn seed_templates(pool: &Pool, list: &[super::templat::Templat]) -> Re
         .map(|t| serde_json::json!({ "slug": t.slug, "name": t.name, "html": t.html, "css": t.css, "fonts": t.fonts, "assets": t.assets }))
         .collect();
     let c = pool.get().await?;
-    Ok(db_exec(
+    db_exec(
         &c,
         "INSERT INTO theme_templates (slug, name, html, css, fonts, assets, builtin)
          SELECT x.slug, x.name, x.html, x.css, x.fonts, x.assets, TRUE
@@ -1568,7 +1579,7 @@ pub async fn seed_templates(pool: &Pool, list: &[super::templat::Templat]) -> Re
         &[&Value::Array(rows)],
     )
     .await
-    .context("seed theme_templates")?)
+    .context("seed theme_templates")
 }
 
 /// Simpan suntingan admin (baris bawaan ditandai `edited`).

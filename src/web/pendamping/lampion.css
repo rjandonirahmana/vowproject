@@ -1,0 +1,14 @@
+/* Lampion — Vietnam (Hoi An): untai lampion sutra warna-warni tergantung
+   melengkung di atas, masing-masing berputar 3D pelan pada talinya; beberapa
+   lampion lepas melayang naik di kejauhan. */
+{p} i:nth-child(-n+12) { display: block; }
+{p} i:nth-child(-n+8) { --w: hsl(calc(mod(var(--i) * 47, 360) * 1deg + 330deg) 78% 52%); top: calc(2vh + (var(--i) - 3.5) * (var(--i) - 3.5) * .5vh); left: calc(var(--i) * 12.5% + 2%); width: 40px; height: 50px; margin-top: 34px; border-radius: 48% / 52%;
+  background: repeating-linear-gradient(90deg, transparent 0 6px, rgba(0, 0, 0, .12) 6px 7px), radial-gradient(circle at 50% 42%, #fff1c9, var(--w) 58%, color-mix(in srgb, var(--w) 60%, #000));
+  box-shadow: 0 0 26px color-mix(in srgb, var(--w) 55%, transparent); transform-origin: 50% -34px;
+  animation: lp-putar calc(5s + var(--i) * .4s) ease-in-out calc(var(--i) * -.9s) infinite alternate; }
+{p} i:nth-child(-n+8)::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1.4px; height: 34px; background: color-mix(in srgb, var(--ink) 60%, transparent); }
+{p} i:nth-child(-n+8)::after { content: ""; position: absolute; left: 50%; top: 100%; width: 8px; height: 18px; margin-left: -4px; background: repeating-linear-gradient(90deg, var(--w) 0 1.4px, transparent 1.4px 3px); }
+@keyframes lp-putar { from { transform: perspective(260px) rotateY(-40deg) rotate(3deg); } to { transform: perspective(260px) rotateY(40deg) rotate(-3deg); } }
+{p} i:nth-child(n+9):nth-child(-n+12) { --w: hsl(calc(var(--i) * 31deg) 80% 55%); top: auto; bottom: -70px; left: calc(mod(var(--i) * 23, 90) * 1% + 4%); width: 22px; height: 28px; border-radius: 48% / 52%; opacity: .55;
+  background: radial-gradient(circle at 50% 42%, #fff1c9, var(--w) 60%); box-shadow: 0 0 18px var(--w); animation: lp-naik calc(26s + var(--i) * 2s) linear calc(var(--i) * -6s) infinite; }
+@keyframes lp-naik { to { transform: translate(4vw, -120vh) rotate(8deg); } }

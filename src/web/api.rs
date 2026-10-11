@@ -1,5 +1,10 @@
 //! web/api.rs — server function (dipanggil SSR langsung, dari WASM via /api/*).
 
+// Argumen server fn = nama field form (ActionForm): dibungkus satu struct →
+// nama field jadi `input[...]` dan form SSR tanpa-JS rusak. `#[server]` membuang
+// atribut di stub klien (hydrate), jadi izin ini harus di tingkat modul.
+#![allow(clippy::too_many_arguments)]
+
 use leptos::prelude::*;
 
 #[cfg(feature = "ssr")]
@@ -160,6 +165,7 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
                 single: t.single_page(),
                 open_anim: t.open_anim.clone(),
                 float_deco: t.float_deco.clone(),
+                pendamping: t.pendamping().to_string(),
                 scroll_anim: t.scroll_anim.clone(),
                 ornaments: t.ornaments.clone(),
                 bg_video: t.bg_video.clone(),
@@ -349,7 +355,6 @@ pub async fn confirm_gift(
     Ok(tx!(l, "Terima kasih! Tanda kasih Anda telah kami catat.", "Thank you! Your gift has been noted.").into())
 }
 
-/// Nomor WA admin (62…) untuk tombol konsultasi; kosong bila tak diset.
 // ── Story tamu ─────────────────────────────────────────────────────────────
 
 /// Story undangan untuk tab "Story". Tabel belum dimigrasi → daftar kosong.

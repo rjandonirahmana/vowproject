@@ -1,0 +1,13 @@
+/* Merak — Jawa / Sunda / Madura: merak berdiri di sudut bawah, EKORNYA
+   MEKAR seperti kipas 3D (13 bulu berputar membuka dari rapat, sedikit
+   rebah ke belakang — rotateX ber-perspective), lalu bergetar berkilau. */
+{p} { --bulu: linear-gradient(180deg, color-mix(in srgb, var(--primary) 30%, #1de9b6), color-mix(in srgb, var(--primary) 60%, #00695c) 45%, color-mix(in srgb, var(--gold) 70%, #827717)); }
+{p} i:nth-child(-n+14) { display: block; }
+{p} i:nth-child(n+2):nth-child(-n+14) { right: calc(clamp(60px, 10vw, 120px) - clamp(20px, 3vw, 34px) / 2 + 3%); left: auto; top: auto; bottom: 7vh; width: clamp(20px, 3vw, 34px); height: clamp(150px, 24vw, 280px); opacity: .5; transform-origin: 50% 100%;
+  background: var(--bulu); -webkit-mask: {svg:bulu-merak} center / 100% 100% no-repeat; mask: {svg:bulu-merak} center / 100% 100% no-repeat;
+  --sudut: calc((var(--i) - 7) * 12deg); animation: mk-mekar 2.6s cubic-bezier(.2, .8, .3, 1.05) calc(.6s + mod(var(--i), 2) * .12s) both, mk-getar 2.8s ease-in-out 3.4s infinite alternate; }
+@keyframes mk-mekar { from { transform: perspective(500px) rotateX(40deg) rotate(0deg) scaleY(.4); opacity: 0; } to { transform: perspective(500px) rotateX(18deg) rotate(var(--sudut)) scaleY(1); opacity: .5; } }
+@keyframes mk-getar { from { transform: perspective(500px) rotateX(18deg) rotate(var(--sudut)) scaleY(1); } to { transform: perspective(500px) rotateX(12deg) rotate(calc(var(--sudut) * 1.04)) scaleY(1.02); } }
+{p} i:nth-child(1) { right: 3%; left: auto; top: auto; bottom: 4vh; width: clamp(60px, 10vw, 120px); aspect-ratio: 1 / 2; z-index: 1; opacity: .72;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 40%, #1565c0), color-mix(in srgb, var(--primary) 70%, #0d47a1));
+  -webkit-mask: {svg:merak-badan} center / contain no-repeat; mask: {svg:merak-badan} center / contain no-repeat; }

@@ -6,6 +6,7 @@
 //!   2. terapkan rotasi EXIF (foto HP tegak) — metadata (termasuk GPS) dibuang;
 //!   3. perkecil sisi terpanjang ke `max_side` (Lanczos3) bila lebih besar;
 //!   4. simpan sebagai WebP lossy kualitas tinggi (transparansi tetap ada).
+//!
 //! SELALU hasil re-encode yang disimpan — walau sedikit lebih besar dari
 //! aslinya — karena berkas asli bisa membawa EXIF (GPS, perangkat, waktu).
 //! Dekode gagal = unggahan DITOLAK (fail closed), bukan "simpan apa adanya".

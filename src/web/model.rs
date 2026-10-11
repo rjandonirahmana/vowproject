@@ -117,6 +117,8 @@ pub struct InvSkin {
     pub open_anim: String,
     /// none | kelopak | kupu | bintang
     pub float_deco: String,
+    /// Jenis lapisan pendamping 3D (`web/pendamping.rs`); "" = tanpa.
+    pub pendamping: String,
     /// Kunci gerak scroll — akar undangan diberi kelas `rvs--{kunci}` (koreografi).
     pub scroll_anim: String,
     /// Lapisan ornamen per bagian (web/ornamen.rs).

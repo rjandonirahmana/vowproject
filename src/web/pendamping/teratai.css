@@ -1,0 +1,17 @@
+/* Teratai — Hindu / Buddhis / Bali: teratai merah muda mengapung di dasar
+   layar, bergoyang & berputar 3D pelan di atas riak yang melebar; pelita
+   kecil (diya) melayang naik dengan nyala berdenyut. */
+{p} i:nth-child(-n+12) { display: block; }
+{p} i:nth-child(-n+3) { --d: calc(.7 + var(--i) * .18); top: auto; bottom: calc(2vh + var(--i) * 2.5vh); left: calc(8% + var(--i) * 34%); width: calc(110px * var(--d)); aspect-ratio: 3 / 2;
+  background: linear-gradient(180deg, #fde4ec, #f48fb1 55%, color-mix(in srgb, var(--primary) 50%, #c2185b)); opacity: .62;
+  -webkit-mask: {svg:teratai} center / contain no-repeat; mask: {svg:teratai} center / contain no-repeat;
+  animation: tr-apung calc(6s + var(--i) * 1.2s) ease-in-out calc(var(--i) * -2s) infinite alternate; }
+@keyframes tr-apung { from { transform: perspective(400px) rotateY(-14deg) translateY(0); } to { transform: perspective(400px) rotateY(14deg) translateY(-6px); } }
+{p} i:nth-child(n+4):nth-child(-n+6) { top: auto; bottom: calc(1vh + (var(--i) - 3) * 2.5vh); left: calc(8% + (var(--i) - 3) * 34% - 20px); width: 150px; height: 26px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  animation: tr-riak 4.5s ease-out calc(var(--i) * -1.5s) infinite; }
+@keyframes tr-riak { from { transform: scale(.4); opacity: .7; } to { transform: scale(1.5); opacity: 0; } }
+{p} i:nth-child(n+7):nth-child(-n+12) { --d: calc(.5 + mod(var(--i) * 3, 5) * .12); top: auto; bottom: -30px; left: calc(mod(var(--i) * 31, 92) * 1% + 3%); width: calc(10px * var(--d)); height: calc(16px * var(--d)); border-radius: 50% 50% 50% 50% / 64% 64% 36% 36%;
+  background: radial-gradient(circle at 50% 70%, #fff8d6, #ffc94d 50%, #f57c00); box-shadow: 0 0 calc(16px * var(--d)) #ffb300; opacity: .8;
+  animation: tr-pelita calc(22s - var(--d) * 6s) linear calc(var(--i) * -4s) infinite, tr-nyala .5s ease-in-out infinite alternate; }
+@keyframes tr-pelita { to { translate: 3vw -115vh; } }
+@keyframes tr-nyala { to { transform: scaleY(1.2) scaleX(.9); } }

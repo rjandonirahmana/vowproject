@@ -1,12 +1,12 @@
 //! server/security.rs — lapisan keamanan HTTP:
 //!
 //!   * `headers`   — Cache-Control `private, no-store` untuk halaman pribadi
-//!                   (/u/*: QR & nama tamu, /kelola/*: daftar tamu, /admin/*),
-//!                   CSP ber-nonce untuk HTML, dan header pengaman lain.
+//!     (/u/*: QR & nama tamu, /kelola/*: daftar tamu, /admin/*),
+//!     CSP ber-nonce untuk HTML, dan header pengaman lain.
 //!   * `csrf`      — tolak POST lintas situs (Origin ≠ host). Cookie admin juga
-//!                   SameSite=Strict; ini lapis kedua.
+//!     SameSite=Strict; ini lapis kedua.
 //!   * `RateLimit` — batasi tebak sandi /admin/masuk & /admin/setup, serta
-//!                   tulis publik (RSVP, tanda kasih, pembuatan undangan).
+//!     tulis publik (RSVP, tanda kasih, pembuatan undangan).
 //!
 //! CSP memakai nonce acak per request: middleware menaruh `CspNonce` di
 //! extensions request, `shell()` (web/app.rs) membacanya lewat `Parts` lalu
@@ -269,6 +269,7 @@ fn statis(path: &str) -> bool {
 ///  2. batas request yang diproses bersamaan (MAX_INFLIGHT) → 503 seketika
 ///     tanpa antre — saat diserang, memori & pool DB tetap terkendali dan
 ///     pengunjung lain tetap dilayani begitu beban turun.
+///
 /// Pembatas di memori proses (single instance) dengan jumlah kunci terbatas
 /// (RateLimit::CAP) — jutaan IP palsu tak membuat memori tumbuh tanpa batas.
 pub async fn pelindung(req: Request, next: Next) -> Response {

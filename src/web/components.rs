@@ -28,6 +28,12 @@ pub fn err_msg(e: &ServerFnError) -> String {
 /// Emblem monogram: cincin foil emas ganda + ranting zaitun + inisial.
 /// SVG digambar dari kode supaya inisial tiap pasangan ikut berubah.
 pub fn monogram_svg(initials: &str, caption: &str) -> String {
+    // id gradien/busur UNIK per SVG: id kembar → `url(#…)` merujuk salinan
+    // PERTAMA; bila salinan itu di dalam elemen display:none (chip panel
+    // samping yang disembunyikan di HP), browser gagal melukis gradiennya →
+    // inisial di sampul tak terlihat. Awalan beda SSR/klien → tak bertabrakan.
+    static NO: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let id = format!("mg{}{}", if cfg!(feature = "ssr") { "s" } else { "c" }, NO.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
     let mut leaves = String::new();
     let (cx, cy, r) = (100.0_f64, 100.0_f64, 64.0_f64);
     for side in [-1.0_f64, 1.0] {
@@ -35,14 +41,14 @@ pub fn monogram_svg(initials: &str, caption: &str) -> String {
             // Dari bawah (100°) naik ke atas (235°) di sisi kiri; cermin di kanan.
             let t = 100.0 + i as f64 * 13.0;
             let a = t.to_radians();
-            let x = cx + side * r * a.sin() * -1.0;
-            let y = cy - r * a.cos() * -1.0;
+            let x = cx - side * r * a.sin();
+            let y = cy + r * a.cos();
             let tangent = (t + 90.0) * side;
             for (k, off) in [(0, -38.0), (1, 38.0)] {
                 if i == 10 && k == 1 {
                     continue;
                 }
-                let fill = if (i + k) % 3 == 0 { "#5b7553" } else { "url(#mg-gold)" };
+                let fill = if (i + k) % 3 == 0 { "#5b7553".to_string() } else { format!("url(#{id}-g)") };
                 leaves.push_str(&format!(
                     r#"<ellipse cx="{x:.1}" cy="{y:.1}" rx="7.5" ry="2.6" fill="{fill}" transform="rotate({:.1} {x:.1} {y:.1}) translate({:.1} 0)"/>"#,
                     -tangent + off * side,
@@ -55,15 +61,15 @@ pub fn monogram_svg(initials: &str, caption: &str) -> String {
     let caption = super::fmt::html_escape(caption);
     format!(
         r##"<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Monogram {initials}">
-<defs><linearGradient id="mg-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c5a059"/><stop offset=".5" stop-color="#dfbe72"/><stop offset="1" stop-color="#997833"/></linearGradient>
-<path id="mg-arc" d="M 38 118 A 64 64 0 0 0 162 118"/></defs>
-<circle cx="100" cy="100" r="92" fill="#fbf9f5" stroke="url(#mg-gold)" stroke-width="3"/>
+<defs><linearGradient id="{id}-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c5a059"/><stop offset=".5" stop-color="#dfbe72"/><stop offset="1" stop-color="#997833"/></linearGradient>
+<path id="{id}-a" d="M 38 118 A 64 64 0 0 0 162 118"/></defs>
+<circle cx="100" cy="100" r="92" fill="#fbf9f5" stroke="url(#{id}-g)" stroke-width="3"/>
 <circle cx="100" cy="100" r="86" fill="none" stroke="#879878" stroke-width="1.2"/>
-<path d="M 72 160 A 64 64 0 0 1 64 48" fill="none" stroke="url(#mg-gold)" stroke-width="1.2"/>
-<path d="M 128 160 A 64 64 0 0 0 136 48" fill="none" stroke="url(#mg-gold)" stroke-width="1.2"/>
+<path d="M 72 160 A 64 64 0 0 1 64 48" fill="none" stroke="url(#{id}-g)" stroke-width="1.2"/>
+<path d="M 128 160 A 64 64 0 0 0 136 48" fill="none" stroke="url(#{id}-g)" stroke-width="1.2"/>
 {leaves}
-<text x="100" y="112" text-anchor="middle" font-family="Playfair Display, Georgia, serif" font-size="40" font-weight="600" fill="url(#mg-gold)">{initials}</text>
-<text font-family="Playfair Display, Georgia, serif" font-size="9" letter-spacing="2.5" fill="#997833"><textPath href="#mg-arc" startOffset="50%" text-anchor="middle">{caption}</textPath></text>
+<text x="100" y="112" text-anchor="middle" font-family="Playfair Display, Georgia, serif" font-size="40" font-weight="600" fill="url(#{id}-g)">{initials}</text>
+<text font-family="Playfair Display, Georgia, serif" font-size="9" letter-spacing="2.5" fill="#997833"><textPath href="#{id}-a" startOffset="50%" text-anchor="middle">{caption}</textPath></text>
 </svg>"##
     )
 }
@@ -301,6 +307,23 @@ pub fn FloatDeco(kind: String) -> impl IntoView {
             <div class=format!("float-deco float-deco--{kind}") aria-hidden="true">
                 // 14 elemen; standarnya 9 tampil, animasi dari pengaturan mengatur jumlahnya sendiri.
                 {(0..14).map(|i| view! { <i style=format!("--i:{i}")></i> }).collect_view()}
+            </div>
+        }
+    })
+}
+
+/// Lapisan pendamping 3D tema (rusa / naga / matahari terbit / …) di belakang
+/// isi undangan; gaya & gerak ada di /gaya/{slug}.css (web/pendamping.rs).
+#[component]
+pub fn Pendamping(kind: String) -> impl IntoView {
+    use crate::web::pendamping::{burung, BUTIR};
+    (!kind.is_empty() && crate::web::fmt::is_slug(&kind, 40)).then(|| {
+        view! {
+            <div class=format!("pdp pdp--{kind}") aria-hidden="true">
+                {(1..=BUTIR).map(|n| {
+                    let cls = if burung(&kind, n) { "sy" } else { "" };
+                    view! { <i class=cls style=format!("--i:{}", n - 1)></i> }
+                }).collect_view()}
             </div>
         }
     })

@@ -114,6 +114,10 @@ impl ThemeInfo {
         }
     }
 
+    /// Jenis lapisan pendamping 3D tema ini (`web/pendamping.rs`).
+    pub fn pendamping(&self) -> &'static str {
+        super::pendamping::pilih(&self.slug, &self.nuansa, &self.region, !self.bg_video.is_empty())
+    }
     pub fn category_key(&self) -> String {
         fmt::key(&self.category)
     }

@@ -1,0 +1,34 @@
+/* Naga — Tionghoa: naga emas MELIUK melintasi layar mengikuti lintasan
+   gelombang (offset-path); 13 ruas badan mengikuti kepala dengan jeda
+   bertingkat sehingga tubuhnya bergelombang hidup. Tengah lintasan naga
+   "mendekat" (skala membesar) lalu menjauh lagi = kedalaman 3D. Dua lampion
+   merah berayun 3D di sudut atas. Emas = --gold tema. */
+{p} { --emas: linear-gradient(135deg, color-mix(in srgb, var(--gold) 70%, #6b4a10), var(--gold) 45%, color-mix(in srgb, var(--gold) 60%, #fff3c4) 60%, color-mix(in srgb, var(--gold) 75%, #5a3a08)); }
+{p} i:nth-child(-n+16) { display: block; }
+{p} i:nth-child(-n+14) { offset-path: path("M -260 560 C 120 260, 420 760, 760 470 S 1220 140, 1820 420"); offset-rotate: auto; offset-anchor: 50% 50%;
+  animation: ng-terbang 19s cubic-bezier(.4, .1, .6, .9) calc(1.5s + var(--i) * .11s) infinite both; }
+@media (max-width: 760px) { {p} i:nth-child(-n+14) { offset-path: path("M -220 470 C -20 300, 140 640, 230 470 S 380 230, 640 400"); } }
+/* kepala */
+{p} i:nth-child(1) { width: 108px; height: 72px; background: var(--emas); z-index: 2;
+  -webkit-mask: {svg:naga-kepala} center / contain no-repeat; mask: {svg:naga-kepala} center / contain no-repeat;
+  filter: drop-shadow(0 2px 4px rgba(80, 20, 0, .35)); }
+/* ruas badan: bulat bersisik + sirip punggung, mengecil ke ekor */
+{p} i:nth-child(n+2):nth-child(-n+14) { --s: calc(1 - (var(--i) - 1) * .055); width: calc(52px * var(--s)); height: calc(40px * var(--s)); border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, transparent 0 34%, rgba(90, 40, 0, .28) 36% 40%, transparent 42%) 0 0 / 12px 10px, var(--emas);
+  box-shadow: inset 0 -6px 8px rgba(110, 50, 0, .35); }
+{p} i:nth-child(n+2):nth-child(-n+14)::after { content: ""; position: absolute; left: 22%; top: -38%; width: 56%; height: 50%; background: color-mix(in srgb, var(--primary) 80%, #000);
+  clip-path: polygon(0 100%, 20% 20%, 40% 70%, 60% 0, 80% 60%, 100% 100%); }
+@keyframes ng-terbang {
+  0% { offset-distance: 0%; scale: .55; opacity: 0; }
+  5% { opacity: .9; }
+  40% { scale: 1.2; }
+  66% { offset-distance: 100%; scale: .7; opacity: .9; }
+  70%, 100% { offset-distance: 100%; opacity: 0; } }
+/* lampion */
+{p} i:nth-child(15), {p} i:nth-child(16) { left: 6%; top: -2vh; width: 46px; height: 58px; border-radius: 46% / 50%; transform-origin: 50% -40px;
+  background: repeating-linear-gradient(90deg, transparent 0 8px, rgba(0, 0, 0, .14) 8px 9px), radial-gradient(circle at 50% 40%, #ffb36b, #d4231c 55%, #8f0f12);
+  box-shadow: 0 0 28px rgba(255, 120, 60, .45); margin-top: 40px; animation: ng-ayun 4.2s ease-in-out infinite alternate; }
+{p} i:nth-child(16) { left: auto; right: 6%; animation-duration: 5s; animation-delay: -1.7s; }
+{p} i:nth-child(15)::before, {p} i:nth-child(16)::before { content: ""; position: absolute; left: 50%; bottom: 100%; width: 1.5px; height: 40px; background: var(--gold); }
+{p} i:nth-child(15)::after, {p} i:nth-child(16)::after { content: ""; position: absolute; left: 50%; top: 100%; width: 10px; height: 22px; margin-left: -5px; background: repeating-linear-gradient(90deg, #d4231c 0 1.5px, transparent 1.5px 3px); }
+@keyframes ng-ayun { from { transform: perspective(300px) rotateY(-28deg) rotate(4deg); } to { transform: perspective(300px) rotateY(28deg) rotate(-4deg); } }

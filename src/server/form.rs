@@ -73,14 +73,14 @@ pub const MAX_FILE: usize = if super::storage::MAX_AUDIO > super::storage::MAX_I
 
 /// Baca satu bagian per potongan; `Err` begitu melewati `max` (tak sampai
 /// dimuat penuh). `keep = false` → dibaca & dibuang (berkas di atas kuota).
-async fn read_capped(field: &mut axum::extract::multipart::Field<'_>, max: usize, keep: bool) -> Result<Vec<u8>, ()> {
+async fn read_capped(field: &mut axum::extract::multipart::Field<'_>, max: usize, keep: bool) -> Result<Vec<u8>, Rusak> {
     let mut buf = Vec::new();
     let mut total = 0usize;
-    while let Some(chunk) = field.chunk().await.map_err(|_| ())? {
+    while let Some(chunk) = field.chunk().await.map_err(|_| Rusak)? {
         total += chunk.len();
         if total > max {
             tracing::warn!(field = field.name().unwrap_or_default(), max, "form: bagian melebihi batas");
-            return Err(());
+            return Err(Rusak);
         }
         if keep {
             buf.extend_from_slice(&chunk);
@@ -92,9 +92,13 @@ async fn read_capped(field: &mut axum::extract::multipart::Field<'_>, max: usize
     Ok(buf)
 }
 
+/// Unggahan terputus / melebihi batas body atau batas per bagian.
+#[derive(Debug)]
+pub struct Rusak;
+
 /// Baca seluruh multipart. `Err` = unggahan terputus / melebihi batas body
 /// atau batas per bagian di atas.
-pub async fn read(mut mp: Multipart, max_files: usize) -> Result<Form, ()> {
+pub async fn read(mut mp: Multipart, max_files: usize) -> Result<Form, Rusak> {
     let mut f = Form::default();
     if max_files > 0 {
         f._slot = upload_slots().acquire_owned().await.ok();
@@ -106,7 +110,7 @@ pub async fn read(mut mp: Multipart, max_files: usize) -> Result<Form, ()> {
             Ok(None) => return Ok(f),
             Err(e) => {
                 tracing::warn!(error = %format!("{e:#}"), "form: multipart rusak/terlalu besar");
-                return Err(());
+                return Err(Rusak);
             }
         };
         let mut field = field;
@@ -114,7 +118,7 @@ pub async fn read(mut mp: Multipart, max_files: usize) -> Result<Form, ()> {
         let name = field.name().unwrap_or_default().to_string();
         if count > MAX_FIELDS || name.len() > MAX_FIELD_NAME {
             tracing::warn!(count, name_len = name.len(), "form: terlalu banyak input / nama input terlalu panjang");
-            return Err(());
+            return Err(Rusak);
         }
         match field.file_name().map(str::to_string) {
             Some(file_name) => {
@@ -129,7 +133,7 @@ pub async fn read(mut mp: Multipart, max_files: usize) -> Result<Form, ()> {
                 // UTF-8 rusak = permintaan rusak (400-an), bukan isian kosong.
                 let Ok(v) = String::from_utf8(read_capped(&mut field, MAX_TEXT_FIELD, true).await?) else {
                     tracing::warn!(field = %name, "form: isian bukan UTF-8 — ditolak");
-                    return Err(());
+                    return Err(Rusak);
                 };
                 f.multi.entry(name.clone()).or_default().push(v.clone());
                 f.fields.insert(name, v);

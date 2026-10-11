@@ -45,9 +45,9 @@ pub fn paket_dari_query(slugs: Vec<String>, default: String, anchor: &'static st
     };
     let find = {
         let lookup = lookup.clone();
-        move || query.with(|q| q.get("paket").and_then(|s| lookup(s)))
+        move || query.with(|q| q.get("paket").and_then(&lookup))
     };
-    let sig = RwSignal::new(query.with_untracked(|q| q.get("paket").and_then(|s| lookup(s))).unwrap_or(default));
+    let sig = RwSignal::new(query.with_untracked(|q| q.get("paket").and_then(&lookup)).unwrap_or(default));
     Effect::new(move |prev: Option<()>| {
         if let Some(i) = find() {
             sig.set(i);

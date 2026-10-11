@@ -288,7 +288,7 @@ impl Konten {
     pub fn calc_total(&self, package_slug: &str, addons: &[String], coupon: &str) -> (i64, i64, i64) {
         let mut sub = self.package_or_default(package_slug).price;
         for a in &self.addon {
-            if addons.iter().any(|x| *x == a.slug) {
+            if addons.contains(&a.slug) {
                 sub += a.price;
             }
         }

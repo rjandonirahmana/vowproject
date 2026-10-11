@@ -174,6 +174,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
         <div class=root_class lang=l.code()>
             <div class="inv__glow" aria-hidden="true"></div>
             <BgVideo src=video.clone() poster=poster.clone() />
+            <Pendamping kind=skin.pendamping.clone() />
             <FloatDeco kind=skin.float_deco.clone() />
             // Desktop ≥1100px: layar terbagi dua — panel sampul tetap di kiri,
             // isi undangan di kanan (CSS .inv--rail). Di HP panel ini disembunyikan.

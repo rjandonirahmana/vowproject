@@ -7,6 +7,7 @@
 //!     "/img/x.svg" → "https://image…/undangan/aset/img/x.svg" — browser
 //!     langsung mengambil dari RustFS, server app tak menyajikan byte-nya;
 //!   * rujukan yang tak tertulis ulang (main.css, render WASM) dialihkan 301.
+//!
 //! Jalur yang tak ada di peta tetap disajikan dari public/. Peta kosong
 //! (tabel belum ada / ASET_RUSTFS=false) = perilaku lama, tanpa biaya.
 

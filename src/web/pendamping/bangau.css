@@ -1,0 +1,18 @@
+/* Bangau — Korea: kawanan bangau putih bermahkota merah terbang berformasi
+   di depan bulan pucat, tiap ekor di kedalaman berbeda (skala, kecepatan),
+   sayap mengepak 3D; ranting pinus bergoyang di sudut. */
+{p} i:nth-child(-n+7) { display: block; }
+{p} i:nth-child(1) { right: 8%; left: auto; top: 9vh; width: min(34vw, 260px); aspect-ratio: 1; border-radius: 50%; opacity: .45;
+  background: radial-gradient(circle at 40% 38%, #fffdf6, color-mix(in srgb, var(--gold-pale, #f3e3b5) 80%, #fff) 60%, transparent 71%);
+}
+@supports (animation-timeline: scroll()) { {p} i:nth-child(1) { animation: bg-bulan linear both; animation-timeline: scroll(root); } }
+@keyframes bg-bulan { to { translate: 0 18vh; } }
+{p} i:nth-child(n+2):nth-child(-n+6) { --d: calc(.55 + mod(var(--i), 3) * .25); top: calc(14vh + var(--i) * 6vh); width: calc(130px * var(--d)); aspect-ratio: 8 / 3; opacity: calc(.25 + var(--d) * .3);
+  --cb: color-mix(in srgb, var(--ink) 70%, #fff); --badan: {svg:bangau}; --sy-x: 24%; --sy-y: 42%; --sy-w: 40%; --kepak: calc(1.4s - var(--d) * .3s);
+  animation: bg-terbang calc(40s - var(--d) * 12s) linear calc(var(--i) * -7s) infinite; }
+@keyframes bg-terbang { from { transform: translateX(-25vw) translateY(4vh); } 50% { transform: translateX(45vw) translateY(-2vh); } to { transform: translateX(120vw) translateY(3vh); } }
+/* ranting pinus */
+{p} i:nth-child(7) { left: -4%; top: auto; bottom: 6vh; width: min(48vw, 360px); height: 90px; transform-origin: 0 50%; opacity: .4;
+  background: radial-gradient(ellipse 30px 14px at 30% 40%, var(--primary) 98%, transparent), radial-gradient(ellipse 36px 16px at 62% 52%, var(--primary) 98%, transparent), radial-gradient(ellipse 26px 12px at 88% 36%, var(--primary) 98%, transparent), linear-gradient(-8deg, transparent 47%, color-mix(in srgb, var(--ink) 70%, #5a3a22) 48% 53%, transparent 54%);
+  animation: bg-pinus 7s ease-in-out infinite alternate; }
+@keyframes bg-pinus { to { transform: perspective(500px) rotateX(10deg) rotate(-2deg); } }

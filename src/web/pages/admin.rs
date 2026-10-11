@@ -2014,6 +2014,7 @@ struct OrnUi {
     playing: RwSignal<bool>,
 }
 
+#[allow(clippy::too_many_arguments)] // pembungkus tipis `slider`
 fn o_range(o: RwSignal<Ornament>, ui: OrnUi, name: &'static str, label: &'static str, bounds: (i32, i32, i32), unit: &'static str, get: OGet<i32>, set: OSet<i32>) -> impl IntoView {
     slider(o, name, label, bounds, unit, get, set, move || ui.playing.set(false))
 }

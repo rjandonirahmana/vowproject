@@ -168,6 +168,7 @@ fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, a
         }
     }
     css.push_str(&crate::web::rupa::css(rupa));
+    css.push_str(crate::web::pendamping::css(t.pendamping()));
     super::aset::tulis_ulang(&css).into_owned()
 }
 

@@ -1,0 +1,31 @@
+/* Matahari terbit — Jepang: cakram merah besar NAIK dari balik gunung Fuji
+   seiring undangan digulir (scroll-driven), berkas sinar berputar pelan,
+   pita awan melintas, dan bangau terbang dengan kepak sayap 3D melintasi
+   matahari. Tanpa dukungan scroll-driven: matahari naik sekali saat dibuka. */
+{p} i:nth-child(-n+9) { display: block; }
+{p} i:nth-child(1), {p} i:nth-child(2) { left: 50%; top: auto; bottom: 0; width: min(78vw, 560px); aspect-ratio: 1; margin-left: calc(min(78vw, 560px) / -2); border-radius: 50%; }
+{p} i:nth-child(1) { background: radial-gradient(circle at 45% 40%, #ff8a65, #e53935 45%, #b71c1c 80%); opacity: .5; box-shadow: 0 0 120px 30px rgba(244, 81, 30, .25);
+  animation: mt-terbit 2.8s cubic-bezier(.2, .7, .3, 1) .4s both; }
+{p} i:nth-child(2) { width: min(170vw, 1300px); margin-left: calc(min(170vw, 1300px) / -2); bottom: calc(min(78vw, 560px) / 2 - min(170vw, 1300px) / 2); opacity: .22;
+  background: repeating-conic-gradient(from 0deg, #ff7043 0 6deg, transparent 6deg 18deg); -webkit-mask: radial-gradient(closest-side, #000 20%, transparent 75%); mask: radial-gradient(closest-side, #000 20%, transparent 75%);
+  animation: mt-putar 120s linear infinite, mt-terbit 2.8s cubic-bezier(.2, .7, .3, 1) .4s both; }
+@supports (animation-timeline: scroll()) {
+  {p} i:nth-child(1) { animation: mt-gulir linear both; animation-timeline: scroll(root); }
+  {p} i:nth-child(2) { animation: mt-putar 120s linear infinite, mt-gulir linear both; animation-timeline: auto, scroll(root); }
+}
+@keyframes mt-terbit { from { translate: 0 45vh; } to { translate: 0 8vh; } }
+@keyframes mt-gulir { from { translate: 0 32vh; } to { translate: 0 -38vh; } }
+@keyframes mt-putar { to { rotate: 360deg; } }
+/* Fuji + salju */
+{p} i:nth-child(3), {p} i:nth-child(4) { left: -10%; width: 120%; top: auto; bottom: -1px; height: min(34vh, 46vw); background: color-mix(in srgb, var(--ink) 55%, var(--primary)); opacity: .42;
+  -webkit-mask: {svg:fuji} center bottom / 100% 100% no-repeat; mask: {svg:fuji} center bottom / 100% 100% no-repeat; }
+{p} i:nth-child(4) { background: #fff; opacity: .8; -webkit-mask-image: {svg:fuji-salju}; mask-image: {svg:fuji-salju}; }
+/* awan */
+{p} i:nth-child(5), {p} i:nth-child(6) { top: 58vh; left: 0; width: 70vw; height: 22px; border-radius: 22px; background: color-mix(in srgb, var(--bg) 70%, #fff); opacity: .55;
+  animation: mt-awan 48s linear infinite; }
+{p} i:nth-child(6) { top: 64vh; width: 46vw; animation-duration: 66s; animation-delay: -30s; }
+@keyframes mt-awan { from { transform: translateX(-80vw); } to { transform: translateX(120vw); } }
+/* bangau */
+{p} i:nth-child(n+7):nth-child(-n+9) { top: calc(18vh + var(--i) * 4vh); width: 120px; aspect-ratio: 8 / 3; --cb: color-mix(in srgb, var(--ink) 80%, #000); opacity: .5; --badan: {svg:bangau}; --sy-x: 24%; --sy-y: 42%; --sy-w: 40%; --kepak: 1.15s;
+  animation: mt-bangau 26s linear calc(var(--i) * -2.6s) infinite; }
+@keyframes mt-bangau { from { transform: translateX(-30vw) perspective(500px) translateZ(-120px); } to { transform: translateX(120vw) perspective(500px) translateZ(60px); } }

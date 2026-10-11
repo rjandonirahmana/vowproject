@@ -1,0 +1,34 @@
+/* Rusa — alam/hutan: bukit berlapis di dasar layar, rusa jantan berdiri di
+   bukit (ikut parallax gulir), rusa kecil di kejauhan, dan sesekali seekor
+   rusa MELOMPAT dari kejauhan (kecil, pucat) ke dekat (besar) — lintasan
+   melengkung dengan putar 3D. Warna = --primary tema yang diredam. */
+{p} { --c: color-mix(in srgb, var(--primary) 52%, var(--bg)); --c2: color-mix(in srgb, var(--primary) 30%, var(--bg)); }
+{p} i:nth-child(-n+6) { display: block; }
+/* bukit jauh & dekat */
+{p} i:nth-child(1), {p} i:nth-child(2) { left: -20%; right: -20%; width: 140%; bottom: -14vh; top: auto; height: 34vh; border-radius: 50% 50% 0 0 / 100% 100% 0 0; background: var(--c2); opacity: .35; }
+{p} i:nth-child(2) { left: 10%; bottom: -20vh; height: 30vh; background: var(--c); opacity: .3; }
+/* rusa jantan berdiri (kanan) & rusa kecil (kiri, jauh) */
+{p} i:nth-child(3), {p} i:nth-child(4) { top: auto; bottom: 9vh; right: 6%; left: auto; width: clamp(90px, 16vw, 210px); aspect-ratio: 1; background: var(--c); opacity: .55;
+  -webkit-mask: {svg:rusa} center / contain no-repeat; mask: {svg:rusa} center / contain no-repeat; transform-origin: 50% 100%;
+  animation: rs-napas 5s ease-in-out infinite alternate; }
+{p} i:nth-child(4) { right: auto; left: 7%; bottom: 13vh; width: clamp(54px, 9vw, 120px); opacity: .32; scale: -1 1; animation-duration: 6.5s; }
+@supports (animation-timeline: scroll()) {
+  {p} i:nth-child(3), {p} i:nth-child(4) { animation: rs-napas 5s ease-in-out infinite alternate, rs-plx linear both; animation-timeline: auto, scroll(root); }
+  {p} i:nth-child(1), {p} i:nth-child(2) { animation: rs-plx linear both; animation-timeline: scroll(root); }
+}
+/* rusa melompat: jauh → dekat */
+{p} i:nth-child(5), {p} i:nth-child(6) { top: auto; bottom: 18vh; width: clamp(120px, 22vw, 300px); aspect-ratio: 5 / 3; background: var(--c); opacity: 0;
+  -webkit-mask: {svg:rusa-lompat} center / contain no-repeat; mask: {svg:rusa-lompat} center / contain no-repeat;
+  animation: rs-lompat 17s cubic-bezier(.45, .05, .55, .95) 2.5s infinite; }
+/* dicerminkan: translate keyframes ikut terbalik → masuk dari kanan. */
+{p} i:nth-child(6) { animation-delay: 11s; bottom: 26vh; scale: -1 1; left: auto; right: 0; }
+@keyframes rs-napas { to { transform: scaleY(1.012) rotate(-.6deg); } }
+@keyframes rs-plx { to { translate: 0 6vh; } }
+@keyframes rs-lompat {
+  0% { opacity: 0; transform: translate(-30vw, 0) perspective(600px) rotateY(28deg) scale(.35); }
+  4% { opacity: .38; }
+  9% { transform: translate(5vw, -14vh) perspective(600px) rotateY(16deg) rotate(-10deg) scale(.55); }
+  14% { transform: translate(30vw, 0) perspective(600px) rotateY(8deg) rotate(6deg) scale(.7); }
+  19% { transform: translate(55vw, -18vh) perspective(600px) rotateY(0deg) rotate(-12deg) scale(.95); opacity: .5; }
+  24% { opacity: .45; transform: translate(80vw, 0) perspective(600px) rotateY(-6deg) rotate(8deg) scale(1.15); }
+  28%, 100% { opacity: 0; transform: translate(108vw, -6vh) perspective(600px) rotateY(-10deg) scale(1.25); } }
