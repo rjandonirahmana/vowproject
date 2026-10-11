@@ -4,14 +4,14 @@
    delapan berkelip. Emas = --gold tema. */
 {p} { --emas: linear-gradient(135deg, color-mix(in srgb, var(--gold) 75%, #5a3a08), var(--gold) 45%, color-mix(in srgb, var(--gold) 55%, #fff6cf) 60%, color-mix(in srgb, var(--gold) 80%, #4a2a00)); }
 {p} i:nth-child(-n+14) { display: block; }
-{p} i:nth-child(1) { right: 7%; left: auto; top: 7vh; width: min(22vw, 150px); aspect-ratio: 1; background: var(--emas); opacity: .75; filter: drop-shadow(0 0 18px color-mix(in srgb, var(--gold) 60%, transparent));
+{p} i:nth-child(1) { right: 7%; left: auto; top: 7cqh; width: min(22cqw, 150px); aspect-ratio: 1; background: var(--emas); opacity: .75; filter: drop-shadow(0 0 18px color-mix(in srgb, var(--gold) 60%, transparent));
   -webkit-mask: {svg:sabit} center / contain no-repeat; mask: {svg:sabit} center / contain no-repeat; animation: bb-apung 7s ease-in-out infinite alternate; }
 @keyframes bb-apung { to { transform: translateY(10px) rotate(-6deg); } }
-{p} i:nth-child(n+2):nth-child(-n+5) { --tali: calc(30px + mod(var(--i) * 53, 120) * 1px); top: 0; left: calc((var(--i) - 1) * 25% - 2%); width: 44px; height: 48px; margin-top: var(--tali); transform-origin: 50% calc(-1 * var(--tali)); opacity: .8;
+{p} i:nth-child(n+2):nth-child(-n+5) { --tali: calc(30px + mod(var(--i) * 53, 120) * 1px); top: 0; left: calc((var(--i) - 1) * 25% - 2%); width: 64px; height: 72px; margin-top: var(--tali); transform-origin: 50% calc(-1 * var(--tali)); opacity: .9;
   background: radial-gradient(circle at 50% 55%, #fff3c4 0 18%, color-mix(in srgb, var(--gold) 50%, #ffcf6b) 40%, transparent 70%), var(--emas);
   -webkit-mask: {svg:fanous} center / contain no-repeat; mask: {svg:fanous} center / contain no-repeat;
   animation: bb-ayun calc(4.4s + var(--i) * .5s) ease-in-out calc(var(--i) * -1.1s) infinite alternate; }
 @keyframes bb-ayun { from { transform: perspective(280px) rotateY(-35deg) rotate(4deg); } to { transform: perspective(280px) rotateY(35deg) rotate(-4deg); } }
-{p} i:nth-child(n+6):nth-child(-n+14) { left: calc(mod(var(--i) * 41, 96) * 1% + 2%); top: calc(mod(var(--i) * 29, 60) * 1vh + 4vh); width: 12px; aspect-ratio: 1; background: var(--gold); opacity: .3;
+{p} i:nth-child(n+6):nth-child(-n+14) { left: calc(mod(var(--i) * 41, 96) * 1% + 2%); top: calc(mod(var(--i) * 29, 60) * 1cqh + 4cqh); width: 12px; aspect-ratio: 1; background: var(--gold); opacity: .3;
   clip-path: polygon(50% 0, 61% 35%, 100% 50%, 61% 65%, 50% 100%, 39% 65%, 0 50%, 39% 35%); animation: bb-kelip calc(2.4s + mod(var(--i), 4) * .7s) ease-in-out calc(var(--i) * -.6s) infinite alternate; }
 @keyframes bb-kelip { to { opacity: .85; transform: scale(1.35) rotate(45deg); } }

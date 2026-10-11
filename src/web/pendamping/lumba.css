@@ -2,12 +2,12 @@
    samping (beda kecepatan = kedalaman), lumba-lumba MELOMPAT melengkung
    keluar dari ombak dan menyelam kembali, memutar tubuhnya mengikuti busur. */
 {p} i:nth-child(-n+5) { display: block; }
-{p} i:nth-child(1), {p} i:nth-child(2) { left: 0; top: auto; bottom: -2px; width: 200%; height: 9vh; opacity: .3;
+{p} i:nth-child(1), {p} i:nth-child(2) { left: 0; top: auto; bottom: -2px; width: 200%; height: 9cqh; opacity: .3;
   background: radial-gradient(60px 36px at 60px 0, transparent 98%, color-mix(in srgb, var(--primary) 70%, #0277bd)) 0 0 / 120px 100%;
   animation: lb-ombak 14s linear infinite; }
-{p} i:nth-child(2) { height: 6vh; opacity: .45; background-size: 84px 100%; animation-duration: 9s; animation-direction: reverse; }
+{p} i:nth-child(2) { height: 6cqh; opacity: .45; background-size: 84px 100%; animation-duration: 9s; animation-direction: reverse; }
 @keyframes lb-ombak { to { transform: translateX(-50%); } }
-{p} i:nth-child(n+3):nth-child(-n+5) { top: auto; bottom: 4vh; left: calc((var(--i) - 2) * 30% + 10%); width: clamp(90px, 14vw, 150px); aspect-ratio: 2 / 1; opacity: 0;
+{p} i:nth-child(n+3):nth-child(-n+5) { top: auto; bottom: 4cqh; left: calc((var(--i) - 2) * 30% + 10%); width: clamp(90px, 14cqw, 150px); aspect-ratio: 2 / 1; opacity: 0;
   background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 70%, #01579b), color-mix(in srgb, var(--primary) 30%, #4fc3f7));
   -webkit-mask: {svg:lumba} center / contain no-repeat; mask: {svg:lumba} center / contain no-repeat; transform-origin: 50% 300%;
   animation: lb-lompat 9s ease-in-out calc(var(--i) * 2.7s) infinite; }

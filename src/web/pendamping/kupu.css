@@ -1,7 +1,7 @@
 /* Kupu-kupu emas — bawaan: enam kupu-kupu dengan sayap 3D SUNGGUHAN (dua
    sayap berengsel di badan, mengepak rotateY ber-perspective) melayang
    berkelok di kedalaman berbeda. Warna = --gold & --primary tema. */
-{p} i:nth-child(-n+6) { display: block; --d: calc(.55 + mod(var(--i) * 3, 5) * .15); top: calc(mod(var(--i) * 37, 70) * 1vh + 10vh); width: calc(46px * var(--d)); height: calc(40px * var(--d)); opacity: calc(.25 + var(--d) * .35);
+{p} i:nth-child(-n+6) { display: block; --d: calc(.55 + mod(var(--i) * 3, 5) * .15); top: calc(mod(var(--i) * 37, 70) * 1cqh + 10cqh); width: calc(66px * var(--d)); height: calc(57px * var(--d)); opacity: calc(.35 + var(--d) * .4);
   animation: kp-kelana calc(34s - var(--d) * 10s) ease-in-out calc(var(--i) * -6s) infinite; }
 {p} i:nth-child(-n+6)::before, {p} i:nth-child(-n+6)::after { content: ""; position: absolute; top: 0; width: 50%; height: 100%;
   background: radial-gradient(circle at 70% 30%, color-mix(in srgb, var(--gold) 50%, #fff6d0), var(--gold) 45%, color-mix(in srgb, var(--primary) 70%, #000) 95%);
@@ -10,8 +10,8 @@
 {p} i:nth-child(-n+6)::after { left: 50%; transform-origin: 0 50%; }
 @keyframes kp-kepak { from { transform: perspective(160px) rotateY(10deg); } to { transform: perspective(160px) rotateY(75deg); } }
 @keyframes kp-kelana {
-  0% { transform: translate(-15vw, 0) rotate(8deg); }
-  25% { transform: translate(25vw, -8vh) rotate(-6deg); }
-  50% { transform: translate(55vw, 6vh) rotate(10deg); }
-  75% { transform: translate(85vw, -4vh) rotate(-8deg); }
-  100% { transform: translate(115vw, 3vh) rotate(6deg); } }
+  0% { transform: translate(-15cqw, 0) rotate(8deg); }
+  25% { transform: translate(25cqw, -8cqh) rotate(-6deg); }
+  50% { transform: translate(55cqw, 6cqh) rotate(10deg); }
+  75% { transform: translate(85cqw, -4cqh) rotate(-8deg); }
+  100% { transform: translate(115cqw, 3cqh) rotate(6deg); } }

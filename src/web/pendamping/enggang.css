@@ -1,11 +1,11 @@
 /* Enggang — Dayak / Kalimantan: dua burung enggang (rangkong) bertanduk
    besar melayang lebar melintasi langit, menukik & naik dengan kemiringan
    tubuh (banking) dan kepak sayap 3D yang lambat & megah. */
-{p} i:nth-child(-n+2) { display: block; top: 18vh; width: clamp(150px, 24vw, 260px); aspect-ratio: 7 / 3; --cb: color-mix(in srgb, var(--ink) 82%, #000); opacity: .5; --badan: {svg:enggang}; --sy-x: 30%; --sy-y: 40%; --sy-w: 44%; --kepak: 1.6s;
+{p} i:nth-child(-n+2) { display: block; top: 18cqh; width: clamp(150px, 24cqw, 260px); aspect-ratio: 7 / 3; --cb: color-mix(in srgb, var(--ink) 82%, #000); opacity: .5; --badan: {svg:enggang}; --sy-x: 30%; --sy-y: 40%; --sy-w: 44%; --kepak: 1.6s;
   animation: eg-layang 30s ease-in-out infinite; }
-{p} i:nth-child(2) { top: 40vh; width: clamp(100px, 15vw, 170px); opacity: .32; animation-duration: 38s; animation-delay: -17s; }
+{p} i:nth-child(2) { top: 40cqh; width: clamp(100px, 15cqw, 170px); opacity: .32; animation-duration: 38s; animation-delay: -17s; }
 @keyframes eg-layang {
-  0% { transform: translate(-30vw, 6vh) rotate(4deg) scale(.8); }
-  30% { transform: translate(30vw, -6vh) rotate(-6deg) scale(1); }
-  55% { transform: translate(65vw, 8vh) rotate(7deg) scale(1.1); }
-  100% { transform: translate(130vw, -4vh) rotate(-3deg) scale(1.2); } }
+  0% { transform: translate(-30cqw, 6cqh) rotate(4deg) scale(.8); }
+  30% { transform: translate(30cqw, -6cqh) rotate(-6deg) scale(1); }
+  55% { transform: translate(65cqw, 8cqh) rotate(7deg) scale(1.1); }
+  100% { transform: translate(130cqw, -4cqh) rotate(-3deg) scale(1.2); } }

@@ -1,10 +1,10 @@
 /* Cendrawasih — Papua: burung cendrawasih dengan bulu hias jingga keemasan
    terbang bergelombang; bulu ekornya berkibar (skew), menjauh-mendekat. */
-{p} i:nth-child(-n+3) { display: block; top: 22vh; width: clamp(150px, 26vw, 280px); aspect-ratio: 2 / 1; opacity: .62;
+{p} i:nth-child(-n+3) { display: block; top: 22cqh; width: clamp(150px, 26cqw, 280px); aspect-ratio: 2 / 1; opacity: .62;
   background: linear-gradient(90deg, #ffcc80 0%, #ff9800 30%, #e65100 55%, color-mix(in srgb, var(--primary) 60%, #3e2723) 75%);
   -webkit-mask: {svg:cendrawasih} center / contain no-repeat; mask: {svg:cendrawasih} center / contain no-repeat; transform-origin: 70% 50%;
   animation: cw-terbang 24s ease-in-out infinite, cw-kibar 1.4s ease-in-out infinite alternate; }
-{p} i:nth-child(2) { top: 48vh; width: clamp(100px, 16vw, 170px); opacity: .38; animation-duration: 32s, 1.7s; animation-delay: -12s, 0s; }
-{p} i:nth-child(3) { top: 70vh; width: clamp(80px, 12vw, 130px); opacity: .26; animation-duration: 40s, 1.2s; animation-delay: -28s, 0s; }
-@keyframes cw-terbang { 0% { translate: -30vw 0; } 25% { translate: 20vw -5vh; } 50% { translate: 55vw 4vh; } 75% { translate: 85vw -3vh; } 100% { translate: 125vw 2vh; } }
+{p} i:nth-child(2) { top: 48cqh; width: clamp(100px, 16cqw, 170px); opacity: .38; animation-duration: 32s, 1.7s; animation-delay: -12s, 0s; }
+{p} i:nth-child(3) { top: 70cqh; width: clamp(80px, 12cqw, 130px); opacity: .26; animation-duration: 40s, 1.2s; animation-delay: -28s, 0s; }
+@keyframes cw-terbang { 0% { translate: -30cqw 0; } 25% { translate: 20cqw -5cqh; } 50% { translate: 55cqw 4cqh; } 75% { translate: 85cqw -3cqh; } 100% { translate: 125cqw 2cqh; } }
 @keyframes cw-kibar { from { transform: skewY(-3deg) scaleX(1); } to { transform: skewY(4deg) scaleX(.96); } }

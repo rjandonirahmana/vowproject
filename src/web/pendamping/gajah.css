@@ -2,13 +2,13 @@
    mengayun), dan lentera langit (Yi Peng) melayang naik berlapis kedalaman
    — kecil & redup di jauh, besar & terang di dekat. */
 {p} i:nth-child(-n+11) { display: block; }
-{p} i:nth-child(1) { top: auto; bottom: 3vh; width: clamp(120px, 20vw, 240px); aspect-ratio: 4 / 3; opacity: .5;
+{p} i:nth-child(1) { top: auto; bottom: 3cqh; width: clamp(120px, 20cqw, 240px); aspect-ratio: 4 / 3; opacity: .5;
   background: linear-gradient(135deg, color-mix(in srgb, var(--gold) 80%, #5a3a08), var(--gold) 50%, color-mix(in srgb, var(--gold) 70%, #4a2a00));
   -webkit-mask: {svg:gajah} center / contain no-repeat; mask: {svg:gajah} center / contain no-repeat;
   animation: gj-jalan 60s linear infinite, gj-langkah 1.6s ease-in-out infinite alternate; }
-@keyframes gj-jalan { from { left: -25vw; } to { left: 110vw; } }
+@keyframes gj-jalan { from { left: -25cqw; } to { left: 110cqw; } }
 @keyframes gj-langkah { from { transform: translateY(0) rotate(-.8deg); } to { transform: translateY(-3px) rotate(.8deg); } }
-{p} i:nth-child(n+2):nth-child(-n+11) { --d: calc(.45 + mod(var(--i) * 7, 10) * .07); top: auto; bottom: -60px; left: calc(mod(var(--i) * 37, 100) * 1%); width: calc(30px * var(--d)); height: calc(38px * var(--d)); border-radius: 40% 40% 30% 30%; opacity: calc(var(--d) * .8);
+{p} i:nth-child(n+2):nth-child(-n+11) { --d: calc(.45 + mod(var(--i) * 7, 10) * .07); top: auto; bottom: -60px; left: calc(mod(var(--i) * 37, 100) * 1%); width: calc(44px * var(--d)); height: calc(56px * var(--d)); border-radius: 40% 40% 30% 30%; opacity: calc(var(--d) * .8);
   background: radial-gradient(circle at 50% 70%, #fff4c2, #ffb347 45%, #e2711d 80%); box-shadow: 0 0 calc(24px * var(--d)) rgba(255, 170, 60, .6);
   animation: gj-lentera calc(30s - var(--d) * 12s) linear calc(var(--i) * -3.3s) infinite; }
-@keyframes gj-lentera { from { transform: translate(0, 0) rotate(-4deg); } 50% { transform: translate(3vw, -60vh) rotate(4deg); } to { transform: translate(-2vw, -125vh) rotate(-3deg); } }
+@keyframes gj-lentera { from { transform: translate(0, 0) rotate(-4deg); } 50% { transform: translate(3cqw, -60cqh) rotate(4deg); } to { transform: translate(-2cqw, -125cqh) rotate(-3deg); } }

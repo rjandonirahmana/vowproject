@@ -6,7 +6,10 @@
    (Safari memotong bidang 3D yang berpotongan). Gerak terkait gulir memakai
    properti `translate` lewat animation-timeline: scroll(root) — terpisah dari
    gerak waktu di `transform`, jadi keduanya tergabung tanpa bentrok. */
-.pdp { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; contain: strict; }
+.pdp { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; contain: strict; container-type: size; }
+/* Desktop terbagi dua: hanya kolom isi (kanan). Semua ukuran jenis memakai
+   satuan kontainer (cqw/cqh), jadi gerak menyesuaikan lebar kolom. */
+@media (min-width: 1100px) { .inv--rail .pdp { left: var(--right-x); right: auto; width: var(--half); } }
 .pdp i { position: absolute; display: none; left: 0; top: 0; }
 .inv--embed .pdp { position: absolute; }
 html:not(.inv-opened) .inv--gate .pdp { display: none; }

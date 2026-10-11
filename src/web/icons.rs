@@ -145,7 +145,13 @@ pub const ICONS: &[&str] = &[
 
 /// URL CSS Google Fonts untuk subset ikon di atas.
 pub fn icon_font_href() -> String {
-    super::fmt::font_css(&[format!("Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400,0..1,0&icon_names={}", ICONS.join(","))], "block")
+    super::fmt::font_css(
+        &[format!(
+            "Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400,0..1,0&icon_names={}",
+            ICONS.join(",")
+        )],
+        "block",
+    )
 }
 
 #[component]
@@ -161,7 +167,9 @@ pub fn icon_or_help(name: &str) -> &'static str {
         Some(i) => i,
         None => {
             #[cfg(debug_assertions)]
-            leptos::logging::warn!("ikon `{name}` belum terdaftar di ICONS — tampil sebagai `help`");
+            leptos::logging::warn!(
+                "ikon `{name}` belum terdaftar di ICONS — tampil sebagai `help`"
+            );
             "help"
         }
     }
@@ -232,6 +240,9 @@ mod tests {
                 }
             }
         }
-        assert!(missing.is_empty(), "ikon belum terdaftar di ICONS: {missing:?}");
+        assert!(
+            missing.is_empty(),
+            "ikon belum terdaftar di ICONS: {missing:?}"
+        );
     }
 }

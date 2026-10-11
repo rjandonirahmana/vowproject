@@ -2,16 +2,16 @@
    merpati putih terbang dari KEJAUHAN (kecil, di tengah atas) MENDEKAT ke
    arah tamu (membesar, ke tepi) sambil mengepakkan sayap 3D. */
 {p} i:nth-child(-n+6) { display: block; }
-{p} i:nth-child(1) { left: 50%; top: -60vmax; width: 120vmax; aspect-ratio: 1; margin-left: -60vmax; opacity: .3;
+{p} i:nth-child(1) { left: 50%; top: -60cqmax; width: 120cqmax; aspect-ratio: 1; margin-left: -60cqmax; opacity: .3;
   background: repeating-conic-gradient(from 0deg at 50% 50%, color-mix(in srgb, var(--gold-pale, #fff3cf) 80%, #fff) 0 5deg, transparent 5deg 16deg);
   -webkit-mask: radial-gradient(closest-side, #000 25%, transparent); mask: radial-gradient(closest-side, #000 25%, transparent); animation: mp-cahaya 90s linear infinite; }
 @keyframes mp-cahaya { to { rotate: 360deg; } }
-{p} i:nth-child(n+2):nth-child(-n+6) { left: 50%; top: 24vh; width: 90px; aspect-ratio: 5 / 3; margin-left: -45px; --cb: #fff; --badan: {svg:merpati}; --sy-x: 30%; --sy-y: 46%; --sy-w: 46%; --kepak: .5s;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .18)); opacity: 0; animation: mp-dekat 14s cubic-bezier(.5, 0, .9, .6) calc(var(--i) * 2.8s) infinite; }
+{p} i:nth-child(n+2):nth-child(-n+6) { left: 50%; top: 24cqh; width: 130px; aspect-ratio: 5 / 3; margin-left: -65px; --cb: color-mix(in srgb, var(--primary) 22%, #fff); --badan: {svg:merpati}; --sy-x: 30%; --sy-y: 46%; --sy-w: 46%; --kepak: .5s;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .28)) drop-shadow(0 0 1px rgba(0, 0, 0, .35)); opacity: 0; animation: mp-dekat 14s cubic-bezier(.5, 0, .9, .6) calc(var(--i) * 2.8s) infinite; }
 /* scale -1 mencerminkan juga translate di keyframes → terbang ke kiri. */
 {p} i:nth-child(odd):nth-child(n+2) { scale: -1 1; }
 @keyframes mp-dekat {
-  0% { opacity: 0; transform: translate(0, 0) scale(.15); }
+  0% { opacity: 0; transform: translate(0, 0) scale(.3); }
   10% { opacity: .85; }
   80% { opacity: .85; }
-  100% { opacity: 0; transform: translate(70vw, 30vh) scale(1.9); } }
+  100% { opacity: 0; transform: translate(70cqw, 30cqh) scale(1.9); } }
