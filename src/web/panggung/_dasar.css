@@ -90,3 +90,24 @@
   .pg__t2, .pg__t3, .pg__t4, .pg__t5, .pg__pasangan, .pg__gulir { display: none; }
 }
 .inv--rail .pg { margin-inline: 0; }
+
+/* PRATINJAU (iframe etalase HP/laptop, html.is-pv): tak ada gulir manusia —
+   pratinjau menggulir per segmen, jadi kamera gulir akan meloncat-loncat.
+   Panggung diputar sebagai gerak WAKTU kontinu ±8 dtk (keyframes yang sama),
+   dimulai saat gerbang terbuka; layar tak lengket (tinggi 1 layar). */
+html.is-pv .pg { height: 100svh; }
+html.is-pv .pg__gulir { display: none; }
+html.is-pv:not(.inv-opened) .pg__layar > * { animation: none !important; }
+html.is-pv.inv-opened .pg__layar > * { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 8s !important;
+  animation-delay: .35s !important; animation-timing-function: cubic-bezier(.45, .05, .55, .95) !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
+html.is-pv.inv-opened .pg__langit { animation-name: pg-langit !important; }
+html.is-pv.inv-opened .pg__bulan { animation-name: pg-bulan !important; }
+html.is-pv.inv-opened .pg__jauh { animation-name: pg-jauh !important; }
+html.is-pv.inv-opened .pg__utama { animation-name: pg-utama !important; }
+html.is-pv.inv-opened .pg__depan { animation-name: pg-depan !important; }
+html.is-pv.inv-opened .pg__pasangan { animation-name: pg-pasangan !important; }
+html.is-pv.inv-opened .pg__t1 { animation-name: pg-t1 !important; }
+html.is-pv.inv-opened .pg__t2 { animation-name: pg-t2 !important; }
+html.is-pv.inv-opened .pg__t3 { animation-name: pg-t3 !important; }
+html.is-pv.inv-opened .pg__t4 { animation-name: pg-t4 !important; }
+html.is-pv.inv-opened .pg__t5 { animation-name: pg-t5 !important; }

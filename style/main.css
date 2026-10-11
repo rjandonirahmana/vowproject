@@ -10422,7 +10422,7 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     transform-origin: 0 50%;
 }
 .etalase__progres i.is-jalan {
-    animation: etalase-progres 7s linear both;
+    animation: etalase-progres 11s linear both;
 }
 .etalase:hover .etalase__progres i {
     animation-play-state: paused;

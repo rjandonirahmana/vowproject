@@ -798,7 +798,10 @@
         window.scrollTo({top:Math.min(max, y+innerHeight*0.55), behavior:'smooth'});
         setTimeout(langkah, 2400);
       };
-      setTimeout(langkah, o ? gateReveal(g)+1600 : 300);
+      // Ada panggung 3D → prolognya diputar utuh dulu (gerak waktu ±8 dtk,
+      // panggung/_dasar.css) sebelum gulir per segmen dimulai.
+      var pg=d.querySelector('.pg') ? 8600 : 0;
+      setTimeout(langkah, (o ? gateReveal(g)+1600 : 300)+pg);
     };
     window.addEventListener('message', function(e){ if(e.origin===location.origin && e.data && e.data.pv==='show') pvRun(!!e.data.beku); });
     setTimeout(pvRun, 1200);
@@ -1026,7 +1029,7 @@
           setTimeout(buang, 0);
         });
       };
-      // Putar otomatis: satu siklus 7 dtk per tema, garis progres (scaleX,
+      // Putar otomatis: satu siklus 11 dtk per tema (prolog 3D ±8 dtk sempat utuh), garis progres (scaleX,
       // compositor) diputar ulang bersamaan; ditunda selama disentuh/ditunjuk.
       var jadwal=function(){
         clearTimeout(autoT);
@@ -1036,7 +1039,7 @@
           if(!tr.isConnected) return;
           if(d.hidden || Date.now()-userT<12000 || sec.matches(':hover')) return jadwal();
           go(act+1);
-        }, 7000);
+        }, 11000);
       };
       // Gulir berhenti: belum pas di tengah (selesai swipe / seret / momentum)
       // → meluncur ke kartu terdekat (snap sendiri); sudah pas → kartu aktif.

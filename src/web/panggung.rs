@@ -9,6 +9,8 @@
 //! (`panggung/_dasar.css` + lapisan sebagai data URI) hanya ikut di
 //! `/gaya/{slug}.css` tema itu.
 
+// Lapisan & warna hanya dibaca saat merakit CSS (server).
+#[cfg_attr(not(feature = "ssr"), allow(dead_code))]
 pub struct Adegan {
     pub slug: &'static str,
     pub nama: &'static str,
@@ -149,7 +151,7 @@ fn rakit(a: &Adegan) -> String {
         s = a.slug,
         l = a.langit,
         c = a.cahaya,
-        tinta = if malam { "--pg-tinta:#f6f0e2" } else { "" },
+        tinta = if malam { "--pg-tinta:#f6f0e2}.pg--malam .pg__teks::before{background:radial-gradient(closest-side,rgba(18,22,44,.72),rgba(18,22,44,.35) 55%,transparent)}.pg--malam .pg__teks{text-shadow:0 1px 10px rgba(0,0,0,.6)" } else { "" },
         j = uri(a.jauh),
         u = uri(a.utama),
         d = uri(a.depan),
