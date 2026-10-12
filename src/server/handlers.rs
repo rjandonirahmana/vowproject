@@ -1518,7 +1518,7 @@ pub async fn admin_save_banner(
     if !b.link.is_empty() && !crate::web::skin::is_safe_url(&b.link.replace("{demo}", crate::web::themes::DEMO_SLUG)) {
         return to(back, "galat", "Tautan harus diawali / (halaman situs) atau https://.");
     }
-    let dt_ok = |v: &str| v.is_empty() || (v.len() == 16 && fmt::parse_date(&v[..10]).is_some() && v.as_bytes()[10] == b'T');
+    let dt_ok = |v: &str| v.is_empty() || (v.len() == 16 && v.get(..10).and_then(fmt::parse_date).is_some() && v.as_bytes()[10] == b'T');
     if !dt_ok(&b.mulai) || !dt_ok(&b.selesai) {
         return to(back, "galat", "Format jadwal tidak valid.");
     }

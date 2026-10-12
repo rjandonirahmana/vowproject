@@ -40,6 +40,17 @@ fn client() -> Option<&'static reqwest::Client> {
     C.get_or_init(|| reqwest::Client::builder().timeout(Duration::from_secs(10)).user_agent(UA).build().ok()).as_ref()
 }
 
+/// Fetch ke Google yang boleh berjalan bersamaan. Rute font dilewatkan dari
+/// pembatas request (security::statis), jadi tanpa batas ini bot bisa memicu
+/// ribuan fetch keluar dengan query unik. Penuh → klien dialihkan ke Google
+/// (CSP mengizinkan), tak ada yang menunggu.
+const MAX_FETCH: usize = 4;
+
+fn fetch_slot() -> Option<tokio::sync::SemaphorePermit<'static>> {
+    static S: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(MAX_FETCH);
+    S.try_acquire().ok()
+}
+
 fn get_cached(key: &str) -> Option<(Bytes, &'static str)> {
     cache().lock().ok()?.items.get(key).cloned()
 }
@@ -89,7 +100,9 @@ pub async fn css(req: Request) -> Response {
     let key = format!("css:{q}");
     let body = match get_cached(&key) {
         Some((b, _)) => b,
-        None => match fetch(&format!("{CSS_UP}{q}")).await {
+        None => match fetch_slot() {
+            None => return Redirect::temporary(&format!("{CSS_UP}{q}")).into_response(),
+            Some(_slot) => match fetch(&format!("{CSS_UP}{q}")).await {
             Some((b, _)) => {
                 let css = String::from_utf8_lossy(&b).replace(FILE_UP, FILE_LOCAL);
                 let b = Bytes::from(css);
@@ -100,6 +113,7 @@ pub async fn css(req: Request) -> Response {
                 tracing::warn!(query = %q, "fonts: Google CSS gagal — dialihkan");
                 return Redirect::temporary(&format!("{CSS_UP}{q}")).into_response();
             }
+            },
         },
     };
     // Isi CSS bisa berubah (versi font baru) — 1 hari, berkasnya 1 tahun.
@@ -119,13 +133,16 @@ pub async fn file(req: Request) -> Response {
     };
     let (body, ctype) = match get_cached(&up) {
         Some(v) => v,
-        None => match fetch(&up).await {
-            Some((b, ct)) => {
-                let ct = if ct.contains("woff2") { "font/woff2" } else if ct.contains("woff") { "font/woff" } else { "font/ttf" };
-                put_cached(up, b.clone(), ct);
-                (b, ct)
-            }
-            None => return StatusCode::BAD_GATEWAY.into_response(),
+        None => match fetch_slot() {
+            None => return Redirect::temporary(&up).into_response(),
+            Some(_slot) => match fetch(&up).await {
+                Some((b, ct)) => {
+                    let ct = if ct.contains("woff2") { "font/woff2" } else if ct.contains("woff") { "font/woff" } else { "font/ttf" };
+                    put_cached(up, b.clone(), ct);
+                    (b, ct)
+                }
+                None => return StatusCode::BAD_GATEWAY.into_response(),
+            },
         },
     };
     ([(header::CONTENT_TYPE, ctype), (header::CACHE_CONTROL, "public, max-age=31536000, immutable")], body).into_response()

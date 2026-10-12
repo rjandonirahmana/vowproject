@@ -316,6 +316,10 @@ fn uniq(it: impl Iterator<Item = String>) -> Vec<String> {
 /// `#abc` / `#aabbccdd` → `#aabbcc` untuk `<input type=color>`.
 fn hex6(v: &str) -> String {
     let h = v.trim_start_matches('#');
+    // Hanya digit hex — `&h[..6]` pada teks non-ASCII = panic (WASM abort).
+    if !h.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return "#000000".into();
+    }
     match h.len() {
         3 | 4 => format!("#{}", h.chars().take(3).flat_map(|c| [c, c]).collect::<String>()),
         6 | 8 => format!("#{}", &h[..6]),
