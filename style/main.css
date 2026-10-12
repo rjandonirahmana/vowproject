@@ -10598,6 +10598,194 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     letter-spacing: 0.08em;
     color: var(--muted);
 }
+/* Panel kiri (jenis acara) & kanan (pilihan tema) etalase. HP/tablet:
+ * dua baris chip yang bisa digeser di atas HP; desktop: tiga kolom. */
+.etalase__tata {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+}
+.etalase__panel-judul,
+.etalase__sub {
+    display: none;
+}
+.etalase__pilih {
+    display: flex;
+    gap: 8px;
+    margin: 0 -20px;
+    padding: 2px 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+}
+.etalase__pilih::-webkit-scrollbar {
+    display: none;
+}
+.etalase__opsi {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.etalase__opsi .ms {
+    font-size: 18px;
+    color: var(--gold-deep);
+}
+.etalase__opsi small {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+}
+.etalase__opsi:hover {
+    border-color: var(--line-gold);
+}
+.etalase__opsi.is-on {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #fff;
+}
+.etalase__opsi.is-on .ms,
+.etalase__opsi.is-on small {
+    color: color-mix(in srgb, #fff 80%, transparent);
+}
+.etalase__opsi:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+}
+.etalase__item.is-saring {
+    display: none !important;
+}
+/* Jenis acara yang belum punya tema: kartu "segera hadir" di atas HP. */
+.etalase__segera {
+    position: absolute;
+    left: 50%;
+    top: calc(40px + var(--lh) / 2);
+    z-index: 70;
+    width: min(300px, calc(100% - 40px));
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 20px;
+    border: 1px solid var(--line-gold);
+    border-radius: 22px;
+    background: var(--card);
+    box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.45);
+    translate: -50% -50%;
+}
+.etalase__segera > .ms {
+    font-size: 30px;
+    color: var(--gold-deep);
+}
+.etalase__segera b {
+    font-family: var(--font-display);
+    font-size: 19px;
+    line-height: 1.25;
+    color: var(--ink);
+}
+.etalase__segera p {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--muted);
+}
+.etalase.is-segera .etalase__segera {
+    display: flex;
+    animation: etalase-info 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.etalase.is-segera :is(.etalase__track, .etalase__hp, .etalase__nav, .etalase__laptop) {
+    opacity: 0.16;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+.etalase.is-segera :is(.etalase__posisi, .etalase__info) {
+    visibility: hidden;
+}
+.etalase.is-segera .etalase__gaya {
+    opacity: 0.45;
+    pointer-events: none;
+}
+@media (min-width: 1100px) {
+    .etalase__tata {
+        display: grid;
+        grid-template-columns: 210px minmax(0, 1fr) 210px;
+        grid-template-areas: "acara stage gaya";
+        align-items: center;
+        gap: 18px;
+        margin-top: 10px;
+    }
+    .etalase__acara {
+        grid-area: acara;
+    }
+    .etalase__gaya {
+        grid-area: gaya;
+    }
+    .etalase__tata .etalase__stage {
+        grid-area: stage;
+        margin: 4px 0 0;
+    }
+    .etalase__panel {
+        padding: 14px 10px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: color-mix(in srgb, var(--card) 88%, transparent);
+        text-align: left;
+    }
+    .etalase__panel-judul {
+        display: block;
+        margin: 0 8px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--gold-deep);
+    }
+    .etalase__sub {
+        display: block;
+        margin: 10px 10px 2px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted);
+    }
+    .etalase__pilih {
+        flex-direction: column;
+        gap: 2px;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
+    }
+    .etalase__gaya .etalase__pilih {
+        max-height: 430px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+    }
+    .etalase__opsi {
+        width: 100%;
+        padding: 9px 10px;
+        border-color: transparent;
+        border-radius: 12px;
+        background: transparent;
+    }
+    .etalase__opsi small {
+        margin-left: auto;
+    }
+    .etalase__opsi:hover {
+        border-color: transparent;
+        background: color-mix(in srgb, var(--gold-pale) 60%, transparent);
+    }
+}
 @media (prefers-reduced-motion: reduce) {
     .etalase__info > *,
     .etalase__progres i.is-jalan,

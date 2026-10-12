@@ -1019,7 +1019,7 @@
       var mulai=function(){
         clearTimeout(startT);
         startT=setTimeout(function(){
-          var run=function(){ if(pvApi && inView && hp.isConnected && act>=0) pvApi.start(hp); mulaiLaptop(); };
+          var run=function(){ if(segera) return; if(pvApi && inView && hp.isConnected && act>=0) pvApi.start(hp); mulaiLaptop(); };
           if(window.requestIdleCallback) requestIdleCallback(run, {timeout:700}); else run();
           // Tema berikutnya diunduh duluan (cache 10 mnt) → tampil seketika.
           var nx=items[(act+1)%items.length].getAttribute('data-pv');
@@ -1059,10 +1059,11 @@
       // compositor) diputar ulang bersamaan; ditunda selama disentuh/ditunjuk.
       var jadwal=function(){
         clearTimeout(autoT);
-        if(progres){ progres.classList.remove('is-jalan'); void progres.offsetWidth; if(!calm && inView) progres.classList.add('is-jalan'); }
-        if(calm || !inView) return;
+        if(progres){ progres.classList.remove('is-jalan'); void progres.offsetWidth; if(!calm && inView && !segera) progres.classList.add('is-jalan'); }
+        if(calm || !inView || segera) return;
         autoT=setTimeout(function(){
           if(!tr.isConnected) return;
+          if(segera) return;
           if(d.hidden || Date.now()-userT<12000 || sec.matches(':hover')) return jadwal();
           go(act+1);
         }, 11000);
@@ -1213,7 +1214,45 @@
           else { clearTimeout(lpT); if(lpM) lpM.stop(); }
         }, {threshold:0.3}), lp.closest('.etalase__laptop'));
       } else { inView=true; settle(); }
-      etaResume=function(){ if(inView && hp.isConnected) mulai(); };
+      // Panel kiri (jenis acara) & kanan (gaya tema): menyaring kartu TANPA
+      // membuat ulang DOM — kartu yang tak cocok display:none (.is-saring),
+      // `items` diganti daftar yang cocok, posisi diukur ulang, lalu kartu
+      // pertama dibawa ke tengah & diputar.
+      var semua=items.slice(), segera=false;
+      var saring=function(k){
+        var p=k.slice(0, 2), v=k.slice(2);
+        var cocok=semua.filter(function(it){ return !k || it.getAttribute(p==='k:' ? 'data-gaya' : 'data-nuansa')===v; });
+        if(!cocok.length) return;
+        henti(); batalLuncur(); clearTimeout(idleT); clearTimeout(autoT);
+        semua.forEach(function(it){
+          var on=cocok.indexOf(it)>=0; it.classList.toggle('is-saring', !on);
+          if(!on){ it.classList.remove('is-dekat', 'is-aktif'); it.style.visibility=''; it.style.transform=''; it.style.opacity=''; it.style.zIndex=''; }
+        });
+        items=cocok; pos=[]; last=[]; near=-1; act=-1; tujuan=-1;
+        if(tr.scrollLeft!==0){ progSL=0; tr.scrollLeft=0; }
+        settle();
+      };
+      var tekan=function(grup, b){ grup.forEach(function(x){ var on=x===b; x.classList.toggle('is-on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); }); };
+      var opsiGaya=[].slice.call(sec.querySelectorAll('.etalase__gaya [data-eta-saring]'));
+      opsiGaya.forEach(function(b){
+        b.addEventListener('click', function(){
+          if(segera || b.classList.contains('is-on')) return;
+          userT=Date.now(); tekan(opsiGaya, b); saring(b.getAttribute('data-eta-saring'));
+        });
+      });
+      var opsiAcara=[].slice.call(sec.querySelectorAll('.etalase__acara [data-eta-acara]')), namaSegera=sec.querySelector('[data-eta-segera-nama]');
+      sec.querySelectorAll('[data-eta-acara]').forEach(function(b){
+        b.addEventListener('click', function(){
+          var k=b.getAttribute('data-eta-acara'), ke=opsiAcara.filter(function(x){ return x.getAttribute('data-eta-acara')===k; })[0];
+          tekan(opsiAcara, ke);
+          segera=k!=='wedding'; sec.classList.toggle('is-segera', segera);
+          if(segera){
+            if(namaSegera) namaSegera.textContent=b.getAttribute('data-nama');
+            henti(); clearTimeout(autoT); if(progres) progres.classList.remove('is-jalan');
+          } else settle();
+        });
+      });
+      etaResume=function(){ if(inView && hp.isConnected && !segera) mulai(); };
       // Ukuran berubah (putar layar / jendela) → ukur ulang posisi kartu.
       // ResizeObserver pada track (bukan listener window) — ikut terbuang
       // bersama elemennya saat pindah halaman; timer di atas berhenti sendiri

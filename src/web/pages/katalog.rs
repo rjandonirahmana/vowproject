@@ -488,6 +488,40 @@ fn packages(k: Konten) -> impl IntoView {
 /// (global.js, sama dengan story tamu) yang berlanjut ke langkah berikutnya,
 /// progress bersegmen + tombol aksi per langkah. Data JSON ditanam di
 /// halaman — tanpa request tambahan saat dibuka.
+/// Jenis acara di panel kiri etalase: (kunci, nama, ikon).
+const ACARA: &[(&str, &str, &str)] = &[
+    ("wedding", "Wedding", "favorite"),
+    ("aqiqah", "Aqiqah", "child_care"),
+    ("ulang-tahun", "Ulang Tahun", "cake"),
+    ("keluarga", "Acara Keluarga", "family_restroom"),
+    ("sunatan", "Sunatan", "boy"),
+];
+
+/// Pilihan panel kanan etalase: GAYA (kolom kategori) dan BUDAYA (nuansa
+/// dengan ≥ 2 tema, yang belum menjadi gaya), masing-masing (kunci, label,
+/// jumlah) urut terbanyak. Diturunkan dari katalog → tema baru ikut sendiri.
+fn pilihan_gaya(themes: &[ThemeInfo]) -> (Vec<(String, String, usize)>, Vec<(String, String, usize)>) {
+    fn hitung<'a>(it: impl Iterator<Item = &'a str>) -> Vec<(String, String, usize)> {
+        let mut v: Vec<(String, String, usize)> = Vec::new();
+        for label in it.map(str::trim).filter(|l| !l.is_empty()) {
+            let k = fmt::key(label);
+            match v.iter_mut().find(|x| x.0 == k) {
+                Some(x) => x.2 += 1,
+                None => v.push((k, label.to_string(), 1)),
+            }
+        }
+        v.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.1.cmp(&b.1)));
+        v
+    }
+    let gaya = hitung(themes.iter().map(|t| t.category.as_str()));
+    let budaya = hitung(themes.iter().map(|t| t.nuansa.as_str()))
+        .into_iter()
+        .filter(|(k, _, n)| *n >= 2 && !gaya.iter().any(|g| &g.0 == k))
+        .map(|(k, label, n)| (k, if label == "Tionghoa" { "Chinese".to_string() } else { label }, n))
+        .collect();
+    (gaya, budaya)
+}
+
 /// Etalase beranda: satu HP di tengah, tema berjajar kiri-kanan (coverflow).
 /// Tema yang berhenti tepat di dalam HP diputar seperti kartu yang di-hover
 /// (iframe ?pv=1 → gerak buka tema, lalu bergulir). Info & tombol diisi
@@ -495,13 +529,48 @@ fn packages(k: Konten) -> impl IntoView {
 /// tetap tautan ke demonya.
 #[component]
 fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
+    let jumlah = themes.len();
+    let (gaya, budaya) = pilihan_gaya(&themes);
     view! {
         <section class="etalase" aria-label="Coba tema undangan di layar HP">
             <div class="etalase__head">
                 <span class="chip chip--soft"><Icon name="smartphone" />"Coba langsung"</span>
-                <h2>"Geser tema, lihat "<em>"gerak bukanya"</em>" di HP"</h2>
-                <p>"Tema yang berhenti di dalam HP langsung diputar seperti undangan sungguhan — sampul terbuka, isi bergulir."</p>
+                <h2>"Geser tema yang "<em>"kamu inginkan"</em></h2>
+                <p>"Pilih jenis acara & gaya tema — tema yang berhenti di dalam HP langsung diputar seperti undangan sungguhan."</p>
             </div>
+            <div class="etalase__tata">
+            // Kiri: jenis acara. Tema yang ada saat ini semuanya tema pernikahan;
+            // jenis lain menampilkan "segera hadir" (global.js, data-eta-acara).
+            <nav class="etalase__panel etalase__acara" aria-label="Jenis acara">
+                <p class="etalase__panel-judul">"Jenis Acara"</p>
+                <div class="etalase__pilih">
+                    {ACARA.iter().map(|(k, nama, ikon)| {
+                        let ada = *k == "wedding";
+                        view! {
+                            <button type="button" class="etalase__opsi" class:is-on=ada data-eta-acara=*k data-nama=*nama aria-pressed=if ada { "true" } else { "false" }>
+                                <Icon name=*ikon />
+                                <span>{*nama}</span>
+                                <small>{if ada { format!("{jumlah} tema") } else { "Segera".into() }}</small>
+                            </button>
+                        }
+                    }).collect_view()}
+                </div>
+            </nav>
+            // Kanan: gaya tema (kategori & budaya), diturunkan dari katalog.
+            <nav class="etalase__panel etalase__gaya" aria-label="Pilihan tema">
+                <p class="etalase__panel-judul">"Pilihan Tema"</p>
+                <div class="etalase__pilih">
+                    <button type="button" class="etalase__opsi is-on" data-eta-saring="" aria-pressed="true"><span>"Semua tema"</span><small>{jumlah}</small></button>
+                    <p class="etalase__sub">"Gaya"</p>
+                    {gaya.into_iter().map(|(k, nama, n)| view! {
+                        <button type="button" class="etalase__opsi" data-eta-saring=format!("k:{k}") aria-pressed="false"><span>{nama}</span><small>{n}</small></button>
+                    }).collect_view()}
+                    <p class="etalase__sub">"Budaya"</p>
+                    {budaya.into_iter().map(|(k, nama, n)| view! {
+                        <button type="button" class="etalase__opsi" data-eta-saring=format!("n:{k}") aria-pressed="false"><span>{nama}</span><small>{n}</small></button>
+                    }).collect_view()}
+                </div>
+            </nav>
             <div class="etalase__stage">
                 <div class="etalase__track" data-etalase>
                     // SEMUA tema (dulu dibatasi 24). Kartu jauh dari tengah disembunyikan
@@ -514,6 +583,7 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
                         view! {
                             <a class=format!("etalase__item tcard__art th-{}{}{dekat}", t.slug, crate::web::rupa::classes(&t.rupa)) href=demo.clone()
                                 data-pv=format!("{demo}&pv=1") data-slug=t.slug.clone() data-name=t.name.clone() data-region=t.region.clone()
+                                data-gaya=fmt::key(&t.category) data-nuansa=fmt::key(&t.nuansa)
                                 aria-label=format!("Demo {}", t.name)>
                                 <div class="mini">
                                     <p class="mini__eyebrow">"The Wedding Of"</p>
@@ -534,6 +604,15 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
                 <div class="etalase__tepi etalase__tepi--r" aria-hidden="true"></div>
                 <button type="button" class="etalase__nav etalase__nav--prev" data-etalase-nav="-1" aria-label="Tema sebelumnya"><Icon name="chevron_left" /></button>
                 <button type="button" class="etalase__nav etalase__nav--next" data-etalase-nav="1" aria-label="Tema berikutnya"><Icon name="chevron_right" /></button>
+                // Jenis acara tanpa tema (belum ada) → kartu ini menutupi HP.
+                <div class="etalase__segera" aria-live="polite">
+                    <Icon name="auto_awesome" />
+                    <b>"Tema "<span data-eta-segera-nama></span>" segera hadir"</b>
+                    <p>"Sedang kami siapkan. Butuh sekarang? Desainer kami bisa membuatkan tema khusus untuk acaramu."</p>
+                    <a class="btn btn--primary btn--sm" href="/layanan/wa?layanan=custom" target="_blank" rel="noopener">"Konsultasi Desain"</a>
+                    <button type="button" class="btn btn--soft btn--sm" data-eta-acara="wedding" data-nama="Wedding">"Lihat tema Wedding"</button>
+                </div>
+            </div>
             </div>
             // Posisi "05 / 24" + garis progres putar otomatis (diisi & diputar global.js).
             <div class="etalase__posisi" aria-hidden="true">
