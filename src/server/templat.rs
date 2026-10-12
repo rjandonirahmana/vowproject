@@ -601,7 +601,7 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
 <meta property=\"og:title\" content=\"The Wedding of {couple}\">\n<meta property=\"og:description\" content=\"{desc}\">\n{og}\
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\">\n{fonts}\
 <link rel=\"stylesheet\" href=\"/tema.css?v={tv}\">\n<link rel=\"stylesheet\" href=\"/tata.css?v={av}\">\n\
-<style>\n{tcss}\n{xcss}\n</style>\n</head>\n<body class=\"t-{tslug} th-{theme} t-has-nav\">\n{body}\n{buttons}{nav}\
+<style>\n{tcss}\n{xcss}\n{pgcss}\n</style>\n</head>\n<body class=\"t-{tslug} th-{theme} t-has-nav\">\n{body}\n{buttons}{nav}\
 <script type=\"application/json\" id=\"tata-data\">{data}</script>\n\
 <script nonce=\"{nonce}\" src=\"/tata.js?v={av}\"></script>\n</body>\n</html>\n",
         title = esc(&format!("{} {}", tx!(l, "Undangan Pernikahan", "Wedding Invitation of"), inv.couple())),
@@ -612,6 +612,7 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
         av = asset_version(),
         tcss = css_ok(&t.css),
         xcss = css_ok(&theme.template_css),
+        pgcss = st.themes().resep(&theme.slug).map(|r| crate::web::panggung::css_tema(&r)).unwrap_or_default(),
         tslug = esc(&t.slug),
         nav = bottom_nav(p, &theme.slug),
         buttons = top_buttons(p),
@@ -676,7 +677,14 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
         _ => None,
     };
     let page = Page { row: &row, guest, to, qs, preview, wishes, assets, rsvp_flash, lang, lang_href };
-    let body = unslash(set.env.get_template(&t.slug)?.render(page_ctx(&page))?);
+    let mut body = unslash(set.env.get_template(&t.slug)?.render(page_ctx(&page))?);
+    // Panggung 3D (web/panggung.rs) — prolog pertama di dalam <main> templat,
+    // tampil tepat setelah sampul dibuka (sama dengan tema Leptos).
+    if let Some(r) = cat.resep(&theme.slug) {
+        if let Some(i) = body.find("<main").and_then(|m| body[m..].find('>').map(|j| m + j + 1)) {
+            body.insert_str(i, &crate::web::panggung::html(&r, &row.inv, lang));
+        }
+    }
     Ok(Some(document(st, t, theme, &page, &body, nonce)))
 }
 

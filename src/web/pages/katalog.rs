@@ -91,6 +91,10 @@ pub fn KatalogPage() -> impl IntoView {
     // Story panduan (tabel site_stories, /admin/story-panduan) — tepat di bawah banner.
     let panduan = Resource::new(|| (), |_| crate::web::api::get_site_stories());
     let from = move || konten.get().and_then(|r| r.ok()).map(|k| k.min_price()).unwrap_or(0);
+    // Signal::derive, BUKAN Memo: resource tema harus dibaca di dalam
+    // <Suspense/> pemanggilnya — Memo membacanya di konteksnya sendiri (di luar
+    // Suspense) → peringatan & risiko hydration mismatch. Pembaca yang cuma
+    // butuh jumlah/kosong memakai `.with()` (tanpa mengkloning daftar).
     let all = Signal::derive(move || themes.get().and_then(|r| r.ok()).unwrap_or_default());
     // Kartu tambahan yang dimuat di browser (infinite scroll / tombol) — TANPA
     // navigasi, jadi halaman tak melompat ke atas. `?tampil=` tetap jadi
@@ -118,7 +122,7 @@ pub fn KatalogPage() -> impl IntoView {
     };
     let results = Signal::derive(move || {
         let f = filter.get();
-        let mut v: Vec<ThemeInfo> = all.get().into_iter().filter(|t| f.matches(t)).collect();
+        let mut v: Vec<ThemeInfo> = all.with(|a| a.iter().filter(|t| f.matches(t)).cloned().collect());
         if f.urut == "baru" {
             v.sort_by_key(|t| std::cmp::Reverse(t.created));
         }
@@ -128,8 +132,8 @@ pub fn KatalogPage() -> impl IntoView {
     let groups = move |field: fn(&ThemeInfo) -> &str| {
         Signal::derive(move || {
             let mut out: Vec<(String, String, usize)> = Vec::new();
-            for t in all.get() {
-                let label = field(&t).trim().to_string();
+            for t in all.with(|a| a.iter().map(|t| field(t).trim().to_string()).collect::<Vec<_>>()) {
+                let label = t;
                 if label.is_empty() {
                     continue;
                 }
@@ -189,7 +193,7 @@ pub fn KatalogPage() -> impl IntoView {
             <Suspense fallback=|| view! { <div class="chips-row" id="katalog"></div> }>
                 <div class="chips-row" id="katalog">
                     <a class="chip-link" class:is-on=move || filter.get().kategori.is_empty() href=move || filter.get().with("kategori", "")>
-                        {move || format!("Semua ({})", all.get().len())}
+                        {move || format!("Semua ({})", all.with(Vec::len))}
                     </a>
                     <For each=move || categories.get() key=|g| g.clone() let:g>
                         {
@@ -273,7 +277,7 @@ pub fn KatalogPage() -> impl IntoView {
                             <i class="dot"></i>
                             {move || {
                                 let f = filter.get();
-                                let n = results.get().len();
+                                let n = results.with(Vec::len);
                                 let shown = n.min(shown.get());
                                 let of = if shown < n { format!("{shown} dari {n}") } else { n.to_string() };
                                 if f.q.is_empty() { format!("Menampilkan {of} tema adiluhung") }
@@ -282,7 +286,7 @@ pub fn KatalogPage() -> impl IntoView {
                         </p>
                         <div class="theme-grid">
                             <For
-                                each=move || { let n = shown.get(); results.get().into_iter().take(n).enumerate().collect::<Vec<_>>() }
+                                each=move || { let n = shown.get(); results.with(|r| r.iter().take(n).cloned().enumerate().collect::<Vec<_>>()) }
                                 key=|(_, t)| t.slug.clone()
                                 children=move |(i, t)| {
                                     // Jangkar kartu pertama tiap "halaman" → tombol lebih banyak tak melompat ke atas.
@@ -294,8 +298,8 @@ pub fn KatalogPage() -> impl IntoView {
                         {move || {
                             let f = filter.get();
                             let n = shown.get();
-                            let sisa = results.get().len().saturating_sub(n);
-                            let total = results.get().len();
+                            let total = results.with(Vec::len);
+                            let sisa = total.saturating_sub(n);
                             (sisa > 0).then(|| view! {
                                 // Paginasi "muat lagi" MANUAL + bilah progres (dulu otomatis
                                 // tanpa ujung → info, CTA & footer tak pernah terjangkau).
@@ -314,7 +318,7 @@ pub fn KatalogPage() -> impl IntoView {
                                 </div>
                             })
                         }}
-                        <Show when=move || results.get().is_empty()>
+                        <Show when=move || results.with(Vec::is_empty)>
                             <div class="empty card">
                                 <p>"Belum ada tema yang cocok dengan filter ini."</p>
                                 <a class="btn btn--soft btn--sm" href="/#katalog">"Hapus Semua Filter"</a>
@@ -539,12 +543,13 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
             <div class="etalase__info" data-etalase-info aria-live="polite"></div>
             // Laptop: tema yang sama dalam tata letak DESKTOP (iframe 1280 px
             // diskalakan, mesin pratinjau kedua — dimuat setelah HP & hanya
-            // bila terlihat). `data-pv-beku`: gerak buka diputar lalu dibekukan
-            // (halaman desktop yang terus beranimasi = beranda 30 fps).
+            // bila terlihat). Bergerak seperti HP (prolog 3D + gulir); dibongkar
+            // saat tema digeser & saat laptop keluar layar. (`data-pv-beku`
+            // = mode beku lama, kini tak dipakai.)
             // Layar kosong = kilau skeleton sampai siap.
             <div class="etalase__laptop" aria-hidden="true">
                 <div class="etalase__tutup">
-                    <div class="etalase__lyr"><div class="etalase__lpv" data-pv-lebar="1280" data-pv-beku=""></div></div>
+                    <div class="etalase__lyr"><div class="etalase__lpv" data-pv-lebar="1280"></div></div>
                 </div>
                 <div class="etalase__alas"></div>
                 <p class="etalase__ket">"Tampilan di laptop & desktop"</p>

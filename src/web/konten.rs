@@ -359,9 +359,9 @@ impl Default for Konten {
                 },
                 Paket {
                     slug: s("diamond"),
-                    name: s("Paket Diamond 3D"),
+                    name: s("Paket Diamond"),
                     price: 199_000,
-                    period: s("Aktif Selamanya • 3D Dimensi"),
+                    period: s("Aktif Selamanya"),
                     features: v(&["Aktif selamanya selama situs berjalan", "300 unggahan story tamu", "Nama tamu spesial tanpa batas", "Revisi tanpa batas"]),
                     popular: false,
                     aktif_hari: 0,

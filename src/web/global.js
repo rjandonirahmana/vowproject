@@ -643,7 +643,9 @@
       var sel='.inv__main > *:not(.stack):not(.gate):not(.cover), .inv__isi > *, .inv__anchor > *, .inv .section > *:not(.gallery):not(.orn-layer), .inv .gallery > *, .inv .cover > *:not(.orn-layer), .inv .couple > .person, .inv--embed > *:not(.gate):not(.inv__glow)';
       if(deep) sel+=', .inv .countdown > *, .inv .quote > *, .inv .event > *, .inv .story > li, .inv .person > .arch-photo, .inv .person__body > *, .inv .gift .bank, .inv .wishes > *, .inv .rsvp-hero > *:not(.orn-layer)';
       d.querySelectorAll(sel).forEach(function(el){
-        if(el.dataset.rv) return;
+        // Panggung 3D punya gerak gulirnya sendiri: setinggi 6 layar, ia tak
+        // pernah memenuhi ambang reveal → dulu tersembunyi selamanya (sekar).
+        if(el.dataset.rv || el.classList.contains('pg')) return;
         var emb=el.closest('.inv--embed');
         if(!emb && el.closest('.gate')) return;
         if(emb ? !emb.classList.contains('is-open') : gateClosed){ if(!emb || !el.closest('.gate')) return; }

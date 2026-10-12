@@ -488,7 +488,7 @@ fn Panggung3d() -> impl IntoView {
         .cloned()
         .unwrap_or_default();
     view! {
-        <section class=format!("pg pg--{adegan}") aria-label=tx!(l, "Pembuka undangan", "Invitation prologue")>
+        <section class=c.page.skin.panggung_kelas.clone() aria-label=tx!(l, "Pembuka undangan", "Invitation prologue")>
             <div class="pg__layar">
                 <i class="pg__langit" aria-hidden="true"></i>
                 <i class="pg__bulan" aria-hidden="true"></i>

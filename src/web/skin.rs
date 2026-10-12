@@ -116,7 +116,7 @@ impl ThemeInfo {
 
     /// Adegan panggung 3D tema ini (`web/panggung.rs`); "" = tanpa.
     pub fn panggung(&self) -> &'static str {
-        if self.template.is_empty() { super::panggung::pilih(&self.slug, &self.nuansa, &self.region, !self.bg_video.is_empty()) } else { "" }
+        super::panggung::pilih(&self.slug, &self.nuansa, &self.region, &self.palette, self.dark)
     }
     /// Jenis lapisan pendamping 3D tema ini (`web/pendamping.rs`).
     pub fn pendamping(&self) -> &'static str {

@@ -168,7 +168,8 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
                 open_anim: t.open_anim.clone(),
                 float_deco: t.float_deco.clone(),
                 pendamping: t.pendamping().to_string(),
-                panggung: t.panggung().to_string(),
+                panggung: cat.resep(&t.slug).map(|r| r.adegan.to_string()).unwrap_or_default(),
+                panggung_kelas: cat.resep(&t.slug).map(|r| r.kelas()).unwrap_or_default(),
                 scroll_anim: t.scroll_anim.clone(),
                 ornaments: t.ornaments.clone(),
                 bg_video: t.bg_video.clone(),
@@ -676,14 +677,27 @@ pub async fn list_themes() -> Result<Vec<super::skin::ThemeInfo>, ServerFnError>
         .list
         .iter()
         .filter(|t| t.listed)
+        // Hanya kolom yang DIPAKAI klien (kartu, filter, etalase): sisanya
+        // dikosongkan — payload ini ikut terserialisasi ke HTML beranda.
         .map(|t| super::skin::ThemeInfo {
-            tokens: Default::default(),
-            image_url: String::new(),
-            bg_image: String::new(),
-            frame_image: String::new(),
-            card_deco: String::new(),
-            ornaments: Vec::new(),
-            ..t.clone()
+            slug: t.slug.clone(),
+            name: t.name.clone(),
+            category: t.category.clone(),
+            nuansa: t.nuansa.clone(),
+            region: t.region.clone(),
+            palette: t.palette.clone(),
+            description: t.description.clone(),
+            tags: t.tags.clone(),
+            badge: t.badge.clone(),
+            rating: t.rating.clone(),
+            reviews: t.reviews.clone(),
+            rupa: t.rupa.clone(),
+            created: t.created,
+            sort_order: t.sort_order,
+            listed: t.listed,
+            dark: t.dark,
+            template: t.template.clone(),
+            ..Default::default()
         })
         .collect())
 }

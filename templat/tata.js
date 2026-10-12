@@ -697,7 +697,8 @@
         }, ms - 200);
         return;
       }
-      setTimeout(step, ms);
+      // Panggung 3D → prolog diputar utuh (gerak waktu ±8 dtk) sebelum gulir.
+      setTimeout(step, ms + (d.querySelector(".pg") ? 8600 : 0));
     };
     addEventListener("message", (e) => {
       if (e.origin === location.origin && e.data && e.data.pv === "show") show(!!e.data.beku);

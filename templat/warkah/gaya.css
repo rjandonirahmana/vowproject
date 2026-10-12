@@ -158,7 +158,9 @@
 @keyframes w-kilau { 0% { transform: translateX(-130%); } 50%, 100% { transform: translateX(380%); } }
 
 /* ── Kolom isi ─────────────────────────────────────────────────────────── */
-.w-main { position: relative; z-index: 1; width: var(--w-col); margin: 0 auto; padding: 0 0 40px; overflow: hidden; }
+/* overflow: CLIP (bukan hidden): hidden menjadikan .w-main kontainer gulir yang
+   tak pernah bergulir → panggung 3D tak bisa menempel & linimasa gulirnya mati. */
+.w-main { position: relative; z-index: 1; width: var(--w-col); margin: 0 auto; padding: 0 0 40px; overflow: clip; }
 .t-has-nav .w-main { padding-bottom: 104px; }
 .w-title { margin: 0 0 14px; font: 600 15px/1.4 var(--w-caps); letter-spacing: .22em; text-transform: uppercase; text-align: center; color: var(--w-deep); }
 .w-title--sm { font-size: 13px; margin-top: 18px; }

@@ -107,6 +107,8 @@ pub struct ThemeCatalog {
     gaya: std::collections::HashMap<String, axum::body::Bytes>,
     /// Semua varian rupa — pratinjau admin & demo `?rupa=`.
     pub rupa_all: axum::body::Bytes,
+    /// slug → resep panggung 3D UNIK (web/panggung.rs::tetapkan).
+    resep: std::collections::HashMap<String, crate::web::panggung::Resep>,
 }
 
 impl ThemeCatalog {
@@ -120,20 +122,21 @@ impl ThemeCatalog {
         let css_ringan = axum::body::Bytes::from(super::aset::tulis_ulang(&skin::catalog_css(&list, &anims)).into_owned());
         let fonts = skin::font_families(&list);
         let index = list.iter().enumerate().map(|(i, t)| (t.slug.clone(), i)).collect();
+        let resep = crate::web::panggung::tetapkan(list.iter().map(|t| (t.slug.as_str(), t.panggung())));
         let gaya = list
             .iter()
             .filter(|t| skin::is_slug(&t.slug))
-            .map(|t| (t.slug.clone(), axum::body::Bytes::from(theme_css(t, &t.rupa, &anims))))
+            .map(|t| (t.slug.clone(), axum::body::Bytes::from(theme_css(t, &t.rupa, &anims, resep.get(&t.slug)))))
             .collect();
         let rupa_all = axum::body::Bytes::from(super::aset::tulis_ulang(&crate::web::rupa::all_css()).into_owned());
-        Self { list, index, anims, css, css_ringan, version, fonts, gaya, rupa_all }
+        Self { list, index, anims, css, css_ringan, version, fonts, gaya, rupa_all, resep }
     }
 
     /// Isi `/gaya/{slug}.css`; `rupa` = timpaan demo (`?rupa=`), dihitung saat itu.
     pub fn gaya(&self, slug: &str, rupa: Option<&std::collections::BTreeMap<String, String>>) -> Option<axum::body::Bytes> {
         match rupa {
             None => self.gaya.get(slug).cloned(),
-            Some(r) => self.get(slug).map(|t| axum::body::Bytes::from(theme_css(t, r, &self.anims))),
+            Some(r) => self.get(slug).map(|t| axum::body::Bytes::from(theme_css(t, r, &self.anims, self.resep.get(slug)))),
         }
     }
 
@@ -146,6 +149,11 @@ impl ThemeCatalog {
         let fam = skin::font_families([t]);
         let fonts = crate::web::fmt::font_css(&fam, "swap");
         (css, fonts)
+    }
+
+    /// Resep panggung 3D tema ini (None = tanpa panggung).
+    pub fn resep(&self, slug: &str) -> Option<crate::web::panggung::Resep> {
+        self.resep.get(slug).copied()
     }
 
     pub fn get(&self, slug: &str) -> Option<&ThemeInfo> {
@@ -164,7 +172,7 @@ impl ThemeCatalog {
 }
 
 /// CSS satu tema: variabel + animasi yang benar-benar ia pakai + varian rupa.
-fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, anims: &[crate::web::anim::AnimInfo]) -> String {
+fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, anims: &[crate::web::anim::AnimInfo], resep: Option<&crate::web::panggung::Resep>) -> String {
     let mut css = format!(".th-{}{{{}}}\n", t.slug, skin::theme_vars_with(t, anims));
     for a in anims {
         let k = a.key();
@@ -174,7 +182,9 @@ fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, a
     }
     css.push_str(&crate::web::rupa::css(rupa));
     css.push_str(crate::web::pendamping::css(t.pendamping()));
-    css.push_str(crate::web::panggung::css(t.panggung()));
+    if let Some(r) = resep {
+        css.push_str(&crate::web::panggung::css_tema(r));
+    }
     super::aset::tulis_ulang(&css).into_owned()
 }
 

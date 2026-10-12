@@ -1,5 +1,5 @@
 /* Naga Emas (Tionghoa) — sampul di depan pintu gerbang pernis merah: paku
-   emas 9×9 berjajar, ketukan singa bercincin, naga emas melayang di atas
+   emas 9×9 berjajar, ketukan singa bercincin, naga emas berwarna melayang di atas
    pintu, lampion merah berayun pada kedalaman berbeda (3D).
    DIBUKA: daun pintu berayun ke dalam (rotate y, perspektif), naga terbang
    ke arah tamu & memudar, lampion naik ke langit, isi undangan muncul.
@@ -26,9 +26,11 @@
 {a} .gate__panel--r::before { left: 22px; }
 {a} .gate__panel::after { display: none; }
 /* Naga emas melayang di atas pintu. Melayang = `translate`; buka/tutup = `transform`. */
-{a} .gate__orn { display: block; position: absolute; left: 3%; right: 3%; top: 5%; height: 24%; z-index: 3; pointer-events: none; background: var(--emas);
-  -webkit-mask: url("/img/tema/dunia/naga.svg") center / contain no-repeat; mask: url("/img/tema/dunia/naga.svg") center / contain no-repeat;
-  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .5)); animation: nm-melayang 5s ease-in-out infinite alternate; }
+/* Ilustrasi naga BERWARNA (scripts/gerak/naga_warna.py): tubuh bersisik
+   meliuk, sirip & surai merah, kaki bercakar, mengejar mutiara api. */
+{a} .gate__orn { display: block; position: absolute; left: 2%; right: 2%; top: 4%; height: 26%; z-index: 3; pointer-events: none;
+  background: url("/img/tema/dunia/naga-warna.svg") center / contain no-repeat;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .45)); animation: nm-melayang 5s ease-in-out infinite alternate; }
 /* Lampion: 6 buah pada kedalaman berbeda (--s), berayun dari talinya. */
 {a} .gate__fx { display: block; z-index: 2; }
 {a} .gate__fx i { width: 54px; height: 64px; top: var(--y); left: var(--x); scale: var(--s); transform-origin: 50% -46px; border-radius: 50% / 46%;

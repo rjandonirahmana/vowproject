@@ -42,7 +42,7 @@
 .k-bg > * { width: var(--k-col); height: 100%; object-fit: cover; background: var(--k-cream); }
 .k-main {
     width: var(--k-col); margin: 0 auto; position: relative;
-    overflow: hidden; padding-bottom: 24px;
+    overflow: clip; padding-bottom: 24px;
     box-shadow: 0 0 60px rgba(30, 20, 10, .35);
 }
 

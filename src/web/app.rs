@@ -252,28 +252,10 @@ rute_terpisah! {
     KelolaRute => KelolaPage,
     ScanRute => ScanPage,
     SuntingRute => SuntingPage,
-    // Halaman layanan & info: kalkulator harga, formulir, teks panjang —
-    // tamu undangan & pengunjung beranda tak perlu mengunduh kodenya.
-    PaketRute => PaketPage,
-    PanduanRute => PanduanPage,
-    CetakRute => CetakPage,
-    DekorasiRute => DekorasiPage,
-    DekorasiDetailRute => DekorasiDetailPage,
-    MuaRute => MuaPage,
-    SeserahanRute => SeserahanPage,
-    PrivasiRute => PrivasiPage,
-    SyaratRute => SyaratPage,
-    // Beranda, demo tema & undangan tamu juga dipisah: potongan utama tinggal
-    // router + komponen bersama — tamu undangan tak mengunduh kode beranda
-    // (etalase, katalog, filter) dan pengunjung beranda tak mengunduh kode
-    // undangan (RSVP, kado, story).
-    KatalogRute => KatalogPage,
-    TemaRute => TemaPage,
-    UndanganRute => InvitationLayout,
-    SampulRute => SampulPage,
-    AcaraRute => AcaraPage,
-    RsvpRute => RsvpPage,
-    StoryRute => StoryPage,
+    // JANGAN memecah halaman publik (beranda, tema, undangan, paket, layanan):
+    // diukur Okt 2026 — 36 titik pecah membuat wasm-split menghasilkan 1.332
+    // potongan; beranda jadi mengunduh 556 berkas WASM (535 di bawah 2 KB)
+    // alih-alih 1. Halaman publik tetap di potongan utama (satu unduhan, di-cache).
 }
 
 #[component]
@@ -288,16 +270,16 @@ pub fn App() -> impl IntoView {
 
         <Router>
             <Routes fallback=NotFoundPage>
-                <Route path=path!("/") view={Lazy::<KatalogRute>::new()} />
-                <Route path=path!("/tema/:tema") view={Lazy::<TemaRute>::new()} ssr=SsrMode::Async />
+                <Route path=path!("/") view=KatalogPage />
+                <Route path=path!("/tema/:tema") view=TemaPage ssr=SsrMode::Async />
                 <Route path=path!("/buat") view={Lazy::<BuatRute>::new()} />
-                <Route path=path!("/paket") view={Lazy::<PaketRute>::new()} />
-                <Route path=path!("/panduan") view={Lazy::<PanduanRute>::new()} />
-                <Route path=path!("/cetak") view={Lazy::<CetakRute>::new()} />
-                <Route path=path!("/dekorasi") view={Lazy::<DekorasiRute>::new()} />
-                <Route path=path!("/dekorasi/:slug") view={Lazy::<DekorasiDetailRute>::new()} ssr=SsrMode::Async />
-                <Route path=path!("/mua") view={Lazy::<MuaRute>::new()} />
-                <Route path=path!("/seserahan") view={Lazy::<SeserahanRute>::new()} />
+                <Route path=path!("/paket") view=PaketPage />
+                <Route path=path!("/panduan") view=PanduanPage />
+                <Route path=path!("/cetak") view=CetakPage />
+                <Route path=path!("/dekorasi") view=DekorasiPage />
+                <Route path=path!("/dekorasi/:slug") view=DekorasiDetailPage ssr=SsrMode::Async />
+                <Route path=path!("/mua") view=MuaPage />
+                <Route path=path!("/seserahan") view=SeserahanPage />
                 <Route path=path!("/admin") view={Lazy::<AdminHomeRute>::new()} />
                 <Route path=path!("/admin/tema") view={Lazy::<AdminThemesRute>::new()} />
                 <Route path=path!("/admin/tema/:slug") view={Lazy::<AdminThemeEditRute>::new()} />
@@ -315,15 +297,15 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/admin/konten/:key") view={Lazy::<AdminKontenEditRute>::new()} />
                 <Route path=path!("/admin/akun") view={Lazy::<AdminAkunRute>::new()} />
                 <Route path=path!("/admin/profil") view={Lazy::<AdminProfilRute>::new()} />
-                <Route path=path!("/privasi") view={Lazy::<PrivasiRute>::new()} />
-                <Route path=path!("/syarat") view={Lazy::<SyaratRute>::new()} />
+                <Route path=path!("/privasi") view=PrivasiPage />
+                <Route path=path!("/syarat") view=SyaratPage />
                 // Async: <head> (og:title/description untuk pratinjau tautan WhatsApp)
                 // dan status 404 baru dikirim setelah data undangan siap.
-                <ParentRoute path=path!("/u/:slug") view={Lazy::<UndanganRute>::new()} ssr=SsrMode::Async>
-                    <Route path=path!("") view={Lazy::<SampulRute>::new()} />
-                    <Route path=path!("acara") view={Lazy::<AcaraRute>::new()} />
-                    <Route path=path!("rsvp") view={Lazy::<RsvpRute>::new()} />
-                    <Route path=path!("story") view={Lazy::<StoryRute>::new()} />
+                <ParentRoute path=path!("/u/:slug") view=InvitationLayout ssr=SsrMode::Async>
+                    <Route path=path!("") view=SampulPage />
+                    <Route path=path!("acara") view=AcaraPage />
+                    <Route path=path!("rsvp") view=RsvpPage />
+                    <Route path=path!("story") view=StoryPage />
                 </ParentRoute>
                 <Route path=path!("/kelola/:slug") view={Lazy::<KelolaRute>::new()} ssr=SsrMode::Async />
                 <Route path=path!("/kelola/:slug/scan") view={Lazy::<ScanRute>::new()} />
