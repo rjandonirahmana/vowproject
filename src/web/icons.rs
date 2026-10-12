@@ -226,7 +226,8 @@ mod tests {
                     stack.push(p);
                     continue;
                 }
-                let src = std::fs::read_to_string(&p).unwrap();
+                // Berkas non-teks (mis. .DS_Store buatan Finder) dilewati.
+                let Ok(src) = std::fs::read_to_string(&p) else { continue };
                 if p.ends_with("icons.rs") {
                     continue;
                 }

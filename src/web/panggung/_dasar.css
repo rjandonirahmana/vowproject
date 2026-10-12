@@ -67,6 +67,9 @@
     .pg__bulan { animation-name: pg-bulan; }
     .pg__jauh { animation-name: pg-jauh; }
     .pg__utama { animation-name: pg-utama; }
+    /* Mempelai menempel pada bangunan utama (keyframes sama) + pudar saat
+       bingkai foto asli mempelai tampil di close-up. */
+    .pg__insan { animation-name: pg-utama, pg-insan; }
     .pg__depan { animation-name: pg-depan; }
     .pg__pasangan { animation-name: pg-pasangan; }
     .pg__t1 { animation-name: pg-t1; }
@@ -76,11 +79,11 @@
     .pg__t5 { animation-name: pg-t5; }
     .pg__gulir { animation: pg-angguk 1.8s ease-in-out infinite, pg-gulir linear both; animation-timeline: auto, --pg; animation-range: normal, contain 0% contain 100%; }
     /* Varian KAMERA per tema (pg-k1…k5; k0 = maju lurus di atas). */
-    .pg-k1 .pg__jauh { animation-name: pg-jauh-k1; } .pg-k1 .pg__utama { animation-name: pg-utama-k1; } .pg-k1 .pg__depan { animation-name: pg-depan-k1; }
-    .pg-k2 .pg__jauh { animation-name: pg-jauh-k2; } .pg-k2 .pg__utama { animation-name: pg-utama-k2; } .pg-k2 .pg__depan { animation-name: pg-depan-k2; }
-    .pg-k3 .pg__jauh { animation-name: pg-jauh-k3; } .pg-k3 .pg__utama { animation-name: pg-utama-k3; } .pg-k3 .pg__depan { animation-name: pg-depan-k3; }
-    .pg-k4 .pg__jauh { animation-name: pg-jauh-k4; } .pg-k4 .pg__utama { animation-name: pg-utama-k4; } .pg-k4 .pg__depan { animation-name: pg-depan-k4; }
-    .pg-k5 .pg__jauh { animation-name: pg-jauh-k5; } .pg-k5 .pg__utama { animation-name: pg-utama-k5; } .pg-k5 .pg__depan { animation-name: pg-depan-k5; }
+    .pg-k1 .pg__jauh { animation-name: pg-jauh-k1; } .pg-k1 .pg__utama { animation-name: pg-utama-k1; } .pg-k1 .pg__insan { animation-name: pg-utama-k1, pg-insan; } .pg-k1 .pg__depan { animation-name: pg-depan-k1; }
+    .pg-k2 .pg__jauh { animation-name: pg-jauh-k2; } .pg-k2 .pg__utama { animation-name: pg-utama-k2; } .pg-k2 .pg__insan { animation-name: pg-utama-k2, pg-insan; } .pg-k2 .pg__depan { animation-name: pg-depan-k2; }
+    .pg-k3 .pg__jauh { animation-name: pg-jauh-k3; } .pg-k3 .pg__utama { animation-name: pg-utama-k3; } .pg-k3 .pg__insan { animation-name: pg-utama-k3, pg-insan; } .pg-k3 .pg__depan { animation-name: pg-depan-k3; }
+    .pg-k4 .pg__jauh { animation-name: pg-jauh-k4; } .pg-k4 .pg__utama { animation-name: pg-utama-k4; } .pg-k4 .pg__insan { animation-name: pg-utama-k4, pg-insan; } .pg-k4 .pg__depan { animation-name: pg-depan-k4; }
+    .pg-k5 .pg__jauh { animation-name: pg-jauh-k5; } .pg-k5 .pg__utama { animation-name: pg-utama-k5; } .pg-k5 .pg__insan { animation-name: pg-utama-k5, pg-insan; } .pg-k5 .pg__depan { animation-name: pg-depan-k5; }
   }
 }
 /* k1 — CRANE: kamera naik sambil mendekat (pemandangan turun). */
@@ -99,10 +102,11 @@
 @keyframes pg-jauh-k4 { 0% { transform: translateY(18%); } 20% { transform: translateY(6%); } 42% { transform: scale(1.18); } 70% { transform: scale(1.26) translateY(3%); } 100% { transform: scale(1.06); } }
 @keyframes pg-utama-k4 { 0% { transform: translateY(30%) scale(.92); } 16% { transform: translateY(8%); } 30% { transform: scale(1.35); } 42% { transform: scale(1.75); } 56% { transform: scale(2.15) translateY(4%); } 68% { transform: scale(2.2) translateY(5%); } 86% { transform: scale(1.2) translateY(9%); } 100% { transform: scale(1.06) translateY(6%); } }
 @keyframes pg-depan-k4 { 0% { transform: scale(.42) translateY(40%); opacity: 0; } 14% { transform: scale(.5) translateY(6%); opacity: 1; } 26% { transform: scale(1.5); } 34% { transform: scale(3); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
-/* k5 — MELAYANG: lintasan melengkung dengan kemiringan lembut. */
-@keyframes pg-jauh-k5 { 0% { transform: rotate(-1deg); } 42% { transform: scale(1.18) rotate(.8deg); } 70% { transform: scale(1.26) translateY(3%) rotate(1deg); } 100% { transform: scale(1.06); } }
-@keyframes pg-utama-k5 { 0% { transform: translateX(-3%) rotate(-1.4deg); } 30% { transform: scale(1.35) rotate(-.6deg); } 42% { transform: scale(1.75) rotate(.8deg); } 56% { transform: scale(2.15) translateY(4%) rotate(1.4deg); } 68% { transform: scale(2.2) translateY(5%) rotate(.8deg); } 86% { transform: scale(1.2) translateY(9%) rotate(-.6deg); } 100% { transform: scale(1.06) translateY(6%); } }
-@keyframes pg-depan-k5 { 0% { transform: scale(.42) rotate(-2deg); opacity: 1; } 12% { transform: scale(.55) rotate(-1.4deg); } 26% { transform: scale(1.5) rotate(.8deg); } 34% { transform: scale(3) rotate(1.4deg); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
+/* k5 — MELAYANG: lintasan melengkung ke samping (TANPA kemiringan —
+   memiringkan bangunan terlihat seperti panggung miring). */
+@keyframes pg-jauh-k5 { 0% { transform: translateX(-2%); } 42% { transform: scale(1.18) translateX(1.5%); } 70% { transform: scale(1.26) translate(2%, 3%); } 100% { transform: scale(1.06); } }
+@keyframes pg-utama-k5 { 0% { transform: translate(-5%, 2%); } 30% { transform: scale(1.35) translateX(-2%); } 42% { transform: scale(1.75) translateX(1.5%); } 56% { transform: scale(2.15) translate(2.5%, 4%); } 68% { transform: scale(2.2) translate(1.5%, 5%); } 86% { transform: scale(1.2) translate(-1.5%, 9%); } 100% { transform: scale(1.06) translateY(6%); } }
+@keyframes pg-depan-k5 { 0% { transform: scale(.42) translate(-8%, 3%); opacity: 1; } 12% { transform: scale(.55) translateX(-5%); } 26% { transform: scale(1.5) translateX(2%); } 34% { transform: scale(3) translateX(3%); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
 /* Versi CERMIN (properti `scale` terpisah dari `transform` animasi). */
 .pg-c .pg__lapis { scale: -1 1; }
 /* WARNA TEMA di seluruh pemandangan: lapisan multiply di atas langit &
@@ -121,6 +125,7 @@
 @keyframes pg-jauh { 0% { transform: none; } 42% { transform: scale(1.18); } 70% { transform: scale(1.26) translateY(3%); } 100% { transform: scale(1.06); } }
 @keyframes pg-utama { 0% { transform: none; } 30% { transform: scale(1.35); } 42% { transform: scale(1.75); } 56% { transform: scale(2.15) translateY(4%); } 68% { transform: scale(2.2) translateY(5%); } 86% { transform: scale(1.2) translateY(9%); } 100% { transform: scale(1.06) translateY(6%); } }
 @keyframes pg-depan { 0% { transform: scale(.42); opacity: 1; } 12% { transform: scale(.55); } 26% { transform: scale(1.5); } 34% { transform: scale(3); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
+@keyframes pg-insan { 0%, 44% { opacity: 1; } 50%, 70% { opacity: 0; } 78%, 100% { opacity: 1; } }
 @keyframes pg-pasangan { 0%, 44% { opacity: 0; transform: translateY(14%) scale(.9); } 52% { opacity: 1; transform: none; } 66% { opacity: 1; transform: none; } 74%, 100% { opacity: 0; transform: translateY(-8%) scale(.92); } }
 @keyframes pg-t1 { 0%, 8% { opacity: 1; transform: none; } 18%, 100% { opacity: 0; transform: translateY(-30%); } }
 @keyframes pg-t2 { 0%, 17% { opacity: 0; transform: scale(.86); } 23% { opacity: 1; transform: none; } 31% { opacity: 1; transform: scale(1.06); } 36%, 100% { opacity: 0; transform: scale(1.22); } }
@@ -133,11 +138,13 @@
 @supports not (animation-timeline: view()) {
   .pg { height: auto; } .pg__layar { position: relative; }
   .pg__depan { transform: scale(.42); }
+  .pg__insan { opacity: 1; }
   .pg__t2, .pg__t3, .pg__t4, .pg__t5, .pg__pasangan, .pg__gulir { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pg { height: auto; } .pg__layar { position: relative; }
   .pg__depan { transform: scale(.42); }
+  .pg__insan { opacity: 1; }
   .pg__t2, .pg__t3, .pg__t4, .pg__t5, .pg__pasangan, .pg__gulir { display: none; }
 }
 
@@ -149,7 +156,7 @@ html:is(.is-pv, .t-pv) .pg { height: 100svh; }
 html:is(.is-pv, .t-pv) .pg__gulir { display: none; }
 html:is(.is-pv, .t-pv):not(.inv-opened):not(.t-open) .pg__layar > * { animation: none !important; }
 html:is(.is-pv, .t-pv):is(.inv-opened, .t-open) .pg__layar > * { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 8s !important;
-  animation-delay: .35s !important; animation-timing-function: cubic-bezier(.45, .05, .55, .95) !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
+  animation-delay: 1.5s !important; animation-timing-function: cubic-bezier(.45, .05, .55, .95) !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
 
 /* Mesin TEMPLAT (kusuma, warkah) tak memuat main.css: gaya minimum di sini. */
 .pg .script { font-family: var(--font-script, var(--font-display, cursive)); font-weight: var(--script-weight, 400); }
@@ -174,6 +181,15 @@ html:is(.is-pv, .t-pv):is(.inv-opened, .t-open) .pg__layar > * { animation-timel
     .inv--rail:has(.pg) > .inv-top { position: fixed; top: 16px; left: var(--col-x); margin: 0; animation: pg-sembunyi linear both; animation-timeline: --pg; animation-range: cover 0% cover 100%; }
     .inv--rail .pg { --pg-atas: 0px; }
   }
-  .inv:has(.pg) .pg { margin-top: -8px; }
 }
 @keyframes pg-sembunyi { 0% { opacity: 1; } 12%, 88% { opacity: 0; visibility: hidden; } 100% { opacity: 1; } }
+
+/* Panggung mulai TEPAT dari tepi atas layar: kontainer isi tanpa padding atas
+   (HP 18 px, desktop 8 px) — dulu latar undangan mengintip di atas panggung. */
+.inv:has(.pg) .inv__main { padding-top: 0; }
+
+/* Pratinjau etalase (iframe berbagi thread dengan beranda): pendamping &
+   hiasan melayang tak dirender — di layar HP mini nyaris tak terlihat, tapi
+   menambah kerja tiap frame saat tema baru dimuat. Kamera panggung baru
+   bergerak setelah pintu gerbang selesai (delay 1,5 dtk di atas). */
+html:is(.is-pv, .t-pv) .pdp, html:is(.is-pv, .t-pv) .float-deco { display: none !important; }

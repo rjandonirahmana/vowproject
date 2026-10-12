@@ -11169,3 +11169,164 @@ details.adm-song[open] {
         display: none;
     }
 }
+
+/* ── /buat: navigasi bagian, panel opsional, bilah HP ──────────────────── */
+.buat-nav {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 10px clamp(12px, 3vw, 24px);
+    margin: 0 auto 12px;
+    max-width: 1240px;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    scrollbar-width: none;
+}
+.buat-nav a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--surface-low, #f3f3ef);
+}
+.buat-nav a span {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 11px;
+    background: var(--primary);
+    color: var(--on-primary, #fff);
+}
+.fsec, .tambahan, #paket {
+    scroll-margin-top: 64px;
+}
+.tambahan {
+    padding: 0;
+}
+.tambahan > summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px;
+    cursor: pointer;
+}
+.tambahan > summary::-webkit-details-marker {
+    display: none;
+}
+.tambahan > summary span {
+    flex: 1;
+}
+.tambahan > summary small {
+    display: block;
+    color: var(--muted);
+    font-weight: 400;
+}
+.tambahan[open] > summary .ms:last-child {
+    rotate: 180deg;
+}
+.tambahan > .fsec {
+    box-shadow: none;
+    border-top: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+    border-radius: 0;
+}
+.momen > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px dashed var(--line-gold, #d9c9a0);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary);
+    cursor: pointer;
+    list-style: none;
+}
+.momen > summary::-webkit-details-marker {
+    display: none;
+}
+.momen[open] > summary {
+    display: none;
+}
+.buat-bar {
+    display: none;
+}
+@media (max-width: 899px) {
+    .buat-bar {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: max(12px, env(safe-area-inset-bottom));
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 10px 10px 18px;
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--card) 96%, transparent);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.35);
+    }
+    .buat-bar small {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+    }
+    .buat-bar b {
+        font-size: 17px;
+    }
+    .buat {
+        padding-bottom: 90px;
+    }
+}
+
+/* "Lewati intro" di gerbang: kecil di pojok, tak bersaing dengan tombol buka. */
+.gate__lewati {
+    position: absolute;
+    z-index: 6;
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.38);
+    cursor: pointer;
+}
+.inv-opened .gate__lewati {
+    display: none;
+}
+.inv-instan .gate:not(.gate--embed),
+.inv-instan .gate:not(.gate--embed) * {
+    transition: none !important;
+    animation: none !important;
+}
+.inv-instan .gate:not(.gate--embed) {
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+/* CTA konfirmasi kehadiran setelah info acara. */
+.cta-rsvp {
+    display: flex;
+    justify-content: center;
+    margin: 4px 0 8px;
+}
+
+/* Pratinjau etalase: peta Google (iframe lazy) tak dimuat di iframe mini. */
+html.is-pv .mapcard iframe {
+    display: none;
+}

@@ -58,6 +58,7 @@
 
 {#- ── SAMPUL (gerbang): kartu kaca bersegel ───────────────────────────────── #}
 <section class="w-gate" data-gate aria-label="{{ t.sampul_label }}">
+  <button type="button" class="t-lewati" data-open-instan>{{ t.lewati_intro }}</button>
   <div class="w-gate__card">
     <img class="w-gate__orn w-gate__orn--tl" src="{{ a.sudut }}" alt="" aria-hidden="true">
     <img class="w-gate__orn w-gate__orn--br" src="{{ a.sudut }}" alt="" aria-hidden="true">
@@ -157,7 +158,7 @@
   {#- ── 5. Hitung mundur & kalender berhati ────────────────────────────── #}
   {%- if first and first.cal_days %}
   <section class="w-save">
-    <h2 class="w-title" data-s="atas">Save The Date</h2>
+    <h2 class="w-title" data-s="atas">{{ t.judul_simpan }}</h2>
     {%- if countdown_ms %}
     <p class="w-count" data-countdown="{{ countdown_ms }}" data-s="atas">
       <span><b data-cd="d">0</b> {{ t.hari }}</span>

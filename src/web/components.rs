@@ -81,7 +81,7 @@ pub fn Countdown(
                 <div class="countdown__photo"><FotoGerak photos=photos.clone() alt=tx!(l, "Foto pasangan", "Photo of the couple").to_string() /></div>
             })}
             <p class="eyebrow eyebrow--gold eyebrow--center">{title}</p>
-            <h2 class="script countdown__title">"Save The Date"</h2>
+            <h2 class="script countdown__title">{tx!(l, "Simpan Tanggal", "Save The Date")}</h2>
             {(!date.is_empty()).then(|| view! { <p class="countdown__date">{date}</p> })}
             <div class="countdown__grid">
                 <div class="countdown__tile"><b data-cd="d">"0"</b><span>{tx!(l, "Hari", "Days")}</span></div>
@@ -199,7 +199,7 @@ pub fn LoveStorySection(items: Vec<LoveStory>, #[prop(optional)] photos: Vec<Str
             <section class="section orn-host">
                 <Ornamen bagian="kisah" />
                 <p class="eyebrow eyebrow--center">{tx!(l, "Perjalanan Kami", "Our Journey")}</p>
-                <h2 class="section__title">"Love Story"</h2>
+                <h2 class="section__title">{tx!(l, "Kisah Cinta", "Love Story")}</h2>
                 <ol class="story card">
                     {items.into_iter().enumerate().map(|(i, it)| {
                         let img = if it.img.is_empty() { photos.get(i).cloned().unwrap_or_default() } else { it.img.clone() };
@@ -556,7 +556,7 @@ pub fn Gallery(photos: Vec<String>) -> impl IntoView {
             <section class="section orn-host">
                 <Ornamen bagian="galeri" />
                 <p class="eyebrow eyebrow--center">{tx!(l, "Momen Kebahagiaan", "Our Happy Moments")}</p>
-                <h2 class="section__title">"Our Moments"</h2>
+                <h2 class="section__title">{tx!(l, "Momen Kami", "Our Moments")}</h2>
                 <div class="gallery gallery--masonry">
                     {photos.into_iter().map(|src| view! {
                         <a class="gallery__item" href=src.split('#').next().unwrap_or("").to_string() target="_blank" rel="noopener">

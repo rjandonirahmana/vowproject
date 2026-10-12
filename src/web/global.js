@@ -154,9 +154,14 @@
       // Dibuka lagi di tengah gerak tutup → batalkan sisa penutupan.
       if(closing){ clearTimeout(closing); closing=0; d.documentElement.classList.remove('inv-closing'); }
       if(g0) g0.classList.remove('gate--ulang');
+      // "Lewati intro" (data-open="lewati"): gerbang hilang seketika tanpa
+      // gerak pintu/video — isi langsung terbaca.
+      var instan=el.getAttribute('data-open')==='lewati';
+      d.documentElement.classList.toggle('inv-instan', instan);
       burst(el); play(true); d.documentElement.classList.add('inv-opened','inv-seen');
       if(d.querySelector('.gate')) window.scrollTo({top:0, behavior:'instant'});
-      if(!openGate(g0, d)){ playBg(d); holdReveal(gateReveal(g0)); }
+      if(instan){ if(g0) g0.classList.add('gate--selesai'); playBg(d); holdReveal(0); }
+      else if(!openGate(g0, d)){ playBg(d); holdReveal(gateReveal(g0)); }
       // Setelah benar-benar tersembunyi (transisi visibility tiap animasi buka
       // berbeda; gerbang video menunggu videonya), lepas dari render.
       // SATU pemeriksa saja (dibatalkan saat ditutup) — tak menumpuk tiap buka.
@@ -190,6 +195,7 @@
     var h=d.documentElement, g=d.querySelector('.gate:not(.gate--embed)');
     if(!g || closing || !h.classList.contains('inv-opened')) return;
     clearTimeout(offT);
+    h.classList.remove('inv-instan');
     var ms=calm || h.classList.contains('motion-min') ? 0 : (parseInt(getComputedStyle(g).getPropertyValue('--gate-close'),10) || 1400);
     var a=audio(); if(a && !a.paused) fadeTo(a, 0, 500, function(){ pause(); try{ a.volume=1; }catch(_){} });
     try{ sessionStorage.setItem(KEY,'0'); }catch(_){}
@@ -250,7 +256,8 @@
     if(now){ if(v.readyState>=1) go(); else v.addEventListener('loadedmetadata', go, {once:true}); }
   }
   function playGateBg(){
-    if(calm || d.documentElement.classList.contains('motion-min')) return;
+    // Pratinjau etalase: video gerbang/latar tak diunduh — poster saja.
+    if(calm || d.documentElement.classList.contains('motion-min') || d.documentElement.classList.contains('is-pv')) return;
     // Setelah `load`: video tak berebut jaringan dengan CSS, font & foto sampul
     // (poster tampil sampai itu). Video pintu dipanaskan agar siap saat dibuka.
     if(d.readyState!=='complete') return;
@@ -273,7 +280,8 @@
     if(!opening && revealAt>Date.now()) holdReveal(0);
   });
   function playBg(root){
-    if(d.documentElement.classList.contains('motion-min')) return;
+    // Pratinjau etalase: video latar tetap poster (lihat openGate).
+    if(d.documentElement.classList.contains('motion-min') || d.documentElement.classList.contains('is-pv')) return;
     (root||d).querySelectorAll('video[data-bgvideo]').forEach(function(v){
       v.setAttribute('data-bv','1');
       // Pengulangan (`#loop=`) dipasang SEKALI per video — playBg bisa dipanggil
@@ -331,7 +339,9 @@
     var done=false, fin=function(){ if(done || v._fin!==fin) return; done=true; dropFin(v); g.classList.add('is-done'); g.querySelectorAll('video[data-gatebg]').forEach(function(x){ x.pause(); }); playBg(root); holdReveal(gateReveal(g)); };
     v._fin=fin;
     holdReveal(120000);
-    if(calm || d.documentElement.classList.contains('motion-min')){ fin(); return true; }
+    // Pratinjau etalase (html.is-pv): video pembuka DILEWATI — dekode video di
+    // iframe mini yang berbagi thread dengan beranda = patah-patah & pecah piksel.
+    if(calm || d.documentElement.classList.contains('motion-min') || d.documentElement.classList.contains('is-pv')){ fin(); return true; }
     v.muted=true; try{ v.currentTime=0; }catch(_){}
     v.addEventListener('ended', fin, {once:true}); v.addEventListener('error', fin, {once:true});
     var pr=v.play(); if(pr&&pr.catch) pr.catch(fin);
@@ -583,6 +593,8 @@
       });
     });
     var note=d.querySelector('[data-draft-note]'); if(note) note.hidden=false;
+    // Isian yang dipulihkan di panel terlipat (Tambahan / Tambah momen) → panelnya dibuka.
+    d.querySelectorAll('form[data-keep] details').forEach(function(dt){ if([].some.call(dt.querySelectorAll('input:not([type=file]),textarea'), function(i){ return i.value; })) dt.open=true; });
   }
   new MutationObserver(function(){
     var h=d.documentElement;
@@ -787,22 +799,34 @@
         return;
       }
       // Gulir setelah gerbang selesai terbuka (gerak buka utuh terlihat):
-      // per SEGMEN (±55% layar tiap 2,4 dtk) dengan gulir halus bawaan
-      // browser — dikerjakan compositor, thread utama senggang di antaranya.
-      // Dulu scrollTo tiap frame lewat rAF: pratinjau (berbagi thread dengan
-      // beranda) membuat seluruh beranda turun ke ±30 fps selama diputar.
+      // per SEGMEN (±50% layar tiap 2,4 dtk), thread utama senggang di
+      // antaranya. Dulu gulir rAF TANPA henti: pratinjau (berbagi thread
+      // dengan beranda) membuat seluruh beranda turun ke ±30 fps.
       // Di dasar: jeda, kembali ke atas, ulangi.
       var g=d.querySelector('.gate:not(.gate--embed)');
+      // Gulir halus bawaan Safari menempuh 55% layar dalam ±170 ms — di
+      // rekaman terlihat sebagai LOMPATAN + panel kosong sebelum reveal.
+      // Jadi tiap segmen dihaluskan sendiri (ease-in-out 1,4 dtk via rAF),
+      // thread utama tetap senggang ±1 dtk di antara segmen.
+      var luncur=function(ke, ms, lalu){
+        var dari=window.scrollY, t0=0;
+        var f=function(t){
+          if(!t0) t0=t;
+          var k=Math.min(1,(t-t0)/ms); k=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+          window.scrollTo(0, dari+(ke-dari)*k);
+          if((t-t0)<ms) requestAnimationFrame(f); else lalu();
+        };
+        requestAnimationFrame(f);
+      };
       var langkah=function(){
         var max=d.documentElement.scrollHeight-innerHeight, y=window.scrollY;
         if(max<=0) return;
-        if(y>=max-4){ setTimeout(function(){ window.scrollTo({top:0, behavior:'smooth'}); setTimeout(langkah, 2600); }, 1400); return; }
-        window.scrollTo({top:Math.min(max, y+innerHeight*0.55), behavior:'smooth'});
-        setTimeout(langkah, 2400);
+        if(y>=max-4){ setTimeout(function(){ luncur(0, 1800, function(){ setTimeout(langkah, 1200); }); }, 1400); return; }
+        luncur(Math.min(max, y+innerHeight*0.5), 1400, function(){ setTimeout(langkah, 1000); });
       };
       // Ada panggung 3D → prolognya diputar utuh dulu (gerak waktu ±8 dtk,
       // panggung/_dasar.css) sebelum gulir per segmen dimulai.
-      var pg=d.querySelector('.pg') ? 8600 : 0;
+      var pg=d.querySelector('.pg') ? 9800 : 0;
       setTimeout(langkah, (o ? gateReveal(g)+1600 : 300)+pg);
     };
     window.addEventListener('message', function(e){ if(e.origin===location.origin && e.data && e.data.pv==='show') pvRun(!!e.data.beku); });

@@ -10,7 +10,7 @@
   animation: ng-terbang 22s cubic-bezier(.4, .1, .6, .9) calc(1.5s + var(--i) * .17s) infinite both; }
 @media (max-width: 760px) { {p} i:nth-child(-n+14) { offset-path: path("M -380 520 C -40 300, 140 660, 230 470 S 380 220, 760 400"); } }
 /* kepala: tanduk, surai, rahang terbuka, kumis (SVG berwarna penuh) */
-{p} i:nth-child(1) { width: 150px; height: 96px; background-image: {svg:naga-kepala}; filter: drop-shadow(0 3px 5px rgba(90, 30, 0, .35)); }
+{p} i:nth-child(1) { width: 172px; height: 130px; background-image: {svg:naga-kepala}; filter: drop-shadow(0 3px 5px rgba(90, 30, 0, .35)); }
 /* badan bersisik + sirip punggung, mengecil ke ekor; dua pasang kaki bercakar */
 {p} i:nth-child(n+2):nth-child(-n+13) { --s: calc(1 - (var(--i) - 1) * .045); width: calc(96px * var(--s)); height: calc(60px * var(--s)); background-image: {svg:naga-badan}; filter: drop-shadow(0 2px 3px rgba(90, 30, 0, .25)); }
 {p} i:nth-child(3)::after, {p} i:nth-child(9)::after { content: ""; position: absolute; left: 30%; top: 72%; width: 46%; aspect-ratio: 1; background: {svg:naga-kaki} center / contain no-repeat; transform-origin: 30% 0; animation: ng-cakar 1.4s ease-in-out infinite alternate; }

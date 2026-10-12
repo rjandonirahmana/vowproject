@@ -141,7 +141,8 @@
       });
   });
   const playBg = () => {
-    if (reduce || html.classList.contains("t-lite")) return;
+    // Pratinjau etalase (pv): video latar tetap poster — hemat thread beranda.
+    if (reduce || pv || html.classList.contains("t-lite")) return;
     bgVideos.forEach((v) => {
       if (v.preload === "none") v.preload = "auto";
       v.play().catch(() => {});
@@ -222,7 +223,8 @@
   // t-lite / reduce: video pembuka tak pernah diunduh (templat preload="none");
   // perangkat & koneksi kuat mulai memuatnya sekarang agar siap saat dibuka.
   const openEl = d.querySelector("video[data-open-video]");
-  const openVideo = lite || reduce ? null : openEl;
+  // Pratinjau (pv): video pintu tak diunduh sama sekali (707 KB per tema).
+  const openVideo = lite || reduce || pv ? null : openEl;
   if (openVideo) openVideo.preload = "auto";
   const finish = () => {
     if (opened) return;
@@ -261,7 +263,9 @@
     const run = ++openRun;
     const fin = () => run === openRun && finish();
     if (!instant) playMusic();
-    if (instant || reduce || !openVideo) {
+    // Pratinjau etalase (pv): video pintu dilewati — dekode video di iframe
+    // mini berbagi thread dengan beranda = patah-patah & pecah piksel.
+    if (instant || reduce || !openVideo || pv) {
       if (instant) html.classList.add("t-instant");
       html.classList.add("t-opening");
       return void setTimeout(fin, instant ? 0 : +(data.gate_ms || 900));
@@ -313,6 +317,10 @@
     d.body.appendChild(box);
     setTimeout(() => box.remove(), 2000);
   };
+  // "Lewati intro": buka seketika (tanpa gerak pintu/video), musik tetap diputar.
+  q("[data-open-instan]").forEach((b) =>
+    b.addEventListener("click", (e) => { e.preventDefault(); open(true); playMusic(); })
+  );
   q("[data-open]").forEach((b) =>
     b.addEventListener("click", (e) => {
       e.preventDefault();
@@ -698,24 +706,36 @@
         return;
       }
       // Panggung 3D → prolog diputar utuh (gerak waktu ±8 dtk) sebelum gulir.
-      setTimeout(step, ms + (d.querySelector(".pg") ? 8600 : 0));
+      setTimeout(step, ms + (d.querySelector(".pg") ? 9800 : 0));
     };
     addEventListener("message", (e) => {
       if (e.origin === location.origin && e.data && e.data.pv === "show") show(!!e.data.beku);
     });
     setTimeout(() => show(false), 1200);
-    // Gulir per SEGMEN (±55% layar tiap 2,4 dtk) dengan gulir halus bawaan
-    // (compositor) — dulu scrollTo tiap frame lewat rAF membebani thread
-    // beranda selama pratinjau diputar. Di dasar: jeda, kembali ke atas.
+    // Gulir per SEGMEN (±50% layar tiap 2,4 dtk), bukan rAF terus-menerus —
+    // thread beranda senggang di antara segmen. Di dasar: jeda, kembali ke atas.
+    // Gulir halus bawaan Safari menempuh 55% layar dalam ±170 ms (terlihat
+    // melompat) → tiap segmen dihaluskan sendiri: ease-in-out 1,4 dtk.
+    const luncur = (ke, ms, lalu) => {
+      const dari = scrollY;
+      let t0 = 0;
+      const f = (t) => {
+        if (!t0) t0 = t;
+        let k = Math.min(1, (t - t0) / ms);
+        k = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        scrollTo(0, dari + (ke - dari) * k);
+        if (t - t0 < ms) requestAnimationFrame(f); else lalu();
+      };
+      requestAnimationFrame(f);
+    };
     const step = () => {
       const max = d.documentElement.scrollHeight - innerHeight;
       if (max <= 0) return;
       if (scrollY >= max - 4) {
-        setTimeout(() => { scrollTo({ top: 0, behavior: "smooth" }); setTimeout(step, 2600); }, 1400);
+        setTimeout(() => luncur(0, 1800, () => setTimeout(step, 1200)), 1400);
         return;
       }
-      scrollTo({ top: Math.min(max, scrollY + innerHeight * 0.55), behavior: "smooth" });
-      setTimeout(step, 2400);
+      luncur(Math.min(max, scrollY + innerHeight * 0.5), 1400, () => setTimeout(step, 1000));
     };
     try {
       parent.postMessage({ pv: "ready" }, location.origin);

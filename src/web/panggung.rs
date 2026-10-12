@@ -17,6 +17,8 @@ pub struct Adegan {
     /// Latar jauh yang sesuai budaya (indeks 0 = bawaan).
     jauh: &'static [&'static str],
     utama: &'static str,
+    /// Sepasang mempelai (busana sesuai budaya): modern | muslim | adat | oriental.
+    insan: &'static str,
     /// Gerbang depan yang sesuai budaya (indeks 0 = bawaan).
     depan: &'static [&'static str],
     langit: &'static str,
@@ -24,25 +26,25 @@ pub struct Adegan {
 }
 
 pub const ADEGAN: &[Adegan] = &[
-    Adegan { slug: "masjid", nama: "Masjid Putih", jauh: &["masjid-jauh", "jawa-jauh", "hutan-jauh"], utama: "masjid-utama", depan: &["masjid-depan", "gapura-depan", "pohon-depan"], langit: "linear-gradient(#d3d9e0, #eceff3 55%, #e9ecef)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
-    Adegan { slug: "jawa", nama: "Pendopo & Candi Bentar", jauh: &["jawa-jauh", "hutan-jauh", "kapel-jauh"], utama: "jawa-utama", depan: &["jawa-depan", "gapura-depan", "pohon-depan"], langit: "linear-gradient(#efe6d6, #f7f2e8 55%, #efece4)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "bali", nama: "Meru & Candi Bentar", jauh: &["jawa-jauh", "laut-jauh", "hutan-jauh"], utama: "meru-utama", depan: &["jawa-depan", "gapura-depan", "pohon-depan"], langit: "linear-gradient(#efe6d6, #f7f2e8 55%, #efece4)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "tionghoa", nama: "Gerbang Bulan", jauh: &["tionghoa-jauh", "hutan-jauh"], utama: "tionghoa-utama", depan: &["tionghoa-depan", "gapura-depan"], langit: "linear-gradient(#dfe2e6, #f2f1ef 55%, #ecebe8)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
-    Adegan { slug: "kapel", nama: "Kapel & Lengkung Bunga", jauh: &["kapel-jauh", "hutan-jauh", "laut-jauh"], utama: "kapel-utama", depan: &["kapel-depan", "pohon-depan", "gapura-depan"], langit: "linear-gradient(#e6e4ea, #f6f3f4 55%, #eeeeec)", cahaya: "radial-gradient(circle at 45% 45%, #fffdf8, #fbeef0 55%, rgba(251,238,240,0) 71%)" },
-    Adegan { slug: "minang", nama: "Rumah Gadang", jauh: &["jawa-jauh", "hutan-jauh"], utama: "gadang-utama", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#efe6d6, #f7f2e8 55%, #efece4)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "toraja", nama: "Tongkonan & Rumah Bolon", jauh: &["jawa-jauh", "hutan-jauh"], utama: "tongkonan-utama", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#efe6d6, #f7f2e8 55%, #efece4)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "melayu", nama: "Rumah Panggung Melayu", jauh: &["jawa-jauh", "laut-jauh", "hutan-jauh"], utama: "panggung-utama", depan: &["gapura-depan", "pohon-depan", "kapel-depan"], langit: "linear-gradient(#f0e2c4, #f8f1e2 55%, #f1ece0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "bahari", nama: "Rumah Panggung Pesisir", jauh: &["laut-jauh", "jawa-jauh"], utama: "panggung-utama", depan: &["gapura-depan", "pohon-depan", "kapel-depan"], langit: "linear-gradient(#cfdde6, #eef3f6 55%, #e9eef0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "dayak", nama: "Rumah Lamin", jauh: &["hutan-jauh", "jawa-jauh"], utama: "lamin-utama", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#dbe4d8, #f1f4ee 55%, #ebeee8)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "papua", nama: "Honai Lembah", jauh: &["hutan-jauh", "jawa-jauh"], utama: "honai-utama", depan: &["pohon-depan", "gapura-depan"], langit: "linear-gradient(#dbe4d8, #f1f4ee 55%, #ebeee8)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "jepang", nama: "Kuil & Torii", jauh: &["fuji-jauh", "hutan-jauh"], utama: "kuil-utama", depan: &["torii-depan", "gapura-depan", "pohon-depan"], langit: "linear-gradient(#e6e4ea, #f6f3f4 55%, #eeeeec)", cahaya: "radial-gradient(circle at 45% 45%, #fffdf8, #fbeef0 55%, rgba(251,238,240,0) 71%)" },
-    Adegan { slug: "korea", nama: "Istana Hanok", jauh: &["hutan-jauh", "tionghoa-jauh"], utama: "tionghoa-utama", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#dfe2e6, #f2f1ef 55%, #ecebe8)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
-    Adegan { slug: "thai", nama: "Wat Emas", jauh: &["jawa-jauh", "hutan-jauh"], utama: "wat-utama", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#f0e2c4, #f8f1e2 55%, #f1ece0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "buddhis", nama: "Stupa", jauh: &["hutan-jauh", "jawa-jauh"], utama: "stupa-utama", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#f0e2c4, #f8f1e2 55%, #f1ece0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "alam", nama: "Paviliun Hutan", jauh: &["hutan-jauh", "jawa-jauh", "laut-jauh"], utama: "paviliun-utama", depan: &["pohon-depan", "kapel-depan", "gapura-depan"], langit: "linear-gradient(#dbe4d8, #f1f4ee 55%, #ebeee8)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "laut", nama: "Paviliun Pantai", jauh: &["laut-jauh", "kapel-jauh"], utama: "paviliun-utama", depan: &["kapel-depan", "pohon-depan"], langit: "linear-gradient(#cfdde6, #eef3f6 55%, #e9eef0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
-    Adegan { slug: "taman", nama: "Paviliun Taman", jauh: &["kapel-jauh", "hutan-jauh", "laut-jauh"], utama: "paviliun-utama", depan: &["kapel-depan", "pohon-depan", "gapura-depan"], langit: "linear-gradient(#d3d9e0, #eceff3 55%, #e9ecef)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
-    Adegan { slug: "malam", nama: "Paviliun Malam", jauh: &["kapel-jauh", "hutan-jauh"], utama: "paviliun-utama", depan: &["kapel-depan", "pohon-depan"], langit: "linear-gradient(#1c2340, #2e3557 55%, #3a3f5c)", cahaya: "radial-gradient(circle at 40% 38%, #fffbe8, #f1e6c2 60%, rgba(241,230,194,0) 71%)" },
+    Adegan { slug: "masjid", nama: "Masjid Putih", jauh: &["masjid-jauh", "jawa-jauh", "hutan-jauh"], utama: "masjid-utama", insan: "insan-muslim", depan: &["masjid-depan", "gapura-depan", "pohon-depan"], langit: "linear-gradient(#d3d9e0, #eceff3 55%, #e9ecef)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
+    Adegan { slug: "jawa", nama: "Pendopo & Candi Bentar", jauh: &["jawa-jauh", "hutan-jauh", "kapel-jauh"], utama: "jawa-utama", insan: "insan-adat", depan: &["jawa-depan", "gapura-depan", "pohon-depan"], langit: "linear-gradient(#efe6d6, #f7f2e8 55%, #efece4)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "bali", nama: "Meru & Candi Bentar", jauh: &["jawa-jauh", "laut-jauh", "hutan-jauh"], utama: "meru-utama", insan: "insan-adat", depan: &["jawa-depan", "gapura-depan", "pohon-depan"], langit: "linear-gradient(#efe6d6, #f7f2e8 55%, #efece4)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "tionghoa", nama: "Gerbang Bulan", jauh: &["tionghoa-jauh", "hutan-jauh"], utama: "tionghoa-utama", insan: "insan-oriental", depan: &["tionghoa-depan", "gapura-depan"], langit: "linear-gradient(#dfe2e6, #f2f1ef 55%, #ecebe8)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
+    Adegan { slug: "kapel", nama: "Kapel & Lengkung Bunga", jauh: &["kapel-jauh", "hutan-jauh", "laut-jauh"], utama: "kapel-utama", insan: "insan-modern", depan: &["kapel-depan", "pohon-depan", "gapura-depan"], langit: "linear-gradient(#e6e4ea, #f6f3f4 55%, #eeeeec)", cahaya: "radial-gradient(circle at 45% 45%, #fffdf8, #fbeef0 55%, rgba(251,238,240,0) 71%)" },
+    Adegan { slug: "minang", nama: "Rumah Gadang", jauh: &["jawa-jauh", "hutan-jauh"], utama: "gadang-utama", insan: "insan-adat", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#efe6d6, #f7f2e8 55%, #efece4)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "toraja", nama: "Tongkonan & Rumah Bolon", jauh: &["jawa-jauh", "hutan-jauh"], utama: "tongkonan-utama", insan: "insan-adat", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#efe6d6, #f7f2e8 55%, #efece4)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "melayu", nama: "Rumah Panggung Melayu", jauh: &["jawa-jauh", "laut-jauh", "hutan-jauh"], utama: "panggung-utama", insan: "insan-adat", depan: &["gapura-depan", "pohon-depan", "kapel-depan"], langit: "linear-gradient(#f0e2c4, #f8f1e2 55%, #f1ece0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "bahari", nama: "Rumah Panggung Pesisir", jauh: &["laut-jauh", "jawa-jauh"], utama: "panggung-utama", insan: "insan-adat", depan: &["gapura-depan", "pohon-depan", "kapel-depan"], langit: "linear-gradient(#cfdde6, #eef3f6 55%, #e9eef0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "dayak", nama: "Rumah Lamin", jauh: &["hutan-jauh", "jawa-jauh"], utama: "lamin-utama", insan: "insan-adat", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#dbe4d8, #f1f4ee 55%, #ebeee8)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "papua", nama: "Honai Lembah", jauh: &["hutan-jauh", "jawa-jauh"], utama: "honai-utama", insan: "insan-adat", depan: &["pohon-depan", "gapura-depan"], langit: "linear-gradient(#dbe4d8, #f1f4ee 55%, #ebeee8)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "jepang", nama: "Kuil & Torii", jauh: &["fuji-jauh", "hutan-jauh"], utama: "kuil-utama", insan: "insan-oriental", depan: &["torii-depan", "gapura-depan", "pohon-depan"], langit: "linear-gradient(#e6e4ea, #f6f3f4 55%, #eeeeec)", cahaya: "radial-gradient(circle at 45% 45%, #fffdf8, #fbeef0 55%, rgba(251,238,240,0) 71%)" },
+    Adegan { slug: "korea", nama: "Istana Hanok", jauh: &["hutan-jauh", "tionghoa-jauh"], utama: "tionghoa-utama", insan: "insan-oriental", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#dfe2e6, #f2f1ef 55%, #ecebe8)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
+    Adegan { slug: "thai", nama: "Wat Emas", jauh: &["jawa-jauh", "hutan-jauh"], utama: "wat-utama", insan: "insan-oriental", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#f0e2c4, #f8f1e2 55%, #f1ece0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "buddhis", nama: "Stupa", jauh: &["hutan-jauh", "jawa-jauh"], utama: "stupa-utama", insan: "insan-oriental", depan: &["gapura-depan", "pohon-depan"], langit: "linear-gradient(#f0e2c4, #f8f1e2 55%, #f1ece0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "alam", nama: "Paviliun Hutan", jauh: &["hutan-jauh", "jawa-jauh", "laut-jauh"], utama: "paviliun-utama", insan: "insan-modern", depan: &["pohon-depan", "kapel-depan", "gapura-depan"], langit: "linear-gradient(#dbe4d8, #f1f4ee 55%, #ebeee8)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "laut", nama: "Paviliun Pantai", jauh: &["laut-jauh", "kapel-jauh"], utama: "paviliun-utama", insan: "insan-modern", depan: &["kapel-depan", "pohon-depan"], langit: "linear-gradient(#cfdde6, #eef3f6 55%, #e9eef0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
+    Adegan { slug: "taman", nama: "Paviliun Taman", jauh: &["kapel-jauh", "hutan-jauh", "laut-jauh"], utama: "paviliun-utama", insan: "insan-modern", depan: &["kapel-depan", "pohon-depan", "gapura-depan"], langit: "linear-gradient(#d3d9e0, #eceff3 55%, #e9ecef)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
+    Adegan { slug: "malam", nama: "Paviliun Malam", jauh: &["kapel-jauh", "hutan-jauh"], utama: "paviliun-utama", insan: "insan-modern", depan: &["kapel-depan", "pohon-depan"], langit: "linear-gradient(#1c2340, #2e3557 55%, #3a3f5c)", cahaya: "radial-gradient(circle at 40% 38%, #fffbe8, #f1e6c2 60%, rgba(241,230,194,0) 71%)" },
 ];
 
 /// Adegan untuk tema — SEMUA tema mendapat panggung. Tema berbudaya kuat
@@ -201,7 +203,7 @@ pub fn html(r: &Resep, inv: &super::model::Invitation, l: super::i18n::Lang) -> 
         })
         .collect();
     format!(
-        r#"<section class="{kelas}" aria-label="{label}"><div class="pg__layar"><i class="pg__langit" aria-hidden="true"></i><i class="pg__bulan" aria-hidden="true"></i><i class="pg__lapis pg__jauh" aria-hidden="true"></i><i class="pg__lapis pg__utama" aria-hidden="true"></i><div class="pg__pasangan">{pasangan}</div><i class="pg__lapis pg__depan" aria-hidden="true"></i><div class="pg__teks pg__t1"><p class="script">The Wedding of</p><h2>{b} &amp; {g}</h2><small>{tgl}</small></div><div class="pg__teks pg__t2"><b>{sumber}</b><p>{ayat}</p></div><div class="pg__teks pg__t3"><div><b>{bn}</b><small>{bp}</small></div><div><b>{gn}</b><small>{gp}</small></div></div><div class="pg__teks pg__t4">{acara}</div><div class="pg__teks pg__t5"><p>{salam}</p><p class="script">{b} &amp; {g}</p></div><p class="pg__teks pg__gulir" aria-hidden="true">{gulir}</p></div></section>"#,
+        r#"<section class="{kelas}" aria-label="{label}"><div class="pg__layar"><i class="pg__langit" aria-hidden="true"></i><i class="pg__bulan" aria-hidden="true"></i><i class="pg__lapis pg__jauh" aria-hidden="true"></i><i class="pg__lapis pg__utama" aria-hidden="true"></i><i class="pg__lapis pg__insan" aria-hidden="true"></i><div class="pg__pasangan">{pasangan}</div><i class="pg__lapis pg__depan" aria-hidden="true"></i><div class="pg__teks pg__t1"><p class="script">The Wedding of</p><h2>{b} &amp; {g}</h2><small>{tgl}</small></div><div class="pg__teks pg__t2"><b>{sumber}</b><p>{ayat}</p></div><div class="pg__teks pg__t3"><div><b>{bn}</b><small>{bp}</small></div><div><b>{gn}</b><small>{gp}</small></div></div><div class="pg__teks pg__t4">{acara}</div><div class="pg__teks pg__t5"><p>{salam}</p><p class="script">{b} &amp; {g}</p></div><p class="pg__teks pg__gulir" aria-hidden="true">{gulir}</p></div></section>"#,
         kelas = r.kelas(),
         label = crate::tx!(l, "Pembuka undangan", "Invitation prologue"),
         b = e(&inv.bride_first()),
@@ -272,6 +274,10 @@ fn svg(nama: &str) -> &'static str {
         "tongkonan-utama" => include_str!("panggung/svg/tongkonan-utama.svg"),
         "torii-depan" => include_str!("panggung/svg/torii-depan.svg"),
         "wat-utama" => include_str!("panggung/svg/wat-utama.svg"),
+        "insan-modern" => include_str!("panggung/svg/insan-modern.svg"),
+        "insan-muslim" => include_str!("panggung/svg/insan-muslim.svg"),
+        "insan-adat" => include_str!("panggung/svg/insan-adat.svg"),
+        "insan-oriental" => include_str!("panggung/svg/insan-oriental.svg"),
         _ => "",
     }
 }
@@ -286,7 +292,7 @@ fn rakit(a: &Adegan) -> String {
     let langit = if malam { a.langit } else { "linear-gradient(180deg, color-mix(in srgb, var(--primary) 34%, var(--bg, #f5f3ee)), color-mix(in srgb, var(--bg, #f5f3ee) 88%, #fff) 56%, color-mix(in srgb, var(--gold) 26%, var(--bg, #f5f3ee)))" };
     let cahaya = if malam { a.cahaya } else { "radial-gradient(circle at 45% 42%, #fffdf6, color-mix(in srgb, var(--gold) 45%, #fff) 52%, color-mix(in srgb, var(--gold) 30%, transparent) 64%, transparent 71%)" };
     format!(
-        "{dasar}\n.pg--{s}{{--pg-langit:{l};--pg-bulan:{c};{tinta}}}\n.pg--{s} .pg__jauh{{background-image:{j}}}\n.pg--{s} .pg__utama{{background-image:{u}}}\n.pg--{s} .pg__depan{{background-image:{d}}}\n",
+        "{dasar}\n.pg--{s}{{--pg-langit:{l};--pg-bulan:{c};{tinta}}}\n.pg--{s} .pg__jauh{{background-image:{j}}}\n.pg--{s} .pg__utama{{background-image:{u}}}\n.pg--{s} .pg__insan{{background-image:{i}}}\n.pg--{s} .pg__depan{{background-image:{d}}}\n",
         dasar = include_str!("panggung/_dasar.css"),
         s = a.slug,
         l = langit,
@@ -294,6 +300,7 @@ fn rakit(a: &Adegan) -> String {
         tinta = if malam { "--pg-tinta:#f6f0e2}.pg--malam .pg__teks::before{background:radial-gradient(closest-side,rgba(18,22,44,.72),rgba(18,22,44,.35) 55%,transparent)}.pg--malam .pg__teks{text-shadow:0 1px 10px rgba(0,0,0,.6)" } else { "" },
         j = uri(a.jauh[0]),
         u = uri(a.utama),
+        i = uri(a.insan),
         d = uri(a.depan[0]),
     )
 }
@@ -305,7 +312,7 @@ mod tests {
     #[test]
     fn semua_adegan_lengkap() {
         for a in ADEGAN {
-            for n in a.jauh.iter().chain(a.depan.iter()).chain([&a.utama]) {
+            for n in a.jauh.iter().chain(a.depan.iter()).chain([&a.utama, &a.insan]) {
                 assert!(!svg(n).is_empty(), "lapisan {n} tak ada");
             }
             let c = css(a.slug);

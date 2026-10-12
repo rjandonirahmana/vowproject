@@ -608,9 +608,64 @@ def fuji():
     o.append(tanah(1320, '#ecebe9'))
     svg('fuji-jauh', ''.join(o))
 
+# ══ SEPASANG MEMPELAI (lapisan insan, kanvas sama 1080×1920) ════════════
+# Berdiri bergandengan di jalan setapak depan bangunan utama (kaki y≈1398).
+KULIT, KULIT_G = '#e9c6a1', '#cfa37c'
+def kepala(cx, cy, r=13):
+    return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{KULIT}"/><path d="M{cx-r} {cy+2}q{r} {r*.9} {2*r} 0" fill="{KULIT_G}" opacity=".35"/>'
+
+def bayang():
+    return '<ellipse cx="545" cy="1400" rx="70" ry="9" fill="#000" opacity=".16"/>'
+
+def insan(varian):
+    o = [bayang()]
+    bx, gx = 508, 584           # pengantin wanita (kiri), pria (kanan)
+    if varian == 'modern':
+        # wanita: kerudung tipis, gaun putih mengembang, buket
+        o.append(f'<path d="M{bx} 1226C{bx-30} 1260 {bx-44} 1330 {bx-46} 1396H{bx+46}C{bx+40} 1330 {bx+28} 1262 {bx} 1226Z" fill="#ffffff" opacity=".55"/>')
+        o.append(f'<path d="M{bx-12} 1252H{bx+12}L{bx+14} 1300C{bx+30} 1340 {bx+40} 1372 {bx+44} 1398H{bx-44}C{bx-40} 1372 {bx-30} 1340 {bx-14} 1300Z" fill="#fbfaf8" stroke="#e3ddd6" stroke-width="2"/>')
+        o.append(kepala(bx, 1238) + f'<path d="M{bx-13} 1236q13 -20 26 0q-2 -6 -13 -10q-11 4 -13 10Z" fill="#4a3426"/><circle cx="{bx}" cy="1224" r="6" fill="#4a3426"/>')
+        o.append(f'<circle cx="{bx+16}" cy="1300" r="9" fill="#f2b8c6"/><circle cx="{bx+10}" cy="1296" r="6" fill="#fff"/><circle cx="{bx+22}" cy="1294" r="5" fill="#e98fa6"/>')
+        # pria: jas tuksedo gelap
+        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+15} 1322H{gx-15}Z" fill="#2b2f3a"/><path d="M{gx-6} 1256L{gx} 1284L{gx+6} 1256Z" fill="#fff"/><path d="M{gx-4} 1258h8l-4 5z" fill="#111"/>')
+        o.append(f'<path d="M{gx-14} 1320H{gx-1}V1396H{gx-15}ZM{gx+1} 1320H{gx+14}L{gx+15} 1396H{gx+1}Z" fill="#23262f"/><path d="M{gx-17} 1392h17v6h-19zM{gx+1} 1392h17l2 6h-19z" fill="#111"/>')
+        o.append(kepala(gx, 1240) + f'<path d="M{gx-13} 1236q13 -18 26 0q-1 -10 -13 -12q-12 2 -13 12Z" fill="#2e2018"/>')
+        o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
+    elif varian == 'muslim':
+        # wanita berhijab (putih gading), gaun panjang
+        o.append(f'<path d="M{bx-13} 1250H{bx+13}L{bx+16} 1300C{bx+30} 1340 {bx+36} 1372 {bx+40} 1398H{bx-40}C{bx-36} 1372 {bx-30} 1340 {bx-16} 1300Z" fill="#fbf6ee" stroke="#e7dccb" stroke-width="2"/>')
+        o.append(f'<path d="M{bx-16} 1240C{bx-18} 1214 {bx+18} 1214 {bx+16} 1240C{bx+22} 1262 {bx+20} 1276 {bx} 1282C{bx-20} 1276 {bx-22} 1262 {bx-16} 1240Z" fill="#f5ecdf"/>')
+        o.append(f'<ellipse cx="{bx}" cy="1240" rx="9" ry="11" fill="{KULIT}"/><path d="M{bx-16} 1234q16 -14 32 0" stroke="#d9c7a6" stroke-width="3" fill="none"/>')
+        o.append(f'<circle cx="{bx+14}" cy="1302" r="8" fill="#f5f0e6"/><circle cx="{bx+20}" cy="1297" r="5" fill="#d7c38f"/>')
+        # pria: jas putih/gading + peci hitam
+        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+16} 1330H{gx-16}Z" fill="#f2ead9" stroke="#d9cbb0" stroke-width="2"/><path d="M{gx} 1258V1326" stroke="#c9b48e" stroke-width="2"/>')
+        o.append(f'<path d="M{gx-15} 1328H{gx-1}V1396H{gx-15}ZM{gx+1} 1328H{gx+15}V1396H{gx+1}Z" fill="#e8dfcd"/><path d="M{gx-17} 1392h17v6h-19zM{gx+1} 1392h17l2 6h-19z" fill="#5a4636"/>')
+        o.append(kepala(gx, 1240) + f'<rect x="{gx-13}" y="1222" width="26" height="12" rx="3" fill="#1d1d22"/>')
+        o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
+    elif varian == 'adat':
+        # wanita: kebaya beludru gelap + jarik batik + sanggul
+        o.append(f'<path d="M{bx-14} 1252H{bx+14}L{bx+16} 1306H{bx-16}Z" fill="#3b2a2a"/><path d="M{bx-14} 1252L{bx} 1290L{bx+14} 1252" stroke="#c9a24a" stroke-width="2.5" fill="none"/>')
+        o.append(f'<path d="M{bx-16} 1304H{bx+16}L{bx+18} 1398H{bx-18}Z" fill="#8a6440"/>' + ''.join(f'<path d="M{bx-16} {1314+k*14}q8 -6 16 0t16 0" stroke="#5a3e24" stroke-width="2" fill="none"/>' for k in range(6)))
+        o.append(kepala(bx, 1238) + f'<ellipse cx="{bx}" cy="1228" rx="14" ry="9" fill="#21160f"/><circle cx="{bx-10}" cy="1238" r="7" fill="#21160f"/><circle cx="{bx-8}" cy="1232" r="2.4" fill="#d4a017"/><circle cx="{bx+4}" cy="1226" r="2.4" fill="#d4a017"/>')
+        # pria: beskap gelap berkancing + jarik + blangkon
+        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+16} 1316H{gx-16}Z" fill="#2c2420"/>' + ''.join(f'<circle cx="{gx+5}" cy="{1264+k*12}" r="2" fill="#d4a017"/>' for k in range(4)))
+        o.append(f'<path d="M{gx-16} 1314H{gx+16}L{gx+15} 1398H{gx-15}Z" fill="#8a6440"/>' + ''.join(f'<path d="M{gx-16} {1324+k*14}q8 -6 16 0t16 0" stroke="#5a3e24" stroke-width="2" fill="none"/>' for k in range(5)))
+        o.append(kepala(gx, 1240) + f'<path d="M{gx-14} 1238C{gx-14} 1222 {gx+14} 1222 {gx+14} 1238Z" fill="#4a3424"/><circle cx="{gx-15}" cy="1240" r="5" fill="#4a3424"/><path d="M{gx-12} 1232h24" stroke="#c9a24a" stroke-width="2"/>')
+        o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
+    else:  # oriental
+        o.append(f'<path d="M{bx-13} 1250H{bx+13}L{bx+15} 1310C{bx+18} 1350 {bx+20} 1376 {bx+22} 1398H{bx-22}C{bx-20} 1376 {bx-18} 1350 {bx-15} 1310Z" fill="#b71c1c"/>' + ''.join(f'<path d="M{bx-10} {1270+k*24}q10 -8 20 0" stroke="#e8c15a" stroke-width="2" fill="none"/>' for k in range(5)))
+        o.append(f'<path d="M{bx-6} 1252H{bx+6}V1258H{bx-6}Z" fill="#e8c15a"/>')
+        o.append(kepala(bx, 1238) + f'<path d="M{bx-13} 1236q13 -20 26 0q0 -10 -13 -12q-13 2 -13 12Z" fill="#160f0b"/><ellipse cx="{bx}" cy="1222" rx="10" ry="6" fill="#160f0b"/><path d="M{bx-12} 1224h24" stroke="#e8c15a" stroke-width="2.4"/>')
+        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+19} 1398H{gx-19}Z" fill="#7a1418"/><path d="M{gx-17} 1256H{gx+17}L{gx+16} 1290H{gx-16}Z" fill="#2c2420"/><path d="M{gx} 1258V1396" stroke="#e8c15a" stroke-width="1.6"/>' + ''.join(f'<circle cx="{gx}" cy="{1266+k*10}" r="1.8" fill="#e8c15a"/>' for k in range(3)))
+        o.append(kepala(gx, 1240) + f'<path d="M{gx-14} 1238C{gx-14} 1222 {gx+14} 1222 {gx+14} 1238Z" fill="#1d1d22"/><circle cx="{gx}" cy="1222" r="3" fill="#b71c1c"/>')
+        o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
+    svg(f'insan-{varian}', ''.join(o))
+
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     masjid(); jawa(); tionghoa(); kapel()
     gadang(); tongkonan(); rumah_panggung(); lamin(); honai(); meru(); kuil(); wat(); stupa(); paviliun()
     torii(); gapura(); pohon(); laut(); hutan(); fuji()
+    for v in ('modern', 'muslim', 'adat', 'oriental'):
+        insan(v)
     print('ok')

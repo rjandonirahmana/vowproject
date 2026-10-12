@@ -15,6 +15,10 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body { margin: 0; overflow-x: hidden; }
+/* "Lewati intro" di gerbang templat — kecil, selalu terjangkau. */
+.t-lewati { position: absolute; z-index: 30; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); padding: 8px 14px; border: 0; border-radius: 999px;
+  font: 600 12px/1 system-ui, sans-serif; letter-spacing: .04em; color: #fff; background: rgba(0, 0, 0, .38); cursor: pointer; }
+.t-open .t-lewati { display: none; }
 img, video { max-width: 100%; display: block; }
 button { font: inherit; color: inherit; cursor: pointer; }
 input, textarea, select { font: inherit; }

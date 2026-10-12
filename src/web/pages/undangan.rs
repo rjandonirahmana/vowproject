@@ -392,9 +392,12 @@ fn SampulExtras() -> impl IntoView {
         <Countdown target_ms=inv.countdown_target_ms() date=inv.date_label_in(c.lang) calendar=inv.calendar_link() photos=save_date_photos(&inv) />
         <QuoteCard text=inv.quote_text.clone() source=inv.quote_source.clone() />
         <Couple inv=inv.clone() />
-        <LoveStorySection items=inv.love_story.clone() photos=inv.gallery.iter().skip(1).cloned().collect() />
-        <PreweddingVideo src=prewed poster=Some(inv.cover_photo.split('#').next().unwrap_or("").to_string()) />
-        <Gallery photos=inv.gallery.clone() />
+        // Pratinjau etalase: bagian berat (kisah, video, galeri) tak dirender.
+        {(!pratinjau()).then(|| view! {
+            <LoveStorySection items=inv.love_story.clone() photos=inv.gallery.iter().skip(1).cloned().collect() />
+            <PreweddingVideo src=prewed poster=Some(inv.cover_photo.split('#').next().unwrap_or("").to_string()) />
+            <Gallery photos=inv.gallery.clone() />
+        })}
     }
 }
 
@@ -419,6 +422,7 @@ pub fn SampulPage() -> impl IntoView {
                     view! { <GateBg src=bg poster=Some(poster) /> }
                 })}
                 <GateVideo src=c.page.skin.open_video.clone() />
+                <button type="button" class="gate__lewati" data-open="lewati">{tx!(c.lang, "Lewati intro", "Skip intro")}</button>
                 <div class="gate__content">
                     <Cover />
                     <GuestCard />
@@ -458,7 +462,7 @@ pub fn SampulPage() -> impl IntoView {
             <SampulExtras />
             {single.then(|| view! {
                 <div id="acara" class="inv__anchor"><AcaraBody countdown=false /></div>
-                <div id="rsvp" class="inv__anchor"><RsvpBody /></div>
+                {(!pratinjau()).then(|| view! { <div id="rsvp" class="inv__anchor"><RsvpBody /></div> })}
             })}
         </div>
     }
@@ -494,6 +498,7 @@ fn Panggung3d() -> impl IntoView {
                 <i class="pg__bulan" aria-hidden="true"></i>
                 <i class="pg__lapis pg__jauh" aria-hidden="true"></i>
                 <i class="pg__lapis pg__utama" aria-hidden="true"></i>
+                <i class="pg__lapis pg__insan" aria-hidden="true"></i>
                 <div class="pg__pasangan">
                     {if foto.is_empty() {
                         view! { <Monogram initials=inv.initials() caption="THE WEDDING OF" /> }.into_any()
@@ -530,6 +535,22 @@ fn Panggung3d() -> impl IntoView {
     }
 }
 
+/// Dirender untuk PRATINJAU etalase (`?pv=1`, iframe mini di beranda yang
+/// berbagi thread dengan beranda): halaman diringkas — tanpa formulir RSVP,
+/// ucapan, kisah, video, galeri (pratinjau 9 dtk tak pernah sampai ke sana).
+/// Pratinjau tak pernah di-hydrate, jadi cukup diketahui saat SSR.
+fn pratinjau() -> bool {
+    #[cfg(feature = "ssr")]
+    {
+        use_context::<axum::http::request::Parts>()
+            .is_some_and(|p| crate::server::security::is_demo_preview(p.uri.path(), p.uri.query().unwrap_or("")))
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        false
+    }
+}
+
 // ── Tab 2: Acara ───────────────────────────────────────────────────────────
 
 #[component]
@@ -541,19 +562,57 @@ pub fn AcaraPage() -> impl IntoView {
 fn AcaraBody(countdown: bool) -> impl IntoView {
     let c = ctx();
     let l = c.lang;
+    // Dihitung sebelum `c.page.inv` dipindahkan (c.href meminjam seluruh c).
+    let rsvp_href = if c.page.skin.single { "#rsvp".to_string() } else { c.href("/rsvp") };
     let inv = c.page.inv;
     let last = inv.events.last().cloned();
     let n = inv.events.len();
     let dress = (inv.dress_code.clone(), inv.dress_colors.clone());
+    // Redaksi pembuka mengikuti nuansa tema (adegan panggung) — dulu selalu
+    // "Walimatul 'Ursy … Allah SWT" bahkan di tema Kristiani/Hindu/Tionghoa.
+    let (sapa, ajak) = match c.page.skin.panggung.as_str() {
+        "masjid" => (
+            tx!(l, "Walimatul 'Ursy", "Walimatul 'Ursy"),
+            tx!(l, "Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Anda untuk merayakan ikatan suci kami:",
+                "By the grace and blessing of Allah SWT, we joyfully invite you to celebrate our sacred union:"),
+        ),
+        "kapel" => (
+            tx!(l, "Pemberkatan Pernikahan", "Holy Matrimony"),
+            tx!(l, "Atas kasih karunia Tuhan, kami mengundang Anda untuk turut bersukacita dalam pemberkatan pernikahan kami:",
+                "By the grace of God, we joyfully invite you to share in the blessing of our marriage:"),
+        ),
+        "bali" => (
+            tx!(l, "Om Swastyastu", "Om Swastyastu"),
+            tx!(l, "Atas asung kertha wara nugraha Ida Sang Hyang Widhi Wasa, kami mengundang Anda untuk menghadiri upacara pernikahan kami:",
+                "By the blessing of Ida Sang Hyang Widhi Wasa, we joyfully invite you to our wedding ceremony:"),
+        ),
+        _ => (
+            tx!(l, "Rangkaian Acara", "Wedding Celebration"),
+            tx!(l, "Dengan penuh rasa syukur, kami mengundang Anda untuk merayakan hari bahagia kami:",
+                "With grateful hearts, we joyfully invite you to celebrate our special day:"),
+        ),
+    };
+    let (doa, doa_sumber) = match c.page.skin.panggung.as_str() {
+        "masjid" => (
+            tx!(l, "“Semoga Allah memberkahi engkau dalam kebaikan dan menghimpun kalian berdua dalam kebahagiaan.”",
+                "“May Allah bless you, shower His blessings upon you, and unite you both in goodness.”"),
+            "HR. Abu Dawud",
+        ),
+        "kapel" => (
+            tx!(l, "“TUHAN memberkati engkau dan melindungi engkau; TUHAN menyinari engkau dengan wajah-Nya dan memberi engkau kasih karunia.”",
+                "“The LORD bless you and keep you; the LORD make His face shine on you and be gracious to you.”"),
+            tx!(l, "Bilangan 6 : 24-25", "Numbers 6:24-25"),
+        ),
+        "bali" => (tx!(l, "“Semoga kebahagiaan dan kedamaian senantiasa menyertai rumah tangga yang baru.”", "“May happiness and peace always accompany this new household.”"), "Om Shanti Shanti Shanti Om"),
+        _ => (tx!(l, "“Semoga cinta kalian senantiasa tumbuh, saling menjaga dalam suka dan duka hingga akhir masa.”", "“May your love keep growing, caring for one another in joy and sorrow, for all time.”"), tx!(l, "Doa Restu", "Blessing")),
+    };
     view! {
         <section class="intro orn-host">
             <Ornamen bagian="acara" />
             <span class="intro__icon"><Icon name="local_florist" /></span>
-            <p class="eyebrow eyebrow--gold">{tx!(l, "Walimatul 'Ursy", "Wedding Celebration")}</p>
-            <h1 class="section__title">"Wedding Event"</h1>
-            <p class="intro__text">{tx!(l,
-                "Dengan memohon rahmat dan ridho Allah SWT, kami mengundang Anda untuk merayakan ikatan suci kami:",
-                "By the grace and blessing of Allah SWT, we joyfully invite you to celebrate our sacred union:")}</p>
+            <p class="eyebrow eyebrow--gold">{sapa}</p>
+            <h1 class="section__title">{tx!(l, "Rangkaian Acara", "Wedding Event")}</h1>
+            <p class="intro__text">{ajak}</p>
         </section>
         {countdown.then(|| view! { <Countdown target_ms=inv.countdown_target_ms() title=tx!(l, "Menghitung Hari Bahagia", "Counting Down to Our Day") date=inv.date_label_in(l) calendar=inv.calendar_link() /> })}
         {inv.events.clone().into_iter().enumerate().map(|(i, ev)| {
@@ -562,14 +621,18 @@ fn AcaraBody(countdown: bool) -> impl IntoView {
             view! { <EventCard ev=ev dress=d /> }
         }).collect_view()}
         {last.map(|ev| view! { <MapCard ev=ev /> })}
+        // Tindakan utama tamu setelah membaca detail acara.
+        <div class="cta-rsvp">
+            <a class="btn btn--primary btn--lg" href=rsvp_href>
+                <Icon name="how_to_reg" />{tx!(l, "Konfirmasi Kehadiran", "Confirm Attendance")}
+            </a>
+        </div>
         <LiveStream url=inv.live_url.clone() />
         <GuestGuide />
         <figure class="closing">
             <Icon name="local_florist" />
-            <blockquote>{tx!(l,
-                "“Semoga Allah memberkahi engkau dalam kebaikan dan menghimpun kalian berdua dalam kebahagiaan.”",
-                "“May Allah bless you, shower His blessings upon you, and unite you both in goodness.”")}</blockquote>
-            <figcaption>"HR. Abu Dawud"</figcaption>
+            <blockquote>{doa}</blockquote>
+            <figcaption>{doa_sumber}</figcaption>
         </figure>
     }
 }
@@ -615,7 +678,7 @@ fn RsvpBody() -> impl IntoView {
             <Ornamen bagian="rsvp" />
             <span class="intro__icon"><Icon name="favorite" /></span>
             <p class="eyebrow eyebrow--gold">{tx!(l, "Buku Tamu Digital", "Digital Guestbook")}</p>
-            <h1 class="section__title">"Wedding Wishes"</h1>
+            <h1 class="section__title">{tx!(l, "Ucapan & Doa", "Wedding Wishes")}</h1>
             <p class="intro__text">{tx!(l,
                 "Kehadiran dan doa restu Anda merupakan kado terindah bagi kebahagiaan kami berdua.",
                 "Your presence and blessings are the most precious gift to us both.")}</p>

@@ -87,12 +87,16 @@ pub fn BuatPage() -> impl IntoView {
             description="Isi data mempelai, acara, foto & lagu — undangan online Anda jadi dalam 5 menit. Pratinjau gratis, bayar saat siap disebar ke tamu." />
         <div class="site">
             <SiteHeader active="buat" />
-            <ol class="steps">
-                <li class="is-done"><span><Icon name="check" /></span><div><small>"Langkah 1"</small><b>"Paket & Add-on"</b></div></li>
-                <li class="is-active"><span>"2"</span><div><small>"Sedang Aktif"</small><b>"Data Mempelai & Acara"</b></div></li>
-                <li><span>"3"</span><div><small>"Langkah 3"</small><b>"Rekening Amplop"</b></div></li>
-                <li><span>"4"</span><div><small>"Langkah 4"</small><b>"Konfirmasi & Bayar"</b></div></li>
-            </ol>
+            // Satu halaman, bagian bisa dilompati (dulu bar 4 langkah yang tak
+            // sesuai isi formulir). Di HP ringkasan harga & tombol lanjut ada di
+            // bilah bawah yang menempel.
+            <nav class="buat-nav" aria-label="Bagian formulir">
+                <a href="#tema"><span>"1"</span>"Tema"</a>
+                <a href="#mempelai"><span>"2"</span>"Mempelai"</a>
+                <a href="#acara-form"><span>"3"</span>"Acara"</a>
+                <a href="#tambahan"><span>"4"</span>"Tambahan"</a>
+                <a href="#paket"><span>"5"</span>"Paket & Bayar"</a>
+            </nav>
 
             {(!galat.is_empty()).then(|| view! {
                 <div class="notice notice--err wrap">
@@ -104,8 +108,8 @@ pub fn BuatPage() -> impl IntoView {
             <form class="buat" method="post" action="/buat/kirim" enctype="multipart/form-data" data-keep="">
                 <div class="buat__main">
                     // ── A. Tautan & tema ──
-                    <section class="card fsec">
-                        <FsecHead icon="link" title="Tema Undangan" sub="Pilih estetika desain utama undangan Anda" tag="Bagian A" />
+                    <section class="card fsec" id="tema">
+                        <FsecHead icon="link" title="Tema Undangan" sub="Pilih tema — semua tema bisa dipakai di paket mana pun" tag="1" />
                         <div class="notice notice--info buat__link-note">
                             <Icon name="lock" />
                             <span>
@@ -186,8 +190,8 @@ pub fn BuatPage() -> impl IntoView {
                     </section>
 
                     // ── B. Mempelai ──
-                    <section class="card fsec">
-                        <FsecHead icon="favorite" title="Profil Calon Mempelai" sub="Lengkapi data kedua mempelai dan silsilah keluarga terhormat" tag="Bagian B" />
+                    <section class="card fsec" id="mempelai">
+                        <FsecHead icon="favorite" title="Data Mempelai" sub="Isi nama lengkap, nama orang tua, dan foto (opsional)" tag="2" />
                         <PersonFields prefix="bride" label="Mempelai Wanita (The Bride)" parent_label="Putri dari" name=bride />
                         <PersonFields prefix="groom" label="Mempelai Pria (The Groom)" parent_label="Putra dari" name=groom />
                         <div class="subcard">
@@ -210,8 +214,8 @@ pub fn BuatPage() -> impl IntoView {
                     </section>
 
                     // ── C. Acara ──
-                    <section class="card fsec">
-                        <FsecHead icon="calendar_month" title="Rincian Jadwal & Tempat Acara" sub="Atur jadwal sakral akad nikah dan jam sesi resepsi tamu" tag="Bagian C" />
+                    <section class="card fsec" id="acara-form">
+                        <FsecHead icon="calendar_month" title="Acara" sub="Tanggal, jam, dan tempat akad serta resepsi" tag="3" />
                         <div class="subcard">
                             <div class="subcard__head"><span class="num">"1"</span><b>"Akad Nikah / Pemberkatan"</b><small class="gold">"Wajib"</small></div>
                             <div class="field-row">
@@ -276,26 +280,9 @@ pub fn BuatPage() -> impl IntoView {
                         </label>
                     </section>
 
-                    // ── Kisah & galeri ──
-                    <section class="card fsec">
-                        <FsecHead icon="auto_stories" title="Love Story & Galeri" sub="Ceritakan perjalanan cinta dan bagikan momen terbaik (opsional)" tag="Bagian C+" />
-                        {(1..=3).map(|i| view! {
-                            <div class="story-row">
-                                <input class="input" name=format!("story{i}_year") maxlength="20" placeholder=["2019", "2023", "2026"][i - 1] />
-                                <input class="input" name=format!("story{i}_title") maxlength="80" placeholder=["Pertama Bertemu", "Lamaran", "Hari Bahagia"][i - 1] />
-                                <textarea class="input" name=format!("story{i}_text") maxlength="500" rows="2" placeholder="Ceritakan singkat momen ini…"></textarea>
-                            </div>
-                        }).collect_view()}
-                        <label class="upload">
-                            <Icon name="cloud_upload" />
-                            <span><b>"Foto galeri (maks 6 foto, masing-masing ≤ 5 MB)"</b><small>"Tampil sebagai kolase \"Our Moments\". Pilih beberapa foto sekaligus."</small></span>
-                            <input type="file" name="gallery" accept="image/jpeg,image/png,image/webp" multiple data-gallery-max="6" />
-                        </label>
-                    </section>
-
                     // ── D. Musik & doa ──
                     <section class="card fsec" id="musik">
-                        <FsecHead icon="music_note" title="Media Audio & Untaian Doa" sub="Lagu latar pemikat suasana dan kata mutiara sakral" tag="Bagian D" />
+                        <FsecHead icon="music_note" title="Musik & Kutipan" sub="Lagu latar dan kutipan doa (opsional)" tag="3+" />
                         <p class="field__label">"Pilihan Musik Latar"</p>
                         <p class="muted small">"Pilih dari pustaka lagu kami (tekan ▶ untuk mendengar). Lagu tak ada di daftar? Minta ke admin — kami tambahkan ke pustaka."</p>
                         <Suspense fallback=|| view! { <SkelRows n=3 /> }>
@@ -363,9 +350,40 @@ pub fn BuatPage() -> impl IntoView {
                         <audio id="bgm" preload="none"></audio>
                     </section>
 
+                    // ── Tambahan opsional (terlipat) ──
+                    <details class="card tambahan" id="tambahan">
+                        <summary>
+                            <Icon name="add_circle" />
+                            <span><b>"Tambahkan cerita, media, atau hadiah"</b><small>"Opsional — kisah cinta, galeri foto, dan rekening amplop digital"</small></span>
+                            <Icon name="expand_more" />
+                        </summary>
+                    // ── Kisah & galeri ──
+                    <section class="card fsec">
+                        <FsecHead icon="auto_stories" title="Kisah Cinta & Galeri" sub="Momen perjalanan cinta dan foto terbaik" tag="4" />
+                        // Satu momen tampil; momen berikutnya lewat "Tambah momen"
+                        // (<details> bawaan — tanpa JS, isian draf tetap tersimpan).
+                        {(1..=3).map(|i| {
+                            let baris = view! {
+                                <div class="story-row">
+                                    <input class="input" name=format!("story{i}_year") maxlength="20" placeholder=["2019", "2023", "2026"][i - 1] />
+                                    <input class="input" name=format!("story{i}_title") maxlength="80" placeholder=["Pertama Bertemu", "Lamaran", "Hari Bahagia"][i - 1] />
+                                    <textarea class="input" name=format!("story{i}_text") maxlength="500" rows="2" placeholder="Ceritakan singkat momen ini…"></textarea>
+                                </div>
+                            };
+                            if i == 1 { baris.into_any() } else {
+                                view! { <details class="momen"><summary><Icon name="add" />"Tambah momen"</summary>{baris}</details> }.into_any()
+                            }
+                        }).collect_view()}
+                        <label class="upload">
+                            <Icon name="cloud_upload" />
+                            <span><b>"Foto galeri (maks 6 foto, masing-masing ≤ 5 MB)"</b><small>"Tampil sebagai kolase \"Our Moments\". Pilih beberapa foto sekaligus."</small></span>
+                            <input type="file" name="gallery" accept="image/jpeg,image/png,image/webp" multiple data-gallery-max="6" />
+                        </label>
+                    </section>
+
                     // ── E. Rekening ──
                     <section class="card fsec">
-                        <FsecHead icon="account_balance_wallet" title="Rekening Amplop Digital" sub="Tamu dapat menyalin nomor rekening sekali ketuk (opsional)" tag="Bagian E" />
+                        <FsecHead icon="account_balance_wallet" title="Amplop Digital" sub="Nomor rekening yang bisa disalin tamu sekali ketuk" tag="4" />
                         {[1, 2].into_iter().map(|i| view! {
                             <div class="field-row field-row--3">
                                 <input class="input" name=format!("bank{i}_name") placeholder=if i == 1 { "Bank (mis. BCA)" } else { "Bank kedua (opsional)" } />
@@ -374,12 +392,13 @@ pub fn BuatPage() -> impl IntoView {
                             </div>
                         }).collect_view()}
                     </section>
+                    </details>
                 </div>
 
                 // ── Ringkasan (sticky) ──
                 <aside class="buat__side">
                     <div class=move || format!("mini-live th-{}", theme.get())>
-                        <p class="mini-live__label"><span>"Live Preview Miniatur"</span><span class="gold">"● Tersinkronisasi"</span></p>
+                        <p class="mini-live__label"><span>"Ringkasan"</span><span class="gold">"● mengikuti isian"</span></p>
                         <div class="mini-live__card">
                             <div class="monogram monogram--sm" inner_html=move || monogram_svg(&initials(), "THE WEDDING OF")></div>
                             <p class="mini__eyebrow">"Walimatul 'Urs"</p>
@@ -391,10 +410,15 @@ pub fn BuatPage() -> impl IntoView {
                             <p class="mini__date">{move || { let d = date.get(); if d.is_empty() { "Tanggal acara".into() } else { fmt::tanggal_panjang(&d) } }}</p>
                             <p class="muted small">{move || venue.get()}</p>
                         </div>
+                        <a class="btn btn--soft btn--sm btn--block" target="_blank" rel="noopener"
+                            href=move || format!("/u/{}?tema={}", crate::web::themes::DEMO_SLUG, theme.get())>
+                            <Icon name="open_in_new" />"Lihat contoh tema lengkap"
+                        </a>
+                        <p class="muted small center">"Contoh memakai data demo; pratinjau dengan data Anda tersedia di halaman Kelola setelah disimpan."</p>
                     </div>
 
-                    <section class="card summary">
-                        <div class="side-card__head"><h3>"Rincian Paket"</h3></div>
+                    <section class="card summary" id="paket">
+                        <div class="side-card__head"><h3>"Paket & Pembayaran"</h3></div>
                         <Suspense fallback=|| view! { <SkelOptions n=3 /> }>
                             {move || konten.get().map(|r| {
                                 let kk: Konten = r.unwrap_or_default();
@@ -468,6 +492,14 @@ pub fn BuatPage() -> impl IntoView {
                         <p class="muted small center"><Icon name="lock" />" Pratinjau langsung (khusus Anda) • tamu bisa membuka setelah pembayaran • belum dibayar 24 jam = dihapus otomatis"</p>
                     </section>
                 </aside>
+                // HP: total & tombol lanjut selalu terjangkau (dulu baru terlihat
+                // setelah seluruh formulir digulir).
+                <div class="buat-bar">
+                    <Suspense fallback=|| ()>
+                        <span><small>"Total"</small><b>{move || rupiah(totals().2)}</b></span>
+                    </Suspense>
+                    <a class="btn btn--primary btn--sm" href="#paket">"Paket & Bayar"<Icon name="arrow_downward" /></a>
+                </div>
             </form>
             <SiteFooter />
         </div>

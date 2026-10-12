@@ -369,6 +369,11 @@ fn teks(l: Lang) -> minijinja::Value {
         tutup_undangan: "Tutup Undangan", "Close Invitation";
         gulir: "Gulir ke bawah", "Scroll down";
         sampul_label: "Sampul undangan", "Invitation cover";
+        judul_simpan: "Simpan Tanggal", "Save The Date";
+        judul_kisah: "Kisah Cinta", "Love Story";
+        judul_momen: "Momen Kami", "Our Moments";
+        judul_hadiah: "Tanda Kasih", "Wedding Gift";
+        lewati_intro: "Lewati intro", "Skip intro";
         salam: "Assalamu’alaikum Warahmatullahi Wabarakatuh", "Assalamu’alaikum Warahmatullahi Wabarakatuh";
         pembuka_doa: "Maha Suci Allah yang telah menciptakan makhluk-Nya berpasang-pasangan. Ya Allah, semoga ridho-Mu tercurah mengiringi pernikahan kami.",
             "Glory be to Allah, who created all things in pairs. O Allah, may Your blessings accompany our marriage.";
@@ -429,7 +434,7 @@ fn teks(l: Lang) -> minijinja::Value {
         orang: "orang", "guest(s)";
         sesi: "Sesi", "Session";
         kirim: "Kirim", "Send";
-        kirim_ucapan: "Kirim Ucapan", "Send Wishes";
+        kirim_ucapan: "Kirim Konfirmasi & Ucapan", "Send RSVP & Wishes";
         ucapan_n: "ucapan", "wishes";
         pertama: "Jadilah yang pertama memberi ucapan.", "Be the first to send your wishes.";
         story_link: "Lihat & bagikan Story Tamu →", "View & share guest stories →";

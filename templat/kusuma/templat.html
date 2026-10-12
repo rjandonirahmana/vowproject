@@ -69,6 +69,7 @@
 
 {#- ── SAMPUL (gerbang) ─────────────────────────────────────────────────── #}
 <section class="k-cover" data-gate aria-label="{{ t.sampul_label }}">
+  <button type="button" class="t-lewati" data-open-instan>{{ t.lewati_intro }}</button>
   <div class="k-cover__frame">
     <span class="k-cover__pohon k-cover__pohon--l" aria-hidden="true" data-a="rotateInDownLeft" data-ad="600"><img src="{{ a.pohon_kiri }}" alt="" data-idle="goyang"></span>
     <span class="k-cover__pohon k-cover__pohon--r" aria-hidden="true" data-a="rotateInDownRight" data-ad="1400"><img src="{{ a.pohon_kanan }}" alt="" data-idle="goyang"></span>
@@ -134,7 +135,7 @@
   {%- if countdown_ms %}
   <section class="k-panel k-panel--taupe k-save">
     {{ bunga_sudut(a.bunga, 'a') }}
-    <h2 class="k-title k-title--light" data-s="atas">Save The Date</h2>
+    <h2 class="k-title k-title--light" data-s="atas">{{ t.judul_simpan }}</h2>
     <p class="k-save__date" data-s="atas">{{ date_label }}</p>
     <div class="k-count" data-countdown="{{ countdown_ms }}" data-s="atas">
       <span><b data-cd="d">00</b><small>{{ t.hari|capitalize }}</small></span>
@@ -191,12 +192,13 @@
       {%- endif %}
     </div>
     {%- endif %}
+    <p class="k-cta"><a class="k-btn" href="#ucapan">{{ t.konfirmasi_hadir }}</a></p>
   </section>
 
   {#- ── 6. Kisah cinta ──────────────────────────────────────────────────── #}
   {%- if love_story %}
   <section class="k-story" id="kisah">
-    <h2 class="k-title k-title--light" data-s="atas">Love Story</h2>
+    <h2 class="k-title k-title--light" data-s="atas">{{ t.judul_kisah }}</h2>
     <ol class="k-timeline">
       {%- for s in love_story %}
       {%- set img = s.img or (gallery[loop.index % (gallery|length)] if gallery else "") %}
@@ -223,7 +225,7 @@
   {#- ── 8. Galeri ───────────────────────────────────────────────────────── #}
   {%- if gallery %}
   <section class="k-gallery" id="galeri">
-    <h2 class="k-title k-title--light" data-s="atas">Our Moments</h2>
+    <h2 class="k-title k-title--light" data-s="atas">{{ t.judul_momen }}</h2>
     <div class="k-grid">
       {%- for g in gallery %}
       <img src="{{ g|foto }}" style="{{ g|pos }}" alt="Momen {{ loop.index }}" loading="lazy" data-zoom data-s="zoom-in">
@@ -235,7 +237,7 @@
   {#- ── 9. Tanda kasih ──────────────────────────────────────────────────── #}
   {%- if banks or gift_address %}
   <section class="k-panel k-panel--arch k-gift" id="hadiah">
-    <h2 class="k-title" data-s="atas">Wedding Gift</h2>
+    <h2 class="k-title" data-s="atas">{{ t.judul_hadiah }}</h2>
     <p class="k-lead" data-s="atas">{{ t.kado_lead_panjang }}</p>
     {%- for b in banks %}
     <div class="k-card" data-s="zoom-in">
@@ -285,7 +287,7 @@
         </label>
         {%- endif %}
       </div>
-      <button class="k-btn k-btn--block" type="submit">{{ t.kirim }}</button>
+      <button class="k-btn k-btn--block" type="submit">{{ t.kirim_ucapan }}</button>
       {%- if rsvp_flash %}
       <p class="k-form__msg" data-rsvp-msg role="status" data-ok="{{ '1' if rsvp_flash.ok else '0' }}">{{ rsvp_flash.msg }}</p>
       {%- else %}
