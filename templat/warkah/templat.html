@@ -57,6 +57,7 @@
 </aside>
 
 {#- ── SAMPUL (gerbang): kartu kaca bersegel ───────────────────────────────── #}
+{%- if not pv %}
 <section class="w-gate" data-gate aria-label="{{ t.sampul_label }}">
   <button type="button" class="t-lewati" data-open-instan>{{ t.lewati_intro }}</button>
   <div class="w-gate__card">
@@ -77,6 +78,7 @@
     <p class="w-gate__note" data-a="fadeIn" data-ad="1700">{{ t.maaf_nama }}</p>
   </div>
 </section>
+{%- endif %}
 
 <main class="w-main">
 

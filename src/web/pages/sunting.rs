@@ -59,6 +59,9 @@ fn SuntingForm(d: Sunting, notice: Option<(bool, String)>) -> impl IntoView {
     let tz = if akad.tz.is_empty() { "WIB".to_string() } else { akad.tz.clone() };
     let sesi = |i: usize| resepsi.sessions.get(i).map(|s| s.time.clone()).unwrap_or_default();
     let (s1, s2) = (sesi(0), sesi(1));
+    // Undangan ULANG TAHUN disimpan tanpa nama kedua (server baca_isi) —
+    // formulir satu orang, judul acara bebas, tanpa resepsi.
+    let ultah = inv.groom_name.trim().is_empty();
     let akad_titles = {
         let mut v = vec!["Akad Nikah".to_string(), "Pemberkatan Nikah".to_string(), "Upacara Pernikahan".to_string()];
         if !akad.title.is_empty() && !v.contains(&akad.title) {
@@ -100,14 +103,26 @@ fn SuntingForm(d: Sunting, notice: Option<(bool, String)>) -> impl IntoView {
 
                     // ── Mempelai ──
                     <section class="card fsec">
-                        <FsecHead icon="favorite" title="Profil Mempelai" sub="Nama, gelar, orang tua, Instagram & foto" tag="Mempelai" />
-                        <Orang prefix="bride" label="Mempelai Wanita" parent_label="Putri dari" name=inv.bride_name.clone() degree=inv.bride_degree.clone()
-                            nick=inv.bride_nick.clone() ig=inv.bride_ig.clone() parents=inv.bride_parents.clone() photo=inv.bride_photo.clone() />
-                        <Orang prefix="groom" label="Mempelai Pria" parent_label="Putra dari" name=inv.groom_name.clone() degree=inv.groom_degree.clone()
-                            nick=inv.groom_nick.clone() ig=inv.groom_ig.clone() parents=inv.groom_parents.clone() photo=inv.groom_photo.clone() />
+                        {if ultah {
+                            view! {
+                                <FsecHead icon="cake" title="Yang Berulang Tahun" sub="Nama, orang tua, Instagram & foto" tag="Data Diri" />
+                                <Orang prefix="bride" label="Yang Berulang Tahun" parent_label="Putra/Putri dari" name=inv.bride_name.clone() degree=inv.bride_degree.clone()
+                                    nick=inv.bride_nick.clone() ig=inv.bride_ig.clone() parents=inv.bride_parents.clone() photo=inv.bride_photo.clone() />
+                            }
+                            .into_any()
+                        } else {
+                            view! {
+                                <FsecHead icon="favorite" title="Profil Mempelai" sub="Nama, gelar, orang tua, Instagram & foto" tag="Mempelai" />
+                                <Orang prefix="bride" label="Mempelai Wanita" parent_label="Putri dari" name=inv.bride_name.clone() degree=inv.bride_degree.clone()
+                                    nick=inv.bride_nick.clone() ig=inv.bride_ig.clone() parents=inv.bride_parents.clone() photo=inv.bride_photo.clone() />
+                                <Orang prefix="groom" label="Mempelai Pria" parent_label="Putra dari" name=inv.groom_name.clone() degree=inv.groom_degree.clone()
+                                    nick=inv.groom_nick.clone() ig=inv.groom_ig.clone() parents=inv.groom_parents.clone() photo=inv.groom_photo.clone() />
+                            }
+                            .into_any()
+                        }}
                         <div class="subcard">
-                            <p class="eyebrow eyebrow--dot">"Foto Sampul Berdua"</p>
-                            <Foto name="cover_photo" url=inv.cover_photo.clone() label="Foto sampul berdua" />
+                            <p class="eyebrow eyebrow--dot">{if ultah { "Foto Sampul" } else { "Foto Sampul Berdua" }}</p>
+                            <Foto name="cover_photo" url=inv.cover_photo.clone() label=if ultah { "Foto sampul" } else { "Foto sampul berdua" } />
                         </div>
                         <label class="field"><span class="field__label">"Nama Keluarga Pengundang"</span>
                             <input class="input" name="family_name" maxlength="120" value=inv.family_name.clone() /></label>
@@ -116,16 +131,23 @@ fn SuntingForm(d: Sunting, notice: Option<(bool, String)>) -> impl IntoView {
 
                     // ── Acara ──
                     <section class="card fsec">
-                        <FsecHead icon="calendar_month" title="Jadwal & Tempat Acara" sub="Akad / pemberkatan (wajib) dan resepsi" tag="Acara" />
+                        <FsecHead icon="calendar_month" title="Jadwal & Tempat Acara" sub=if ultah { "Tanggal, jam & tempat pesta" } else { "Akad / pemberkatan (wajib) dan resepsi" } tag="Acara" />
                         <div class="subcard">
-                            <div class="subcard__head"><span class="num">"1"</span><b>"Akad Nikah / Pemberkatan"</b><small class="gold">"Wajib"</small></div>
+                            <div class="subcard__head"><span class="num">"1"</span><b>{if ultah { "Pesta Ulang Tahun" } else { "Akad Nikah / Pemberkatan" }}</b><small class="gold">"Wajib"</small></div>
                             <div class="field-row">
                                 <label class="field"><span class="field__label">"Hari & Tanggal"</span>
                                     <input class="input" type="date" name="akad_date" required value=akad.date.clone() /></label>
                                 <label class="field"><span class="field__label">"Judul Acara"</span>
-                                    <select class="input" name="akad_title">
-                                        {akad_titles.into_iter().map(|t| { let sel = t == akad.title; view! { <option selected=sel>{t}</option> } }).collect_view()}
-                                    </select></label>
+                                    {if ultah {
+                                        view! { <input class="input" name="akad_title" maxlength="40" value=akad.title.clone() placeholder="Ulang Tahun ke-7" /> }.into_any()
+                                    } else {
+                                        view! {
+                                            <select class="input" name="akad_title">
+                                                {akad_titles.into_iter().map(|t| { let sel = t == akad.title; view! { <option selected=sel>{t}</option> } }).collect_view()}
+                                            </select>
+                                        }
+                                        .into_any()
+                                    }}</label>
                             </div>
                             <div class="field-row field-row--3">
                                 <label class="field"><span class="field__label">"Mulai"</span><input class="input" type="time" name="akad_start" value=akad.time_start.clone() /></label>
@@ -142,6 +164,7 @@ fn SuntingForm(d: Sunting, notice: Option<(bool, String)>) -> impl IntoView {
                             <label class="field"><span class="field__label">"Link Google Maps (opsional)"</span>
                                 <input class="input" name="akad_maps" type="url" maxlength="300" value=akad.maps_url.clone() /></label>
                         </div>
+                        {(!ultah).then(|| view! {
                         <div class="subcard">
                             <div class="subcard__head"><span class="num num--gold">"2"</span><b>"Resepsi Pernikahan"</b><small>"Opsional — kosongkan tanggal untuk menghapus"</small></div>
                             <div class="field-row">
@@ -160,6 +183,7 @@ fn SuntingForm(d: Sunting, notice: Option<(bool, String)>) -> impl IntoView {
                             <label class="field"><span class="field__label">"Alamat"</span><input class="input" name="resepsi_address" maxlength="200" value=resepsi.address.clone() /></label>
                             <label class="field"><span class="field__label">"Link Google Maps (opsional)"</span><input class="input" type="url" name="resepsi_maps" maxlength="300" value=resepsi.maps_url.clone() /></label>
                         </div>
+                        })}
                         <label class="field"><span class="field__label"><Icon name="checkroom" />"Dress Code Tamu"</span>
                             <input class="input" name="dress_code" maxlength="200" value=inv.dress_code.clone() /></label>
                         <p class="field__label">"Warna busana yang dianjurkan (kosongkan nama untuk menyembunyikan)"</p>
@@ -327,7 +351,8 @@ fn Orang(
             </div>
             <label class="field"><span class="field__label">{parent_label}" Orang Tua"</span>
                 <input class="input" name=format!("{prefix}_parents") maxlength="200" value=parents /></label>
-            <Foto name=if prefix == "bride" { "bride_photo" } else { "groom_photo" } url=photo label=if prefix == "bride" { "Foto mempelai wanita" } else { "Foto mempelai pria" } />
+            <Foto name=if prefix == "bride" { "bride_photo" } else { "groom_photo" } url=photo
+                label=match (prefix, label) { (_, "Yang Berulang Tahun") => "Foto yang berulang tahun", ("bride", _) => "Foto mempelai wanita", _ => "Foto mempelai pria" } />
         </div>
     }
 }

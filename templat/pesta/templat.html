@@ -1,0 +1,237 @@
+{#- ═════════════════════════════════════════════════════════════════════════
+    Pesta — templat undangan ULANG TAHUN (tema kategori "Ulang Tahun").
+
+    Satu orang yang berulang tahun = kolom `bride_*` undangan (nama, panggilan,
+    orang tua, foto); `groom_*` kosong. Judul pesta ("Ulang Tahun ke-7") =
+    judul acara PERTAMA. Balon, konfeti & kue = SVG/CSS di templat ini
+    (tanpa aset RustFS). Kulit warna per tema lewat variabel --p-* di
+    themes.template_css. Data & atribut gerak: templat/README.md.
+    ═════════════════════════════════════════════════════════════════════════ -#}
+
+{%- set nama = bride.first or bride.name %}
+{%- set en = lang == "en" %}
+
+{%- macro balon(kelas, warna) -%}
+<svg class="p-balon {{ kelas }}" style="--c:var({{ warna }})" viewBox="0 0 60 120" aria-hidden="true">
+  <path class="p-balon__tali" d="M30 80c-6 10 6 18 0 28s5 10 0 12" fill="none"/>
+  <path class="p-balon__badan" d="M30 4C14 4 4 18 4 34c0 22 16 40 26 44 10-4 26-22 26-44C56 18 46 4 30 4Z"/>
+  <path class="p-balon__ikat" d="m26 78 4 6 4-6Z"/>
+  <ellipse class="p-balon__kilau" cx="19" cy="24" rx="5" ry="9" transform="rotate(-24 19 24)"/>
+</svg>
+{%- endmacro -%}
+
+{%- macro konfeti(n) -%}
+<div class="p-konfeti" aria-hidden="true">{% for i in range(n) %}<i></i>{% endfor %}</div>
+{%- endmacro -%}
+
+<div class="p-latar" aria-hidden="true">
+  {{ balon("p-balon--1", "--p-a1") }}
+  {{ balon("p-balon--2", "--p-a2") }}
+  {{ balon("p-balon--3", "--p-a3") }}
+  {{ balon("p-balon--4", "--p-a1") }}
+</div>
+
+{#- ── Desktop: panel kiri (kiri & kanan sama lebar, seperti tema lain) ──── #}
+<aside class="p-side" aria-hidden="true" data-pre>
+  {{ konfeti(12) }}
+  <div class="p-side__balon">
+    {{ balon("", "--p-a1") }}{{ balon("", "--p-a2") }}{{ balon("", "--p-a3") }}{{ balon("", "--p-a1") }}
+  </div>
+  <div class="p-side__isi">
+    <p class="p-eyebrow" data-a="fadeInDown">{{ "Birthday Invitation" if en else "Undangan Ulang Tahun" }}</p>
+    <p class="p-nama p-side__nama" data-a="zoomIn" data-ad="300">{{ nama }}</p>
+    {%- if first %}<p class="p-pita" data-a="fadeInUp" data-ad="500">{{ first.title }}</p>{% endif %}
+    <p class="p-tanggal" data-a="fadeInUp" data-ad="700">{{ date_label }}</p>
+  </div>
+</aside>
+
+{#- ── SAMPUL (gerbang) ─────────────────────────────────────────────────── #}
+{%- if not pv %}
+<section class="p-gate" data-gate aria-label="{{ t.sampul_label }}">
+  <button type="button" class="t-lewati" data-open-instan>{{ t.lewati_intro }}</button>
+  {{ konfeti(14) }}
+  <div class="p-gate__balon" aria-hidden="true">
+    <span data-a="fadeInUp" data-ad="200" data-at="1600">{{ balon("", "--p-a1") }}</span>
+    <span data-a="fadeInUp" data-ad="450" data-at="1600">{{ balon("", "--p-a2") }}</span>
+    <span data-a="fadeInUp" data-ad="700" data-at="1600">{{ balon("", "--p-a3") }}</span>
+  </div>
+  <div class="p-gate__card">
+    <p class="p-eyebrow" data-a="fadeInDown">{{ "Birthday Invitation" if en else "Undangan Ulang Tahun" }}</p>
+    <div class="p-foto p-foto--gate" data-a="bounceIn" data-ad="300">
+      {%- if cover_photo or bride.photo %}
+      <img src="{{ (cover_photo or bride.photo)|foto }}" style="{{ (cover_photo or bride.photo)|pos }}" alt="{{ nama }}" fetchpriority="high">
+      {%- else %}
+      <span class="p-foto__inisial">{{ bride.initial }}</span>
+      {%- endif %}
+    </div>
+    <h1 class="p-nama" data-a="zoomIn" data-ad="600">{{ nama }}</h1>
+    {%- if first %}<p class="p-pita" data-a="fadeInUp" data-ad="850">{{ first.title }}</p>{% endif %}
+    <p class="p-tanggal" data-a="fadeInUp" data-ad="1000">{{ date_label }}</p>
+    <p class="p-gate__to" data-a="fadeInUp" data-ad="1200">{{ t.kepada }}<b>{{ tamu }}</b></p>
+    {%- if guest and guest.vip %}<p class="p-chip" data-a="fadeInUp" data-ad="1300">{{ t.tamu_spesial }}</p>{% endif %}
+    <button type="button" class="p-btn" data-open data-burst="26" data-a="zoomIn" data-ad="1500">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-2-4-7-4-7-1s5 1 7 1Zm0 0c2-4 7-4 7-1s-5 1-7 1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      {{ t.buka }}
+    </button>
+  </div>
+</section>
+{%- endif %}
+
+<main class="p-main">
+
+  {#- ── 1. Pembuka ──────────────────────────────────────────────────────── #}
+  <section class="p-hero" id="sampul">
+    {{ konfeti(10) }}
+    <p class="p-eyebrow" data-a="fadeInDown">{{ "Let's celebrate" if en else "Ayo merayakan" }}</p>
+    <div class="p-kue" data-a="zoomIn" data-ad="250" aria-hidden="true">
+      <svg viewBox="0 0 160 150">
+        <g class="p-kue__lilin"><rect x="56" y="28" width="7" height="24" rx="2"/><rect x="77" y="22" width="7" height="30" rx="2"/><rect x="98" y="28" width="7" height="24" rx="2"/></g>
+        <g class="p-kue__api"><path d="M59.5 14c4 6 4 10 0 13-4-3-4-7 0-13Z"/><path d="M80.5 8c4 6 4 10 0 13-4-3-4-7 0-13Z"/><path d="M101.5 14c4 6 4 10 0 13-4-3-4-7 0-13Z"/></g>
+        <rect class="p-kue__atas" x="34" y="52" width="92" height="34" rx="8"/>
+        <path class="p-kue__krim" d="M34 62c8 8 15 8 23 0s15 8 23 0 15 8 23 0 15 8 23 0V58a8 8 0 0 0-8-8H42a8 8 0 0 0-8 8Z"/>
+        <rect class="p-kue__bawah" x="20" y="86" width="120" height="44" rx="9"/>
+        <path class="p-kue__krim2" d="M20 96c10 9 20 9 30 0s20 9 30 0 20 9 30 0 20 9 30 0v-2a9 9 0 0 0-9-9H29a9 9 0 0 0-9 9Z"/>
+        <rect class="p-kue__piring" x="8" y="128" width="144" height="10" rx="5"/>
+      </svg>
+    </div>
+    <h2 class="p-nama p-nama--hero" data-a="zoomIn" data-ad="500">{{ nama }}</h2>
+    {%- if first %}<p class="p-pita" data-a="fadeInUp" data-ad="700">{{ first.title }}</p>{% endif %}
+    <p class="p-tanggal p-tanggal--besar" data-a="fadeInUp" data-ad="850">{{ date_num }}</p>
+    <a class="p-gulir" href="#profil" data-a="fadeIn" data-ad="1200"><span></span>{{ t.gulir }}</a>
+  </section>
+
+  {#- ── 2. Yang berulang tahun ──────────────────────────────────────────── #}
+  <section class="p-kartu p-profil" id="profil">
+    <p class="p-salam" data-s="atas">{{ "With joy, we invite you to celebrate the birthday of" if en else "Dengan penuh sukacita, kami mengundang Anda merayakan hari ulang tahun" }}</p>
+    <div class="p-foto p-foto--profil" data-s="zoom-in">
+      {%- set fp = bride.photo or cover_photo %}
+      {%- if fp %}
+      <img src="{{ fp|foto }}" style="{{ fp|pos }}" alt="{{ bride.name }}" loading="lazy" data-zoom>
+      {%- else %}
+      <span class="p-foto__inisial">{{ bride.initial }}</span>
+      {%- endif %}
+    </div>
+    <h2 class="p-judul" data-s="atas">{{ bride.name }}</h2>
+    {%- if bride.parents %}<p class="p-ortu" data-s="atas">{{ bride.parents }}</p>{% endif %}
+    {%- if bride.ig %}<a class="p-ig" href="https://instagram.com/{{ bride.ig }}" target="_blank" rel="noopener" data-s="zoom-in">@{{ bride.ig }}</a>{% endif %}
+    <blockquote class="p-kutip" data-s="atas">
+      “{{ quote.text or ("May every year bring more laughter, kindness and wonderful adventures." if en else "Semoga setiap tahun membawa lebih banyak tawa, kebaikan, dan petualangan yang menyenangkan.") }}”
+      {%- if quote.source %}<cite>{{ quote.source }}</cite>{% endif %}
+    </blockquote>
+  </section>
+
+  {#- ── 3. Hitung mundur ────────────────────────────────────────────────── #}
+  {%- if countdown_ms %}
+  <section class="p-hitung">
+    <h2 class="p-judul p-judul--terang" data-s="atas">{{ "Counting down to the party" if en else "Menuju hari pesta" }}</h2>
+    <div class="p-count" data-countdown="{{ countdown_ms }}" data-s="zoom-in">
+      <span><b data-cd="d">00</b><small>{{ t.hari }}</small></span>
+      <span><b data-cd="h">00</b><small>{{ t.jam }}</small></span>
+      <span><b data-cd="m">00</b><small>{{ t.menit }}</small></span>
+      <span><b data-cd="s">00</b><small>{{ t.detik }}</small></span>
+    </div>
+    {%- if calendar_url %}
+    <a class="p-btn p-btn--terang" href="{{ calendar_url }}" target="_blank" rel="noopener" data-s="atas">{{ t.simpan_kalender }}</a>
+    {%- endif %}
+  </section>
+  {%- endif %}
+
+  {#- ── 4. Acara ────────────────────────────────────────────────────────── #}
+  <section class="p-acara" id="acara">
+    <h2 class="p-judul" data-s="atas">{{ "Party Details" if en else "Detail Pesta" }}</h2>
+    {%- for e in events %}
+    <article class="p-kartu p-event" data-s="zoom-in">
+      <p class="p-event__judul">{{ e.title }}</p>
+      <div class="p-event__tgl">
+        <span class="p-event__hari">{{ e.day_name }}</span>
+        <b>{{ e.day }}</b>
+        <span>{{ e.month_year }}</span>
+      </div>
+      <p class="p-event__jam"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>{{ e.time_label }}</p>
+      {%- for s in e.sessions %}<p class="p-event__sesi">{{ s.label }} · {{ s.time }}</p>{% endfor %}
+      <p class="p-event__tempat"><b>{{ e.venue }}</b>{% if e.address %}<br>{{ e.address }}{% endif %}</p>
+      {%- if e.maps %}
+      <a class="p-btn p-btn--kecil" href="{{ e.maps }}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="9.8" r="2.3" fill="currentColor"/></svg>
+        {{ t.petunjuk }}
+      </a>
+      {%- endif %}
+    </article>
+    {%- endfor %}
+    {%- if dress_code or dress_colors %}
+    <div class="p-kartu p-dress" data-s="atas">
+      <p class="p-event__judul">{{ "Party Theme & Dress Code" if en else "Tema Pakaian" }}</p>
+      {%- if dress_code %}<p>{{ dress_code }}</p>{% endif %}
+      {%- if dress_colors %}<p class="p-dots">{% for c in dress_colors %}<span style="background:{{ c.hex }}" title="{{ c.name }}"></span>{% endfor %}</p>{% endif %}
+    </div>
+    {%- endif %}
+    {%- if live_url %}
+    <div class="p-kartu p-dress" data-s="atas">
+      <p class="p-event__judul">{{ t.live }}</p>
+      <p>{{ "Can't make it? Join the celebration online." if en else "Berhalangan hadir? Ikut merayakan secara virtual." }}</p>
+      <a class="p-btn p-btn--kecil" href="{{ live_url }}" target="_blank" rel="noopener">{{ t.live_lihat }}</a>
+    </div>
+    {%- endif %}
+    <p class="p-cta" data-s="atas"><a class="p-btn" href="#ucapan">{{ t.konfirmasi_hadir }}</a></p>
+  </section>
+
+  {#- ── 5. Galeri ───────────────────────────────────────────────────────── #}
+  {%- if gallery %}
+  <section class="p-galeri" id="galeri">
+    <h2 class="p-judul" data-s="atas">{{ ("Moments of " ~ nama) if en else ("Momen " ~ nama) }}</h2>
+    <div class="p-cf" data-coverflow="4500" data-s="zoom-in">
+      <div class="t-cf__stage p-cf__stage">
+        {%- for g in gallery %}
+        <figure class="p-cf__item" data-cf-item><img src="{{ g|foto }}" style="{{ g|pos }}" alt="Momen {{ loop.index }}" loading="lazy" data-zoom></figure>
+        {%- endfor %}
+      </div>
+      <div class="p-cf__nav">
+        <button type="button" class="p-cf__btn" data-cf-prev aria-label="{{ t.foto_sebelum }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+        <span class="p-cf__count" data-cf-count>1 / {{ gallery|length }}</span>
+        <button type="button" class="p-cf__btn" data-cf-next aria-label="{{ t.foto_berikut }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+      </div>
+    </div>
+  </section>
+  {%- endif %}
+
+  {%- if video_url %}
+  <section class="p-video" data-s="zoom-in">
+    <video src="{{ video_url|foto }}" controls playsinline preload="none" poster="{{ cover_photo|foto }}"></video>
+  </section>
+  {%- endif %}
+
+  {#- ── 6. Kado ─────────────────────────────────────────────────────────── #}
+  {%- if banks or gift_address %}
+  <section class="p-kado" id="hadiah" data-gift-wrap>
+    <h2 class="p-judul" data-s="atas">{{ "Birthday Gift" if en else "Kado Ulang Tahun" }}</h2>
+    <p class="p-lead" data-s="atas">{{ "Your presence and prayers are the best gift. If you'd like to send something, tap the box." if en else "Kehadiran dan doa Anda adalah hadiah terindah. Bila ingin mengirim kado, ketuk kotak di bawah ini." }}</p>
+    {% with x = "p", gerak = "", burst = 20 %}{% include "_kado" %}{% endwith %}
+  </section>
+  {%- endif %}
+
+  {#- ── 7. Ucapan & RSVP ────────────────────────────────────────────────── #}
+  <section class="p-kartu p-ucapan" id="ucapan">
+    <h2 class="p-judul" data-s="atas">{{ "Birthday Wishes" if en else "Ucapan & Doa" }}</h2>
+    <p class="p-lead" data-s="atas">{{ ("Send your wishes for " ~ nama ~ " and let us know if you can come.") if en else ("Kirim ucapan terbaik untuk " ~ nama ~ " dan konfirmasi kehadiran Anda.") }}</p>
+    {% with x = "p" %}{% include "_ucapan" %}{% endwith %}
+  </section>
+
+  {#- ── 8. Terima kasih ─────────────────────────────────────────────────── #}
+  <section class="p-tutup">
+    {{ konfeti(8) }}
+    <h2 class="p-judul" data-s="atas">{{ t.terima_kasih }}</h2>
+    <p data-s="atas">{{ "Your presence will make the day even happier. See you at the party!" if en else "Kehadiran Anda akan membuat hari bahagia ini semakin meriah. Sampai jumpa di pesta!" }}</p>
+    <p class="p-tutup__oleh" data-s="atas">{{ "With love," if en else "Dengan sukacita," }}</p>
+    <p class="p-nama p-nama--kecil" data-s="zoom-in">{{ nama }}</p>
+    {%- if family_name %}<p class="p-tutup__kel" data-s="atas">{{ family_name }}</p>{% endif %}
+  </section>
+
+  <footer class="p-foot">{{ t.oleh }} <a href="/">{{ brand }}</a></footer>
+</main>
+
+{%- if music.url %}
+<button class="p-musik" type="button" data-music-toggle aria-label="{{ t.musik }}">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="6.5" cy="18" r="2.5" fill="currentColor"/><circle cx="17.5" cy="16" r="2.5" fill="currentColor"/></svg>
+</button>
+<audio data-music src="{{ music.url }}" loop preload="none"></audio>
+{%- endif %}

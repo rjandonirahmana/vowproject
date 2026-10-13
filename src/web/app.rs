@@ -320,7 +320,8 @@ pub fn App() -> impl IntoView {
 /// banner… — dilayani sebagai berkas ber-versi `/app.js?v=hash` sehingga
 /// di-cache browser selamanya (dulu ±24 KB inline di SETIAP halaman).
 #[cfg(feature = "ssr")]
-pub const GLOBAL_JS: &str = include_str!("global.js");
+/// Didahului web/bersama.js (pratinjau etalase — dipakai juga tata.js).
+pub const GLOBAL_JS: &str = concat!(include_str!("bersama.js"), include_str!("global.js"));
 
 /// Tag verifikasi kepemilikan situs dari env (dibaca sekali):
 /// GOOGLE_SITE_VERIFICATION (Search Console, metode "Tag HTML" — isi

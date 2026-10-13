@@ -85,6 +85,10 @@
   // Isi gerbang & [data-pre] (mis. panel kiri desktop) beranimasi sejak awal.
   const inGate = (el) => (gate && gate.contains(el)) || !!el.closest("[data-pre]");
   let opened = !gate;
+  // Tanpa gerbang (templat tanpa sampul, atau pratinjau ?pv=1 yang sampulnya
+  // tak dirender) = sudah terbuka: kelasnya dipasang juga — CSS yang menunggu
+  // t-open (mis. panggung 3D pratinjau) tak menunggu selamanya.
+  if (!gate) html.classList.add("t-open");
   const aIO = new IntersectionObserver(
     (es) => {
       es.forEach((e) => {
@@ -682,64 +686,12 @@
     }),
   );
 
-  // ── Pratinjau katalog (iframe ?pv=1): buka otomatis lalu gulir pelan ────
+  // ── Pratinjau katalog (iframe ?pv=1) ──────────────────────────────────
+  // Jabat tangan & gulir otomatis = web/bersama.js (sama dengan app.js);
+  // di sini hanya cara MEMBUKA undangan templat: instan, tanpa partikel.
   if (pv) {
     html.classList.add("t-pv");
-    // Sama dengan global.js: buka DENGAN gerak setelah kartu induk memunculkan
-    // iframe ('show'); dulu open(true) = instan, gerak buka tak pernah tampil.
-    // `beku` (laptop etalase beranda): gerak buka diputar lalu semua animasi
-    // & video dijeda, tanpa gulir — iframe sama-asal berbagi thread dengan
-    // beranda (sama dengan global.js pvRun).
-    let shown = false;
-    const show = (beku) => {
-      if (shown) return;
-      shown = true;
-      const btn = gate && gate.querySelector("[data-open]");
-      if (btn) burst(btn);
-      open(false);
-      const ms = +(data.gate_ms || 900) + 1600;
-      if (beku) {
-        setTimeout(() => {
-          d.getAnimations().forEach((a) => { try { a.pause(); } catch (_) {} });
-          q("video").forEach((v) => { try { v.pause(); } catch (_) {} });
-        }, ms - 200);
-        return;
-      }
-      // Panggung 3D → prolog diputar utuh (gerak waktu ±8 dtk) sebelum gulir.
-      setTimeout(step, ms + (d.querySelector(".pg") ? 9800 : 0));
-    };
-    addEventListener("message", (e) => {
-      if (e.origin === location.origin && e.data && e.data.pv === "show") show(!!e.data.beku);
-    });
-    setTimeout(() => show(false), 1200);
-    // Gulir per SEGMEN (±50% layar tiap 2,4 dtk), bukan rAF terus-menerus —
-    // thread beranda senggang di antara segmen. Di dasar: jeda, kembali ke atas.
-    // Gulir halus bawaan Safari menempuh 55% layar dalam ±170 ms (terlihat
-    // melompat) → tiap segmen dihaluskan sendiri: ease-in-out 1,4 dtk.
-    const luncur = (ke, ms, lalu) => {
-      const dari = scrollY;
-      let t0 = 0;
-      const f = (t) => {
-        if (!t0) t0 = t;
-        let k = Math.min(1, (t - t0) / ms);
-        k = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-        scrollTo(0, dari + (ke - dari) * k);
-        if (t - t0 < ms) requestAnimationFrame(f); else lalu();
-      };
-      requestAnimationFrame(f);
-    };
-    const step = () => {
-      const max = d.documentElement.scrollHeight - innerHeight;
-      if (max <= 0) return;
-      if (scrollY >= max - 4) {
-        setTimeout(() => luncur(0, 1800, () => setTimeout(step, 1200)), 1400);
-        return;
-      }
-      luncur(Math.min(max, scrollY + innerHeight * 0.5), 1400, () => setTimeout(step, 1000));
-    };
-    try {
-      parent.postMessage({ pv: "ready" }, location.origin);
-    } catch (_) {}
+    undPratinjau.mulai(() => open(true), { diam: reduce });
   }
 
   // ── Navigasi bawah (server/templat.rs): item bagian yang sedang dibaca menyala ──

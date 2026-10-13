@@ -60,6 +60,7 @@ pub fn BuatPage() -> impl IntoView {
     let groom = RwSignal::new(qget("pria"));
     let date = RwSignal::new(qget("tanggal"));
     let venue = RwSignal::new(String::new());
+    let alamat = RwSignal::new(String::new());
     let galat = qget("galat");
     // Musik latar HANYA dari pustaka admin; lagu lain diminta lewat WA admin.
     let songs = Resource::new(|| (), |_| list_songs());
@@ -74,8 +75,18 @@ pub fn BuatPage() -> impl IntoView {
         }
     });
 
+    // Tema terpilih bertema ULANG TAHUN → formulir satu orang (bukan pasangan).
+    // Dihitung di Effect (bukan saat render) — membaca resource di luar
+    // <Suspense> memicu peringatan hydrate; SSR selalu mulai dari pernikahan.
+    let ultah = RwSignal::new(false);
+    Effect::new(move |_| {
+        let cur = theme.get();
+        if let Some(list) = theme_list.get() {
+            ultah.set(list.iter().any(|t| t.slug == cur && t.ulang_tahun()));
+        }
+    });
     let totals = move || k().calc_total(&package.get(), &addons.get(), &coupon.get());
-    let initials = move || format!("{}&{}", initial(&bride.get()), initial(&groom.get()));
+    let initials = move || if ultah.get() { initial(&bride.get()) } else { format!("{}&{}", initial(&bride.get()), initial(&groom.get())) };
     let toggle_addon = move |slug: String| {
         addons.update(|v| {
             if let Some(i) = v.iter().position(|x| *x == slug) { v.remove(i); } else { v.push(slug); }
@@ -92,7 +103,7 @@ pub fn BuatPage() -> impl IntoView {
             // bilah bawah yang menempel.
             <nav class="buat-nav" aria-label="Bagian formulir">
                 <a href="#tema"><span>"1"</span>"Tema"</a>
-                <a href="#mempelai"><span>"2"</span>"Mempelai"</a>
+                <a href="#mempelai"><span>"2"</span>{move || if ultah.get() { "Data Diri" } else { "Mempelai" }}</a>
                 <a href="#acara-form"><span>"3"</span>"Acara"</a>
                 <a href="#tambahan"><span>"4"</span>"Tambahan"</a>
                 <a href="#paket"><span>"5"</span>"Paket & Bayar"</a>
@@ -119,6 +130,7 @@ pub fn BuatPage() -> impl IntoView {
                         </div>
                         // SATU-SATUNYA isian `theme` — tetap terkirim walau pemilih sedang terbuka.
                         <input type="hidden" name="theme" value=move || theme.get() />
+                        <input type="hidden" name="acara" value=move || if ultah.get() { "ulang-tahun" } else { "wedding" } />
                         <Suspense fallback=|| view! { <SkelOptions n=1 /> }>
                             {move || theme_list.get().and_then(|list| {
                                 let cur = theme.get_untracked();
@@ -187,19 +199,31 @@ pub fn BuatPage() -> impl IntoView {
                                 }
                             }))}
                         </Suspense>
+                        <PratinjauPerangkat theme=theme list=theme_list kelas="buat-pv--hp" />
                     </section>
 
                     // ── B. Mempelai ──
                     <section class="card fsec" id="mempelai">
-                        <FsecHead icon="favorite" title="Data Mempelai" sub="Isi nama lengkap, nama orang tua, dan foto (opsional)" tag="2" />
-                        <PersonFields prefix="bride" label="Mempelai Wanita (The Bride)" parent_label="Putri dari" name=bride />
-                        <PersonFields prefix="groom" label="Mempelai Pria (The Groom)" parent_label="Putra dari" name=groom />
+                        {move || if ultah.get() {
+                            view! {
+                                <FsecHead icon="cake" title="Yang Berulang Tahun" sub="Isi nama lengkap, nama orang tua, dan foto (opsional)" tag="2" />
+                                <PersonFields prefix="bride" label="Yang Berulang Tahun" parent_label="Putra/Putri dari" name=bride photo_label="Foto yang Berulang Tahun" />
+                            }
+                            .into_any()
+                        } else {
+                            view! {
+                                <FsecHead icon="favorite" title="Data Mempelai" sub="Isi nama lengkap, nama orang tua, dan foto (opsional)" tag="2" />
+                                <PersonFields prefix="bride" label="Mempelai Wanita (The Bride)" parent_label="Putri dari" name=bride />
+                                <PersonFields prefix="groom" label="Mempelai Pria (The Groom)" parent_label="Putra dari" name=groom />
+                            }
+                            .into_any()
+                        }}
                         <div class="subcard">
-                            <p class="eyebrow eyebrow--dot">"Foto Sampul Berdua"</p>
+                            <p class="eyebrow eyebrow--dot">{move || if ultah.get() { "Foto Sampul" } else { "Foto Sampul Berdua" }}</p>
                             <div class="preview-row" data-preview-box="">
                                 <label class="upload">
                                     <Icon name="photo_camera" />
-                                    <span><b>"Foto prewedding untuk sampul"</b><small>"Tampil besar di halaman depan dalam bingkai lengkung — geser & zoom agar pas (maks 5 MB)."</small></span>
+                                    <span><b>{move || if ultah.get() { "Foto untuk sampul undangan" } else { "Foto prewedding untuk sampul" }}</b><small>"Tampil besar di halaman depan — geser & zoom agar pas (maks 5 MB)."</small></span>
                                     <input type="file" name="cover_photo" accept="image/jpeg,image/png,image/webp" data-preview="image" data-max="5"
                                         data-pos-name="cover_photo_pos" />
                                 </label>
@@ -215,17 +239,24 @@ pub fn BuatPage() -> impl IntoView {
 
                     // ── C. Acara ──
                     <section class="card fsec" id="acara-form">
-                        <FsecHead icon="calendar_month" title="Acara" sub="Tanggal, jam, dan tempat akad serta resepsi" tag="3" />
+                        <FsecHead icon="calendar_month" title="Acara" sub="Tanggal, jam, dan tempat acara" tag="3" />
                         <div class="subcard">
-                            <div class="subcard__head"><span class="num">"1"</span><b>"Akad Nikah / Pemberkatan"</b><small class="gold">"Wajib"</small></div>
+                            <div class="subcard__head"><span class="num">"1"</span><b>{move || if ultah.get() { "Pesta Ulang Tahun" } else { "Akad Nikah / Pemberkatan" }}</b><small class="gold">"Wajib"</small></div>
                             <div class="field-row">
                                 <label class="field"><span class="field__label">"Hari & Tanggal"</span>
                                     <input class="input" type="date" name="akad_date" required prop:value=move || date.get()
                                         on:input=move |e| date.set(event_target_value(&e)) /></label>
                                 <label class="field"><span class="field__label">"Judul Acara"</span>
-                                    <select class="input" name="akad_title">
-                                        <option>"Akad Nikah"</option><option>"Pemberkatan Nikah"</option><option>"Upacara Pernikahan"</option>
-                                    </select></label>
+                                    {move || if ultah.get() {
+                                        view! { <input class="input" name="akad_title" maxlength="40" placeholder="Ulang Tahun ke-7" /> }.into_any()
+                                    } else {
+                                        view! {
+                                            <select class="input" name="akad_title">
+                                                <option>"Akad Nikah"</option><option>"Pemberkatan Nikah"</option><option>"Upacara Pernikahan"</option>
+                                            </select>
+                                        }
+                                        .into_any()
+                                    }}</label>
                             </div>
                             <div class="field-row field-row--3">
                                 <label class="field"><span class="field__label">"Mulai"</span><input class="input" type="time" name="akad_start" value="08:00" /></label>
@@ -239,10 +270,13 @@ pub fn BuatPage() -> impl IntoView {
                                 <input class="input" name="akad_venue" maxlength="120" placeholder="Masjid Agung Al-Ikhlas"
                                     on:input=move |e| venue.set(event_target_value(&e)) /></label>
                             <label class="field"><span class="field__label">"Alamat"</span>
-                                <input class="input" name="akad_address" maxlength="200" placeholder="Jl. Kemang Raya No. 45, Jakarta Selatan" /></label>
+                                <input class="input" name="akad_address" maxlength="200" placeholder="Jl. Kemang Raya No. 45, Jakarta Selatan"
+                                    on:input=move |e| alamat.set(event_target_value(&e)) /></label>
                             <label class="field"><span class="field__label">"Link Google Maps (opsional)"</span>
                                 <input class="input" name="akad_maps" type="url" maxlength="300" placeholder="https://maps.app.goo.gl/…" /></label>
                         </div>
+                        // Ulang tahun: satu acara saja (tanpa resepsi).
+                        {move || (!ultah.get()).then(|| view! {
                         <div class="subcard">
                             <div class="subcard__head"><span class="num num--gold">"2"</span><b>"Resepsi Pernikahan"</b><small>"Opsional • multi-sesi"</small></div>
                             <div class="field-row">
@@ -261,6 +295,7 @@ pub fn BuatPage() -> impl IntoView {
                             <label class="field"><span class="field__label">"Alamat"</span><input class="input" name="resepsi_address" maxlength="200" /></label>
                             <label class="field"><span class="field__label">"Link Google Maps (opsional)"</span><input class="input" type="url" name="resepsi_maps" maxlength="300" /></label>
                         </div>
+                        })}
                         <label class="field">
                             <span class="field__label"><Icon name="checkroom" />"Panduan Pakaian (Dress Code) Tamu"</span>
                             <input class="input" name="dress_code" maxlength="200" placeholder="Formal Batik Tradisional / Gaun sentuhan Sage Green & Champagne" />
@@ -397,24 +432,46 @@ pub fn BuatPage() -> impl IntoView {
 
                 // ── Ringkasan (sticky) ──
                 <aside class="buat__side">
-                    <div class=move || format!("mini-live th-{}", theme.get())>
-                        <p class="mini-live__label"><span>"Ringkasan"</span><span class="gold">"● mengikuti isian"</span></p>
-                        <div class="mini-live__card">
-                            <div class="monogram monogram--sm" inner_html=move || monogram_svg(&initials(), "THE WEDDING OF")></div>
-                            <p class="mini__eyebrow">"Walimatul 'Urs"</p>
-                            <h3>{move || {
-                                let (b, g) = (bride.get(), groom.get());
-                                let f = |x: &str| x.split_whitespace().next().unwrap_or("").to_string();
-                                if b.is_empty() && g.is_empty() { "Nama & Pasangan".to_string() } else { format!("{} & {}", f(&b), f(&g)) }
-                            }}</h3>
-                            <p class="mini__date">{move || { let d = date.get(); if d.is_empty() { "Tanggal acara".into() } else { fmt::tanggal_panjang(&d) } }}</p>
-                            <p class="muted small">{move || venue.get()}</p>
+                    <PratinjauPerangkat theme=theme list=theme_list kelas="buat-pv--samping" />
+                    // HP "Undangan Anda": sampul bertema terpilih berisi data yang
+                    // SEDANG diketik (nama, tanggal, tempat, alamat, foto) — tanpa
+                    // iframe (ringan, berubah tiap huruf). Foto = blob lokal yang
+                    // dipasang global.js ke img[data-ringkas-foto].
+                    <div class="buat-hp">
+                        <p class="buat-hp__label"><span>"Undangan Anda"</span><span class="gold">"● langsung dari isian"</span></p>
+                        <div class="buat-hp__bingkai">
+                            <div class=move || format!("buat-hp__layar tcard__art th-{}", theme.get())>
+                                <div class="mini buat-hp__mini">
+                                    <p class="mini__eyebrow">{move || if ultah.get() { "Happy Birthday" } else { "The Wedding Of" }}</p>
+                                    <div class="buat-hp__foto">
+                                        <img data-ringkas-foto="" alt="" hidden />
+                                        <div class="monogram monogram--sm" inner_html=move || monogram_svg(&initials(), if ultah.get() { "HAPPY BIRTHDAY" } else { "THE WEDDING OF" })></div>
+                                    </div>
+                                    <p class="mini__names">{move || {
+                                        let (b, g) = (bride.get(), groom.get());
+                                        let f = |x: &str| x.split_whitespace().next().unwrap_or("").to_string();
+                                        if ultah.get() {
+                                            if b.is_empty() { "Nama Anda".to_string() } else { f(&b) }
+                                        } else if b.is_empty() && g.is_empty() {
+                                            "Nama & Pasangan".to_string()
+                                        } else {
+                                            format!("{} & {}", f(&b), f(&g))
+                                        }
+                                    }}</p>
+                                    <p class="mini__date">{move || { let d = date.get(); if d.is_empty() { "Tanggal acara".into() } else { fmt::tanggal_panjang(&d) } }}</p>
+                                    <p class="buat-hp__tempat">
+                                        <b>{move || { let v = venue.get(); if v.trim().is_empty() { "Nama tempat acara".to_string() } else { v } }}</b>
+                                        <small>{move || alamat.get()}</small>
+                                    </p>
+                                    <p class="buat-hp__tamu"><small>"Kepada Yth."</small>"Tamu Undangan"</p>
+                                    <span class="mini__btn">"Buka Undangan"</span>
+                                </div>
+                            </div>
                         </div>
                         <a class="btn btn--soft btn--sm btn--block" target="_blank" rel="noopener"
                             href=move || format!("/u/{}?tema={}", crate::web::themes::DEMO_SLUG, theme.get())>
                             <Icon name="open_in_new" />"Lihat contoh tema lengkap"
                         </a>
-                        <p class="muted small center">"Contoh memakai data demo; pratinjau dengan data Anda tersedia di halaman Kelola setelah disimpan."</p>
                     </div>
 
                     <section class="card summary" id="paket">
@@ -517,8 +574,50 @@ pub fn FsecHead(icon: &'static str, title: &'static str, sub: &'static str, tag:
     }
 }
 
+/// Pratinjau tema terpilih di laptop + HP yang BERGERAK (iframe ?pv=1 —
+/// mesin pratinjau global.js, sama dengan etalase beranda): dibuka langsung
+/// ke isi lalu bergulir. Berganti tema → kedua layar ikut berganti. Dua
+/// salinan (kolom samping desktop & bagian Tema di HP): CSS menyembunyikan
+/// salah satu, global.js hanya memutar yang terlihat.
 #[component]
-fn PersonFields(prefix: &'static str, label: &'static str, parent_label: &'static str, name: RwSignal<String>) -> impl IntoView {
+fn PratinjauPerangkat(theme: RwSignal<String>, list: Resource<Vec<ThemeInfo>>, kelas: &'static str) -> impl IntoView {
+    let pv = move || format!("/u/{}?tema={}&pv=1", crate::web::themes::DEMO_SLUG, theme.get());
+    view! {
+        <div class=format!("buat-pv {kelas}") data-buat-pv="">
+            <div class="buat-pv__alat">
+                <div class="buat-pv__laptop" aria-hidden="true">
+                    <div class="buat-pv__tutup">
+                        <div class="buat-pv__layar"><div class="buat-pv__isi" data-pv=pv data-pv-lebar="1280" data-pv-tukar=""></div></div>
+                    </div>
+                    <div class="buat-pv__alas"></div>
+                </div>
+                <div class="buat-pv__hp" aria-hidden="true">
+                    <div class="buat-pv__layar"><div class="buat-pv__isi" data-pv=pv data-pv-lebar="390" data-pv-tukar=""></div></div>
+                </div>
+            </div>
+            <Suspense fallback=|| view! { <p class="buat-pv__info skl"><span class="sk sk-title" style="width:56%"></span><span class="sk sk-line" style="width:34%"></span></p> }>
+                {move || list.get().and_then(|l| {
+                    let cur = theme.get();
+                    l.into_iter().find(|t| t.slug == cur).map(|t| view! {
+                        <p class="buat-pv__info">
+                            <b>{t.name.clone()}</b>
+                            <small><Icon name="location_on" />{if t.listed { t.region.clone() } else { "Tema custom milik Anda".to_string() }}</small>
+                        </p>
+                    })
+                })}
+            </Suspense>
+        </div>
+    }
+}
+
+#[component]
+fn PersonFields(
+    prefix: &'static str,
+    label: &'static str,
+    parent_label: &'static str,
+    name: RwSignal<String>,
+    #[prop(default = "Foto Mempelai")] photo_label: &'static str,
+) -> impl IntoView {
     view! {
         <div class="subcard">
             <p class="eyebrow eyebrow--dot">{label}</p>
@@ -540,7 +639,7 @@ fn PersonFields(prefix: &'static str, label: &'static str, parent_label: &'stati
             <div class="preview-row" data-preview-box="">
                 <label class="upload">
                     <Icon name="photo_camera" />
-                    <span><b>"Foto Mempelai"</b><small>"JPEG/PNG/WebP, maksimal 5 MB (opsional) — pratinjau langsung, diunggah saat pesanan dikirim"</small></span>
+                    <span><b>{photo_label}</b><small>"JPEG/PNG/WebP, maksimal 5 MB (opsional) — pratinjau langsung, diunggah saat pesanan dikirim"</small></span>
                     <input type="file" name=format!("{prefix}_photo") accept="image/jpeg,image/png,image/webp" data-preview="image" data-max="5"
                         data-pos-name=format!("{prefix}_photo_pos") />
                 </label>

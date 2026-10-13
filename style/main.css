@@ -2280,8 +2280,12 @@ html.is-pv::-webkit-scrollbar {
 }
 html.is-pv .inv-top,
 html.is-pv .bottom-nav,
-html.is-pv .toast {
-    display: none;
+html.is-pv .toast,
+/* Pratinjau etalase/katalog TANPA sampul: gerbang tak dilukis sama sekali
+ * (gambar latarnya pun tak diunduh) — global.js tetap "membukanya" sekali
+ * agar html.inv-opened terpasang (panggung pratinjau mulai dari kelas itu). */
+html.is-pv .gate:not(.gate--embed) {
+    display: none !important;
 }
 .mini {
     position: relative;
@@ -3418,36 +3422,98 @@ html.is-pv .toast {
     width: 100%;
     font-size: 12.5px;
 }
-.mini-live {
+/* /buat: HP "Undangan Anda" — sampul bertema terpilih berisi isian pemesan
+ * (buat.rs; foto dipasang global.js). Gantikan kartu "Ringkasan" lama. */
+.buat-hp {
+    display: grid;
+    gap: 12px;
+    padding: 14px 14px 16px;
     border-radius: var(--r-xl);
-    padding: 14px;
     background: #273f2b;
 }
-.mini-live__label {
+.buat-hp__label {
     display: flex;
     justify-content: space-between;
+    margin: 0;
     font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #ecf3e8;
-    margin-bottom: 10px;
 }
-.mini-live__label .gold {
+.buat-hp__label .gold {
     color: #fed488;
 }
-.mini-live__card {
-    padding: 22px 16px;
-    border-radius: var(--r-lg);
-    background: var(--bg);
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
+.buat-hp__bingkai {
+    width: min(250px, 78%);
+    margin: 4px auto 0;
+    padding: 7px;
+    border-radius: 34px;
+    box-shadow: 0 0 0 1px #4a4a52, 0 26px 40px -20px rgba(0, 0, 0, 0.7);
 }
-.mini-live__card h3 {
-    font-size: 26px;
+.buat-hp__layar.tcard__art {
+    aspect-ratio: 9 / 19;
+    border-radius: 27px;
+}
+.buat-hp__layar.tcard__art::before {
+    display: none;
+}
+.buat-hp__mini.mini {
+    width: 84%;
+    gap: 6px;
+    padding: 22px 12px 18px;
+}
+.buat-hp__mini .mini__eyebrow {
+    font-size: 9.5px;
+}
+.buat-hp__mini .mini__names {
+    font-size: 21px;
+    overflow-wrap: anywhere;
+}
+.buat-hp__mini .mini__date {
+    font-size: 9.5px;
+}
+.buat-hp__mini .mini__btn {
+    font-size: 10px;
+    padding: 6px 14px;
+}
+.buat-hp__foto {
+    display: grid;
+    place-items: center;
+}
+.buat-hp__foto img {
+    width: 96px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 48px 48px 10px 10px;
+    box-shadow: 0 0 0 3px var(--card), 0 0 0 4px var(--gold);
+}
+.buat-hp__foto img:not([hidden]) + .monogram {
+    display: none;
+}
+.buat-hp__tempat {
+    display: grid;
+    gap: 1px;
+    margin: 2px 0 0;
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: var(--ink);
+}
+.buat-hp__tempat small {
+    font-size: 9.5px;
+    color: var(--muted);
+}
+.buat-hp__tamu {
+    display: grid;
+    margin: 4px 0 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+}
+.buat-hp__tamu small {
+    font-size: 8.5px;
+    font-weight: 500;
+    color: var(--muted);
 }
 .summary {
     padding: 20px;
@@ -10149,6 +10215,21 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     padding-top: 30px;
 }
 
+/* ── Bingkai perangkat BERSAMA (etalase beranda & /buat): bahan & warna
+ * satu sumber; ukuran/posisi tetap di aturan masing-masing. */
+.etalase__tutup,
+.buat-pv__tutup {
+    background: linear-gradient(180deg, #2a2a2e, #141416);
+}
+.etalase__alas,
+.buat-pv__alas {
+    background: linear-gradient(180deg, #e9eaee, #c4c6cc 55%, #9a9ca3);
+}
+.buat-pv__hp,
+.buat-hp__bingkai {
+    background: #141417;
+}
+
 /* ── Etalase HP beranda (katalog.rs EtalaseHp + global.js etaInit) ─────────
  * Tema berjajar coverflow 3D; yang di tengah tepat berada di dalam bingkai
  * HP (ukuran kartu = ukuran layar HP) dan diputar lewat iframe pratinjau.
@@ -10164,6 +10245,11 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     margin: 30px auto 6px;
     padding: 0 20px;
     text-align: center;
+    /* z-index kartu/HP (≤ 70) tetap di dalam etalase — tak menimpa header lengket. */
+    isolation: isolate;
+    /* Pengaman: apa pun di etalase yang melebar tak membuat halaman bergeser
+     * ke samping (clip ≠ hidden: bukan wadah gulir, sticky & timeline aman). */
+    overflow-x: clip;
 }
 .etalase__head {
     display: grid;
@@ -10422,7 +10508,7 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     transform-origin: 0 50%;
 }
 .etalase__progres i.is-jalan {
-    animation: etalase-progres 11s linear both;
+    animation: etalase-progres 14s linear both;
 }
 .etalase:hover .etalase__progres i {
     animation-play-state: paused;
@@ -10500,7 +10586,9 @@ html.sv-open, html.sv-open body { overflow: hidden; }
  * desktop undangan). Bezel hitam + kamera, alas aluminium dgn cekungan
  * pembuka. Sebelum pratinjau siap: kilau skeleton (bukan teks/pemutar). */
 .etalase__laptop {
-    --tw: min(620px, 92vw);
+    /* Alas laptop 116% dari lebar ini → 82vw × 1,16 ≈ 95vw: tak melebihi
+     * layar HP (dulu 92vw → alas 107vw, seluruh halaman bisa digeser). */
+    --tw: min(620px, 82vw);
     margin: 18px auto 8px;
     width: var(--tw);
 }
@@ -10508,7 +10596,6 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     position: relative;
     padding: 2.2% 2.2% 3%;
     border-radius: 18px 18px 6px 6px;
-    background: linear-gradient(180deg, #2a2a2e, #141416);
     box-shadow:
         0 0 0 1px #4a4a50,
         inset 0 0 0 1px rgba(255, 255, 255, 0.06),
@@ -10578,7 +10665,6 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     min-height: 10px;
     margin-left: -8%;
     border-radius: 2px 2px 14px 14px / 2px 2px 100% 100%;
-    background: linear-gradient(180deg, #e9eaee, #c4c6cc 55%, #9a9ca3);
     box-shadow: 0 18px 30px -16px rgba(0, 0, 0, 0.45);
 }
 .etalase__alas::before {
@@ -10648,7 +10734,7 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     font-weight: 600;
     color: var(--muted);
 }
-.etalase__opsi:hover {
+.etalase__opsi:not(.is-on):hover {
     border-color: var(--line-gold);
 }
 .etalase__opsi.is-on {
@@ -10663,6 +10749,31 @@ html.sv-open, html.sv-open body { overflow: hidden; }
 .etalase__opsi:focus-visible {
     outline: 2px solid var(--gold);
     outline-offset: 2px;
+}
+/* HP/tablet: baris gaya tema sedikit lebih kecil dari baris jenis acara. */
+.etalase__gaya .etalase__opsi {
+    padding: 6px 12px;
+    font-size: 12.5px;
+}
+.etalase__pilih[hidden] {
+    display: none !important;
+}
+/* Sampul mini tema ULANG TAHUN (katalog & etalase): angka usia dalam
+ * lingkaran warna-warni, bukan monogram pasangan. */
+.mini__ultah {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    aspect-ratio: 1;
+    margin: 6px auto 2px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--on-primary, #fff);
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 0 0 4px var(--card), 0 0 0 6px var(--gold);
 }
 .etalase__item.is-saring {
     display: none !important;
@@ -10771,9 +10882,11 @@ html.sv-open, html.sv-open body { overflow: hidden; }
         overscroll-behavior: contain;
         scrollbar-width: thin;
     }
-    .etalase__opsi {
+    .etalase__opsi,
+    .etalase__gaya .etalase__opsi {
         width: 100%;
         padding: 9px 10px;
+        font-size: 13.5px;
         border-color: transparent;
         border-radius: 12px;
         background: transparent;
@@ -10781,7 +10894,11 @@ html.sv-open, html.sv-open body { overflow: hidden; }
     .etalase__opsi small {
         margin-left: auto;
     }
-    .etalase__opsi:hover {
+    .etalase__opsi.is-on,
+    .etalase__gaya .etalase__opsi.is-on {
+        background: var(--primary);
+    }
+    .etalase__opsi:not(.is-on):hover {
         border-color: transparent;
         background: color-mix(in srgb, var(--gold-pale) 60%, transparent);
     }
@@ -11476,6 +11593,137 @@ details.adm-song[open] {
     }
     .buat {
         padding-bottom: 90px;
+    }
+}
+
+/* ── /buat: pratinjau tema terpilih di laptop + HP (buat.rs PratinjauPerangkat,
+ * global.js bpvInit). Laptop di belakang, HP di depan kanan; layar kosong =
+ * kilau skeleton sampai iframe pratinjau siap (.is-pv). */
+.buat-pv {
+    padding: 16px 14px 12px;
+    border-radius: var(--r-xl, 22px);
+    background:
+        radial-gradient(70% 60% at 50% 40%, color-mix(in srgb, var(--gold-pale) 70%, transparent), transparent),
+        var(--card);
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+.buat-pv--hp {
+    margin-top: 16px;
+}
+.buat-pv__alat {
+    position: relative;
+    aspect-ratio: 16 / 10.6;
+}
+.buat-pv__laptop {
+    position: absolute;
+    left: 2%;
+    top: 4%;
+    width: 78%;
+}
+.buat-pv__tutup {
+    padding: 2.4% 2.4% 3%;
+    border-radius: 12px 12px 4px 4px;
+    box-shadow: 0 0 0 1px #4a4a50, 0 24px 40px -24px rgba(0, 0, 0, 0.55);
+}
+.buat-pv__tutup .buat-pv__layar {
+    aspect-ratio: 16 / 10;
+    border-radius: 3px;
+}
+.buat-pv__alas {
+    position: relative;
+    width: 112%;
+    height: 9px;
+    margin-left: -6%;
+    border-radius: 2px 2px 10px 10px / 2px 2px 100% 100%;
+}
+.buat-pv__hp {
+    position: absolute;
+    right: 3%;
+    bottom: 0;
+    z-index: 2;
+    width: 25%;
+    padding: 3px;
+    border-radius: 18px;
+    box-shadow: 0 0 0 1px #4a4a52, 0 22px 34px -16px rgba(0, 0, 0, 0.6);
+}
+.buat-pv__hp .buat-pv__layar {
+    aspect-ratio: 9 / 19.5;
+    border-radius: 15px;
+}
+.buat-pv__layar {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+}
+.buat-pv__layar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card) 80%, transparent), transparent);
+    translate: -100% 0;
+    animation: sk-shine 1.5s ease-in-out infinite;
+}
+.buat-pv__layar.is-pv::before {
+    display: none;
+}
+.buat-pv__isi {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+}
+.buat-pv__layar.is-pv .buat-pv__isi {
+    opacity: 1;
+    transition: opacity 0.45s ease;
+}
+.buat-pv__isi iframe {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border: 0;
+    transform-origin: 0 0;
+    background: var(--surface);
+    pointer-events: none;
+}
+.buat-pv__info {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    margin: 12px 0 0;
+    text-align: center;
+}
+.buat-pv__info b {
+    font-family: var(--font-display);
+    font-size: 19px;
+    color: var(--ink);
+}
+.buat-pv__info small {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold-deep);
+}
+.buat-pv__info small .ms {
+    font-size: 15px;
+}
+.buat-pv--samping {
+    display: none;
+}
+@media (min-width: 1000px) {
+    .buat-pv--samping {
+        display: block;
+    }
+    .buat-pv--hp {
+        display: none;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .buat-pv__layar::before {
+        animation: none;
     }
 }
 

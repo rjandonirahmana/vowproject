@@ -1,0 +1,33 @@
+{#- ═════════════════════════════════════════════════════════════════════════
+    _kado — kotak kado (ketuk → meletup, data-gift) + kartu rekening & alamat
+    BERSAMA antartemplat.
+    Dipakai:  {% with x = "g", gerak = "g-v-naik", burst = 0 %}{% include "_kado" %}{% endwith %}
+    `x` = awalan kelas, `gerak` = kelas gerak tambahan pada kotak (opsional),
+    `burst` = jumlah partikel saat diketuk (0 = tanpa).
+    ═════════════════════════════════════════════════════════════════════════ -#}
+<button type="button" class="{{ x }}-kotak {{ gerak }}" data-gift{% if burst %} data-burst="{{ burst }}"{% endif %} aria-controls="{{ x }}-kado-isi">
+  <svg class="{{ x }}-kotak__svg" viewBox="0 0 120 110" aria-hidden="true">
+    <rect class="{{ x }}-kotak__tutup" x="8" y="30" width="104" height="22" rx="4"/>
+    <rect class="{{ x }}-kotak__badan" x="16" y="52" width="88" height="54" rx="4"/>
+    <rect class="{{ x }}-kotak__pita" x="54" y="30" width="12" height="76"/>
+    <path class="{{ x }}-kotak__simpul" d="M60 30c-9-16-30-18-30-6 0 8 17 7 30 6Zm0 0c9-16 30-18 30-6 0 8-17 7-30 6Z"/>
+  </svg>
+  <span class="{{ x }}-kotak__hint">{{ t.ketuk_buka }}</span>
+</button>
+<div class="{{ x }}-kado__isi" id="{{ x }}-kado-isi">
+  {%- for b in banks %}
+  <div class="{{ x }}-kartu {{ x }}-bank">
+    <p class="{{ x }}-bank__nama">{{ b.bank }}</p>
+    <p class="{{ x }}-bank__no">{{ b.number }}</p>
+    <p class="{{ x }}-bank__an">{{ t.an }} {{ b.holder }}</p>
+    <button type="button" class="{{ x }}-btn {{ x }}-btn--kecil" data-copy="{{ b.number }}"><span data-copy-label>{{ t.salin_nomor }}</span></button>
+  </div>
+  {%- endfor %}
+  {%- if gift_address %}
+  <div class="{{ x }}-kartu {{ x }}-bank">
+    <p class="{{ x }}-bank__nama">{{ t.kirim_kado }}</p>
+    <p class="{{ x }}-bank__an">{{ gift_address }}</p>
+    <button type="button" class="{{ x }}-btn {{ x }}-btn--kecil" data-copy="{{ gift_address }}"><span data-copy-label>{{ t.salin_alamat }}</span></button>
+  </div>
+  {%- endif %}
+</div>

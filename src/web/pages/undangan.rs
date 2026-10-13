@@ -60,9 +60,9 @@ pub fn InvitationLayout() -> impl IntoView {
     let res = Resource::new(
         move || {
             let q = query.read();
-            (params.read().get("slug").unwrap_or_default(), q.get("g"), q.get("k"), q.get("tema"), q.get("rupa"))
+            (params.read().get("slug").unwrap_or_default(), q.get("g"), q.get("k"), q.get("tema"), q.get("rupa"), q.get("isi"))
         },
-        |(slug, g, k, tema, rupa)| get_invitation(slug, g, k, tema, rupa),
+        |(slug, g, k, tema, rupa, isi)| get_invitation(slug, g, k, tema, rupa, isi),
     );
     view! {
         <Suspense fallback=|| view! { <SkelInvitation /> }>

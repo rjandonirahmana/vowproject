@@ -1,0 +1,311 @@
+{#- ═════════════════════════════════════════════════════════════════════════
+    Taman — templat undangan nikah "Alam Taman 3D" (kategori 3D Dimensi).
+
+    Seperti PANGGUNG 3D, tapi untuk SETIAP bagian: tiap bagian utama adalah
+    ADEGAN lengket setinggi layar (.g-adegan). Saat digulir kamera melangkah
+    maju menembus taman — bukit & pohon jauh mendekat pelan, semak tengah
+    lebih cepat, daun & mawar dekat menyibak ke tepi — lalu kartu isinya
+    datang dari kedalaman, diam sebentar, dan lewat. Latar halaman DIAM.
+    Gerak = CSS scroll-driven (view-timeline per adegan), compositor, nol JS.
+    Lapis dekat DIGESER ke tepi (bukan diperbesar) → tak ada piksel pecah.
+    Ornamen = SVG <symbol> di bawah (tanpa aset). Kulit: --g-* (template_css).
+    Desktop: panel taman kiri (nama & tanggal), undangan di kolom kanan.
+    ═════════════════════════════════════════════════════════════════════════ -#}
+
+<svg class="g-defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="g-daun" viewBox="0 0 40 90"><path d="M20 88C6 66 0 44 6 24 10 10 16 4 20 2c4 2 10 8 14 22 6 20 0 42-14 64Z"/><path class="g-urat" d="M20 86V8M20 30l-8-8M20 44l9-9M20 58l-10-9M20 70l8-8" fill="none"/></symbol>
+    <symbol id="g-bunga" viewBox="0 0 60 60"><g class="g-kelopak"><ellipse cx="30" cy="14" rx="10" ry="14"/><ellipse cx="30" cy="14" rx="10" ry="14" transform="rotate(72 30 30)"/><ellipse cx="30" cy="14" rx="10" ry="14" transform="rotate(144 30 30)"/><ellipse cx="30" cy="14" rx="10" ry="14" transform="rotate(216 30 30)"/><ellipse cx="30" cy="14" rx="10" ry="14" transform="rotate(288 30 30)"/></g><circle class="g-putik" cx="30" cy="30" r="7"/></symbol>
+    <symbol id="g-mawar" viewBox="0 0 60 60"><circle class="g-mawar__l" cx="30" cy="30" r="27"/><path class="g-mawar__d" d="M30 10c11 0 19 8 19 19 0 9-7 16-16 16-7 0-13-5-13-12 0-6 4-10 10-10 5 0 8 3 8 7 0 3-2 5-5 5"/><path class="g-mawar__d" d="M14 22c-4 8-3 18 4 25M46 41c-5 8-15 11-24 8"/></symbol>
+    <symbol id="g-kupu" viewBox="0 0 60 44"><g class="g-kupu__ki"><path d="M29 22C22 6 6 0 3 8c-3 9 8 14 26 14Z"/><path d="M29 23C18 26 8 34 12 40c4 5 13-4 17-17Z"/></g><g class="g-kupu__ka"><path d="M31 22C38 6 54 0 57 8c3 9-8 14-26 14Z"/><path d="M31 23c11 3 21 11 17 17-4 5-13-4-17-17Z"/></g><rect class="g-kupu__badan" x="28.5" y="12" width="3" height="22" rx="1.5"/></symbol>
+    <symbol id="g-pohon" viewBox="0 0 120 160"><rect class="g-pohon__batang" x="54" y="92" width="12" height="68" rx="5"/><circle class="g-pohon__daun2" cx="38" cy="78" r="32"/><circle class="g-pohon__daun2" cx="84" cy="80" r="30"/><circle class="g-pohon__daun" cx="60" cy="48" r="42"/><circle class="g-pohon__daun" cx="34" cy="62" r="24"/><circle class="g-pohon__daun" cx="88" cy="58" r="26"/></symbol>
+    <symbol id="g-semak" viewBox="0 0 200 90"><circle class="g-semak__b" cx="40" cy="62" r="34"/><circle class="g-semak__b" cx="160" cy="60" r="36"/><circle class="g-semak__a" cx="78" cy="50" r="40"/><circle class="g-semak__a" cx="124" cy="48" r="42"/><rect class="g-semak__a" x="10" y="62" width="180" height="28" rx="14"/><circle class="g-semak__bunga" cx="60" cy="40" r="6"/><circle class="g-semak__bunga" cx="104" cy="22" r="7"/><circle class="g-semak__bunga" cx="146" cy="38" r="6"/><circle class="g-semak__bunga" cx="128" cy="62" r="5"/><circle class="g-semak__bunga" cx="84" cy="66" r="5"/></symbol>
+    <symbol id="g-lengkung" viewBox="0 0 240 300"><path class="g-lengkung__rangka" d="M30 300V120a90 90 0 0 1 180 0v180" fill="none"/><g class="g-lengkung__sulur"><circle cx="30" cy="250" r="16"/><circle cx="34" cy="200" r="14"/><circle cx="36" cy="150" r="15"/><circle cx="50" cy="100" r="16"/><circle cx="80" cy="62" r="15"/><circle cx="120" cy="50" r="17"/><circle cx="160" cy="62" r="15"/><circle cx="190" cy="100" r="16"/><circle cx="204" cy="150" r="15"/><circle cx="206" cy="200" r="14"/><circle cx="210" cy="250" r="16"/></g><g class="g-lengkung__bunga"><circle cx="40" cy="176" r="7"/><circle cx="62" cy="82" r="8"/><circle cx="120" cy="44" r="9"/><circle cx="178" cy="82" r="8"/><circle cx="200" cy="176" r="7"/><circle cx="26" cy="228" r="6"/><circle cx="214" cy="228" r="6"/></g></symbol>
+  </defs>
+</svg>
+
+{%- macro pakai(kelas, id) -%}<svg class="{{ kelas }}" aria-hidden="true"><use href="#g-{{ id }}"/></svg>{%- endmacro -%}
+{%- macro kupu(kelas) -%}<span class="g-kupu {{ kelas }}" aria-hidden="true"><svg><use href="#g-kupu"/></svg></span>{%- endmacro -%}
+
+{#- Lapisan taman SATU adegan (jauh · tengah) — `v` = varian 1–4 (susunan beda). #}
+{%- macro taman_belakang(v) -%}
+<div class="g-lapis g-lapis--jauh" aria-hidden="true">
+  <svg class="g-bukit" viewBox="0 0 400 160" preserveAspectRatio="none"><path class="g-bukit__b" d="M0 90C60 40 120 50 190 80s150 10 210-30v110H0Z"/><path class="g-bukit__a" d="M0 120c70-40 150-30 220 0s130 10 180-10v50H0Z"/></svg>
+  {{ pakai("g-pohon g-pohon--1", "pohon") }}{{ pakai("g-pohon g-pohon--2", "pohon") }}{{ pakai("g-pohon g-pohon--3", "pohon") }}
+</div>
+<div class="g-lapis g-lapis--tengah" aria-hidden="true">
+  {%- if v == 2 or v == 4 %}{{ pakai("g-lengkung", "lengkung") }}{% endif %}
+  {{ pakai("g-semak g-semak--l", "semak") }}{{ pakai("g-semak g-semak--r", "semak") }}
+  {{ kupu("g-kupu--adegan") }}
+</div>
+{%- endmacro -%}
+{#- Lapis DEKAT (bingkai daun & mawar) — di atas kartu isi, menyibak ke tepi. #}
+{%- macro taman_depan() -%}
+<div class="g-lapis g-lapis--dekat" aria-hidden="true">
+  <span class="g-dekat g-dekat--tl">{{ pakai("g-daun", "daun") }}{{ pakai("g-daun g-daun--b", "daun") }}</span>
+  <span class="g-dekat g-dekat--tr">{{ pakai("g-daun", "daun") }}{{ pakai("g-daun g-daun--b", "daun") }}</span>
+  <span class="g-dekat g-dekat--bl">{{ pakai("g-bunga g-bunga--besar", "mawar") }}{{ pakai("g-daun", "daun") }}{{ pakai("g-bunga", "bunga") }}</span>
+  <span class="g-dekat g-dekat--br">{{ pakai("g-bunga g-bunga--besar", "mawar") }}{{ pakai("g-daun", "daun") }}{{ pakai("g-bunga", "bunga") }}</span>
+</div>
+{%- endmacro -%}
+
+{%- macro orang(p, peran) -%}
+<div class="g-foto">
+  {%- if p.photo %}
+  <img src="{{ p.photo|foto }}" style="{{ p.photo|pos }}" alt="{{ p.name }}" loading="lazy">
+  {%- else %}
+  <span class="g-foto__inisial">{{ p.initial }}</span>
+  {%- endif %}
+  {{ pakai("g-foto__bunga g-bunga", "mawar") }}
+</div>
+<h3 class="g-skrip g-orang__panggil">{{ p.first }}</h3>
+<p class="g-orang__nama">{{ p.name }}{% if p.degree %}, {{ p.degree }}{% endif %}</p>
+{%- if p.parents %}
+<p class="g-orang__ortu">
+  {%- if not (p.parents|lower is startingwith("putr")) %}<span>{{ t.putri_dari if peran == "wanita" else t.putra_dari }}</span>{% endif %}
+  {{ p.parents }}
+</p>
+{%- endif %}
+{%- if p.ig %}<a class="g-ig" href="https://instagram.com/{{ p.ig }}" target="_blank" rel="noopener">@{{ p.ig }}</a>{% endif %}
+{%- endmacro %}
+
+{#- ── Desktop: panel taman kiri (seperti kusuma/warkah) ────────────────── #}
+<aside class="g-side" aria-hidden="true" data-pre>
+  <div class="g-side__taman">
+    {{ taman_belakang(1) }}
+    {{ taman_depan() }}
+  </div>
+  <div class="g-side__teks">
+    <p class="g-eyebrow" data-a="fadeInDown">The Wedding Of</p>
+    <p class="g-skrip g-side__nama" data-a="zoomIn" data-ad="300">{{ bride.first }}<i>&amp;</i>{{ groom.first }}</p>
+    <p class="g-side__tgl" data-a="fadeInUp" data-ad="600">{{ date_label }}</p>
+  </div>
+</aside>
+
+{#- ── SAMPUL (gerbang) — dua sisi taman membuka ─────────────────────────── #}
+{%- if not pv %}
+<section class="g-gate" data-gate aria-label="{{ t.sampul_label }}">
+  <button type="button" class="t-lewati" data-open-instan>{{ t.lewati_intro }}</button>
+  <div class="g-gate__sisi g-gate__sisi--l" aria-hidden="true">{{ pakai("g-daun", "daun") }}{{ pakai("g-bunga g-bunga--besar", "mawar") }}{{ pakai("g-daun g-daun--b", "daun") }}{{ pakai("g-bunga", "bunga") }}{{ pakai("g-daun", "daun") }}</div>
+  <div class="g-gate__sisi g-gate__sisi--r" aria-hidden="true">{{ pakai("g-daun", "daun") }}{{ pakai("g-bunga", "bunga") }}{{ pakai("g-daun g-daun--b", "daun") }}{{ pakai("g-bunga g-bunga--besar", "mawar") }}{{ pakai("g-daun", "daun") }}</div>
+  <div class="g-gate__isi">
+    <p class="g-eyebrow" data-a="fadeInDown">The Wedding Of</p>
+    <div class="g-lengkung-foto" data-a="zoomIn" data-ad="250">
+      {%- if cover_photo %}
+      <img src="{{ cover_photo|foto }}" style="{{ cover_photo|pos }}" alt="{{ couple }}" fetchpriority="high">
+      {%- else %}
+      <span class="g-mono"><b>{{ bride.initial }}</b><i>&amp;</i><b>{{ groom.initial }}</b></span>
+      {%- endif %}
+    </div>
+    <h1 class="g-skrip g-gate__nama" data-a="fadeInUp" data-ad="600">{{ bride.first }} <i>&amp;</i> {{ groom.first }}</h1>
+    <p class="g-gate__tgl" data-a="fadeInUp" data-ad="800">{{ date_label }}</p>
+    <p class="g-gate__to" data-a="fadeInUp" data-ad="1000">{{ t.kepada_lengkap }}<b>{{ tamu }}</b></p>
+    {%- if guest and guest.vip %}<p class="g-chip" data-a="fadeInUp" data-ad="1100">{{ t.tamu_spesial }}</p>{% endif %}
+    <p class="g-gate__maaf" data-a="fadeIn" data-ad="1200">{{ t.maaf_nama }}</p>
+    <button type="button" class="g-btn" data-open data-a="zoomIn" data-ad="1400">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5 12 3l9 5.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m3 9 9 6 9-6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      {{ t.buka }}
+    </button>
+  </div>
+</section>
+{%- endif %}
+
+<main class="g-main">
+
+  {#- ── ADEGAN 1 — pembuka: nama di tengah taman ─────────────────────────── #}
+  <section class="g-adegan g-adegan--v1" id="sampul">
+    <div class="g-adegan__layar">
+      {{ taman_belakang(1) }}
+      <div class="g-adegan__isi g-adegan__isi--polos">
+        <p class="g-eyebrow">The Wedding Of</p>
+        <h2 class="g-skrip g-hero__nama">{{ bride.first }}<i>&amp;</i>{{ groom.first }}</h2>
+        <p class="g-hero__tgl">{{ date_num }}</p>
+        <p class="g-gulir"><span></span>{{ t.gulir }}</p>
+      </div>
+      {{ taman_depan() }}
+    </div>
+  </section>
+
+  {#- ── ADEGAN 2 — ayat di bawah lengkung bunga ─────────────────────────── #}
+  <section class="g-adegan g-adegan--v2" id="ayat">
+    <div class="g-adegan__layar">
+      {{ taman_belakang(2) }}
+      <div class="g-adegan__isi g-kartu g-ayat">
+        <span class="g-mono g-mono--kecil"><b>{{ bride.initial }}</b><i>&amp;</i><b>{{ groom.initial }}</b></span>
+        <blockquote>“{{ quote.text or t.ayat }}”</blockquote>
+        <cite>{{ quote.source or t.ayat_sumber }}</cite>
+      </div>
+      {{ taman_depan() }}
+    </div>
+  </section>
+
+  {#- ── ADEGAN 3 & 4 — mempelai wanita, lalu pria ──────────────────────── #}
+  <section class="g-adegan g-adegan--v3" id="mempelai">
+    <div class="g-adegan__layar">
+      {{ taman_belakang(3) }}
+      <div class="g-adegan__isi g-kartu g-orang">
+        <p class="g-eyebrow">{{ t.mempelai }}</p>
+        {{ orang(bride, "wanita") }}
+      </div>
+      {{ taman_depan() }}
+    </div>
+  </section>
+  <section class="g-adegan g-adegan--v4">
+    <div class="g-adegan__layar">
+      {{ taman_belakang(4) }}
+      <div class="g-adegan__isi g-kartu g-orang">
+        <p class="g-skrip g-dan">&amp;</p>
+        {{ orang(groom, "pria") }}
+      </div>
+      {{ taman_depan() }}
+    </div>
+  </section>
+
+  {#- ── ADEGAN 5 — simpan tanggal ───────────────────────────────────────── #}
+  {%- if countdown_ms %}
+  <section class="g-adegan g-adegan--v1">
+    <div class="g-adegan__layar">
+      {{ taman_belakang(1) }}
+      <div class="g-adegan__isi g-kartu g-hitung">
+        <h2 class="g-judul g-judul--terang">{{ t.judul_simpan }}</h2>
+        <p class="g-hitung__tgl">{{ date_label }}</p>
+        <div class="g-count" data-countdown="{{ countdown_ms }}">
+          <span><b data-cd="d">00</b><small>{{ t.hari }}</small></span>
+          <span><b data-cd="h">00</b><small>{{ t.jam }}</small></span>
+          <span><b data-cd="m">00</b><small>{{ t.menit }}</small></span>
+          <span><b data-cd="s">00</b><small>{{ t.detik }}</small></span>
+        </div>
+        {%- if calendar_url %}<a class="g-btn g-btn--terang" href="{{ calendar_url }}" target="_blank" rel="noopener">{{ t.simpan_kalender }}</a>{% endif %}
+      </div>
+      {{ taman_depan() }}
+    </div>
+  </section>
+  {%- endif %}
+
+  {#- ── ADEGAN per ACARA ────────────────────────────────────────────────── #}
+  {%- for e in events %}
+  <section class="g-adegan g-adegan--v{{ 2 if loop.index is odd else 3 }}"{% if loop.first %} id="acara"{% endif %}>
+    <div class="g-adegan__layar">
+      {{ taman_belakang(2 if loop.index is odd else 3) }}
+      <div class="g-adegan__isi g-kartu g-event">
+        <p class="g-eyebrow">{{ t.waktu_tempat }}</p>
+        <h3 class="g-event__judul">{{ e.title }}</h3>
+        <div class="g-event__tgl">
+          <span>{{ e.day_name }}</span>
+          <b>{{ e.day }}</b>
+          <span>{{ e.month_year }}</span>
+        </div>
+        <p class="g-event__jam">{{ t.pukul }} {{ e.time_label }}</p>
+        {%- for s in e.sessions %}<p class="g-event__sesi">{{ s.label }} · {{ s.time }}</p>{% endfor %}
+        <p class="g-event__tempat"><b>{{ e.venue }}</b>{% if e.address %}<br>{{ e.address }}{% endif %}</p>
+        {%- if e.maps %}<a class="g-btn g-btn--kecil" href="{{ e.maps }}" target="_blank" rel="noopener">{{ t.petunjuk }}</a>{% endif %}
+      </div>
+      {{ taman_depan() }}
+    </div>
+  </section>
+  {%- endfor %}
+
+  {#- Bagian biasa (tanpa adegan): isi panjang / formulir harus nyaman dibaca. #}
+  <section class="g-bagian">
+    {%- if dress_code or dress_colors %}
+    <div class="g-kartu g-v-naik">
+      <h3 class="g-event__judul">Dresscode</h3>
+      {%- if dress_code %}<p>{{ dress_code }}</p>{% endif %}
+      {%- if dress_colors %}<p class="g-titik">{% for c in dress_colors %}<span style="background:{{ c.hex }}" title="{{ c.name }}"></span>{% endfor %}</p>{% endif %}
+    </div>
+    {%- endif %}
+    {%- if live_url %}
+    <div class="g-kartu g-v-naik">
+      <h3 class="g-event__judul">{{ t.live }}</h3>
+      <p>{{ t.live_ajak }}</p>
+      <a class="g-btn g-btn--kecil" href="{{ live_url }}" target="_blank" rel="noopener">{{ t.live_lihat }}</a>
+    </div>
+    {%- endif %}
+    <p class="g-cta g-v-naik"><a class="g-btn" href="#ucapan">{{ t.konfirmasi_hadir }}</a></p>
+  </section>
+
+  {#- ── Kisah ───────────────────────────────────────────────────────────── #}
+  {%- if love_story %}
+  <section class="g-bagian g-kisah" id="kisah">
+    <h2 class="g-judul g-v-naik">{{ t.judul_kisah }}</h2>
+    <ol class="g-waktu">
+      {%- for s in love_story %}
+      {%- set img = s.img or (gallery[loop.index % (gallery|length)] if gallery else "") %}
+      <li class="g-waktu__item {{ 'g-v-kiri' if loop.index is odd else 'g-v-kanan' }}">
+        {%- if img %}<img src="{{ img|foto }}" style="{{ img|pos }}" alt="" loading="lazy" data-zoom>{% endif %}
+        {%- if s.year %}<p class="g-waktu__th">{{ s.year }}</p>{% endif %}
+        <h3>{{ s.title }}</h3>
+        <p>{{ s.text }}</p>
+      </li>
+      {%- endfor %}
+    </ol>
+  </section>
+  {%- endif %}
+
+  {%- if video_url %}
+  <section class="g-bagian g-video g-v-naik">
+    <video src="{{ video_url|foto }}" controls playsinline preload="none" poster="{{ cover_photo|foto }}"></video>
+  </section>
+  {%- endif %}
+
+  {#- ── Galeri — cincin 3D berputar mengikuti gulir, di tengah taman ────── #}
+  {%- if gallery %}
+  {%- set foto8 = gallery[:8] %}
+  <section class="g-cincin" id="galeri" style="--n:{{ foto8|length }}">
+    <div class="g-cincin__layar">
+      {{ taman_belakang(4) }}
+      <h2 class="g-judul g-cincin__judul">{{ t.judul_momen }}</h2>
+      <div class="g-cincin__ruang">
+        <div class="g-cincin__putar">
+          {%- for g in foto8 %}
+          <figure class="g-cincin__item" style="--i:{{ loop.index0 }}"><img src="{{ g|foto }}" style="{{ g|pos }}" alt="Momen {{ loop.index }}" loading="lazy" data-zoom></figure>
+          {%- endfor %}
+        </div>
+      </div>
+      <p class="g-cincin__hint">{{ "Scroll to turn the gallery" if lang == "en" else "Gulir untuk memutar galeri" }}</p>
+    </div>
+  </section>
+  {%- endif %}
+
+  {#- ── Tanda kasih ─────────────────────────────────────────────────────── #}
+  {%- if banks or gift_address %}
+  <section class="g-bagian g-kado" id="hadiah" data-gift-wrap>
+    <h2 class="g-judul g-v-naik">{{ t.judul_hadiah }}</h2>
+    <p class="g-lead g-v-naik">{{ t.kado_lead }}</p>
+    {% with x = "g", gerak = "g-v-naik", burst = 0 %}{% include "_kado" %}{% endwith %}
+  </section>
+  {%- endif %}
+
+  {#- ── Ucapan & RSVP ───────────────────────────────────────────────────── #}
+  <section class="g-bagian g-ucapan" id="ucapan">
+    <div class="g-kartu g-v-naik">
+      <h2 class="g-judul">{{ t.buku_tamu }}</h2>
+      <p class="g-lead">{{ t.ucapan_ajak }}</p>
+      {% with x = "g" %}{% include "_ucapan" %}{% endwith %}
+    </div>
+  </section>
+
+  {#- ── ADEGAN penutup — terima kasih di tengah taman ───────────────────── #}
+  <section class="g-adegan g-adegan--v2 g-adegan--akhir">
+    <div class="g-adegan__layar">
+      {{ taman_belakang(2) }}
+      <div class="g-adegan__isi g-kartu g-tutup">
+        <h2 class="g-judul">{{ t.terima_kasih }}</h2>
+        <p>{{ t.penutup }}</p>
+        <p class="g-tutup__oleh">{{ t.yang_berbahagia }}</p>
+        <p class="g-skrip g-tutup__nama">{{ bride.first }} <i>&amp;</i> {{ groom.first }}</p>
+        {%- if family_name %}<p class="g-tutup__kel">{{ family_name }}</p>{% endif %}
+      </div>
+      {{ taman_depan() }}
+    </div>
+  </section>
+
+  <footer class="g-foot">{{ t.oleh }} <a href="/">{{ brand }}</a></footer>
+</main>
+
+{%- if music.url %}
+<button class="g-musik" type="button" data-music-toggle aria-label="{{ t.musik }}">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="6.5" cy="18" r="2.5" fill="currentColor"/><circle cx="17.5" cy="16" r="2.5" fill="currentColor"/></svg>
+</button>
+<audio data-music src="{{ music.url }}" loop preload="none"></audio>
+{%- endif %}

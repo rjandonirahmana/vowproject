@@ -87,16 +87,21 @@ pub struct IsiTeks {
     pub lang: String,
 }
 
-pub fn baca_isi(form: &super::form::Form) -> Result<IsiTeks, &'static str> {
+/// `ultah` = tema undangan ini tema ULANG TAHUN (ditentukan server dari tema,
+/// bukan dari isian formulir): cukup satu nama (`bride_*`), `groom_*` kosong.
+pub fn baca_isi(form: &super::form::Form, ultah: bool) -> Result<IsiTeks, &'static str> {
     let get = |k: &str, max: usize| form.get(k, max);
     let bride_name = get("bride_name", 80);
-    let groom_name = get("groom_name", 80);
-    if bride_name.is_empty() || groom_name.is_empty() {
+    let groom_name = if ultah { String::new() } else { get("groom_name", 80) };
+    if ultah && bride_name.is_empty() {
+        return Err("Nama yang berulang tahun wajib diisi.");
+    }
+    if !ultah && (bride_name.is_empty() || groom_name.is_empty()) {
         return Err("Nama lengkap kedua mempelai wajib diisi.");
     }
     let akad_date = get("akad_date", 10);
     if fmt::parse_date(&akad_date).is_none() {
-        return Err("Tanggal akad / pemberkatan wajib diisi.");
+        return Err(if ultah { "Tanggal pesta wajib diisi." } else { "Tanggal akad / pemberkatan wajib diisi." });
     }
     // ── Kisah cinta, siaran langsung, warna busana ──
     let love_story: Vec<serde_json::Value> = (1..=4)
@@ -122,10 +127,14 @@ pub fn baca_isi(form: &super::form::Form) -> Result<IsiTeks, &'static str> {
     let tz = if fmt::TIMEZONES.iter().any(|t| t.0 == tz) { tz } else { "WIB".to_string() };
     let akad_title = get("akad_title", 40);
     let mut events = vec![json!({
-        "kind": "akad",
-        "title": if akad_title.is_empty() { "Akad Nikah".to_string() } else { akad_title },
-        "badge": "Pemberkatan & Akad",
-        "tag": "Sesi Khidmat",
+        "kind": if ultah { "pesta" } else { "akad" },
+        "title": match (akad_title.is_empty(), ultah) {
+            (false, _) => akad_title,
+            (true, true) => "Pesta Ulang Tahun".to_string(),
+            (true, false) => "Akad Nikah".to_string(),
+        },
+        "badge": if ultah { "Pesta" } else { "Pemberkatan & Akad" },
+        "tag": if ultah { "Perayaan" } else { "Sesi Khidmat" },
         "date": akad_date,
         "time_start": get("akad_start", 5),
         "time_end": get("akad_end", 5),
@@ -221,7 +230,8 @@ pub async fn create_invitation(Extension(state): Extension<Arc<AppState>>, heade
     let mut addons: Vec<String> = form.all("addon").to_vec();
     let get = |k: &str, max: usize| form.get(k, max);
 
-    let isi = match baca_isi(&form) {
+    let ultah = state.themes().get(&form.get("theme", 60)).is_some_and(|t| t.ulang_tahun());
+    let isi = match baca_isi(&form, ultah) {
         Ok(i) => i,
         Err(m) => return back_with_error(m),
     };
@@ -469,7 +479,10 @@ pub async fn update_invitation(
     if row.inv.is_demo {
         return to(&back, "galat", "Undangan demo tidak bisa disunting.");
     }
-    let isi = match baca_isi(&form) {
+    // Tema baru dari formulir (boleh berganti saat sunting), selain itu tema lama.
+    let tema_isi = form.get("theme", 60);
+    let ultah = state.themes().get(if tema_isi.is_empty() { &row.inv.theme } else { &tema_isi }).is_some_and(|t| t.ulang_tahun());
+    let isi = match baca_isi(&form, ultah) {
         Ok(i) => i,
         Err(m) => return to(&back, "galat", m),
     };

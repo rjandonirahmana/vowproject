@@ -1,0 +1,43 @@
+{#- ═════════════════════════════════════════════════════════════════════════
+    _ucapan — formulir RSVP + daftar ucapan BERSAMA antartemplat.
+    Dipakai:  {% with x = "p" %}{% include "_ucapan" %}{% endwith %}
+    `x` = awalan kelas templat (p-form, p-isian, p-pilih, …); judul & pembuka
+    bagian tetap ditulis tiap templat. Atribut data-* = mesin tata.js.
+    ═════════════════════════════════════════════════════════════════════════ -#}
+{%- if is_demo %}<p class="{{ x }}-catatan">{{ t.demo }}</p>{% endif %}
+<form class="{{ x }}-form" method="post" action="{{ rsvp_action }}" data-rsvp>
+  <input type="hidden" name="guest" value="{{ guest_code }}">
+  <input type="hidden" name="lang" value="{{ lang }}">
+  <label class="{{ x }}-isian"><span>{{ t.nama }}</span><input name="name" required maxlength="80" value="{{ prefill_name }}" autocomplete="name"></label>
+  <label class="{{ x }}-isian"><span>{{ t.ucapan_doa }}</span><textarea name="message" maxlength="600" rows="3"></textarea></label>
+  <fieldset class="{{ x }}-pilih">
+    <legend>{{ t.konfirmasi_hadir }}</legend>
+    <label><input type="radio" name="status" value="hadir" required><span>{{ t.hadir }}</span></label>
+    <label><input type="radio" name="status" value="tidak"><span>{{ t.tidak_hadir }}</span></label>
+  </fieldset>
+  <div class="{{ x }}-form__baris">
+    <label class="{{ x }}-isian"><span>{{ t.jumlah_tamu }}</span>
+      <select name="pax">{% for n in range(1, 6) %}<option value="{{ n }}">{{ n }} {{ t.orang }}</option>{% endfor %}</select>
+    </label>
+    {%- if sessions|length > 1 %}
+    <label class="{{ x }}-isian"><span>{{ t.sesi }}</span>
+      <select name="session">{% for s in sessions %}<option>{{ s }}</option>{% endfor %}</select>
+    </label>
+    {%- endif %}
+  </div>
+  <button class="{{ x }}-btn {{ x }}-btn--penuh" type="submit">{{ t.kirim_ucapan }}</button>
+  {%- if rsvp_flash %}
+  <p class="{{ x }}-form__pesan" data-rsvp-msg role="status" data-ok="{{ '1' if rsvp_flash.ok else '0' }}">{{ rsvp_flash.msg }}</p>
+  {%- else %}
+  <p class="{{ x }}-form__pesan" data-rsvp-msg role="status" hidden></p>
+  {%- endif %}
+</form>
+<p class="{{ x }}-ucapan__n"><b data-wish-total>{{ wish_total }}</b> {{ t.ucapan_n }}</p>
+<ul class="{{ x }}-wishes" data-wishes>
+  {%- for w in wishes %}
+  <li class="{{ x }}-wish"><b>{{ w.name }}</b> <small>{{ w.status }}</small><p>{{ w.message }}</p><time>{{ w.ago }}</time></li>
+  {%- endfor %}
+</ul>
+{%- if not wishes %}<p class="{{ x }}-kosong" data-wishes-empty>{{ t.pertama }}</p>{% endif %}
+<template id="wish-tpl"><li class="{{ x }}-wish"><b data-f="name"></b> <small data-f="status"></small><p data-f="message"></p><time data-f="ago"></time></li></template>
+<a class="{{ x }}-story" href="{{ story_url }}">{{ t.story_link }}</a>

@@ -363,13 +363,7 @@ pub fn ThemeCard(t: ThemeInfo, from: i64, #[prop(default = None)] anchor: Option
             // dulu semua kartu katalog sama persis.
             <a class=format!("tcard__art th-{}{}", t.slug, crate::web::rupa::classes(&t.rupa)) href=demo.clone() aria-label=format!("Demo {}", t.name)>
                 {(!t.badge.is_empty()).then(|| view! { <span class="tcard__badge"><Icon name="star" />{t.badge.clone()}</span> })}
-                <div class="mini">
-                    <p class="mini__eyebrow">"The Wedding Of"</p>
-                    <Monogram initials="A&R" class="monogram--sm" />
-                    <p class="mini__names">"Yona & Doni"</p>
-                    <p class="mini__date">"Sabtu, 24 Oktober 2026"</p>
-                    <span class="mini__btn">"Buka Undangan"</span>
-                </div>
+                {mini_sampul(t.ulang_tahun())}
                 <span class="tcard__region">{t.region.clone()}</span>
                 {rating}
                 // Wadah pratinjau bergulir (iframe disisipkan global.js saat hover/sentuh).
@@ -488,6 +482,33 @@ fn packages(k: Konten) -> impl IntoView {
 /// (global.js, sama dengan story tamu) yang berlanjut ke langkah berikutnya,
 /// progress bersegmen + tombol aksi per langkah. Data JSON ditanam di
 /// halaman — tanpa request tambahan saat dibuka.
+/// Sampul mini kartu tema (katalog & etalase) sesuai jenis acaranya.
+fn mini_sampul(ulang_tahun: bool) -> impl IntoView {
+    if ulang_tahun {
+        view! {
+            <div class="mini mini--ultah">
+                <p class="mini__eyebrow">"Happy Birthday"</p>
+                <span class="mini__ultah" aria-hidden="true">"7"</span>
+                <p class="mini__names">"Aira"</p>
+                <p class="mini__date">"Sabtu, 24 Oktober 2026"</p>
+                <span class="mini__btn">"Buka Undangan"</span>
+            </div>
+        }
+        .into_any()
+    } else {
+        view! {
+            <div class="mini">
+                <p class="mini__eyebrow">"The Wedding Of"</p>
+                <Monogram initials="A&R" class="monogram--sm" />
+                <p class="mini__names">"Yona & Doni"</p>
+                <p class="mini__date">"Sabtu, 24 Oktober 2026"</p>
+                <span class="mini__btn">"Buka Undangan"</span>
+            </div>
+        }
+        .into_any()
+    }
+}
+
 /// Jenis acara di panel kiri etalase: (kunci, nama, ikon).
 const ACARA: &[(&str, &str, &str)] = &[
     ("wedding", "Wedding", "favorite"),
@@ -497,12 +518,15 @@ const ACARA: &[(&str, &str, &str)] = &[
     ("sunatan", "Sunatan", "boy"),
 ];
 
+/// (kunci, label, jumlah tema) pilihan panel kanan etalase.
+type Pilihan = Vec<(String, String, usize)>;
+
 /// Pilihan panel kanan etalase: GAYA (kolom kategori) dan BUDAYA (nuansa
-/// dengan ≥ 2 tema, yang belum menjadi gaya), masing-masing (kunci, label,
+/// dengan ≥ `min_budaya` tema, yang belum menjadi gaya), masing-masing (kunci, label,
 /// jumlah) urut terbanyak. Diturunkan dari katalog → tema baru ikut sendiri.
-fn pilihan_gaya(themes: &[ThemeInfo]) -> (Vec<(String, String, usize)>, Vec<(String, String, usize)>) {
-    fn hitung<'a>(it: impl Iterator<Item = &'a str>) -> Vec<(String, String, usize)> {
-        let mut v: Vec<(String, String, usize)> = Vec::new();
+fn pilihan_gaya(themes: &[&ThemeInfo], min_budaya: usize) -> (Pilihan, Pilihan) {
+    fn hitung<'a>(it: impl Iterator<Item = &'a str>) -> Pilihan {
+        let mut v: Pilihan = Vec::new();
         for label in it.map(str::trim).filter(|l| !l.is_empty()) {
             let k = fmt::key(label);
             match v.iter_mut().find(|x| x.0 == k) {
@@ -513,10 +537,11 @@ fn pilihan_gaya(themes: &[ThemeInfo]) -> (Vec<(String, String, usize)>, Vec<(Str
         v.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.1.cmp(&b.1)));
         v
     }
-    let gaya = hitung(themes.iter().map(|t| t.category.as_str()));
+    // Kategori yang sama dengan jenis acaranya ("Ulang Tahun") bukan pilihan gaya.
+    let gaya: Vec<_> = hitung(themes.iter().map(|t| t.category.as_str())).into_iter().filter(|(k, _, _)| k != "ulang-tahun").collect();
     let budaya = hitung(themes.iter().map(|t| t.nuansa.as_str()))
         .into_iter()
-        .filter(|(k, _, n)| *n >= 2 && !gaya.iter().any(|g| &g.0 == k))
+        .filter(|(k, _, n)| *n >= min_budaya && !gaya.iter().any(|g| &g.0 == k))
         .map(|(k, label, n)| (k, if label == "Tionghoa" { "Chinese".to_string() } else { label }, n))
         .collect();
     (gaya, budaya)
@@ -529,8 +554,18 @@ fn pilihan_gaya(themes: &[ThemeInfo]) -> (Vec<(String, String, usize)>, Vec<(Str
 /// tetap tautan ke demonya.
 #[component]
 fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
-    let jumlah = themes.len();
-    let (gaya, budaya) = pilihan_gaya(&themes);
+    // Panel kanan: pilihan tema PER jenis acara (yang punya tema).
+    let grup: Vec<_> = ACARA
+        .iter()
+        .map(|(k, _, _)| *k)
+        .filter_map(|k| {
+            let list: Vec<&ThemeInfo> = themes.iter().filter(|t| t.acara() == k).collect();
+            (!list.is_empty()).then(|| {
+                let (gaya, budaya) = pilihan_gaya(&list, if k == "wedding" { 2 } else { 1 });
+                (k, list.len(), gaya, budaya)
+            })
+        })
+        .collect();
     view! {
         <section class="etalase" aria-label="Coba tema undangan di layar HP">
             <div class="etalase__head">
@@ -545,12 +580,13 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
                 <p class="etalase__panel-judul">"Jenis Acara"</p>
                 <div class="etalase__pilih">
                     {ACARA.iter().map(|(k, nama, ikon)| {
-                        let ada = *k == "wedding";
+                        let n = themes.iter().filter(|t| t.acara() == *k).count();
+                        let on = *k == "wedding";
                         view! {
-                            <button type="button" class="etalase__opsi" class:is-on=ada data-eta-acara=*k data-nama=*nama aria-pressed=if ada { "true" } else { "false" }>
+                            <button type="button" class="etalase__opsi" class:is-on=on data-eta-acara=*k data-nama=*nama data-ada={if n > 0 { "1" } else { "0" }} aria-pressed={if on { "true" } else { "false" }}>
                                 <Icon name=*ikon />
                                 <span>{*nama}</span>
-                                <small>{if ada { format!("{jumlah} tema") } else { "Segera".into() }}</small>
+                                <small>{if n > 0 { format!("{n} tema") } else { "Segera".into() }}</small>
                             </button>
                         }
                     }).collect_view()}
@@ -559,17 +595,19 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
             // Kanan: gaya tema (kategori & budaya), diturunkan dari katalog.
             <nav class="etalase__panel etalase__gaya" aria-label="Pilihan tema">
                 <p class="etalase__panel-judul">"Pilihan Tema"</p>
-                <div class="etalase__pilih">
-                    <button type="button" class="etalase__opsi is-on" data-eta-saring="" aria-pressed="true"><span>"Semua tema"</span><small>{jumlah}</small></button>
-                    <p class="etalase__sub">"Gaya"</p>
-                    {gaya.into_iter().map(|(k, nama, n)| view! {
-                        <button type="button" class="etalase__opsi" data-eta-saring=format!("k:{k}") aria-pressed="false"><span>{nama}</span><small>{n}</small></button>
-                    }).collect_view()}
-                    <p class="etalase__sub">"Budaya"</p>
-                    {budaya.into_iter().map(|(k, nama, n)| view! {
-                        <button type="button" class="etalase__opsi" data-eta-saring=format!("n:{k}") aria-pressed="false"><span>{nama}</span><small>{n}</small></button>
-                    }).collect_view()}
-                </div>
+                {grup.into_iter().map(|(acara, n, gaya, budaya)| view! {
+                    <div class="etalase__pilih" data-eta-grup=acara hidden=acara != "wedding">
+                        <button type="button" class="etalase__opsi is-on" data-eta-saring="" aria-pressed="true"><span>"Semua tema"</span><small>{n}</small></button>
+                        {(!gaya.is_empty()).then(|| view! { <p class="etalase__sub">"Gaya"</p> })}
+                        {gaya.into_iter().map(|(k, nama, n)| view! {
+                            <button type="button" class="etalase__opsi" data-eta-saring=format!("k:{k}") aria-pressed="false"><span>{nama}</span><small>{n}</small></button>
+                        }).collect_view()}
+                        {(!budaya.is_empty()).then(|| view! { <p class="etalase__sub">{if acara == "wedding" { "Budaya" } else { "Usia" }}</p> })}
+                        {budaya.into_iter().map(|(k, nama, n)| view! {
+                            <button type="button" class="etalase__opsi" data-eta-saring=format!("n:{k}") aria-pressed="false"><span>{nama}</span><small>{n}</small></button>
+                        }).collect_view()}
+                    </div>
+                }).collect_view()}
             </nav>
             <div class="etalase__stage">
                 <div class="etalase__track" data-etalase>
@@ -579,19 +617,14 @@ fn EtalaseHp(themes: Vec<ThemeInfo>) -> impl IntoView {
                     // frame pertama (selanjutnya global.js yang memasang/mencabut).
                     {themes.into_iter().enumerate().map(|(i, t)| {
                         let demo = format!("/u/{}?tema={}", crate::web::themes::DEMO_SLUG, t.slug);
-                        let dekat = if i < 6 { " is-dekat" } else { "" };
+                        // Panel kiri mulai di "Wedding": kartu jenis acara lain tersaring sejak SSR.
+                        let dekat = if t.acara() != "wedding" { " is-saring" } else if i < 6 { " is-dekat" } else { "" };
                         view! {
                             <a class=format!("etalase__item tcard__art th-{}{}{dekat}", t.slug, crate::web::rupa::classes(&t.rupa)) href=demo.clone()
                                 data-pv=format!("{demo}&pv=1") data-slug=t.slug.clone() data-name=t.name.clone() data-region=t.region.clone()
-                                data-gaya=fmt::key(&t.category) data-nuansa=fmt::key(&t.nuansa)
+                                data-gaya=fmt::key(&t.category) data-nuansa=fmt::key(&t.nuansa) data-acara=t.acara()
                                 aria-label=format!("Demo {}", t.name)>
-                                <div class="mini">
-                                    <p class="mini__eyebrow">"The Wedding Of"</p>
-                                    <Monogram initials="A&R" class="monogram--sm" />
-                                    <p class="mini__names">"Yona & Doni"</p>
-                                    <p class="mini__date">"Sabtu, 24 Oktober 2026"</p>
-                                    <span class="mini__btn">"Buka Undangan"</span>
-                                </div>
+                                {mini_sampul(t.ulang_tahun())}
                                 <span class="etalase__nama">{t.name.clone()}</span>
                             </a>
                         }

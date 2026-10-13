@@ -192,13 +192,63 @@ impl Invitation {
     pub fn groom_first(&self) -> String {
         first_word(&self.groom_name)
     }
-    /// "Yona & Doni"
+    /// "Yona & Doni" — undangan satu orang (ulang tahun: `groom_*` kosong)
+    /// cukup nama itu saja.
     pub fn couple(&self) -> String {
-        format!("{} & {}", self.bride_first(), self.groom_first())
+        let g = self.groom_first();
+        if g.is_empty() { self.bride_first() } else { format!("{} & {}", self.bride_first(), g) }
     }
-    /// Inisial monogram, mis. "A&R".
+    /// Inisial monogram, mis. "A&R" (satu orang: "A").
     pub fn initials(&self) -> String {
-        format!("{}&{}", initial(&self.bride_name), initial(&self.groom_name))
+        if self.groom_name.trim().is_empty() {
+            initial(&self.bride_name)
+        } else {
+            format!("{}&{}", initial(&self.bride_name), initial(&self.groom_name))
+        }
+    }
+    /// Undangan DEMO dibuka dengan tema ULANG TAHUN → data pernikahan demo
+    /// diganti data pesta contoh (satu orang, tanpa foto pasangan / kisah
+    /// cinta). Tanggal acara pertama dipertahankan agar hitung mundur tetap
+    /// menuju hari yang sama.
+    pub fn jadikan_demo_ulang_tahun(&mut self) {
+        let date = self.first_event().map(|e| e.date.clone()).unwrap_or_default();
+        let s = |v: &str| v.to_string();
+        self.bride_name = s("Aira Kirana Putri");
+        self.bride_nick = s("Aira");
+        self.bride_degree.clear();
+        self.bride_parents = s("Putri dari Bapak Fulan & Ibu Fulanah");
+        self.bride_ig.clear();
+        self.bride_photo.clear();
+        for f in [&mut self.groom_name, &mut self.groom_nick, &mut self.groom_degree, &mut self.groom_parents, &mut self.groom_ig, &mut self.groom_photo] {
+            f.clear();
+        }
+        self.events = vec![Event {
+            kind: s("pesta"),
+            title: s("Ulang Tahun ke-7"),
+            date,
+            time_start: s("15:00"),
+            time_end: s("18:00"),
+            venue: s("Taman Ceria Function Hall"),
+            address: s("Jl. Melati No. 7, Kebayoran Baru, Jakarta Selatan"),
+            maps_url: s("https://maps.google.com/?q=Kebayoran+Baru+Jakarta"),
+            ..Default::default()
+        }];
+        self.dress_code = s("Warna-warni ceria — pakai baju warna pastel favoritmu!");
+        self.dress_colors = vec![
+            DressColor { name: s("Merah Muda"), hex: s("#FF8FAB") },
+            DressColor { name: s("Kuning"), hex: s("#FFC857") },
+            DressColor { name: s("Mint"), hex: s("#7FD1C7") },
+        ];
+        self.quote_text.clear();
+        self.quote_source.clear();
+        self.banks = vec![Bank { bank: s("Bank Central Asia (BCA)"), number: s("1234 5678 90"), holder: s("Fulanah") }];
+        self.gift_address = s("Jl. Melati No. 7, Kebayoran Baru, Jakarta Selatan");
+        self.family_name = s("Keluarga Bapak Fulan");
+        self.cover_photo.clear();
+        self.gallery.clear();
+        self.love_story.clear();
+        self.video_url.clear();
+        self.live_url.clear();
     }
     pub fn first_event(&self) -> Option<&Event> {
         self.events.first()
@@ -424,6 +474,26 @@ pub const STORY_FILTERS: &[(&str, &str)] = &[
 pub struct WishPage {
     pub total: i64,
     pub items: Vec<Wish>,
+}
+
+impl WishPage {
+    /// Ucapan contoh untuk demo bertema ulang tahun (ucapan demo di DB berisi
+    /// doa pernikahan).
+    pub fn demo_ulang_tahun() -> Self {
+        let w = |name: &str, status: &str, message: &str, ago: &str, age: i64| Wish {
+            name: name.into(),
+            status: status.into(),
+            message: message.into(),
+            ago: ago.into(),
+            age,
+        };
+        let items = vec![
+            w("Tante Rina", "hadir", "Selamat ulang tahun Aira sayang! Semoga makin pintar, sehat, dan jadi anak yang soleha.", "2 jam lalu", 7_200),
+            w("Om Bagas & Keluarga", "hadir", "Happy 7th birthday, Aira! Semoga semua impianmu tercapai. Sampai jumpa di pesta!", "5 jam lalu", 18_000),
+            w("Kak Dinda", "tidak", "Maaf belum bisa datang, kadonya menyusul ya! Selamat ulang tahun, adik manis.", "1 hari lalu", 86_400),
+        ];
+        Self { total: items.len() as i64, items }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

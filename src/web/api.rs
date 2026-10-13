@@ -128,12 +128,14 @@ mod srv {
 /// `tema` hanya berlaku untuk undangan DEMO ("Coba Demo" dari halaman tema):
 /// isi demo ditampilkan dengan tema itu. Undangan asli selalu memakai temanya.
 /// `rupa` ("sampul:kubah,judul:pita") juga hanya untuk demo: uji varian bentuk.
+/// `isi` (JSON) juga hanya demo: pratinjau live /buat (AppState::demo_isi).
 #[server]
-pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<String>, tema: Option<String>, rupa: Option<String>) -> Result<InvitationPage, ServerFnError> {
+pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<String>, tema: Option<String>, rupa: Option<String>, isi: Option<String>) -> Result<InvitationPage, ServerFnError> {
     use srv::*;
     let st = state()?;
     let mut row = load(&slug).await?;
     st.demo_tema(&mut row, tema.as_deref());
+    st.demo_isi(&mut row, isi.as_deref());
     st.demo_lagu(&mut row).await;
     let habis = st.kedaluwarsa(&row);
     let preview = row.inv.is_locked() || habis;

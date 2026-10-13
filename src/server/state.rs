@@ -214,9 +214,83 @@ impl AppState {
     /// tempat aturan ini — dipakai halaman Leptos, templat, & dashboard demo.
     pub fn demo_tema(&self, row: &mut super::repo::InvRow, tema: Option<&str>) {
         if row.inv.is_demo {
-            if let Some(t) = tema.map(str::trim).filter(|t| self.themes().get(t).is_some()) {
-                row.inv.theme = t.to_string();
+            let cat = self.themes();
+            if let Some(t) = tema.map(str::trim).and_then(|t| cat.get(t)) {
+                row.inv.theme = t.slug.clone();
+                // Tema ulang tahun → data demo pesta (bukan Yona & Doni).
+                if t.ulang_tahun() {
+                    row.inv.jadikan_demo_ulang_tahun();
+                }
             }
+        }
+    }
+
+    /// Pratinjau LIVE /buat: undangan DEMO diisi data yang sedang diketik
+    /// pemesan (`?isi=` JSON berkunci pendek, dikirim global.js). Hanya demo;
+    /// teks dipotong & tetap di-escape saat render; foto hanya `blob:` (berkas
+    /// lokal yang belum diunggah, satu asal dengan iframe pratinjau).
+    pub fn demo_isi(&self, row: &mut super::repo::InvRow, isi: Option<&str>) {
+        if !row.inv.is_demo {
+            return;
+        }
+        let Some(m) = isi.filter(|s| s.len() <= 3000).and_then(|s| serde_json::from_str::<std::collections::HashMap<String, String>>(s).ok()) else {
+            return;
+        };
+        let teks = |k: &str, max: usize| m.get(k).map(|v| v.trim().chars().filter(|c| !c.is_control()).take(max).collect::<String>()).filter(|v| !v.is_empty());
+        let foto = |k: &str| {
+            m.get(k).filter(|v| v.len() <= 120 && v.starts_with("blob:http") && v.bytes().all(|b| b.is_ascii_alphanumeric() || b":/.-_".contains(&b))).cloned()
+        };
+        let inv = &mut row.inv;
+        let first = |s: &str| s.split_whitespace().next().unwrap_or("").to_string();
+        if let Some(v) = teks("bn", 80) {
+            inv.bride_nick = teks("bk", 30).unwrap_or_else(|| first(&v));
+            inv.bride_name = v;
+        }
+        if let Some(v) = teks("bo", 200) {
+            inv.bride_parents = v;
+        }
+        // Undangan ulang tahun (satu orang) tak punya pasangan.
+        if !inv.groom_name.is_empty() {
+            if let Some(v) = teks("gn", 80) {
+                inv.groom_nick = teks("gk", 30).unwrap_or_else(|| first(&v));
+                inv.groom_name = v;
+            }
+            if let Some(v) = teks("go", 200) {
+                inv.groom_parents = v;
+            }
+        }
+        if let Some(v) = teks("kel", 120) {
+            inv.family_name = v;
+        }
+        if let Some(e) = inv.events.first_mut() {
+            if let Some(v) = teks("tg", 10).filter(|d| crate::web::fmt::parse_date(d).is_some()) {
+                e.date = v;
+            }
+            let jam = |v: &String| v.len() == 5 && v.as_bytes()[2] == b':' && v.bytes().filter(u8::is_ascii_digit).count() == 4;
+            if let Some(v) = teks("jm", 5).filter(jam) {
+                e.time_start = v;
+            }
+            if let Some(v) = teks("js", 5).filter(jam) {
+                e.time_end = v;
+            }
+            if let Some(v) = teks("ev", 40) {
+                e.title = v;
+            }
+            if let Some(v) = teks("tp", 120) {
+                e.venue = v;
+            }
+            if let Some(v) = teks("al", 200) {
+                e.address = v;
+            }
+        }
+        if let Some(v) = foto("fb") {
+            inv.bride_photo = v;
+        }
+        if let Some(v) = foto("fg") {
+            inv.groom_photo = v;
+        }
+        if let Some(v) = foto("fc") {
+            inv.cover_photo = v;
         }
     }
 

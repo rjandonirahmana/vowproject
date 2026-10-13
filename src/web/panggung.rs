@@ -64,6 +64,8 @@ pub fn pilih(slug: &str, nuansa: &str, wilayah: &str, palet: &str, gelap: bool) 
         "fajar-rembulan" | "midnight-celestial" => return "malam",
         "bali-frangipani" | "penjor-pura-bali" | "geringsing-tenganan" => return "bali",
         "phinisi-layar-tujuh" | "raja-ampat" | "lancang-kuning-kepri" | "sandeq-mandar" => return "bahari",
+        // Templat `taman` (Alam Taman 3D): hutan untuk kulit hijau, taman bunga lainnya.
+        s if s.starts_with("taman-") => return if palet == "sage" { "alam" } else { "taman" },
         _ => {}
     }
     let n = nuansa.to_lowercase();
@@ -133,9 +135,9 @@ fn adegan(slug: &str) -> Option<&'static Adegan> {
 }
 
 /// Tetapkan resep untuk SEMUA tema: dikelompokkan per adegan, diurutkan per
-/// slug; tema ke-i dalam kelompok mendapat kombinasi ke-i. Urutan putaran:
-/// kamera tercepat, lalu GERBANG, LATAR, terakhir cermin — tema sebudaya yang
-/// berdekatan sudah berbeda gerak & gerbangnya.
+/// slug; tema ke-i dalam kelompok mendapat kombinasi ke-i (pemetaan geser,
+/// lihat di bawah) — tema sebudaya yang berdekatan berbeda gerbang, latar,
+/// gerak kamera & arah sekaligus.
 pub fn tetapkan<'a>(tema: impl IntoIterator<Item = (&'a str, &'static str)>) -> std::collections::HashMap<String, Resep> {
     let mut grup: std::collections::BTreeMap<&'static str, Vec<&'a str>> = Default::default();
     for (slug, a) in tema {
@@ -144,17 +146,31 @@ pub fn tetapkan<'a>(tema: impl IntoIterator<Item = (&'a str, &'static str)>) -> 
         }
     }
     let mut out = std::collections::HashMap::new();
-    for (a, mut slugs) in grup {
-        let Some(ad) = adegan(a) else { continue };
+    for (a_slug, mut slugs) in grup {
+        let Some(ad) = adegan(a_slug) else { continue };
         let (nd, nj) = (ad.depan.len().max(1), ad.jauh.len().max(1));
         slugs.sort_unstable();
         slugs.dedup();
         for (i, s) in slugs.into_iter().enumerate() {
-            let kamera = i % KAMERA;
-            let depan = (i / KAMERA) % nd;
-            let jauh = (i / (KAMERA * nd)) % nj;
-            let cermin = (i / (KAMERA * nd * nj)) % 2 == 1;
-            out.insert(s.to_string(), Resep { adegan: a, kamera: kamera as u8, cermin, depan: depan as u8, jauh: jauh as u8 });
+            // Bilangan campuran (a, b, c, e) lalu DIGESER: depan = a,
+            // jauh = a+b, kamera = a+b+c, cermin = a+b+e. Pemetaan segitiga ini
+            // tetap satu-satu (resep unik), tapi tema yang BERDEKATAN dalam satu
+            // adegan berbeda lapis depan, latar jauh, kamera & cermin sekaligus
+            // — dulu 6 tema pertama hanya beda gerak kamera (tampak sama).
+            let (a, b) = (i % nd, (i / nd) % nj);
+            let c = (i / (nd * nj)) % KAMERA;
+            let e = (i / (nd * nj * KAMERA)) % 2;
+            // r = posisi dalam blok gerbang×latar; kamera digeser g(r) = r·k
+            // (k = 2 bila blok ≡ 2 mod 6, agar tema terakhir blok & pertama
+            // blok berikut pun beda kamera). Tetap satu-satu terhadap c.
+            let m = nd * nj;
+            let r = a + b * nd;
+            let k = if m % KAMERA == 2 { 2 } else { 1 };
+            let depan = a;
+            let jauh = (a + b) % nj;
+            let kamera = (c + r * k) % KAMERA;
+            let cermin = (a + b + e) % 2 == 1;
+            out.insert(s.to_string(), Resep { adegan: a_slug, kamera: kamera as u8, cermin, depan: depan as u8, jauh: jauh as u8 });
         }
     }
     out
@@ -338,6 +354,23 @@ mod tests {
         for (_, rr) in r {
             let c = css_tema(&rr);
             assert_eq!(c.matches('{').count(), c.matches('}').count());
+        }
+    }
+
+    #[test]
+    fn tema_berdekatan_beda_rupa() {
+        // Tema berurutan (slug) dalam SATU adegan wajib beda gerbang depan &
+        // gerak kamera — bukan hanya unik di atas kertas.
+        for ad in ADEGAN {
+            let slug: Vec<String> = (0..12).map(|i| format!("t{i:02}")).collect();
+            let r = tetapkan(slug.iter().map(|s| (s.as_str(), ad.slug)));
+            for w in slug.windows(2) {
+                let (x, y) = (r[&w[0]], r[&w[1]]);
+                if ad.depan.len() > 1 {
+                    assert_ne!(x.depan, y.depan, "{}: {} & {} gerbang sama", ad.slug, w[0], w[1]);
+                }
+                assert_ne!(x.kamera, y.kamera, "{}: {} & {} kamera sama", ad.slug, w[0], w[1]);
+            }
         }
     }
 

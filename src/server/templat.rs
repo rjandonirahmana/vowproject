@@ -39,7 +39,8 @@ use crate::web::i18n::Lang;
 use crate::web::fmt::{self, html_escape as esc};
 use crate::web::model::*;
 
-pub const TATA_JS: &str = include_str!("../../templat/tata.js");
+/// Didahului web/bersama.js (pratinjau etalase — dipakai juga app.js).
+pub const TATA_JS: &str = concat!(include_str!("../web/bersama.js"), include_str!("../../templat/tata.js"));
 pub const TATA_CSS: &str = include_str!("../../templat/tata.css");
 /// Batas ukuran sumber templat (HTML/CSS) dari editor admin.
 pub const HTML_MAX: usize = 200_000;
@@ -95,6 +96,18 @@ pub fn builtins() -> Vec<Templat> {
             include_str!("../../templat/warkah/templat.html"),
             include_str!("../../templat/warkah/gaya.css"),
             include_str!("../../templat/warkah/meta.json"),
+        ),
+        bawaan(
+            "taman",
+            include_str!("../../templat/taman/templat.html"),
+            include_str!("../../templat/taman/gaya.css"),
+            include_str!("../../templat/taman/meta.json"),
+        ),
+        bawaan(
+            "pesta",
+            include_str!("../../templat/pesta/templat.html"),
+            include_str!("../../templat/pesta/gaya.css"),
+            include_str!("../../templat/pesta/meta.json"),
         ),
     ]
 }
@@ -179,10 +192,23 @@ fn configure(env: &mut Environment<'static>) {
     env.add_filter("inisial", |s: String| avatar_initials(&s));
 }
 
+/// Potongan BERSAMA antartemplat (`{% include "_ucapan" %}` dst.): satu
+/// sumber untuk blok yang dulu disalin di tiap templat. Selalu dimuat —
+/// juga saat templat datang dari DB (theme_templates).
+pub const BERSAMA: &[(&str, &str)] = &[
+    ("_ucapan", include_str!("../../templat/_bersama/ucapan.html")),
+    ("_kado", include_str!("../../templat/_bersama/kado.html")),
+];
+
 impl TemplatSet {
     pub fn new(list: Vec<Templat>) -> Self {
         let mut env = Environment::new();
         configure(&mut env);
+        for (nama, html) in BERSAMA {
+            if let Err(e) = env.add_template(nama, html) {
+                tracing::error!(nama, error = %e, "potongan templat bersama tak bisa dikompilasi");
+            }
+        }
         let mut items = HashMap::new();
         for t in list {
             if let Err(e) = env.add_template_owned(t.slug.clone(), t.html.clone()) {
@@ -338,6 +364,9 @@ struct Page<'a> {
     lang: Lang,
     /// Tautan tombol ganti bahasa (bahasa lainnya, query lain tetap).
     lang_href: String,
+    /// Pratinjau etalase/katalog (demo `?pv=1`): templat TIDAK merender
+    /// sampul (gerbang, video pintu) — lebih ringan, langsung ke isi.
+    pv: bool,
 }
 
 /// Pesan tetap untuk ?rsvp= — teks tak pernah diambil dari URL.
@@ -509,6 +538,7 @@ fn page_ctx(p: &Page) -> minijinja::Value {
         guest_code => p.guest.as_ref().map(|g| g.code.clone()).unwrap_or_default(),
         rsvp_flash => p.rsvp_flash.map(|ok| minijinja::context! { ok => ok, msg => flash_msg(ok, l) }),
         lang => l.code(),
+        pv => p.pv,
         t => teks(l),
         a => p.assets.clone(),
     }
@@ -603,15 +633,23 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
         "<!DOCTYPE html>\n<html lang=\"{html_lang}\">\n<head>\n<meta charset=\"utf-8\">\n\
 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n\
 <title>{title}</title>\n<meta name=\"description\" content=\"{desc}\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n\
-<meta property=\"og:title\" content=\"The Wedding of {couple}\">\n<meta property=\"og:description\" content=\"{desc}\">\n{og}\
+<meta property=\"og:title\" content=\"{og_title}\">\n<meta property=\"og:description\" content=\"{desc}\">\n{og}\
 <link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\">\n{fonts}\
 <link rel=\"stylesheet\" href=\"/tema.css?v={tv}\">\n<link rel=\"stylesheet\" href=\"/tata.css?v={av}\">\n\
 <style>\n{tcss}\n{xcss}\n{pgcss}\n</style>\n</head>\n<body class=\"t-{tslug} th-{theme} t-has-nav\">\n{body}\n{buttons}{nav}\
 <script type=\"application/json\" id=\"tata-data\">{data}</script>\n\
 <script nonce=\"{nonce}\" src=\"/tata.js?v={av}\"></script>\n</body>\n</html>\n",
-        title = esc(&format!("{} {}", tx!(l, "Undangan Pernikahan", "Wedding Invitation of"), inv.couple())),
+        title = esc(&if theme.ulang_tahun() {
+            format!("{} {}", tx!(l, "Undangan Ulang Tahun", "Birthday Invitation of"), inv.couple())
+        } else {
+            format!("{} {}", tx!(l, "Undangan Pernikahan", "Wedding Invitation of"), inv.couple())
+        }),
         desc = esc(&desc),
-        couple = esc(&inv.couple()),
+        og_title = esc(&if theme.ulang_tahun() {
+            format!("{} {}", tx!(l, "Ulang Tahun", "The Birthday of"), inv.couple())
+        } else {
+            format!("The Wedding of {}", inv.couple())
+        }),
         og = if og_image.is_empty() { String::new() } else { format!("<meta property=\"og:image\" content=\"{}\">\n", esc(og_image)) },
         tv = st.themes().version,
         av = asset_version(),
@@ -632,6 +670,7 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
     let q: HashMap<String, String> = url_query(query);
     // Demo "Coba Demo": tema pilihan & lagu acak (sama seperti get_invitation).
     st.demo_tema(&mut row, q.get("tema").map(String::as_str));
+    st.demo_isi(&mut row, q.get("isi").map(String::as_str));
     let cat = st.themes();
     let Some(theme) = cat.get(&row.inv.theme).filter(|t| !t.template.is_empty()) else { return Ok(None) };
     st.demo_lagu(&mut row).await;
@@ -673,7 +712,11 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
         parts.push(format!("lang={}", l.code()));
     }
     let qs = if parts.is_empty() { String::new() } else { format!("?{}", parts.join("&")) };
-    let wishes = repo::wishes(&st.pool, row.id, 30).await.unwrap_or_default();
+    let wishes = if row.inv.is_demo && theme.ulang_tahun() {
+        crate::web::model::WishPage::demo_ulang_tahun()
+    } else {
+        repo::wishes(&st.pool, row.id, 30).await.unwrap_or_default()
+    };
     let mut assets = t.assets.clone();
     assets.extend(theme.template_assets.iter().filter(|(_, v)| check_asset(v)).map(|(k, v)| (k.clone(), v.clone())));
     let rsvp_flash = match q.get("rsvp").map(String::as_str) {
@@ -681,7 +724,8 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
         Some("galat") => Some(false),
         _ => None,
     };
-    let page = Page { row: &row, guest, to, qs, preview, wishes, assets, rsvp_flash, lang, lang_href };
+    let pv = row.inv.is_demo && q.get("pv").is_some_and(|v| v == "1");
+    let page = Page { row: &row, guest, to, qs, preview, wishes, assets, rsvp_flash, lang, lang_href, pv };
     let mut body = unslash(set.env.get_template(&t.slug)?.render(page_ctx(&page))?);
     // Panggung 3D (web/panggung.rs) — prolog pertama di dalam <main> templat,
     // tampil tepat setelah sampul dibuka (sama dengan tema Leptos).
@@ -824,6 +868,9 @@ mod tests {
 
     #[test]
     fn templat_bawaan_lolos_validasi() {
+        for (nama, html) in BERSAMA {
+            check_html(html).unwrap_or_else(|e| panic!("{nama}: {e}"));
+        }
         for t in builtins() {
             check_html(&t.html).unwrap_or_else(|e| panic!("{}: {e}", t.slug));
             check_css(&t.css).unwrap_or_else(|e| panic!("{}: {e}", t.slug));
@@ -867,7 +914,7 @@ mod tests {
 
     #[test]
     fn templat_bawaan_merender_data_demo() {
-        for slug in ["kusuma", "warkah"] {
+        for slug in ["kusuma", "warkah", "pesta", "taman"] {
             render_demo(slug);
         }
     }
@@ -922,8 +969,13 @@ mod tests {
         };
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/pratinjau");
         std::fs::create_dir_all(&dir).unwrap();
+        // Templat ulang tahun dirender dengan data demo pesta (seperti demo_tema).
+        let mut inv_ultah = row.inv.clone();
+        inv_ultah.jadikan_demo_ulang_tahun();
+        let ultah = InvRow { id: 1, inv: inv_ultah, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new(), activated_at: None };
         for t in &builtins() {
-            let page = Page { row: &row, guest: None, to: "Bapak Budi & Keluarga".into(), qs: String::new(), preview: false, wishes: wishes.clone(), assets: t.assets.clone(), rsvp_flash: None, lang: Lang::Id, lang_href: String::new() };
+            let (row, wishes) = if t.slug == "pesta" { (&ultah, WishPage::demo_ulang_tahun()) } else { (&row, wishes.clone()) };
+            let page = Page { row, guest: None, to: "Bapak Budi & Keluarga".into(), qs: String::new(), preview: false, wishes, assets: t.assets.clone(), rsvp_flash: None, lang: Lang::Id, lang_href: String::new(), pv: false };
             let body = unslash(set.env.get_template(&t.slug).unwrap().render(page_ctx(&page)).unwrap());
             std::fs::write(dir.join(format!("{}.body.html", t.slug)), body + &bottom_nav(&page, &t.slug)).unwrap();
             std::fs::write(dir.join(format!("{}.css", t.slug)), &t.css).unwrap();
@@ -945,7 +997,7 @@ mod tests {
                 ..Default::default()
             };
             let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new(), activated_at: None };
-            let page = Page { row: &row, guest: None, to: String::new(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: None, lang: Lang::En, lang_href: String::new() };
+            let page = Page { row: &row, guest: None, to: String::new(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: None, lang: Lang::En, lang_href: String::new(), pv: false };
             let out = set.env.get_template(slug).unwrap().render(page_ctx(&page)).unwrap();
             assert!(out.contains("Saturday") && out.contains("September 2026"), "{slug}: tanggal Inggris");
             assert!(out.contains("Open Invitation") && !out.contains("Buka Undangan"), "{slug}: tombol Inggris");
@@ -966,10 +1018,14 @@ mod tests {
             ..Default::default()
         };
         let row = InvRow { id: 1, inv, manage_key_hash: String::new(), total_price: 0, payment_method: String::new(), contact_phone: String::new(), activated_at: None };
-        let page = Page { row: &row, guest: None, to: "<b>Budi</b>".into(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: Some(false), lang: Lang::Id, lang_href: String::new() };
+        let page = Page { row: &row, guest: None, to: "<b>Budi</b>".into(), qs: String::new(), preview: false, wishes: WishPage::default(), assets: t.assets.clone(), rsvp_flash: Some(false), lang: Lang::Id, lang_href: String::new(), pv: false };
         let out = set.env.get_template(slug).unwrap().render(page_ctx(&page)).unwrap();
-        assert!(out.contains("Yona") && out.contains("Doni"));
-        assert!(unslash(out.clone()).contains("src=\"/img/"), "{slug}: URL aset polos agar ditulis ulang ke RustFS");
+        // `pesta` (ulang tahun): satu orang. `pesta` & `taman`: ornamen SVG di
+        // templat (tanpa aset gambar /img/).
+        let ultah = slug == "pesta";
+        let tanpa_aset = matches!(slug, "pesta" | "taman");
+        assert!(out.contains("Yona") && (ultah || out.contains("Doni")));
+        assert!(tanpa_aset || unslash(out.clone()).contains("src=\"/img/"), "{slug}: URL aset polos agar ditulis ulang ke RustFS");
         assert!(out.contains("&lt;b&gt;Budi") && !out.contains("<b>Budi"), "nama tamu wajib di-escape");
         assert!(out.contains("Sabtu") && out.contains("September 2026"), "{slug}: tanggal acara");
         assert!(out.contains(flash_msg(false, Lang::Id)), "pesan ?rsvp=galat tampil tanpa JS");

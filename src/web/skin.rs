@@ -116,11 +116,27 @@ impl ThemeInfo {
 
     /// Adegan panggung 3D tema ini (`web/panggung.rs`); "" = tanpa.
     pub fn panggung(&self) -> &'static str {
+        // Panggung 3D = prolog PERNIKAHAN (pasangan di depan bangunan).
+        if self.ulang_tahun() {
+            return "";
+        }
         super::panggung::pilih(&self.slug, &self.nuansa, &self.region, &self.palette, self.dark)
     }
     /// Jenis lapisan pendamping 3D tema ini (`web/pendamping.rs`).
     pub fn pendamping(&self) -> &'static str {
+        if self.ulang_tahun() {
+            return "";
+        }
         super::pendamping::pilih(&self.slug, &self.nuansa, &self.region, !self.bg_video.is_empty())
+    }
+    /// Jenis acara tema (panel kiri etalase): kategori "Ulang Tahun" →
+    /// `ulang-tahun`, selain itu `wedding`.
+    pub fn acara(&self) -> &'static str {
+        if self.ulang_tahun() { "ulang-tahun" } else { "wedding" }
+    }
+    /// Tema undangan ulang tahun (satu orang, bukan pasangan).
+    pub fn ulang_tahun(&self) -> bool {
+        self.category_key() == "ulang-tahun"
     }
     pub fn category_key(&self) -> String {
         fmt::key(&self.category)

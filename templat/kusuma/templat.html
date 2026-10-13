@@ -68,6 +68,7 @@
 </aside>
 
 {#- ── SAMPUL (gerbang) ─────────────────────────────────────────────────── #}
+{%- if not pv %}
 <section class="k-cover" data-gate aria-label="{{ t.sampul_label }}">
   <button type="button" class="t-lewati" data-open-instan>{{ t.lewati_intro }}</button>
   <div class="k-cover__frame">
@@ -98,6 +99,7 @@
 {%- if a.buka_video %}
 {#- preload="none": tata.js yang menaikkan ke "auto" HANYA untuk perangkat/koneksi kuat (bukan t-lite) #}
 <video class="k-door" data-open-video src="{{ a.buka_video }}" muted playsinline preload="none" aria-hidden="true"></video>
+{%- endif %}
 {%- endif %}
 
 <main class="k-main">

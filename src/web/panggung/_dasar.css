@@ -136,10 +136,10 @@
 
 /* Tanpa gerak: satu layar pemandangan lebar + judul (layar tak lengket). */
 @supports not (animation-timeline: view()) {
-  .pg { height: auto; } .pg__layar { position: relative; }
-  .pg__depan { transform: scale(.42); }
-  .pg__insan { opacity: 1; }
-  .pg__t2, .pg__t3, .pg__t4, .pg__t5, .pg__pasangan, .pg__gulir { display: none; }
+  html:not(.is-pv):not(.t-pv) .pg { height: auto; } html:not(.is-pv):not(.t-pv) .pg__layar { position: relative; }
+  html:not(.is-pv):not(.t-pv) .pg__depan { transform: scale(.42); }
+  html:not(.is-pv):not(.t-pv) .pg__insan { opacity: 1; }
+  html:not(.is-pv):not(.t-pv) :is(.pg__t2, .pg__t3, .pg__t4, .pg__t5, .pg__pasangan, .pg__gulir) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pg { height: auto; } .pg__layar { position: relative; }
@@ -150,13 +150,40 @@
 
 /* PRATINJAU (iframe etalase HP/laptop, html.is-pv): tak ada gulir manusia —
    pratinjau menggulir per segmen, jadi kamera gulir akan meloncat-loncat.
-   Panggung diputar sebagai gerak WAKTU kontinu ±8 dtk (keyframes yang sama),
-   dimulai saat gerbang terbuka; layar tak lengket (tinggi 1 layar). */
+   Panggung diputar sebagai gerak WAKTU kontinu ±5 dtk (keyframes yang sama),
+   dimulai saat gerbang terbuka; layar tak lengket (tinggi 1 layar). Singkat:
+   dulu 9,5 dtk + etalase pindah tiap 11 dtk = isi undangan tak pernah terlihat
+   bergulir pada tema berpanggung (tampak "tidak jalan"). */
 html:is(.is-pv, .t-pv) .pg { height: 100svh; }
 html:is(.is-pv, .t-pv) .pg__gulir { display: none; }
-html:is(.is-pv, .t-pv):not(.inv-opened):not(.t-open) .pg__layar > * { animation: none !important; }
-html:is(.is-pv, .t-pv):is(.inv-opened, .t-open) .pg__layar > * { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 8s !important;
-  animation-delay: 1.5s !important; animation-timing-function: cubic-bezier(.45, .05, .55, .95) !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
+/* Mulai saat iframe DITAMPILKAN (bersama.js memasang .pg--jalan pada pesan
+   'show'), bukan saat dimuat. Safari tak membuat animasi bila kelas pemicunya
+   terpasang seketika saat dokumen baru dimuat (panggung pratinjau DIAM). */
+html:is(.is-pv, .t-pv) .pg:not(.pg--jalan) .pg__layar > * { animation: none !important; }
+/* Nama animasi pratinjau DI LUAR @supports: gerak WAKTU tak butuh dukungan
+   scroll-driven. Dulu nama hanya ada di blok @supports → di Safari < 26 /
+   Firefox panggung pratinjau DIAM ("tidak jalan" di HP etalase). */
+@media (prefers-reduced-motion: no-preference) {
+  html:is(.is-pv, .t-pv) .pg__langit { animation-name: pg-langit; }
+  html:is(.is-pv, .t-pv) .pg__bulan { animation-name: pg-bulan; }
+  html:is(.is-pv, .t-pv) .pg__jauh { animation-name: pg-jauh; }
+  html:is(.is-pv, .t-pv) .pg__utama { animation-name: pg-utama; }
+  html:is(.is-pv, .t-pv) .pg__insan { animation-name: pg-utama, pg-insan; }
+  html:is(.is-pv, .t-pv) .pg__depan { animation-name: pg-depan; }
+  html:is(.is-pv, .t-pv) .pg__pasangan { animation-name: pg-pasangan; }
+  html:is(.is-pv, .t-pv) .pg__t1 { animation-name: pg-t1; }
+  html:is(.is-pv, .t-pv) .pg__t2 { animation-name: pg-t2; }
+  html:is(.is-pv, .t-pv) .pg__t3 { animation-name: pg-t3; }
+  html:is(.is-pv, .t-pv) .pg__t4 { animation-name: pg-t4; }
+  html:is(.is-pv, .t-pv) .pg__t5 { animation-name: pg-t5; }
+  html:is(.is-pv, .t-pv) .pg-k1 .pg__jauh { animation-name: pg-jauh-k1; } html:is(.is-pv, .t-pv) .pg-k1 .pg__utama { animation-name: pg-utama-k1; } html:is(.is-pv, .t-pv) .pg-k1 .pg__insan { animation-name: pg-utama-k1, pg-insan; } html:is(.is-pv, .t-pv) .pg-k1 .pg__depan { animation-name: pg-depan-k1; }
+  html:is(.is-pv, .t-pv) .pg-k2 .pg__jauh { animation-name: pg-jauh-k2; } html:is(.is-pv, .t-pv) .pg-k2 .pg__utama { animation-name: pg-utama-k2; } html:is(.is-pv, .t-pv) .pg-k2 .pg__insan { animation-name: pg-utama-k2, pg-insan; } html:is(.is-pv, .t-pv) .pg-k2 .pg__depan { animation-name: pg-depan-k2; }
+  html:is(.is-pv, .t-pv) .pg-k3 .pg__jauh { animation-name: pg-jauh-k3; } html:is(.is-pv, .t-pv) .pg-k3 .pg__utama { animation-name: pg-utama-k3; } html:is(.is-pv, .t-pv) .pg-k3 .pg__insan { animation-name: pg-utama-k3, pg-insan; } html:is(.is-pv, .t-pv) .pg-k3 .pg__depan { animation-name: pg-depan-k3; }
+  html:is(.is-pv, .t-pv) .pg-k4 .pg__jauh { animation-name: pg-jauh-k4; } html:is(.is-pv, .t-pv) .pg-k4 .pg__utama { animation-name: pg-utama-k4; } html:is(.is-pv, .t-pv) .pg-k4 .pg__insan { animation-name: pg-utama-k4, pg-insan; } html:is(.is-pv, .t-pv) .pg-k4 .pg__depan { animation-name: pg-depan-k4; }
+  html:is(.is-pv, .t-pv) .pg-k5 .pg__jauh { animation-name: pg-jauh-k5; } html:is(.is-pv, .t-pv) .pg-k5 .pg__utama { animation-name: pg-utama-k5; } html:is(.is-pv, .t-pv) .pg-k5 .pg__insan { animation-name: pg-utama-k5, pg-insan; } html:is(.is-pv, .t-pv) .pg-k5 .pg__depan { animation-name: pg-depan-k5; }
+}
+html:is(.is-pv, .t-pv) .pg.pg--jalan .pg__layar > * { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 4.6s !important;
+  animation-delay: .4s !important; animation-timing-function: cubic-bezier(.45, .05, .55, .95) !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
 
 /* Mesin TEMPLAT (kusuma, warkah) tak memuat main.css: gaya minimum di sini. */
 .pg .script { font-family: var(--font-script, var(--font-display, cursive)); font-weight: var(--script-weight, 400); }
