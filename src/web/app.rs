@@ -50,7 +50,11 @@ pub fn shell(options: leptos::config::LeptosOptions) -> AnyView {
     let publik = use_context::<axum::http::request::Parts>().is_some_and(|p| halaman_publik(p.uri.path()));
     view! {
         <!DOCTYPE html>
-        <html lang="id">
+        // Kelas pratinjau SEJAK SSR (bukan dipasang skrip): panggung 3D
+        // pratinjau langsung memakai gerak WAKTU dari gambar pertama — peralihan
+        // timeline gulir→waktu saat skrip berjalan membuat Chromium & Safari
+        // tak membuat animasinya (panggung diam / meloncat).
+        <html lang="id" class=preview.then_some("is-pv")>
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

@@ -205,7 +205,7 @@
       {%- for s in love_story %}
       {%- set img = s.img or (gallery[loop.index % (gallery|length)] if gallery else "") %}
       <li class="k-timeline__item" data-s="zoom-in">
-        {%- if img %}<img src="{{ img|foto }}" style="{{ img|pos }}" alt="" loading="lazy" data-zoom>{% endif %}
+        {%- if img %}<span class="t-foto k-timeline__foto"><img src="{{ img|foto }}" style="{{ img|pos }}" alt="" loading="lazy" data-zoom></span>{% endif %}
         <div>
           {%- if s.year %}<p class="k-timeline__when">{{ s.year }}</p>{% endif %}
           <h3>{{ s.title }}</h3>
@@ -230,7 +230,7 @@
     <h2 class="k-title k-title--light" data-s="atas">{{ t.judul_momen }}</h2>
     <div class="k-grid">
       {%- for g in gallery %}
-      <img src="{{ g|foto }}" style="{{ g|pos }}" alt="Momen {{ loop.index }}" loading="lazy" data-zoom data-s="zoom-in">
+      <span class="t-foto k-grid__foto" data-s="zoom-in"><img src="{{ g|foto }}" style="{{ g|pos }}" alt="Momen {{ loop.index }}" loading="lazy" data-zoom></span>
       {%- endfor %}
     </div>
   </section>

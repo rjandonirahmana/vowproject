@@ -185,7 +185,7 @@
 .g-ayat cite { display: block; margin-top: 10px; font-style: normal; font-weight: 700; color: var(--g-deep); }
 
 .g-foto { position: relative; width: 170px; height: 214px; margin: 12px auto 0; border-radius: 85px 85px 16px 16px; background: var(--g-bg2); box-shadow: 0 0 0 6px var(--g-card), 0 0 0 7px var(--g-line), 0 22px 36px -22px rgba(0, 0, 0, .45); }
-.g-foto img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.g-foto__isi { width: 100%; height: 100%; border-radius: inherit; }
 .g-foto__inisial { display: grid; place-items: center; height: 100%; font: 400 80px/1 var(--g-skrip); color: var(--g-deep); }
 .g-foto__bunga { position: absolute; right: -18px; bottom: -14px; width: 60px; height: 60px; }
 .g-orang__panggil { margin: 14px 0 0; font-size: 44px; line-height: 1; color: var(--g-deep); }
@@ -219,7 +219,7 @@
 
 .g-waktu { margin: 10px 0 0; padding: 0; list-style: none; }
 .g-waktu__item { margin: 0 0 20px; padding: 18px; border-radius: 22px; background: var(--g-card); box-shadow: 0 18px 36px -26px rgba(0, 0, 0, .4), inset 0 0 0 1px var(--g-line); }
-.g-waktu__item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 14px; margin-bottom: 10px; }
+.g-waktu__foto { width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; margin-bottom: 10px; }
 .g-waktu__item h3 { margin: 0; font: 600 21px var(--g-serif); color: var(--g-deep); }
 .g-waktu__item p { margin: 4px 0 0; }
 .g-waktu__th { font-weight: 700; letter-spacing: .14em; font-size: 13px; color: var(--g-soft); }

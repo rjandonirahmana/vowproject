@@ -222,6 +222,10 @@ impl AppState {
                     row.inv.jadikan_demo_ulang_tahun();
                 }
             }
+            // Foto contoh pernikahan (bukan untuk demo pesta ulang tahun).
+            if !cat.get(&row.inv.theme).is_some_and(|t| t.ulang_tahun()) {
+                row.inv.isi_foto_demo();
+            }
         }
     }
 

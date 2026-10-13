@@ -59,7 +59,7 @@
     <p class="p-eyebrow" data-a="fadeInDown">{{ "Birthday Invitation" if en else "Undangan Ulang Tahun" }}</p>
     <div class="p-foto p-foto--gate" data-a="bounceIn" data-ad="300">
       {%- if cover_photo or bride.photo %}
-      <img src="{{ (cover_photo or bride.photo)|foto }}" style="{{ (cover_photo or bride.photo)|pos }}" alt="{{ nama }}" fetchpriority="high">
+      <span class="t-foto p-foto__isi"><img src="{{ (cover_photo or bride.photo)|foto }}" style="{{ (cover_photo or bride.photo)|pos }}" alt="{{ nama }}" fetchpriority="high"></span>
       {%- else %}
       <span class="p-foto__inisial">{{ bride.initial }}</span>
       {%- endif %}
@@ -106,7 +106,7 @@
     <div class="p-foto p-foto--profil" data-s="zoom-in">
       {%- set fp = bride.photo or cover_photo %}
       {%- if fp %}
-      <img src="{{ fp|foto }}" style="{{ fp|pos }}" alt="{{ bride.name }}" loading="lazy" data-zoom>
+      <span class="t-foto p-foto__isi"><img src="{{ fp|foto }}" style="{{ fp|pos }}" alt="{{ bride.name }}" loading="lazy" data-zoom></span>
       {%- else %}
       <span class="p-foto__inisial">{{ bride.initial }}</span>
       {%- endif %}

@@ -52,7 +52,7 @@
 {%- macro orang(p, peran) -%}
 <div class="g-foto">
   {%- if p.photo %}
-  <img src="{{ p.photo|foto }}" style="{{ p.photo|pos }}" alt="{{ p.name }}" loading="lazy">
+  <span class="t-foto g-foto__isi"><img src="{{ p.photo|foto }}" style="{{ p.photo|pos }}" alt="{{ p.name }}" loading="lazy"></span>
   {%- else %}
   <span class="g-foto__inisial">{{ p.initial }}</span>
   {%- endif %}
@@ -232,7 +232,7 @@
       {%- for s in love_story %}
       {%- set img = s.img or (gallery[loop.index % (gallery|length)] if gallery else "") %}
       <li class="g-waktu__item {{ 'g-v-kiri' if loop.index is odd else 'g-v-kanan' }}">
-        {%- if img %}<img src="{{ img|foto }}" style="{{ img|pos }}" alt="" loading="lazy" data-zoom>{% endif %}
+        {%- if img %}<span class="t-foto g-waktu__foto"><img src="{{ img|foto }}" style="{{ img|pos }}" alt="" loading="lazy" data-zoom></span>{% endif %}
         {%- if s.year %}<p class="g-waktu__th">{{ s.year }}</p>{% endif %}
         <h3>{{ s.title }}</h3>
         <p>{{ s.text }}</p>

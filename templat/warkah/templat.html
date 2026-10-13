@@ -89,9 +89,9 @@
       <span class="w-env__back"></span>
       <figure class="w-env__photo">
         {%- if cover_photo %}
-        <img src="{{ cover_photo|foto }}" style="{{ cover_photo|pos }}" alt="" fetchpriority="high">
+        <span class="t-foto"><img src="{{ cover_photo|foto }}" style="{{ cover_photo|pos }}" alt="" fetchpriority="high"></span>
         {%- elif gallery %}
-        <img src="{{ gallery[0]|foto }}" style="{{ gallery[0]|pos }}" alt="" fetchpriority="high">
+        <span class="t-foto"><img src="{{ gallery[0]|foto }}" style="{{ gallery[0]|pos }}" alt="" fetchpriority="high"></span>
         {%- else %}
         <span class="w-env__mono">{{ bride.initial }}<i>&amp;</i>{{ groom.initial }}</span>
         {%- endif %}
@@ -130,7 +130,7 @@
     {%- for p in [bride, groom] %}
     <article class="w-person" data-s="zoom-in">
       {%- if p.photo %}
-      <img class="w-person__photo" src="{{ p.photo|foto }}" style="{{ p.photo|pos }}" alt="{{ p.name }}" loading="lazy" data-zoom>
+      <span class="t-foto w-person__photo"><img src="{{ p.photo|foto }}" style="{{ p.photo|pos }}" alt="{{ p.name }}" loading="lazy" data-zoom></span>
       {%- endif %}
       <h3 class="w-script w-person__name">{{ p.name }}{% if p.degree %}<small>, {{ p.degree }}</small>{% endif %}</h3>
       {%- if p.ig %}<a class="w-ig" href="https://instagram.com/{{ p.ig }}" target="_blank" rel="noopener">@{{ p.ig }}</a>{% endif %}
@@ -236,7 +236,7 @@
       <li data-s="kanan">
         {%- if s.year %}<time>{{ s.year }}</time>{% endif %}
         <div>
-          {%- if s.img %}<img src="{{ s.img|foto }}" style="{{ s.img|pos }}" alt="" loading="lazy" data-zoom>{% endif %}
+          {%- if s.img %}<span class="t-foto w-line__foto"><img src="{{ s.img|foto }}" style="{{ s.img|pos }}" alt="" loading="lazy" data-zoom></span>{% endif %}
           <h3>{{ s.title }}</h3>
           <p>{{ s.text }}</p>
         </div>

@@ -119,9 +119,18 @@ pub struct Resep {
     /// Indeks `Adegan::depan` / `Adegan::jauh` (0 = bawaan).
     pub depan: u8,
     pub jauh: u8,
+    /// Varian bangunan utama (0 = asli; 1..UTAMA_N = warna & hiasan lain) dan
+    /// sepasang mempelai (0 = asli; 1..INSAN_N = busana & pose lain) —
+    /// scripts/gerak/panggung.py `VARIAN_UTAMA` / `PALET`.
+    pub utama: u8,
+    pub insan: u8,
 }
 
 const KAMERA: usize = 6;
+/// Banyak varian bangunan utama & mempelai (termasuk asli) — harus sama
+/// dengan scripts/gerak/panggung.py (uji `semua_varian_ada`).
+const UTAMA_N: usize = 4;
+const INSAN_N: usize = 6;
 
 impl Resep {
     /// Kelas akar `<section>` panggung.
@@ -151,26 +160,29 @@ pub fn tetapkan<'a>(tema: impl IntoIterator<Item = (&'a str, &'static str)>) -> 
         let (nd, nj) = (ad.depan.len().max(1), ad.jauh.len().max(1));
         slugs.sort_unstable();
         slugs.dedup();
+        // Radiks per dimensi, urut dari yang BERGANTI TERCEPAT: bangunan,
+        // mempelai, gerbang, latar, kamera, cermin.
+        let radiks = [UTAMA_N, INSAN_N, nd, nj, KAMERA, 2];
         for (i, s) in slugs.into_iter().enumerate() {
-            // Bilangan campuran (a, b, c, e) lalu DIGESER: depan = a,
-            // jauh = a+b, kamera = a+b+c, cermin = a+b+e. Pemetaan segitiga ini
-            // tetap satu-satu (resep unik), tapi tema yang BERDEKATAN dalam satu
-            // adegan berbeda lapis depan, latar jauh, kamera & cermin sekaligus
-            // — dulu 6 tema pertama hanya beda gerak kamera (tampak sama).
-            let (a, b) = (i % nd, (i / nd) % nj);
-            let c = (i / (nd * nj)) % KAMERA;
-            let e = (i / (nd * nj * KAMERA)) % 2;
-            // r = posisi dalam blok gerbang×latar; kamera digeser g(r) = r·k
-            // (k = 2 bila blok ≡ 2 mod 6, agar tema terakhir blok & pertama
-            // blok berikut pun beda kamera). Tetap satu-satu terhadap c.
-            let m = nd * nj;
-            let r = a + b * nd;
-            let k = if m % KAMERA == 2 { 2 } else { 1 };
-            let depan = a;
-            let jauh = (a + b) % nj;
-            let kamera = (c + r * k) % KAMERA;
-            let cermin = (a + b + e) % 2 == 1;
-            out.insert(s.to_string(), Resep { adegan: a_slug, kamera: kamera as u8, cermin, depan: depan as u8, jauh: jauh as u8 });
+            // Digit bilangan campuran i, lalu DIGESER kumulatif: keluaran ke-k
+            // = digit k + jumlah digit sebelumnya (mod radiks). Segitiga →
+            // tetap satu-satu (resep unik), dan karena digit tercepat ikut di
+            // SEMUA keluaran, tema berurutan berbeda bangunan, mempelai,
+            // gerbang, latar & kamera sekaligus (uji tema_berdekatan_beda_rupa).
+            let mut sisa = i;
+            let mut jumlah = 0;
+            let mut out_k = [0usize; 6];
+            for (k, &r) in radiks.iter().enumerate() {
+                let digit = sisa % r;
+                sisa /= r;
+                out_k[k] = (digit + jumlah) % r;
+                jumlah += digit;
+            }
+            let [utama, insan, depan, jauh, kamera, cermin] = out_k;
+            out.insert(
+                s.to_string(),
+                Resep { adegan: a_slug, kamera: kamera as u8, cermin: cermin == 1, depan: depan as u8, jauh: jauh as u8, utama: utama as u8, insan: insan as u8 },
+            );
         }
     }
     out
@@ -247,6 +259,14 @@ pub fn css_tema(r: &Resep) -> String {
         if let Some(n) = ad.jauh.get(r.jauh as usize).filter(|_| r.jauh > 0) {
             c.push_str(&format!(".pg.pg--{} .pg__jauh{{background-image:{}}}\n", r.adegan, super::pendamping::data_uri(svg(n))));
         }
+        if r.utama > 0 {
+            let n = format!("{}-{}", ad.utama, r.utama);
+            c.push_str(&format!(".pg.pg--{} .pg__utama{{background-image:{}}}\n", r.adegan, super::pendamping::data_uri(svg(&n))));
+        }
+        if r.insan > 0 {
+            let n = format!("{}-{}", ad.insan, r.insan);
+            c.push_str(&format!(".pg.pg--{} .pg__insan{{background-image:{}}}\n", r.adegan, super::pendamping::data_uri(svg(&n))));
+        }
     }
     c
 }
@@ -259,43 +279,16 @@ pub fn css(adegan: &str) -> &'static str {
     CSS.get_or_init(|| ADEGAN.iter().map(|a| (a.slug, rakit(a))).collect()).get(adegan).map(String::as_str).unwrap_or("")
 }
 
+/// Semua lapisan SVG panggung (daftar dibangkitkan scripts/gerak/panggung.py —
+/// hanya server: tak ikut ke WASM).
+#[cfg(feature = "ssr")]
+mod daftar {
+    include!("panggung/svg/daftar.rs");
+}
+
 #[cfg(feature = "ssr")]
 fn svg(nama: &str) -> &'static str {
-    match nama {
-        "fuji-jauh" => include_str!("panggung/svg/fuji-jauh.svg"),
-        "gadang-utama" => include_str!("panggung/svg/gadang-utama.svg"),
-        "gapura-depan" => include_str!("panggung/svg/gapura-depan.svg"),
-        "honai-utama" => include_str!("panggung/svg/honai-utama.svg"),
-        "hutan-jauh" => include_str!("panggung/svg/hutan-jauh.svg"),
-        "jawa-depan" => include_str!("panggung/svg/jawa-depan.svg"),
-        "jawa-jauh" => include_str!("panggung/svg/jawa-jauh.svg"),
-        "jawa-utama" => include_str!("panggung/svg/jawa-utama.svg"),
-        "kapel-depan" => include_str!("panggung/svg/kapel-depan.svg"),
-        "kapel-jauh" => include_str!("panggung/svg/kapel-jauh.svg"),
-        "kapel-utama" => include_str!("panggung/svg/kapel-utama.svg"),
-        "kuil-utama" => include_str!("panggung/svg/kuil-utama.svg"),
-        "lamin-utama" => include_str!("panggung/svg/lamin-utama.svg"),
-        "laut-jauh" => include_str!("panggung/svg/laut-jauh.svg"),
-        "masjid-depan" => include_str!("panggung/svg/masjid-depan.svg"),
-        "masjid-jauh" => include_str!("panggung/svg/masjid-jauh.svg"),
-        "masjid-utama" => include_str!("panggung/svg/masjid-utama.svg"),
-        "meru-utama" => include_str!("panggung/svg/meru-utama.svg"),
-        "panggung-utama" => include_str!("panggung/svg/panggung-utama.svg"),
-        "paviliun-utama" => include_str!("panggung/svg/paviliun-utama.svg"),
-        "pohon-depan" => include_str!("panggung/svg/pohon-depan.svg"),
-        "stupa-utama" => include_str!("panggung/svg/stupa-utama.svg"),
-        "tionghoa-depan" => include_str!("panggung/svg/tionghoa-depan.svg"),
-        "tionghoa-jauh" => include_str!("panggung/svg/tionghoa-jauh.svg"),
-        "tionghoa-utama" => include_str!("panggung/svg/tionghoa-utama.svg"),
-        "tongkonan-utama" => include_str!("panggung/svg/tongkonan-utama.svg"),
-        "torii-depan" => include_str!("panggung/svg/torii-depan.svg"),
-        "wat-utama" => include_str!("panggung/svg/wat-utama.svg"),
-        "insan-modern" => include_str!("panggung/svg/insan-modern.svg"),
-        "insan-muslim" => include_str!("panggung/svg/insan-muslim.svg"),
-        "insan-adat" => include_str!("panggung/svg/insan-adat.svg"),
-        "insan-oriental" => include_str!("panggung/svg/insan-oriental.svg"),
-        _ => "",
-    }
+    daftar::SVG.iter().find(|(n, _)| *n == nama).map(|(_, isi)| *isi).unwrap_or("")
 }
 
 #[cfg(feature = "ssr")]
@@ -359,17 +352,29 @@ mod tests {
 
     #[test]
     fn tema_berdekatan_beda_rupa() {
-        // Tema berurutan (slug) dalam SATU adegan wajib beda gerbang depan &
-        // gerak kamera — bukan hanya unik di atas kertas.
+        // Tema berurutan (slug) dalam SATU adegan wajib beda BANGUNAN,
+        // MEMPELAI & gerak kamera — bukan hanya unik di atas kertas.
         for ad in ADEGAN {
-            let slug: Vec<String> = (0..12).map(|i| format!("t{i:02}")).collect();
+            let slug: Vec<String> = (0..40).map(|i| format!("t{i:02}")).collect();
             let r = tetapkan(slug.iter().map(|s| (s.as_str(), ad.slug)));
             for w in slug.windows(2) {
                 let (x, y) = (r[&w[0]], r[&w[1]]);
-                if ad.depan.len() > 1 {
-                    assert_ne!(x.depan, y.depan, "{}: {} & {} gerbang sama", ad.slug, w[0], w[1]);
-                }
+                assert_ne!(x.utama, y.utama, "{}: {} & {} bangunan sama", ad.slug, w[0], w[1]);
+                assert_ne!(x.insan, y.insan, "{}: {} & {} mempelai sama", ad.slug, w[0], w[1]);
                 assert_ne!(x.kamera, y.kamera, "{}: {} & {} kamera sama", ad.slug, w[0], w[1]);
+            }
+        }
+    }
+
+    #[test]
+    fn semua_varian_ada() {
+        // Tiap varian yang bisa dipilih tetapkan() punya berkas SVG-nya.
+        for ad in ADEGAN {
+            for n in 1..UTAMA_N {
+                assert!(!svg(&format!("{}-{n}", ad.utama)).is_empty(), "{}-{n} tak ada", ad.utama);
+            }
+            for n in 1..INSAN_N {
+                assert!(!svg(&format!("{}-{n}", ad.insan)).is_empty(), "{}-{n} tak ada", ad.insan);
             }
         }
     }

@@ -156,10 +156,13 @@
    bergulir pada tema berpanggung (tampak "tidak jalan"). */
 html:is(.is-pv, .t-pv) .pg { height: 100svh; }
 html:is(.is-pv, .t-pv) .pg__gulir { display: none; }
-/* Mulai saat iframe DITAMPILKAN (bersama.js memasang .pg--jalan pada pesan
-   'show'), bukan saat dimuat. Safari tak membuat animasi bila kelas pemicunya
-   terpasang seketika saat dokumen baru dimuat (panggung pratinjau DIAM). */
-html:is(.is-pv, .t-pv) .pg:not(.pg--jalan) .pg__layar > * { animation: none !important; }
+/* Animasi pratinjau DIPASANG sejak awal tapi DIJEDA → panggung tampil tepat
+   di pose keyframe 0% (tanpa sampul, pose dasar lapisan ≠ pose awal kamera:
+   dulu gerbang meloncat dari ukuran penuh ke 42% = "patah"). bersama.js
+   memasang .pg--jalan pada pesan 'show' → berjalan. (Dulu `animation: none`
+   lalu dinyalakan: Safari tak membuat animasinya bila pemicunya terpasang
+   saat dokumen baru dimuat — panggung DIAM.) */
+html:is(.is-pv, .t-pv) .pg:not(.pg--jalan) .pg__layar > * { animation-play-state: paused !important; }
 /* Nama animasi pratinjau DI LUAR @supports: gerak WAKTU tak butuh dukungan
    scroll-driven. Dulu nama hanya ada di blok @supports → di Safari < 26 /
    Firefox panggung pratinjau DIAM ("tidak jalan" di HP etalase). */
@@ -182,7 +185,7 @@ html:is(.is-pv, .t-pv) .pg:not(.pg--jalan) .pg__layar > * { animation: none !imp
   html:is(.is-pv, .t-pv) .pg-k4 .pg__jauh { animation-name: pg-jauh-k4; } html:is(.is-pv, .t-pv) .pg-k4 .pg__utama { animation-name: pg-utama-k4; } html:is(.is-pv, .t-pv) .pg-k4 .pg__insan { animation-name: pg-utama-k4, pg-insan; } html:is(.is-pv, .t-pv) .pg-k4 .pg__depan { animation-name: pg-depan-k4; }
   html:is(.is-pv, .t-pv) .pg-k5 .pg__jauh { animation-name: pg-jauh-k5; } html:is(.is-pv, .t-pv) .pg-k5 .pg__utama { animation-name: pg-utama-k5; } html:is(.is-pv, .t-pv) .pg-k5 .pg__insan { animation-name: pg-utama-k5, pg-insan; } html:is(.is-pv, .t-pv) .pg-k5 .pg__depan { animation-name: pg-depan-k5; }
 }
-html:is(.is-pv, .t-pv) .pg.pg--jalan .pg__layar > * { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 4.6s !important;
+html:is(.is-pv, .t-pv) .pg .pg__layar > * { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 4.6s !important;
   animation-delay: .4s !important; animation-timing-function: cubic-bezier(.45, .05, .55, .95) !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
 
 /* Mesin TEMPLAT (kusuma, warkah) tak memuat main.css: gaya minimum di sini. */

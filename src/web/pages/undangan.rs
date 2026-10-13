@@ -147,6 +147,8 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
     );
     let skin = ctx.page.skin.clone();
     let single = skin.single;
+    // Tema templat: kembali ke undangan = muat ulang penuh (lihat InvSkin::templat).
+    let ke_templat = skin.templat.then_some("external");
     // Pratinjau tautan WhatsApp memakai foto sampul bila ada.
     let og_image = inv.cover_photo.split('#').next().unwrap_or("").to_string();
     // inv--rail: tata letak desktop ≥1100px (panel sampul kiri + kolom kanan).
@@ -238,7 +240,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
                 </div>
             })}
             <header class="inv-top">
-                <a class="inv-top__brand" href=ctx.href("")>
+                <a class="inv-top__brand" href=ctx.href("") rel=ke_templat>
                     <Monogram initials=inv.initials() class="monogram--xs" />
                     <span>
                         <b>{inv.couple()}</b>
@@ -291,7 +293,7 @@ fn InvShell(ctx: InvCtx) -> impl IntoView {
                             .map(|(hash, label, icon)| {
                                 let home = home.clone();
                                 view! {
-                                    <a href=move || if on_story() { format!("{home}{hash}") } else { hash.to_string() } class="bottom-nav__item">
+                                    <a href=move || if on_story() { format!("{home}{hash}") } else { hash.to_string() } class="bottom-nav__item" rel=ke_templat>
                                         <span class="ms" aria-hidden="true">{icon}</span><span>{label}</span>
                                     </a>
                                 }

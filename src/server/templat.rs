@@ -630,7 +630,7 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
     // diperiksa ULANG di sini (baris lama/DB disunting langsung).
     let css_ok = |c: &str| if check_css(c).is_ok() { c.to_string() } else { String::new() };
     format!(
-        "<!DOCTYPE html>\n<html lang=\"{html_lang}\">\n<head>\n<meta charset=\"utf-8\">\n\
+        "<!DOCTYPE html>\n<html lang=\"{html_lang}\"{kelas_pv}>\n<head>\n<meta charset=\"utf-8\">\n\
 <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n\
 <title>{title}</title>\n<meta name=\"description\" content=\"{desc}\">\n<meta name=\"robots\" content=\"noindex, nofollow\">\n\
 <meta property=\"og:title\" content=\"{og_title}\">\n<meta property=\"og:description\" content=\"{desc}\">\n{og}\
@@ -661,6 +661,9 @@ fn document(st: &AppState, t: &Templat, theme: &crate::web::skin::ThemeInfo, p: 
         buttons = top_buttons(p),
         theme = esc(&theme.slug),
         html_lang = p.lang.code(),
+        // Kelas pratinjau sejak SSR (lihat web/app.rs shell): tanpa peralihan
+        // timeline panggung saat tata.js berjalan.
+        kelas_pv = if p.pv { " class=\"t-pv\"" } else { "" },
     )
 }
 

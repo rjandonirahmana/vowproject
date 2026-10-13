@@ -179,6 +179,7 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
                 rupa: crate::web::rupa::classes(over.as_ref().unwrap_or(&t.rupa)),
                 css,
                 fonts,
+                templat: !t.template.is_empty(),
             }
         })
         .unwrap_or_default();

@@ -23,6 +23,10 @@ img, video { max-width: 100%; display: block; }
 button { font: inherit; color: inherit; cursor: pointer; }
 input, textarea, select { font: inherit; }
 [hidden] { display: none !important; }
+/* Wadah foto ber-zoom (filter |pos menulis transform: scale() pada <img>):
+   ukuran, lengkung & bingkai di WADAH, gambar hanya membesar DI DALAMNYA. */
+.t-foto { display: block; overflow: hidden; }
+.t-foto > img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
 /* Gerbang tertutup → halaman tak bisa digulir. */
 .t-gated:not(.t-open) body { overflow: hidden; height: 100svh; }

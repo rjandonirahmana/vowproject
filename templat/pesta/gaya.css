@@ -155,7 +155,7 @@
     width: 150px; aspect-ratio: 1; padding: 6px; border-radius: 50%;
     background: conic-gradient(var(--p-a1), var(--p-a2), var(--p-a3), var(--p-a1));
 }
-.p-foto img, .p-foto__inisial { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 4px solid var(--p-card); background: var(--p-bg2); }
+.p-foto__isi, .p-foto__inisial { width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--p-card); background: var(--p-bg2); }
 .p-foto__inisial { display: grid; place-items: center; font: 700 56px/1 var(--p-head); color: var(--p-deep); }
 .p-foto--profil { width: 190px; }
 

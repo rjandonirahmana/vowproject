@@ -137,6 +137,10 @@ pub struct InvSkin {
     pub css: String,
     /// Google Fonts untuk huruf tema ini saja (kosong = huruf dasar).
     pub fonts: String,
+    /// Tema dirender TEMPLAT di server (bukan komponen Leptos): tautan dari
+    /// halaman Leptos (tab Story) kembali ke undangan wajib muat ulang penuh —
+    /// navigasi router merender versi Leptos-nya (bentuk undangan berubah).
+    pub templat: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -206,6 +210,33 @@ impl Invitation {
             format!("{}&{}", initial(&self.bride_name), initial(&self.groom_name))
         }
     }
+    /// Foto contoh undangan DEMO (foto AI yang sudah tayang di halaman
+    /// layanan — sudah di RustFS, tanpa unggahan baru): calon pembeli melihat
+    /// bentuk & penempatan foto di tiap tema. Hanya mengisi yang KOSONG —
+    /// foto yang diisi admin di baris demo tetap menang. Belum ada potret
+    /// pengantin pria sendirian → slot pria tetap monogram (bukan orang lain).
+    pub fn isi_foto_demo(&mut self) {
+        const SAMPUL: &str = "/img/layanan/venue-atsiri.jpg";
+        const WANITA: &str = "/img/layanan/mua-modern.jpg";
+        const GALERI: &[&str] = &[
+            "/img/layanan/venue-atsiri.jpg",
+            "/img/layanan/dekor-hero.jpg",
+            "/img/layanan/mua-sesudah.jpg",
+            "/img/layanan/dekor-nature.jpg",
+            "/img/layanan/mua-solo-putri.jpg",
+            "/img/layanan/venue-nava.jpg",
+        ];
+        if self.cover_photo.is_empty() {
+            self.cover_photo = SAMPUL.into();
+        }
+        if self.bride_photo.is_empty() {
+            self.bride_photo = WANITA.into();
+        }
+        if self.gallery.is_empty() {
+            self.gallery = GALERI.iter().map(|s| s.to_string()).collect();
+        }
+    }
+
     /// Undangan DEMO dibuka dengan tema ULANG TAHUN → data pernikahan demo
     /// diganti data pesta contoh (satu orang, tanpa foto pasangan / kisah
     /// cinta). Tanggal acara pertama dipertahankan agar hitung mundur tetap

@@ -274,7 +274,7 @@
     content: "♥"; position: absolute; left: -31px; top: 14px; width: 24px; height: 24px; border-radius: 50%;
     display: grid; place-items: center; font-size: 12px; background: #fff; color: var(--k-taupe);
 }
-.k-timeline__item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; margin-bottom: 10px; cursor: zoom-in; }
+.k-timeline__foto { width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; margin-bottom: 10px; cursor: zoom-in; }
 .k-timeline__item h3 { margin: 0 0 4px; font: 400 32px/1.1 var(--k-script); color: var(--k-taupe-d); }
 .k-timeline__item p { margin: 0; font-size: 15px; color: var(--k-ink-soft); }
 .k-timeline__when { font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 12.5px !important; color: var(--k-gold-d) !important; }
@@ -284,8 +284,8 @@
 .k-video video { width: 100%; border-radius: 14px; background: #000; }
 .k-gallery { padding: 40px 14px 34px; background: var(--k-taupe-d); text-align: center; }
 .k-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
-.k-grid img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; cursor: zoom-in; min-width: 0; }
-.k-grid img:first-child { grid-column: span 2; aspect-ratio: 4 / 3; }
+.k-grid__foto { width: 100%; aspect-ratio: 3 / 4; border-radius: 10px; cursor: zoom-in; min-width: 0; }
+.k-grid__foto:first-child { grid-column: span 2; aspect-ratio: 4 / 3; }
 
 /* ── 9. Tanda kasih ─────────────────────────────────────────────────────── */
 .k-gift { margin-top: 30px; }

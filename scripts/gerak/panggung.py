@@ -25,9 +25,87 @@ DEFS = '''<defs>
 <pattern id="kisi" width="22" height="22" patternUnits="userSpaceOnUse"><rect width="22" height="22" fill="url(#dome)"/><path d="M11 3 L19 11 L11 19 L3 11Z" fill="#b6bcc5" opacity=".55"/></pattern>
 </defs>'''
 
-def svg(name, body):
+TERTULIS = []          # semua nama berkas (→ daftar.rs)
+UTAMA = {}             # nama bangunan utama → isi SVG (dasar varian)
+
+def svg(name, body, defs=None):
     with open(os.path.join(OUT, name + '.svg'), 'w') as f:
-        f.write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}">{DEFS}{body}</svg>\n')
+        f.write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}">{defs or DEFS}{body}</svg>\n')
+    TERTULIS.append(name)
+    if name.endswith('-utama'):
+        UTAMA[name] = body
+
+# ══ VARIAN — tiap tema berbeda bangunan & mempelai ═══════════════════════
+import colorsys, re
+
+def geser_warna(teks, hue, jenuh=1.0, terang=0.0):
+    """Geser rona/kejenuhan SEMUA warna bersaturasi (atap, kayu, emas, merah);
+    putih & abu-abu (dinding) tetap. Dikerjakan saat membangkitkan — tanpa
+    filter SVG saat tampil (nol biaya render)."""
+    def ubah(m):
+        h = m.group(1)
+        r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        hh, ll, ss = colorsys.rgb_to_hls(r, g, b)
+        if ss < 0.12 or ll > 0.93:
+            return m.group(0)
+        hh = (hh + hue / 360) % 1
+        ss = min(1, ss * jenuh)
+        ll = min(1, max(0, ll + terang))
+        r, g, b = colorsys.hls_to_rgb(hh, ll, ss)
+        return '#%02x%02x%02x' % (round(r * 255), round(g * 255), round(b * 255))
+    return re.sub(r'#([0-9a-fA-F]{6})\b', ubah, teks)
+
+def hias_janur():
+    """Janur/umbul-umbul melengkung di kiri-kanan jalan."""
+    o = []
+    for x, sx in ((250, 1), (830, -1)):
+        o.append(f'<path d="M{x} 1400C{x} 1220 {x + sx * 10} 1080 {x + sx * 70} 960" stroke="#b8963a" stroke-width="8" fill="none" stroke-linecap="round"/>')
+        for k in range(9):
+            y = 1360 - k * 44
+            o.append(f'<path d="M{x + sx * (k * 7)} {y}q{sx * 46} -10 {sx * 70} 24" stroke="#e6cf6a" stroke-width="7" fill="none" stroke-linecap="round"/>')
+        o.append(f'<path d="M{x + sx * 70} 960q{sx * 30} 10 {sx * 26} 60" stroke="#e6cf6a" stroke-width="6" fill="none"/>')
+    return ''.join(o)
+
+def hias_lampion():
+    """Untaian lampion melintang di depan bangunan."""
+    o = ['<path d="M120 990Q540 1110 960 990" stroke="#5d4a3a" stroke-width="3" fill="none"/>']
+    for k in range(9):
+        t = (k + 1) / 10
+        x = 120 + 840 * t
+        y = 990 + 4 * 120 * t * (1 - t)
+        warna = ('#c62828', '#e0a526', '#c62828')[k % 3]
+        o.append(f'<path d="M{x:.0f} {y:.0f}v16" stroke="#5d4a3a" stroke-width="2"/><ellipse cx="{x:.0f}" cy="{y + 40:.0f}" rx="20" ry="25" fill="{warna}"/><rect x="{x - 9:.0f}" y="{y + 13:.0f}" width="18" height="5" fill="#3a2a20"/><rect x="{x - 9:.0f}" y="{y + 62:.0f}" width="18" height="5" fill="#3a2a20"/><ellipse cx="{x - 6:.0f}" cy="{y + 34:.0f}" rx="5" ry="10" fill="#fff" opacity=".35"/>')
+    return ''.join(o)
+
+def hias_bunga():
+    """Lengkung bunga di mulut jalan + lilin berjajar di tepinya."""
+    o = ['<path d="M400 1404C400 1250 680 1250 680 1404" stroke="#d9cdb8" stroke-width="10" fill="none"/>']
+    for k in range(15):
+        a = 3.1416 * k / 14
+        x = 540 - 140 * __import__('math').cos(a)
+        y = 1404 - 150 * __import__('math').sin(a)
+        o.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{14 + (k % 3) * 3}" fill="{("#ffffff", "#f3c6d0", "#e9a6b8")[k % 3]}" stroke="#e2c4cc" stroke-width="2"/>')
+    for k in range(5):
+        for x in (330 - k * 38, 750 + k * 38):
+            y = 1408 + k * 46
+            o.append(f'<rect x="{x - 7}" y="{y - 30}" width="14" height="30" rx="3" fill="#fbf6ea"/><path d="M{x} {y - 44}q8 8 0 14q-8 -6 0 -14Z" fill="#f2b84b"/>')
+    return ''.join(o)
+
+# (geser rona°, ×jenuh, +terang, hiasan) — varian 1..3 (0 = bangunan asli)
+VARIAN_UTAMA = [(28, 1.05, 0.0, hias_janur), (-34, 1.0, 0.0, hias_lampion), (0, 0.72, -0.05, hias_bunga)]
+
+def varian_utama():
+    for nama, isi in list(UTAMA.items()):
+        for n, (hue, jenuh, terang, hias) in enumerate(VARIAN_UTAMA, start=1):
+            svg(f'{nama}-{n}', geser_warna(isi, hue, jenuh, terang) + hias(), geser_warna(DEFS, hue, jenuh, terang))
+
+def tulis_daftar():
+    """daftar.rs: (nama, isi) SEMUA lapisan — panggung.rs tak perlu menulis
+    include_str! satu per satu."""
+    baris = [f'    ("{n}", include_str!("{n}.svg")),' for n in sorted(set(TERTULIS))]
+    with open(os.path.join(OUT, 'daftar.rs'), 'w') as f:
+        f.write('// DIBANGKITKAN scripts/gerak/panggung.py — jangan disunting tangan.\n')
+        f.write('pub const SVG: &[(&str, &str)] = &[\n' + '\n'.join(baris) + '\n];\n')
 
 def f(x): return f'{x:.1f}'.rstrip('0').rstrip('.')
 
@@ -617,49 +695,85 @@ def kepala(cx, cy, r=13):
 def bayang():
     return '<ellipse cx="545" cy="1400" rx="70" ry="9" fill="#000" opacity=".16"/>'
 
-def insan(varian):
+# Palet busana per varian (indeks 0 = asli): b = busana wanita, b2 = aksen
+# wanita / kerudung, g = atasan pria, g2 = bawahan pria, a = aksen emas/bunga.
+PALET = {
+    'modern':   [dict(b='#fbfaf8', b2='#e3ddd6', g='#2b2f3a', g2='#23262f', a='#f2b8c6'),
+                 dict(b='#f6efe2', b2='#e2d6c2', g='#6b7280', g2='#5b616d', a='#e9c46a'),
+                 dict(b='#f3d6dc', b2='#e2b8c2', g='#23324f', g2='#1b2640', a='#ffffff'),
+                 dict(b='#efe0c2', b2='#d9c39a', g='#1c1c22', g2='#141418', a='#c9a24a'),
+                 dict(b='#dfe7d6', b2='#c3cfb6', g='#cdb99a', g2='#b8a27f', a='#f6dde4'),
+                 dict(b='#e7dcf0', b2='#cdbddc', g='#3a3a44', g2='#2e2e36', a='#f1d47c')],
+    'muslim':   [dict(b='#fbf6ee', b2='#f5ecdf', g='#f2ead9', g2='#e8dfcd', a='#d7c38f'),
+                 dict(b='#eef2e6', b2='#dfe7d2', g='#f3efe4', g2='#e6e0d0', a='#9bb07f'),
+                 dict(b='#f7e4e7', b2='#efd0d6', g='#f4ece8', g2='#e7ddd8', a='#d98ca0'),
+                 dict(b='#f3e6c6', b2='#e9d6a6', g='#f6f0e0', g2='#eadfc6', a='#c9a24a'),
+                 dict(b='#ffffff', b2='#eef0f3', g='#2f3a4f', g2='#273042', a='#c9a24a'),
+                 dict(b='#ece4f4', b2='#ddd0ea', g='#ece7f2', g2='#dcd4e6', a='#a78bc9')],
+    'adat':     [dict(b='#3b2a2a', b2='#8a6440', g='#2c2420', g2='#8a6440', a='#d4a017'),
+                 dict(b='#2f4a3a', b2='#8a6440', g='#24382c', g2='#7a5a3a', a='#d4a017'),
+                 dict(b='#5b2a4a', b2='#7a5a3a', g='#3a2030', g2='#7a5a3a', a='#e0b84a'),
+                 dict(b='#7a1d22', b2='#6b4a2e', g='#4a1418', g2='#6b4a2e', a='#e8c15a'),
+                 dict(b='#1f2a44', b2='#8a6440', g='#18213a', g2='#8a6440', a='#d9b45a'),
+                 dict(b='#6b4a1e', b2='#5a3e24', g='#3e2a12', g2='#5a3e24', a='#f1d47c')],
+    'oriental': [dict(b='#b71c1c', b2='#7a1418', g='#7a1418', g2='#2c2420', a='#e8c15a'),
+                 dict(b='#c2185b', b2='#8a1040', g='#6a1b3a', g2='#2c2420', a='#f1d47c'),
+                 dict(b='#d4a017', b2='#9a740c', g='#7a5a10', g2='#2c2420', a='#b71c1c'),
+                 dict(b='#1f3a68', b2='#142848', g='#7a1418', g2='#1d1d22', a='#e8c15a'),
+                 dict(b='#8e2430', b2='#5e1820', g='#2c2420', g2='#1d1d22', a='#e8c15a'),
+                 dict(b='#e57373', b2='#b84a4a', g='#5d2a2a', g2='#2c2420', a='#f6e7b4')],
+}
+# Pose per varian: gandeng tangan · buket di depan + lengan merangkul ·
+# berpayung · saling menatap bergandeng di tengah.
+POSE = ['gandeng', 'buket', 'payung', 'tatap', 'gandeng', 'buket']
+
+def insan(varian, n=0):
+    w = PALET[varian][n]
+    pose = POSE[n]
     o = [bayang()]
-    bx, gx = 508, 584           # pengantin wanita (kiri), pria (kanan)
+    bx, gx = (512, 580) if pose == 'tatap' else (508, 584)
     if varian == 'modern':
-        # wanita: kerudung tipis, gaun putih mengembang, buket
         o.append(f'<path d="M{bx} 1226C{bx-30} 1260 {bx-44} 1330 {bx-46} 1396H{bx+46}C{bx+40} 1330 {bx+28} 1262 {bx} 1226Z" fill="#ffffff" opacity=".55"/>')
-        o.append(f'<path d="M{bx-12} 1252H{bx+12}L{bx+14} 1300C{bx+30} 1340 {bx+40} 1372 {bx+44} 1398H{bx-44}C{bx-40} 1372 {bx-30} 1340 {bx-14} 1300Z" fill="#fbfaf8" stroke="#e3ddd6" stroke-width="2"/>')
+        o.append(f'<path d="M{bx-12} 1252H{bx+12}L{bx+14} 1300C{bx+30} 1340 {bx+40} 1372 {bx+44} 1398H{bx-44}C{bx-40} 1372 {bx-30} 1340 {bx-14} 1300Z" fill="{w["b"]}" stroke="{w["b2"]}" stroke-width="2"/>')
         o.append(kepala(bx, 1238) + f'<path d="M{bx-13} 1236q13 -20 26 0q-2 -6 -13 -10q-11 4 -13 10Z" fill="#4a3426"/><circle cx="{bx}" cy="1224" r="6" fill="#4a3426"/>')
-        o.append(f'<circle cx="{bx+16}" cy="1300" r="9" fill="#f2b8c6"/><circle cx="{bx+10}" cy="1296" r="6" fill="#fff"/><circle cx="{bx+22}" cy="1294" r="5" fill="#e98fa6"/>')
-        # pria: jas tuksedo gelap
-        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+15} 1322H{gx-15}Z" fill="#2b2f3a"/><path d="M{gx-6} 1256L{gx} 1284L{gx+6} 1256Z" fill="#fff"/><path d="M{gx-4} 1258h8l-4 5z" fill="#111"/>')
-        o.append(f'<path d="M{gx-14} 1320H{gx-1}V1396H{gx-15}ZM{gx+1} 1320H{gx+14}L{gx+15} 1396H{gx+1}Z" fill="#23262f"/><path d="M{gx-17} 1392h17v6h-19zM{gx+1} 1392h17l2 6h-19z" fill="#111"/>')
+        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+15} 1322H{gx-15}Z" fill="{w["g"]}"/><path d="M{gx-6} 1256L{gx} 1284L{gx+6} 1256Z" fill="#fff"/><path d="M{gx-4} 1258h8l-4 5z" fill="#111"/>')
+        o.append(f'<path d="M{gx-14} 1320H{gx-1}V1396H{gx-15}ZM{gx+1} 1320H{gx+14}L{gx+15} 1396H{gx+1}Z" fill="{w["g2"]}"/><path d="M{gx-17} 1392h17v6h-19zM{gx+1} 1392h17l2 6h-19z" fill="#111"/>')
         o.append(kepala(gx, 1240) + f'<path d="M{gx-13} 1236q13 -18 26 0q-1 -10 -13 -12q-12 2 -13 12Z" fill="#2e2018"/>')
-        o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
     elif varian == 'muslim':
-        # wanita berhijab (putih gading), gaun panjang
-        o.append(f'<path d="M{bx-13} 1250H{bx+13}L{bx+16} 1300C{bx+30} 1340 {bx+36} 1372 {bx+40} 1398H{bx-40}C{bx-36} 1372 {bx-30} 1340 {bx-16} 1300Z" fill="#fbf6ee" stroke="#e7dccb" stroke-width="2"/>')
-        o.append(f'<path d="M{bx-16} 1240C{bx-18} 1214 {bx+18} 1214 {bx+16} 1240C{bx+22} 1262 {bx+20} 1276 {bx} 1282C{bx-20} 1276 {bx-22} 1262 {bx-16} 1240Z" fill="#f5ecdf"/>')
-        o.append(f'<ellipse cx="{bx}" cy="1240" rx="9" ry="11" fill="{KULIT}"/><path d="M{bx-16} 1234q16 -14 32 0" stroke="#d9c7a6" stroke-width="3" fill="none"/>')
-        o.append(f'<circle cx="{bx+14}" cy="1302" r="8" fill="#f5f0e6"/><circle cx="{bx+20}" cy="1297" r="5" fill="#d7c38f"/>')
-        # pria: jas putih/gading + peci hitam
-        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+16} 1330H{gx-16}Z" fill="#f2ead9" stroke="#d9cbb0" stroke-width="2"/><path d="M{gx} 1258V1326" stroke="#c9b48e" stroke-width="2"/>')
-        o.append(f'<path d="M{gx-15} 1328H{gx-1}V1396H{gx-15}ZM{gx+1} 1328H{gx+15}V1396H{gx+1}Z" fill="#e8dfcd"/><path d="M{gx-17} 1392h17v6h-19zM{gx+1} 1392h17l2 6h-19z" fill="#5a4636"/>')
+        o.append(f'<path d="M{bx-13} 1250H{bx+13}L{bx+16} 1300C{bx+30} 1340 {bx+36} 1372 {bx+40} 1398H{bx-40}C{bx-36} 1372 {bx-30} 1340 {bx-16} 1300Z" fill="{w["b"]}" stroke="{w["b2"]}" stroke-width="2"/>')
+        o.append(f'<path d="M{bx-16} 1240C{bx-18} 1214 {bx+18} 1214 {bx+16} 1240C{bx+22} 1262 {bx+20} 1276 {bx} 1282C{bx-20} 1276 {bx-22} 1262 {bx-16} 1240Z" fill="{w["b2"]}"/>')
+        o.append(f'<ellipse cx="{bx}" cy="1240" rx="9" ry="11" fill="{KULIT}"/><path d="M{bx-16} 1234q16 -14 32 0" stroke="{w["a"]}" stroke-width="3" fill="none"/>')
+        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+16} 1330H{gx-16}Z" fill="{w["g"]}" stroke="{w["g2"]}" stroke-width="2"/><path d="M{gx} 1258V1326" stroke="{w["a"]}" stroke-width="2"/>')
+        o.append(f'<path d="M{gx-15} 1328H{gx-1}V1396H{gx-15}ZM{gx+1} 1328H{gx+15}V1396H{gx+1}Z" fill="{w["g2"]}"/><path d="M{gx-17} 1392h17v6h-19zM{gx+1} 1392h17l2 6h-19z" fill="#5a4636"/>')
         o.append(kepala(gx, 1240) + f'<rect x="{gx-13}" y="1222" width="26" height="12" rx="3" fill="#1d1d22"/>')
-        o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
     elif varian == 'adat':
-        # wanita: kebaya beludru gelap + jarik batik + sanggul
-        o.append(f'<path d="M{bx-14} 1252H{bx+14}L{bx+16} 1306H{bx-16}Z" fill="#3b2a2a"/><path d="M{bx-14} 1252L{bx} 1290L{bx+14} 1252" stroke="#c9a24a" stroke-width="2.5" fill="none"/>')
-        o.append(f'<path d="M{bx-16} 1304H{bx+16}L{bx+18} 1398H{bx-18}Z" fill="#8a6440"/>' + ''.join(f'<path d="M{bx-16} {1314+k*14}q8 -6 16 0t16 0" stroke="#5a3e24" stroke-width="2" fill="none"/>' for k in range(6)))
-        o.append(kepala(bx, 1238) + f'<ellipse cx="{bx}" cy="1228" rx="14" ry="9" fill="#21160f"/><circle cx="{bx-10}" cy="1238" r="7" fill="#21160f"/><circle cx="{bx-8}" cy="1232" r="2.4" fill="#d4a017"/><circle cx="{bx+4}" cy="1226" r="2.4" fill="#d4a017"/>')
-        # pria: beskap gelap berkancing + jarik + blangkon
-        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+16} 1316H{gx-16}Z" fill="#2c2420"/>' + ''.join(f'<circle cx="{gx+5}" cy="{1264+k*12}" r="2" fill="#d4a017"/>' for k in range(4)))
-        o.append(f'<path d="M{gx-16} 1314H{gx+16}L{gx+15} 1398H{gx-15}Z" fill="#8a6440"/>' + ''.join(f'<path d="M{gx-16} {1324+k*14}q8 -6 16 0t16 0" stroke="#5a3e24" stroke-width="2" fill="none"/>' for k in range(5)))
-        o.append(kepala(gx, 1240) + f'<path d="M{gx-14} 1238C{gx-14} 1222 {gx+14} 1222 {gx+14} 1238Z" fill="#4a3424"/><circle cx="{gx-15}" cy="1240" r="5" fill="#4a3424"/><path d="M{gx-12} 1232h24" stroke="#c9a24a" stroke-width="2"/>')
-        o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
+        o.append(f'<path d="M{bx-14} 1252H{bx+14}L{bx+16} 1306H{bx-16}Z" fill="{w["b"]}"/><path d="M{bx-14} 1252L{bx} 1290L{bx+14} 1252" stroke="{w["a"]}" stroke-width="2.5" fill="none"/>')
+        o.append(f'<path d="M{bx-16} 1304H{bx+16}L{bx+18} 1398H{bx-18}Z" fill="{w["b2"]}"/>' + ''.join(f'<path d="M{bx-16} {1314+k*14}q8 -6 16 0t16 0" stroke="#3e2a18" stroke-width="2" fill="none" opacity=".6"/>' for k in range(6)))
+        o.append(kepala(bx, 1238) + f'<ellipse cx="{bx}" cy="1228" rx="14" ry="9" fill="#21160f"/><circle cx="{bx-10}" cy="1238" r="7" fill="#21160f"/><circle cx="{bx-8}" cy="1232" r="2.4" fill="{w["a"]}"/><circle cx="{bx+4}" cy="1226" r="2.4" fill="{w["a"]}"/>')
+        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+16} 1316H{gx-16}Z" fill="{w["g"]}"/>' + ''.join(f'<circle cx="{gx+5}" cy="{1264+k*12}" r="2" fill="{w["a"]}"/>' for k in range(4)))
+        o.append(f'<path d="M{gx-16} 1314H{gx+16}L{gx+15} 1398H{gx-15}Z" fill="{w["g2"]}"/>' + ''.join(f'<path d="M{gx-16} {1324+k*14}q8 -6 16 0t16 0" stroke="#3e2a18" stroke-width="2" fill="none" opacity=".6"/>' for k in range(5)))
+        o.append(kepala(gx, 1240) + f'<path d="M{gx-14} 1238C{gx-14} 1222 {gx+14} 1222 {gx+14} 1238Z" fill="#4a3424"/><circle cx="{gx-15}" cy="1240" r="5" fill="#4a3424"/><path d="M{gx-12} 1232h24" stroke="{w["a"]}" stroke-width="2"/>')
     else:  # oriental
-        o.append(f'<path d="M{bx-13} 1250H{bx+13}L{bx+15} 1310C{bx+18} 1350 {bx+20} 1376 {bx+22} 1398H{bx-22}C{bx-20} 1376 {bx-18} 1350 {bx-15} 1310Z" fill="#b71c1c"/>' + ''.join(f'<path d="M{bx-10} {1270+k*24}q10 -8 20 0" stroke="#e8c15a" stroke-width="2" fill="none"/>' for k in range(5)))
-        o.append(f'<path d="M{bx-6} 1252H{bx+6}V1258H{bx-6}Z" fill="#e8c15a"/>')
-        o.append(kepala(bx, 1238) + f'<path d="M{bx-13} 1236q13 -20 26 0q0 -10 -13 -12q-13 2 -13 12Z" fill="#160f0b"/><ellipse cx="{bx}" cy="1222" rx="10" ry="6" fill="#160f0b"/><path d="M{bx-12} 1224h24" stroke="#e8c15a" stroke-width="2.4"/>')
-        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+19} 1398H{gx-19}Z" fill="#7a1418"/><path d="M{gx-17} 1256H{gx+17}L{gx+16} 1290H{gx-16}Z" fill="#2c2420"/><path d="M{gx} 1258V1396" stroke="#e8c15a" stroke-width="1.6"/>' + ''.join(f'<circle cx="{gx}" cy="{1266+k*10}" r="1.8" fill="#e8c15a"/>' for k in range(3)))
-        o.append(kepala(gx, 1240) + f'<path d="M{gx-14} 1238C{gx-14} 1222 {gx+14} 1222 {gx+14} 1238Z" fill="#1d1d22"/><circle cx="{gx}" cy="1222" r="3" fill="#b71c1c"/>')
+        o.append(f'<path d="M{bx-13} 1250H{bx+13}L{bx+15} 1310C{bx+18} 1350 {bx+20} 1376 {bx+22} 1398H{bx-22}C{bx-20} 1376 {bx-18} 1350 {bx-15} 1310Z" fill="{w["b"]}"/>' + ''.join(f'<path d="M{bx-10} {1270+k*24}q10 -8 20 0" stroke="{w["a"]}" stroke-width="2" fill="none"/>' for k in range(5)))
+        o.append(f'<path d="M{bx-6} 1252H{bx+6}V1258H{bx-6}Z" fill="{w["a"]}"/>')
+        o.append(kepala(bx, 1238) + f'<path d="M{bx-13} 1236q13 -20 26 0q0 -10 -13 -12q-13 2 -13 12Z" fill="#160f0b"/><ellipse cx="{bx}" cy="1222" rx="10" ry="6" fill="#160f0b"/><path d="M{bx-12} 1224h24" stroke="{w["a"]}" stroke-width="2.4"/>')
+        o.append(f'<path d="M{gx-17} 1256H{gx+17}L{gx+19} 1398H{gx-19}Z" fill="{w["g"]}"/><path d="M{gx-17} 1256H{gx+17}L{gx+16} 1290H{gx-16}Z" fill="{w["g2"]}"/><path d="M{gx} 1258V1396" stroke="{w["a"]}" stroke-width="1.6"/>' + ''.join(f'<circle cx="{gx}" cy="{1266+k*10}" r="1.8" fill="{w["a"]}"/>' for k in range(3)))
+        o.append(kepala(gx, 1240) + f'<path d="M{gx-14} 1238C{gx-14} 1222 {gx+14} 1222 {gx+14} 1238Z" fill="#1d1d22"/><circle cx="{gx}" cy="1222" r="3" fill="{w["b"]}"/>')
+    # ── pose ──
+    if pose == 'gandeng':
         o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
-    svg(f'insan-{varian}', ''.join(o))
+        o.append(f'<circle cx="{bx+16}" cy="1300" r="9" fill="{w["a"]}"/><circle cx="{bx+10}" cy="1296" r="6" fill="#fff"/>')
+    elif pose == 'buket':
+        o.append(f'<path d="M{gx-14} 1262C{gx-30} 1248 {bx+6} 1244 {bx+12} 1258" stroke="{w["g"]}" stroke-width="7" fill="none" stroke-linecap="round"/>')
+        o.append(f'<path d="M{bx-2} 1300l6 26" stroke="#5a7a3a" stroke-width="3"/>' + ''.join(f'<circle cx="{bx-8+k*7}" cy="{1292+(k%2)*6}" r="7" fill="{(w["a"], "#ffffff", w["a"])[k%3]}"/>' for k in range(4)))
+    elif pose == 'payung':
+        o.append(f'<path d="M{bx+12} 1268C{bx+26} 1290 {gx-22} 1292 {gx-16} 1270" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/>')
+        o.append(f'<path d="M{gx+16} 1300V1176" stroke="#5a4636" stroke-width="4"/><path d="M{gx+16-110} 1190Q{gx+16} 1110 {gx+16+110} 1190Q{gx+16+55} 1172 {gx+16} 1190Q{gx+16-55} 1172 {gx+16-110} 1190Z" fill="{w["a"]}" opacity=".92"/><circle cx="{gx+16}" cy="1146" r="5" fill="#5a4636"/>')
+    else:  # tatap
+        o.append(f'<path d="M{bx+10} 1272Q{(bx+gx)//2} 1300 {gx-10} 1272" stroke="{KULIT}" stroke-width="6" fill="none" stroke-linecap="round"/><circle cx="{(bx+gx)//2}" cy="1292" r="6" fill="{KULIT}"/>')
+        o.append(f'<path d="M{(bx+gx)//2-10} 1214q10 -14 20 0q-10 12 -10 16q0 -4 -10 -16Z" fill="{w["a"]}" opacity=".85"/>')
+    nama = f'insan-{varian}' if n == 0 else f'insan-{varian}-{n}'
+    svg(nama, ''.join(o))
 
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
@@ -667,5 +781,8 @@ if __name__ == '__main__':
     gadang(); tongkonan(); rumah_panggung(); lamin(); honai(); meru(); kuil(); wat(); stupa(); paviliun()
     torii(); gapura(); pohon(); laut(); hutan(); fuji()
     for v in ('modern', 'muslim', 'adat', 'oriental'):
-        insan(v)
-    print('ok')
+        for n in range(len(PALET[v])):
+            insan(v, n)
+    varian_utama()
+    tulis_daftar()
+    print('ok', len(TERTULIS), 'lapisan')

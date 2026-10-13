@@ -203,7 +203,7 @@
     padding: 8px 8px 26px; background: #fff; box-shadow: 0 10px 26px rgba(0, 0, 0, .25);
     translate: -50% 0; transform: translateY(70px) rotate(-2deg);
 }
-.w-env__photo img { width: 100%; height: 100%; object-fit: cover; }
+.w-env__photo img, .w-env__photo .t-foto { width: 100%; height: 100%; object-fit: cover; }
 .w-env__mono { display: grid; place-items: center; width: 100%; height: 100%; background: var(--w-paper); font: 400 44px/1 var(--w-script); color: var(--w-deep); }
 .w-env__mono i { font: italic 18px var(--w-serif); color: var(--w-gold); }
 .t-open .w-env__photo { animation: w-foto 1.5s cubic-bezier(.22, .8, .25, 1) .35s forwards; }
@@ -240,7 +240,7 @@
 .w-parents p { margin: 4px 0 0; font-size: 14.5px; line-height: 1.45; }
 .w-info__lead { margin: 0 auto 6px; max-width: 30ch; font-size: 15px; opacity: .85; }
 .w-person { margin-top: 12px; }
-.w-person__photo { width: 128px; height: 160px; margin: 6px auto 10px; object-fit: cover; border-radius: 64px 64px 10px 10px; box-shadow: 0 0 0 3px var(--w-gold), 0 10px 26px rgba(0, 0, 0, .3); }
+.w-person__photo { width: 128px; height: 160px; margin: 6px auto 10px; border-radius: 64px 64px 10px 10px; box-shadow: 0 0 0 3px var(--w-gold), 0 10px 26px rgba(0, 0, 0, .3); }
 .w-person__name { margin: 0; font-size: 38px; line-height: 1.15; color: var(--w-gold-l); }
 .w-person__name small { font: 500 15px var(--w-serif); color: var(--w-on-deep); }
 .w-ig { display: inline-block; margin-top: 4px; font-size: 14px; color: var(--w-on-deep); opacity: .85; }
@@ -292,7 +292,7 @@
 .w-story { padding: 26px 16px 4px; }
 .w-line--story li { grid-template-columns: 60px 1fr; }
 .w-line--story li::before { box-shadow: 0 0 0 4px var(--w-paper); }
-.w-line--story img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; margin-bottom: 8px; }
+.w-line__foto { width: 100%; aspect-ratio: 4 / 3; border-radius: 8px; margin-bottom: 8px; }
 .w-line--story h3 { margin: 0; font: 600 17px var(--w-serif); color: var(--w-deep); }
 .w-line--story p { margin: 2px 0 0; font-size: 15px; color: var(--w-ink-soft); }
 .w-extra { text-align: center; }
