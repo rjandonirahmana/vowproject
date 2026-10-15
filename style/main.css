@@ -12016,6 +12016,25 @@ html.is-pv .mapcard iframe {
     margin: 0 0 18px;
     font-size: 13px;
 }
+.adm-article-cover-preview {
+    width: min(100%, 460px);
+    margin: 4px 0 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--bg-2);
+}
+.adm-article-cover-preview img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+.adm-article-cover-preview figcaption {
+    padding: 8px 12px;
+    color: var(--ink-2);
+    font-size: 12px;
+}
 .adm-article-form__actions {
     display: flex;
     flex-wrap: wrap;

@@ -45,7 +45,16 @@ pub const ADEGAN: &[Adegan] = &[
     Adegan { slug: "laut", nama: "Paviliun Pantai", jauh: &["laut-jauh", "kapel-jauh"], utama: "paviliun-utama", insan: "insan-modern", depan: &["kapel-depan", "pohon-depan"], langit: "linear-gradient(#cfdde6, #eef3f6 55%, #e9eef0)", cahaya: "radial-gradient(circle at 45% 45%, #fffaf0, #fbe8c2 55%, rgba(251,232,194,0) 71%)" },
     Adegan { slug: "taman", nama: "Paviliun Taman", jauh: &["kapel-jauh", "hutan-jauh", "laut-jauh"], utama: "paviliun-utama", insan: "insan-modern", depan: &["kapel-depan", "pohon-depan", "gapura-depan"], langit: "linear-gradient(#d3d9e0, #eceff3 55%, #e9ecef)", cahaya: "radial-gradient(circle at 40% 38%, #fff, #eceff2 62%, #d9dee4)" },
     Adegan { slug: "malam", nama: "Paviliun Malam", jauh: &["kapel-jauh", "hutan-jauh"], utama: "paviliun-utama", insan: "insan-modern", depan: &["kapel-depan", "pohon-depan"], langit: "linear-gradient(#1c2340, #2e3557 55%, #3a3f5c)", cahaya: "radial-gradient(circle at 40% 38%, #fffbe8, #f1e6c2 60%, rgba(241,230,194,0) 71%)" },
+    Adegan { slug: "aurora", nama: "Istana Kaca Aurora", jauh: &["aurora-jauh"], utama: "aurora-utama", insan: "insan-modern", depan: &["aurora-depan"], langit: "linear-gradient(#081b31, #173b4a 58%, #8eb6a4)", cahaya: "radial-gradient(circle at 50% 42%, #e0fff1, #8bd8bb 48%, rgba(92,211,178,0) 72%)" },
+    Adegan { slug: "karang", nama: "Istana Mutiara Samudra", jauh: &["karang-jauh"], utama: "karang-utama", insan: "insan-modern", depan: &["karang-depan"], langit: "linear-gradient(#042d4b, #09647a 58%, #42a6a1)", cahaya: "radial-gradient(circle at 50% 38%, #efffff, #8be3d8 48%, rgba(82,206,196,0) 72%)" },
+    Adegan { slug: "danau", nama: "Danau Rembulan", jauh: &["danau-jauh"], utama: "danau-utama", insan: "insan-modern", depan: &["danau-depan"], langit: "linear-gradient(#10172f, #28345b 58%, #7c7796)", cahaya: "radial-gradient(circle at 50% 38%, #fff9ed, #d9c9e9 48%, rgba(191,166,223,0) 72%)" },
 ];
+
+/// Adegan baru memiliki siluet utama khusus dan dipasangkan satu tema per
+/// adegan. Tema lain memakai bank varian bangunan yang sudah ada.
+fn varian_utama(a: &Adegan) -> usize {
+    if matches!(a.slug, "aurora" | "karang" | "danau") { 1 } else { UTAMA_N }
+}
 
 /// Adegan untuk tema — SEMUA tema mendapat panggung. Tema berbudaya kuat
 /// memakai bangunan budayanya; tema umum/modern dipilih menurut WARNA tema
@@ -59,6 +68,9 @@ pub fn pilih(slug: &str, nuansa: &str, wilayah: &str, palet: &str, gelap: bool) 
         "pendopo-putih" | "kusuma-jawi" | "sekar-kedhaton" => return "jawa",
         "gerbang-bulan" => return "tionghoa",
         "kapel-putih" => return "kapel",
+        "aurora-kristal-3d" => return "aurora",
+        "samudra-mutiara-3d" => return "karang",
+        "danau-rembulan-3d" => return "danau",
         "botanical-heritage" | "curug-asri" | "taman-kupu" | "teratai-mekar" | "titi-mentawai" => return "alam",
         "samudra-biru" => return "laut",
         "fajar-rembulan" | "midnight-celestial" => return "malam",
@@ -162,7 +174,7 @@ pub fn tetapkan<'a>(tema: impl IntoIterator<Item = (&'a str, &'static str)>) -> 
         slugs.dedup();
         // Radiks per dimensi, urut dari yang BERGANTI TERCEPAT: bangunan,
         // mempelai, gerbang, latar, kamera, cermin.
-        let radiks = [UTAMA_N, INSAN_N, nd, nj, KAMERA, 2];
+        let radiks = [varian_utama(ad), INSAN_N, nd, nj, KAMERA, 2];
         for (i, s) in slugs.into_iter().enumerate() {
             // Digit bilangan campuran i, lalu DIGESER kumulatif: keluaran ke-k
             // = digit k + jumlah digit sebelumnya (mod radiks). Segitiga →
@@ -288,7 +300,18 @@ mod daftar {
 
 #[cfg(feature = "ssr")]
 fn svg(nama: &str) -> &'static str {
-    daftar::SVG.iter().find(|(n, _)| *n == nama).map(|(_, isi)| *isi).unwrap_or("")
+    match nama {
+        "aurora-jauh" => include_str!("panggung/svg/aurora-jauh.svg"),
+        "aurora-utama" => include_str!("panggung/svg/aurora-utama.svg"),
+        "aurora-depan" => include_str!("panggung/svg/aurora-depan.svg"),
+        "karang-jauh" => include_str!("panggung/svg/karang-jauh.svg"),
+        "karang-utama" => include_str!("panggung/svg/karang-utama.svg"),
+        "karang-depan" => include_str!("panggung/svg/karang-depan.svg"),
+        "danau-jauh" => include_str!("panggung/svg/danau-jauh.svg"),
+        "danau-utama" => include_str!("panggung/svg/danau-utama.svg"),
+        "danau-depan" => include_str!("panggung/svg/danau-depan.svg"),
+        _ => daftar::SVG.iter().find(|(n, _)| *n == nama).map(|(_, isi)| *isi).unwrap_or(""),
+    }
 }
 
 #[cfg(feature = "ssr")]
@@ -359,7 +382,9 @@ mod tests {
             let r = tetapkan(slug.iter().map(|s| (s.as_str(), ad.slug)));
             for w in slug.windows(2) {
                 let (x, y) = (r[&w[0]], r[&w[1]]);
-                assert_ne!(x.utama, y.utama, "{}: {} & {} bangunan sama", ad.slug, w[0], w[1]);
+                if varian_utama(ad) > 1 {
+                    assert_ne!(x.utama, y.utama, "{}: {} & {} bangunan sama", ad.slug, w[0], w[1]);
+                }
                 assert_ne!(x.insan, y.insan, "{}: {} & {} mempelai sama", ad.slug, w[0], w[1]);
                 assert_ne!(x.kamera, y.kamera, "{}: {} & {} kamera sama", ad.slug, w[0], w[1]);
             }
@@ -370,7 +395,7 @@ mod tests {
     fn semua_varian_ada() {
         // Tiap varian yang bisa dipilih tetapkan() punya berkas SVG-nya.
         for ad in ADEGAN {
-            for n in 1..UTAMA_N {
+            for n in 1..varian_utama(ad) {
                 assert!(!svg(&format!("{}-{n}", ad.utama)).is_empty(), "{}-{n} tak ada", ad.utama);
             }
             for n in 1..INSAN_N {
@@ -384,6 +409,20 @@ mod tests {
         for n in ["islami", "jawa", "bali", "tionghoa", "kristiani", "minang", "batak", "dayak", "papua", "melayu", "maluku", "jepang", "korea", "thailand", "buddhis", "alam", "modern"] {
             let a = pilih("x", n, "", "gold", false);
             assert!(ADEGAN.iter().any(|x| x.slug == a), "{n} → {a}");
+        }
+    }
+
+    #[test]
+    fn tema_3d_baru_memakai_tiga_panggung_berbeda() {
+        let slugs = ["aurora-kristal-3d", "samudra-mutiara-3d", "danau-rembulan-3d"];
+        let scenes: Vec<_> = slugs.iter().map(|s| pilih(s, "Modern", "", "navy", true)).collect();
+        let unik: std::collections::HashSet<_> = scenes.iter().copied().collect();
+        assert_eq!(unik.len(), slugs.len(), "panggung tema 3D baru tidak boleh berulang");
+        for scene in scenes {
+            let ad = adegan(scene).expect("adegan khusus tersedia");
+            for layer in ad.jauh.iter().chain(ad.depan.iter()).chain([&ad.utama, &ad.insan]) {
+                assert!(!svg(layer).is_empty(), "lapisan {layer} tak ada");
+            }
         }
     }
 }

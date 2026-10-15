@@ -22,6 +22,7 @@ pub const ICONS: &[&str] = &[
     "arrow_downward",
     "arrow_forward",
     "arrow_upward",
+    "article",
     "auto_awesome",
     "auto_stories",
     "badge",

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="pearl" x2="1" y2="1"><stop stop-color="#fffef0"/><stop offset=".5" stop-color="#9de2d8"/><stop offset="1" stop-color="#f2d9d2"/></linearGradient>
+    <linearGradient id="shell" x2="0" y2="1"><stop stop-color="#f9fff3"/><stop offset=".58" stop-color="#77c5c2"/><stop offset="1" stop-color="#d6ede3"/></linearGradient>
+    <filter id="pearlGlow"><feGaussianBlur stdDeviation="24"/></filter>
+  </defs>
+  <ellipse cx="540" cy="1320" rx="390" ry="150" fill="#d8fff2" opacity=".34" filter="url(#pearlGlow)"/>
+  <path fill="#0b5368" opacity=".72" d="M110 1454c242-98 608-88 860 0l-95 182H206z"/>
+  <path fill="url(#shell)" stroke="#e9fff5" stroke-width="18" d="M254 1450v-406c0-284 110-499 286-499s286 215 286 499v406z"/>
+  <path fill="url(#pearl)" stroke="#f3fff7" stroke-width="16" d="M352 1450v-359c0-186 72-328 188-328s188 142 188 328v359z"/>
+  <path fill="none" stroke="#f8fff2" stroke-width="13" d="M540 764v686m-190-344h380M406 839l134 267 134-267M380 1450l160-344 160 344"/>
+  <path fill="#ffecc4" stroke="#fffef1" stroke-width="14" d="M496 694c0-36 20-62 44-62s44 26 44 62-20 62-44 62-44-26-44-62z"/>
+  <g fill="none" stroke="#e9fff5" stroke-width="18">
+    <path d="M254 1150c-78-62-120-137-120-226 0-76 38-138 106-177m586 403c78-62 120-137 120-226 0-76-38-138-106-177"/>
+    <path d="M224 1464c-80-55-126-127-140-216m772 216c80-55 126-127 140-216"/>
+  </g>
+  <g fill="#eafff7" opacity=".82"><circle cx="236" cy="970" r="14"/><circle cx="812" cy="910" r="12"/><circle cx="722" cy="1220" r="18"/></g>
+</svg>

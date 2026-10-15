@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="lotusLeaf" x2="1" y2="1"><stop stop-color="#82a99d"/><stop offset="1" stop-color="#2c4f61"/></linearGradient>
+    <linearGradient id="lotusBloom" x2="0" y2="1"><stop stop-color="#fff1e7"/><stop offset="1" stop-color="#d69fb9"/></linearGradient>
+  </defs>
+  <g fill="url(#lotusLeaf)" stroke="#b7d4c1" stroke-width="8">
+    <path d="M-80 1760c148-130 329-123 435-30-117 145-309 160-435 30z"/>
+    <path d="M712 1765c130-132 302-117 430-13-111 148-297 160-430 13z"/>
+    <path d="M374 1860c83-123 236-142 338-69-62 139-219 178-338 69z"/>
+  </g>
+  <g fill="none" stroke="#c1d9ce" stroke-width="9" opacity=".82">
+    <path d="M-23 1770 304 1745m500 4 285 15M512 1830l200-40"/>
+  </g>
+  <g fill="url(#lotusBloom)" stroke="#fff3e9" stroke-width="7">
+    <path d="M220 1632c-48-84-24-155 24-187 28 83 16 137-24 187zm0 0c-19-94 24-152 81-158 3 85-27 132-81 158zm0 0c36-91 103-117 149-84-42 76-91 103-149 84z"/>
+    <path d="M820 1610c-39-80-13-145 33-173 23 80 8 130-33 173zm0 0c-13-87 29-138 83-141-1 79-33 122-83 141zm0 0c41-81 104-100 145-64-45 67-93 88-145 64z"/>
+  </g>
+  <g fill="#f4d284"><circle cx="220" cy="1638" r="15"/><circle cx="820" cy="1617" r="14"/></g>
+  <path fill="none" stroke="#d9c9df" stroke-width="12" opacity=".7" d="M0 1710c176-46 309-36 487 14s374 55 593-2"/>
+</svg>

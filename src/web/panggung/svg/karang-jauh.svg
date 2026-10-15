@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="sea" x2="0" y2="1"><stop stop-color="#053653"/><stop offset=".58" stop-color="#08758a"/><stop offset="1" stop-color="#44b8ad"/></linearGradient>
+    <linearGradient id="ray" x2="0" y2="1"><stop stop-color="#d9fff4" stop-opacity=".58"/><stop offset="1" stop-color="#b5fff0" stop-opacity="0"/></linearGradient>
+    <linearGradient id="reef" x2="0" y2="1"><stop stop-color="#268f91"/><stop offset="1" stop-color="#073f5a"/></linearGradient>
+  </defs>
+  <path fill="url(#sea)" d="M0 0h1080v1920H0z"/>
+  <path fill="url(#ray)" d="M435 0h86l318 1300H84zM730 0h54l220 1240H500zM156 0h48l74 1210H0z"/>
+  <g fill="#bafff0" opacity=".55">
+    <circle cx="135" cy="362" r="13"/><circle cx="870" cy="484" r="8"/><circle cx="764" cy="726" r="18"/>
+    <circle cx="243" cy="902" r="10"/><circle cx="936" cy="1060" r="14"/><circle cx="428" cy="634" r="7"/>
+  </g>
+  <path fill="url(#reef)" d="M0 1390c116-98 236-110 336-31 87-104 183-111 275-20 89-87 193-71 279 9 76-71 131-52 190 24v548H0z"/>
+  <path fill="#14747b" opacity=".72" d="M0 1560c151-110 248-29 374-62 132-35 225-55 360 18 123 66 229-4 346 19v385H0z"/>
+</svg>

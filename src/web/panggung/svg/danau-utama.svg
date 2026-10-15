@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="moonStone" x2="0" y2="1"><stop stop-color="#f7f0df"/><stop offset=".48" stop-color="#b4b5cf"/><stop offset="1" stop-color="#697493"/></linearGradient>
+    <linearGradient id="moonRoof" x2="0" y2="1"><stop stop-color="#e9d9c3"/><stop offset=".55" stop-color="#8b7595"/><stop offset="1" stop-color="#443c69"/></linearGradient>
+    <filter id="mist"><feGaussianBlur stdDeviation="22"/></filter>
+  </defs>
+  <ellipse cx="540" cy="1370" rx="420" ry="140" fill="#e5d6f0" opacity=".3" filter="url(#mist)"/>
+  <path fill="#d4c3d8" opacity=".56" d="M182 1528h716l-116 92H300z"/>
+  <path fill="url(#moonStone)" stroke="#f8f0de" stroke-width="15" d="M282 1390v-332h98v-98h320v98h98v332z"/>
+  <path fill="url(#moonRoof)" stroke="#f5e6cf" stroke-width="18" d="m210 990 330-218 330 218-38 61-292-172-292 172z"/>
+  <path fill="#6f6585" d="M356 1010h368v74H356z"/>
+  <path fill="#17203e" opacity=".9" d="M376 1084h328v306H376z"/>
+  <path fill="none" stroke="#e6d9e9" stroke-width="16" d="M540 1090v300M395 1180h290"/>
+  <path fill="none" stroke="#d8c0df" stroke-width="34" d="M220 1460c85-88 180-111 320-111s235 23 320 111"/>
+  <path fill="none" stroke="#f5e8d6" stroke-width="12" d="M238 1460c85-88 180-111 302-111s217 23 302 111"/>
+  <g fill="#ffe7b4"><circle cx="270" cy="1290" r="14"/><circle cx="810" cy="1290" r="14"/><circle cx="540" cy="706" r="22"/></g>
+</svg>

@@ -1161,43 +1161,65 @@ pub async fn admin_own_password(
 pub async fn admin_save_article(
     Extension(state): Extension<Arc<AppState>>,
     headers: axum::http::HeaderMap,
-    Form(f): Form<HashMap<String, String>>,
+    mp: Multipart,
 ) -> Response {
     let me = match require(&state, &headers, true).await {
         Ok(u) => u,
         Err(r) => return r,
     };
-    let get = |key: &str| f.get(key).map(String::as_str).unwrap_or("");
+    let mut f = match super::form::read(mp, 1).await {
+        Ok(f) => f,
+        Err(_) => return to("/admin/artikel", "galat", "Form tidak valid atau ukuran gambar melebihi 5 MB."),
+    };
+    let cover_file = f.take_file("cover_file");
+    let get = |key: &str| f.raw(key);
     let id = match get("id").parse::<i64>() {
         Ok(id) if id >= 0 => id,
         _ => return to("/admin/artikel", "galat", "ID artikel tidak valid."),
     };
     let back = if id == 0 { "/admin/artikel/baru".to_string() } else { format!("/admin/artikel/{id}") };
-    let title = clean(get("title"), 180);
+    let title = clean(&get("title"), 180);
     if title.is_empty() {
         return to(&back, "galat", "Judul artikel wajib diisi.");
     }
-    let raw_slug = clean(get("slug"), 180);
+    let raw_slug = clean(&get("slug"), 180);
     let slug = fmt::slug(if raw_slug.is_empty() { &title } else { &raw_slug }, 120);
     if !fmt::is_slug(&slug, 120) {
         return to(&back, "galat", "Slug URL tidak valid. Gunakan huruf, angka, dan tanda hubung.");
     }
-    let excerpt = clean(get("excerpt"), 500);
+    let excerpt = clean(&get("excerpt"), 500);
     if excerpt.is_empty() {
         return to(&back, "galat", "Ringkasan artikel wajib diisi.");
     }
-    let content = clean(get("content"), 30_000);
+    let content = clean(&get("content"), 30_000);
     if content.is_empty() {
         return to(&back, "galat", "Isi artikel wajib diisi.");
     }
-    let cover_image = clean(get("cover_image"), 500);
+    let mut cover_image = clean(&get("cover_image"), 500);
+    let mut uploaded_cover = None;
+    if let Some(upload) = cover_file {
+        let Some(storage) = state.storage.as_ref() else {
+            return to(&back, "galat", "Penyimpanan gambar belum dikonfigurasi.");
+        };
+        let name = format!("{slug}-{}", auth::random_hex(4));
+        match storage.upload_image_as(upload.data, "artikel", &name, super::storage::Ukuran::Foto).await {
+            Ok(url) => {
+                cover_image = url;
+                uploaded_cover = Some(cover_image.clone());
+            }
+            Err(e) => {
+                tracing::warn!(error = %format!("{e:#}"), by = %me.username, "admin: unggah sampul artikel gagal");
+                return to(&back, "galat", "Gambar gagal diunggah. Pilih JPG, PNG, atau WebP maksimal 5 MB.");
+            }
+        }
+    }
     if !cover_image.is_empty()
         && !(cover_image.starts_with('/') && !cover_image.starts_with("//"))
         && !cover_image.starts_with("https://")
     {
         return to(&back, "galat", "Gambar harus berupa path situs (/...) atau URL HTTPS.");
     }
-    let status = match get("status") {
+    let status = match get("status").as_str() {
         "published" => "published",
         "draft" => "draft",
         _ => return to(&back, "galat", "Status artikel tidak valid."),
@@ -1208,8 +1230,8 @@ pub async fn admin_save_article(
         slug,
         excerpt,
         content,
-        seo_title: clean(get("seo_title"), 180),
-        seo_description: clean(get("seo_description"), 320),
+        seo_title: clean(&get("seo_title"), 180),
+        seo_description: clean(&get("seo_description"), 320),
         cover_image,
         status: status.to_string(),
         ..Default::default()
@@ -1219,8 +1241,16 @@ pub async fn admin_save_article(
             tracing::info!(by = %me.username, id, slug = %article.slug, status = %article.status, "admin: artikel disimpan");
             to("/admin/artikel", "ok", if article.status == "published" { "Artikel diterbitkan." } else { "Draf artikel tersimpan." })
         }
-        Err(e) if repo::is_unique_violation(&e) => to(&back, "galat", "Slug tersebut sudah digunakan artikel lain."),
+        Err(e) if repo::is_unique_violation(&e) => {
+            if let Some(url) = uploaded_cover.as_ref() {
+                discard_uploads(&state, std::slice::from_ref(url)).await;
+            }
+            to(&back, "galat", "Slug tersebut sudah digunakan artikel lain.")
+        }
         Err(e) => {
+            if let Some(url) = uploaded_cover.as_ref() {
+                discard_uploads(&state, std::slice::from_ref(url)).await;
+            }
             tracing::error!(error = %format!("{e:#}"), "admin: simpan artikel");
             to(&back, "galat", "Gagal menyimpan artikel. Pastikan migration/048_artikel.sql sudah dijalankan.")
         }

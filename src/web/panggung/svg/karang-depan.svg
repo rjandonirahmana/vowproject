@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="coral" x2="0" y2="1"><stop stop-color="#ffc6ad"/><stop offset="1" stop-color="#c75d73"/></linearGradient>
+    <linearGradient id="kelp" x2="0" y2="1"><stop stop-color="#8ce3c4"/><stop offset="1" stop-color="#075464"/></linearGradient>
+  </defs>
+  <path fill="#09606e" opacity=".54" d="M0 1630c170-112 279-51 414 22 157 85 263 68 402-17 118-72 192-77 264-45v330H0z"/>
+  <g fill="none" stroke="url(#kelp)" stroke-linecap="round">
+    <path stroke-width="34" d="M76 1920c38-244 8-451 114-666m-61 441c-80-116-81-235-44-340m46 202c74-95 94-191 81-299"/>
+    <path stroke-width="28" d="M984 1920c-48-230-18-430-120-650m70 410c77-104 82-220 50-326m-49 198c-67-91-91-183-75-288"/>
+  </g>
+  <g fill="url(#coral)" stroke="#ffe2d0" stroke-width="8">
+    <path d="M184 1792v-188l-52-83 20-12 47 69 8-119 24 2 1 145 57-77 18 14-76 103v146z"/>
+    <path d="M832 1840v-214l-44-74 20-12 38 59 9-119 24 2 1 140 57-80 18 14-76 107v177z"/>
+  </g>
+  <g fill="#f6efc9"><circle cx="262" cy="1702" r="26"/><circle cx="825" cy="1665" r="20"/><circle cx="908" cy="1774" r="13"/></g>
+  <path fill="none" stroke="#b4fff0" stroke-width="10" opacity=".62" d="M0 1740c245-85 440-60 602 0s321 49 478-12"/>
+</svg>

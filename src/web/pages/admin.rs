@@ -303,7 +303,7 @@ fn AdminArticleForm(article: crate::web::model::Article) -> impl IntoView {
                 </div>
                 <a class="btn btn--soft btn--sm" href="/admin/artikel"><Icon name="arrow_back" />"Daftar artikel"</a>
             </div>
-            <form class="card adm-article-form" method="post" action="/admin/artikel/simpan">
+            <form class="card adm-article-form" method="post" action="/admin/artikel/simpan" enctype="multipart/form-data">
                 <input type="hidden" name="id" value=id.clone() />
                 <label class="field">
                     <span class="field__label">"Judul artikel"</span>
@@ -356,6 +356,17 @@ fn AdminArticleForm(article: crate::web::model::Article) -> impl IntoView {
                             placeholder="/img/artikel/foto.webp atau https://…" />
                         <small class="muted">"Gunakan path situs yang dimulai / atau URL HTTPS. Gambar dipakai untuk kartu, Open Graph, dan data artikel."</small>
                     </label>
+                    <label class="field">
+                        <span class="field__label">"Atau pilih gambar dari galeri"</span>
+                        <input class="input" type="file" name="cover_file" accept="image/jpeg,image/png,image/webp" />
+                        <small class="muted">"Pilih JPG, PNG, atau WebP hingga 5 MB. Gambar akan dioptimalkan otomatis. Jika dipilih, gambar ini menggantikan URL di atas."</small>
+                    </label>
+                    {(!article.cover_image.is_empty()).then(|| view! {
+                        <figure class="adm-article-cover-preview">
+                            <img src=article.cover_image.clone() alt=format!("Sampul artikel: {}", article.title) loading="lazy" decoding="async" />
+                            <figcaption>"Sampul artikel saat ini"</figcaption>
+                        </figure>
+                    })}
                 </section>
                 <div class="adm-article-form__actions">
                     <button class="btn btn--primary" type="submit"><Icon name="check" />{if is_new { "Simpan Artikel" } else { "Simpan Perubahan" }}</button>

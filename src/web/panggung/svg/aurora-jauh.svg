@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+  <defs>
+    <linearGradient id="auroraSky" x2="0" y2="1"><stop stop-color="#10223b"/><stop offset=".72" stop-color="#294b5b"/><stop offset="1" stop-color="#9ab9ad"/></linearGradient>
+    <linearGradient id="auroraRibbon" x2="1" y2="1"><stop stop-color="#6cf0c2" stop-opacity="0"/><stop offset=".48" stop-color="#b3ffe2" stop-opacity=".72"/><stop offset="1" stop-color="#6de4d3" stop-opacity="0"/></linearGradient>
+    <linearGradient id="auroraSnow" x2="0" y2="1"><stop stop-color="#e8f8f5"/><stop offset="1" stop-color="#93b5ba"/></linearGradient>
+  </defs>
+  <path fill="url(#auroraSky)" d="M0 0h1080v1920H0z"/>
+  <g fill="none" stroke="url(#auroraRibbon)" stroke-width="70" opacity=".86">
+    <path d="M-100 310C170 165 310 470 530 312S870 142 1180 280"/>
+    <path d="M-100 442C160 302 336 590 560 438s366-172 620-34" stroke-width="38" opacity=".8"/>
+    <path d="M-80 530c212-90 337 152 555 20s383-158 660-58" stroke-width="20" opacity=".7"/>
+  </g>
+  <g fill="#effffb" opacity=".8">
+    <circle cx="126" cy="198" r="5"/><circle cx="242" cy="118" r="3"/><circle cx="364" cy="262" r="4"/>
+    <circle cx="739" cy="136" r="4"/><circle cx="930" cy="250" r="3"/><circle cx="1000" cy="104" r="5"/>
+  </g>
+  <path fill="#263d50" d="m0 1234 146-198 88 116 166-276 127 210 126-171 118 193 125-253 184 272v793H0z"/>
+  <path fill="url(#auroraSnow)" opacity=".94" d="m0 1350 146-314 88 116 166-276 127 210-117-95-54 21-115-52-111 167-61-28-69 110-65-25-95 166zm651-265 126 193 125-253 184 272-103-105-68 25-85-106-66 64-73-49-54 90-65-14z"/>
+  <path fill="#173047" d="M0 1504c193-92 352-54 536-20 201 37 356-74 544-18v454H0z"/>
+  <path fill="#769997" opacity=".55" d="M0 1598c192-58 335-11 519 15s355-62 561-13v320H0z"/>
+</svg>
