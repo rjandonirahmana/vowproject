@@ -1271,6 +1271,150 @@ pub async fn move_site_story(pool: &Pool, id: i64, up: bool) -> Result<()> {
     move_ordered(pool, Urutan::SiteStory, id, up).await
 }
 
+// ── Artikel SEO (migrasi 048) ────────────────────────────────────────────
+
+const ARTICLE_COLS: &str = "
+    a.id, a.title, a.slug, a.excerpt, a.content, a.seo_title,
+    a.seo_description, a.cover_image, a.status,
+    COALESCE(NULLIF(u.name, ''), u.username, '') AS author,
+    COALESCE(to_char(a.published_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'), '') AS published_at,
+    to_char(a.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS updated_at";
+const ARTICLE_PUBLIC_COLS: &str = "
+    a.id, a.title, a.slug, a.excerpt, a.content, a.seo_title,
+    a.seo_description, a.cover_image, a.status,
+    COALESCE(NULLIF(u.name, ''), 'ilyvowcraft') AS author,
+    COALESCE(to_char(a.published_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'), '') AS published_at,
+    to_char(a.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS updated_at";
+const ARTICLE_LIST_COLS: &str = "
+    a.id, a.title, a.slug, a.excerpt, ''::text AS content, ''::text AS seo_title,
+    ''::text AS seo_description, a.cover_image, a.status,
+    COALESCE(NULLIF(u.name, ''), 'ilyvowcraft') AS author,
+    COALESCE(to_char(a.published_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'), '') AS published_at,
+    to_char(a.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS updated_at";
+
+fn article_row(r: &Row) -> crate::web::model::Article {
+    crate::web::model::Article {
+        id: r.get("id"),
+        title: r.get("title"),
+        slug: r.get("slug"),
+        excerpt: r.get("excerpt"),
+        content: r.get("content"),
+        seo_title: r.get("seo_title"),
+        seo_description: r.get("seo_description"),
+        cover_image: r.get("cover_image"),
+        status: r.get("status"),
+        author: r.get("author"),
+        published_at: r.get("published_at"),
+        updated_at: r.get("updated_at"),
+    }
+}
+
+/// Daftar artikel yang boleh dibaca publik; draf tidak pernah ikut terkirim.
+pub async fn published_articles(pool: &Pool) -> Result<Vec<crate::web::model::Article>> {
+    let c = pool.get().await?;
+    let sql = format!(
+        "SELECT {ARTICLE_LIST_COLS} FROM articles a
+         LEFT JOIN admin_users u ON u.id = a.author_id
+         WHERE a.status = 'published' AND a.published_at IS NOT NULL
+         ORDER BY a.published_at DESC, a.id DESC"
+    );
+    Ok(db_rows(&c, &sql, &[]).await.context("select published articles")?.iter().map(article_row).collect())
+}
+
+/// Artikel terbit untuk URL publik.
+pub async fn published_article(pool: &Pool, slug: &str) -> Result<Option<crate::web::model::Article>> {
+    let c = pool.get().await?;
+    let sql = format!(
+        "SELECT {ARTICLE_PUBLIC_COLS} FROM articles a
+         LEFT JOIN admin_users u ON u.id = a.author_id
+         WHERE a.slug = $1 AND a.status = 'published' AND a.published_at IS NOT NULL"
+    );
+    Ok(db_opt(&c, &sql, &[&slug]).await.context("select published article")?.as_ref().map(article_row))
+}
+
+/// URL dan lastmod artikel untuk sitemap; jangan ambil isi artikel di endpoint ini.
+pub async fn published_article_urls(pool: &Pool) -> Result<Vec<(String, String)>> {
+    let c = pool.get().await?;
+    let rows = db_rows(
+        &c,
+        "SELECT slug,
+                COALESCE(to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), '')
+           FROM articles
+          WHERE status = 'published' AND published_at IS NOT NULL
+          ORDER BY published_at DESC, id DESC",
+        &[],
+    )
+    .await
+    .context("select article sitemap urls")?;
+    Ok(rows.iter().map(|r| (r.get("slug"), r.get(1))).collect())
+}
+
+/// Daftar seluruh artikel khusus panel Admin.
+pub async fn admin_articles(pool: &Pool) -> Result<Vec<crate::web::model::Article>> {
+    let c = pool.get().await?;
+    let sql = format!(
+        "SELECT {ARTICLE_COLS} FROM articles a
+         LEFT JOIN admin_users u ON u.id = a.author_id
+         ORDER BY a.updated_at DESC, a.id DESC"
+    );
+    Ok(db_rows(&c, &sql, &[]).await.context("select admin articles")?.iter().map(article_row).collect())
+}
+
+/// Satu artikel, termasuk draf; hanya dipanggil dari panel yang dijaga peran Admin.
+pub async fn admin_article(pool: &Pool, id: i64) -> Result<Option<crate::web::model::Article>> {
+    let c = pool.get().await?;
+    let sql = format!(
+        "SELECT {ARTICLE_COLS} FROM articles a
+         LEFT JOIN admin_users u ON u.id = a.author_id
+         WHERE a.id = $1"
+    );
+    Ok(db_opt(&c, &sql, &[&id]).await.context("select admin article")?.as_ref().map(article_row))
+}
+
+/// Buat atau sunting artikel. Waktu terbit diperbarui saat draf pertama kali
+/// diterbitkan atau diterbitkan ulang; penyimpanan edit artikel aktif stabil.
+pub async fn save_article(pool: &Pool, a: &crate::web::model::Article, author_id: i64) -> Result<i64> {
+    let c = pool.get().await?;
+    let row = if a.id == 0 {
+        db_row(
+            &c,
+            "INSERT INTO articles
+                (title, slug, excerpt, content, seo_title, seo_description, cover_image, status, author_id, published_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+                CASE WHEN $8 = 'published' THEN NOW() ELSE NULL END)
+             RETURNING id",
+            &[&a.title, &a.slug, &a.excerpt, &a.content, &a.seo_title, &a.seo_description, &a.cover_image, &a.status, &author_id],
+        )
+        .await
+        .context("insert article")?
+    } else {
+        db_opt(
+            &c,
+            "UPDATE articles
+                SET title = $2, slug = $3, excerpt = $4, content = $5,
+                    seo_title = $6, seo_description = $7, cover_image = $8, status = $9,
+                    author_id = COALESCE(author_id, $10),
+                    published_at = CASE
+                        WHEN $9 = 'published' AND (articles.status <> 'published' OR articles.published_at IS NULL) THEN NOW()
+                        ELSE articles.published_at
+                    END,
+                    updated_at = NOW()
+              WHERE id = $1
+              RETURNING id",
+            &[&a.id, &a.title, &a.slug, &a.excerpt, &a.content, &a.seo_title, &a.seo_description, &a.cover_image, &a.status, &author_id],
+        )
+        .await
+        .context("update article")?
+        .ok_or_else(|| anyhow::anyhow!("article not found"))?
+    };
+    Ok(row.get(0))
+}
+
+pub async fn delete_article(pool: &Pool, id: i64) -> Result<bool> {
+    let c = pool.get().await?;
+    Ok(db_exec(&c, "DELETE FROM articles WHERE id = $1", &[&id]).await.context("delete article")? > 0)
+}
+
 // ── Story tamu (migrasi 026) ───────────────────────────────────────────────
 
 /// Story undangan, terbaru dulu. `my_hash` = SHA-256 token cookie pembuat

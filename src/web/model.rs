@@ -807,6 +807,27 @@ pub struct SiteStory {
     pub urutan: i32,
 }
 
+/// Artikel editorial untuk halaman publik dan panel Admin.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Article {
+    pub id: i64,
+    pub title: String,
+    pub slug: String,
+    pub excerpt: String,
+    /// Teks biasa; tiap paragraf dipisahkan dengan satu baris kosong.
+    pub content: String,
+    pub seo_title: String,
+    pub seo_description: String,
+    pub cover_image: String,
+    /// `draft` atau `published`.
+    pub status: String,
+    pub author: String,
+    /// Waktu ISO 8601 UTC untuk metadata terstruktur.
+    pub published_at: String,
+    pub updated_at: String,
+}
+
 #[cfg(test)]
 mod story_tests {
     use super::STORY_FILTERS;

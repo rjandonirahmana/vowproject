@@ -719,6 +719,23 @@ pub async fn get_banners() -> Result<Vec<Banner>, ServerFnError> {
     .await)
 }
 
+/// Daftar artikel terbit untuk laman /artikel dan SSR.
+#[server]
+pub async fn get_published_articles() -> Result<Vec<Article>, ServerFnError> {
+    let st = srv::state()?;
+    srv::repo::published_articles(&st.pool).await.map_err(srv::internal)
+}
+
+/// Artikel terbit saja; draf tidak dapat dibaca melalui endpoint publik.
+#[server]
+pub async fn get_published_article(slug: String) -> Result<Article, ServerFnError> {
+    let st = srv::state()?;
+    srv::repo::published_article(&st.pool, &slug)
+        .await
+        .map_err(srv::internal)?
+        .ok_or_else(srv::not_found)
+}
+
 /// Story panduan beranda (aktif, urut). Tabel belum ada (037) = kosong.
 #[server]
 pub async fn get_site_stories() -> Result<Vec<SiteStory>, ServerFnError> {
@@ -923,6 +940,24 @@ pub async fn admin_invitations(q: String) -> Result<Vec<AdminInv>, ServerFnError
 pub async fn admin_accounts() -> Result<Vec<AdminUser>, ServerFnError> {
     let (st, _) = require_admin(true).await?;
     srv::repo::admins(&st.pool).await.map_err(srv::internal)
+}
+
+/// Semua artikel, termasuk draf, hanya untuk akun berperan Admin.
+#[server]
+pub async fn admin_articles() -> Result<Vec<Article>, ServerFnError> {
+    let (st, _) = require_admin(true).await?;
+    srv::repo::admin_articles(&st.pool).await.map_err(srv::internal)
+}
+
+/// Detail artikel panel; string "baru" menghasilkan formulir kosong.
+#[server]
+pub async fn admin_article(id: String) -> Result<Article, ServerFnError> {
+    let (st, _) = require_admin(true).await?;
+    if id == "baru" {
+        return Ok(Article::default());
+    }
+    let id = id.parse::<i64>().ok().filter(|id| *id > 0).ok_or_else(srv::not_found)?;
+    srv::repo::admin_article(&st.pool, id).await.map_err(srv::internal)?.ok_or_else(srv::not_found)
 }
 
 /// kunci bagian → "siapa • kapan" terakhir disunting.

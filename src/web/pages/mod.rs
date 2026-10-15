@@ -2,6 +2,7 @@
 //! pemasaran (katalog, demo tema, formulir pesan, layanan pendukung).
 
 pub mod admin;
+pub mod artikel;
 pub mod buat;
 pub mod cetak;
 pub mod dekorasi;
@@ -69,6 +70,7 @@ pub fn SiteHeader(#[prop(optional)] active: &'static str) -> impl IntoView {
         ("/mua", "Make Up Pengantin", "mua"),
         ("/seserahan", "Sewa Seserahan", "seserahan"),
         ("/panduan", "Panduan", "panduan"),
+        ("/artikel", "Artikel", "artikel"),
     ];
     // Di halaman demo tema (/tema/:slug), "Coba Demo" membuka undangan contoh
     // dengan tema yang sedang dilihat.
@@ -204,6 +206,7 @@ pub fn SiteFooter() -> impl IntoView {
                 <div>
                     <p class="site-foot__head">"Fitur & Layanan"</p>
                     <a href="/paket">"Paket & Harga"</a>
+                    <a href="/artikel">"Artikel Pernikahan"</a>
                     <a href="/paket#fitur">"Perbandingan Fitur"</a>
                     <span>"RSVP & Buku Tamu Interaktif"</span>
                     <span>"Amplop Digital & QR Check-in"</span>

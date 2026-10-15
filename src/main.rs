@@ -221,6 +221,8 @@ async fn main() -> Result<()> {
         .route("/admin/setup", axum::routing::post(handlers::admin_setup))
         .route("/admin/keluar", axum::routing::post(handlers::admin_logout))
         .route("/admin/konten/simpan", axum::routing::post(handlers::admin_save_konten).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))
+        .route("/admin/artikel/simpan", axum::routing::post(handlers::admin_save_article).layer(axum::extract::DefaultBodyLimit::max(512 * 1024)))
+        .route("/admin/artikel/hapus", axum::routing::post(handlers::admin_delete_article))
         .route("/admin/akun/simpan", axum::routing::post(handlers::admin_account_save))
         .route("/admin/sandi", axum::routing::post(handlers::admin_own_password))
         .route("/admin/tema/simpan", axum::routing::post(handlers::admin_save_theme).layer(axum::extract::DefaultBodyLimit::max(MAX_FORM)))

@@ -17,7 +17,8 @@ use super::pages::{
     dekorasi::{DekorasiDetailPage, DekorasiPage},
     info::{PanduanPage, PaketPage, PrivasiPage, SyaratPage},
     katalog::KatalogPage,
-    admin::{AdminAkun, AdminAnimEdit, AdminAnims, AdminBanner, AdminHome, AdminKonten, AdminLagu, AdminOrnaments, AdminStory, AdminStoryPanduan, AdminTemplat, AdminKontenEdit, AdminProfil, AdminThemeEdit, AdminThemes, AdminUndangan},
+    admin::{AdminAkun, AdminAnimEdit, AdminAnims, AdminArticleEdit, AdminArticles, AdminBanner, AdminHome, AdminKonten, AdminLagu, AdminOrnaments, AdminStory, AdminStoryPanduan, AdminTemplat, AdminKontenEdit, AdminProfil, AdminThemeEdit, AdminThemes, AdminUndangan},
+    artikel::{ArticlePage, ArticlesPage},
     kelola::{KelolaPage, ScanPage},
     sunting::SuntingPage,
     mua::MuaPage,
@@ -147,7 +148,8 @@ if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",arm);else arm(
 /// Halaman pemasaran publik: hydration malas + CSS tema ringan.
 #[cfg(feature = "ssr")]
 fn halaman_publik(path: &str) -> bool {
-    matches!(path, "/" | "/paket" | "/panduan" | "/cetak" | "/dekorasi" | "/mua" | "/seserahan" | "/privasi" | "/syarat")
+    matches!(path, "/" | "/paket" | "/panduan" | "/artikel" | "/cetak" | "/dekorasi" | "/mua" | "/seserahan" | "/privasi" | "/syarat")
+        || path.starts_with("/artikel/")
         || path.starts_with("/tema/")
         || path.starts_with("/dekorasi/")
 }
@@ -238,6 +240,8 @@ macro_rules! rute_terpisah {
 rute_terpisah! {
     BuatRute => BuatPage,
     AdminHomeRute => AdminHome,
+    AdminArticlesRute => AdminArticles,
+    AdminArticleEditRute => AdminArticleEdit,
     AdminThemesRute => AdminThemes,
     AdminThemeEditRute => AdminThemeEdit,
     AdminOrnamentsRute => AdminOrnaments,
@@ -279,12 +283,16 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/buat") view={Lazy::<BuatRute>::new()} />
                 <Route path=path!("/paket") view=PaketPage />
                 <Route path=path!("/panduan") view=PanduanPage />
+                <Route path=path!("/artikel") view=ArticlesPage />
+                <Route path=path!("/artikel/:slug") view=ArticlePage ssr=SsrMode::Async />
                 <Route path=path!("/cetak") view=CetakPage />
                 <Route path=path!("/dekorasi") view=DekorasiPage />
                 <Route path=path!("/dekorasi/:slug") view=DekorasiDetailPage ssr=SsrMode::Async />
                 <Route path=path!("/mua") view=MuaPage />
                 <Route path=path!("/seserahan") view=SeserahanPage />
                 <Route path=path!("/admin") view={Lazy::<AdminHomeRute>::new()} />
+                <Route path=path!("/admin/artikel") view={Lazy::<AdminArticlesRute>::new()} />
+                <Route path=path!("/admin/artikel/:id") view={Lazy::<AdminArticleEditRute>::new()} />
                 <Route path=path!("/admin/tema") view={Lazy::<AdminThemesRute>::new()} />
                 <Route path=path!("/admin/tema/:slug") view={Lazy::<AdminThemeEditRute>::new()} />
                 <Route path=path!("/admin/tema/:slug/ornamen") view={Lazy::<AdminOrnamentsRute>::new()} />

@@ -62,6 +62,7 @@ fn AdminShell(
                                 <a href="/admin/konten" class:is-active=active == "konten"><Icon name="edit_note" />"Konten & Harga"</a>
                                 {admin.then(|| view! {
                                     // Templat = HTML/CSS mentah halaman undangan → khusus Admin.
+                                    <a href="/admin/artikel" class:is-active=active == "artikel"><Icon name="article" />"Artikel"</a>
                                     <a href="/admin/templat" class:is-active=active == "templat"><Icon name="code" />"Templat"</a>
                                     <a href="/admin/undangan" class:is-active=active == "undangan"><Icon name="shopping_bag" />"Pesanan"</a>
                                     <a href="/admin/akun" class:is-active=active == "akun"><Icon name="groups" />"Akun"</a>
@@ -203,6 +204,171 @@ pub fn AdminHome() -> impl IntoView {
                 </ol>
             </section>
         </AdminShell>
+    }
+}
+
+// ── /admin/artikel ────────────────────────────────────────────────────────
+
+#[component]
+pub fn AdminArticles() -> impl IntoView {
+    let articles = Resource::new(|| (), |_| crate::web::api::admin_articles());
+    view! {
+        <AdminShell active="artikel" title="Artikel" admin_only=true>
+            <div class="adm-head">
+                <div>
+                    <h1 class="adm-h1">"Artikel SEO"</h1>
+                    <p class="muted">"Draf hanya terlihat di panel. Artikel terbit akan muncul di situs dan sitemap."</p>
+                </div>
+                <a class="btn btn--primary" href="/admin/artikel/baru"><Icon name="add" />"Artikel Baru"</a>
+            </div>
+            <Suspense fallback=|| view! { <SkelRows n=4 action=true /> }>
+                {move || articles.get().map(|result| match result {
+                    Ok(items) if items.is_empty() => view! {
+                        <div class="card article-empty">
+                            <Icon name="article" />
+                            <h2>"Belum ada artikel"</h2>
+                            <p>"Mulai dengan membuat draf pertama. Draf tidak ditampilkan ke pengunjung."</p>
+                            <a class="btn btn--primary" href="/admin/artikel/baru"><Icon name="add" />"Buat artikel"</a>
+                        </div>
+                    }.into_any(),
+                    Ok(items) => view! {
+                        <div class="adm-articles">
+                            {items.into_iter().map(|article| {
+                                let status = if article.status == "published" { "status--hadir" } else { "status--ragu" };
+                                let label = if article.status == "published" { "Terbit" } else { "Draf" };
+                                view! {
+                                    <article class="card adm-article">
+                                        <div class="adm-article__main">
+                                            <span class=format!("status {status}")>{label}</span>
+                                            <h2>{article.title.clone()}</h2>
+                                            <p>{article.excerpt.clone()}</p>
+                                            <small class="muted">
+                                                <code>{format!("/artikel/{}", article.slug)}</code>
+                                                {(!article.author.is_empty()).then(|| format!(" • {}", article.author))}
+                                            </small>
+                                        </div>
+                                        <a class="btn btn--soft btn--sm" href=format!("/admin/artikel/{}", article.id)>
+                                            <Icon name="edit" />"Sunting"
+                                        </a>
+                                    </article>
+                                }
+                            }).collect_view()}
+                        </div>
+                    }.into_any(),
+                    Err(_) => view! {
+                        <p class="notice notice--err">"Artikel gagal dimuat. Pastikan migration/048_artikel.sql sudah dijalankan."</p>
+                    }.into_any(),
+                })}
+            </Suspense>
+        </AdminShell>
+    }
+}
+
+/// Membuat artikel baru atau menyunting artikel berdasarkan rute.
+#[component]
+pub fn AdminArticleEdit() -> impl IntoView {
+    let params = use_params_map();
+    let id = move || params.read().get("id").unwrap_or_else(|| "baru".to_string());
+    let article = Resource::new(id, crate::web::api::admin_article);
+    view! {
+        <AdminShell active="artikel" title="Sunting Artikel" admin_only=true>
+            <Suspense fallback=|| view! { <SkelRows n=5 action=true /> }>
+                {move || article.get().map(|result| match result {
+                    Ok(article) => view! { <AdminArticleForm article /> }.into_any(),
+                    Err(_) => view! {
+                        <div class="card article-empty">
+                            <h1>"Artikel tidak ditemukan"</h1>
+                            <p>"Periksa migrasi artikel dan pastikan artikel yang diminta masih ada."</p>
+                            <a class="btn btn--soft" href="/admin/artikel">"Kembali ke daftar"</a>
+                        </div>
+                    }.into_any(),
+                })}
+            </Suspense>
+        </AdminShell>
+    }
+}
+
+#[component]
+fn AdminArticleForm(article: crate::web::model::Article) -> impl IntoView {
+    let is_new = article.id == 0;
+    let id = article.id.to_string();
+    let id_for_delete = id.clone();
+    let published = article.status == "published";
+    view! {
+        <div class="adm-article-editor">
+            <div class="adm-head">
+                <div>
+                    <h1 class="adm-h1">{if is_new { "Artikel Baru" } else { "Sunting Artikel" }}</h1>
+                    <p class="muted">"Isi artikel dengan teks biasa; pisahkan paragraf memakai satu baris kosong."</p>
+                </div>
+                <a class="btn btn--soft btn--sm" href="/admin/artikel"><Icon name="arrow_back" />"Daftar artikel"</a>
+            </div>
+            <form class="card adm-article-form" method="post" action="/admin/artikel/simpan">
+                <input type="hidden" name="id" value=id.clone() />
+                <label class="field">
+                    <span class="field__label">"Judul artikel"</span>
+                    <input class="input" name="title" required maxlength="180" value=article.title.clone()
+                        placeholder="Contoh: Cara Membuat Undangan Pernikahan Digital" />
+                </label>
+                <div class="field-row">
+                    <label class="field">
+                        <span class="field__label">"Slug URL"</span>
+                        <input class="input" name="slug" maxlength="120" value=article.slug.clone()
+                            placeholder="Dibuat otomatis dari judul jika kosong" />
+                    </label>
+                    <label class="field">
+                        <span class="field__label">"Status artikel"</span>
+                        <select class="input" name="status">
+                            <option value="draft" selected=!published>"Draf — tidak tampil publik"</option>
+                            <option value="published" selected=published>"Terbit — tampil untuk pengunjung"</option>
+                        </select>
+                    </label>
+                </div>
+                <label class="field">
+                    <span class="field__label">"Ringkasan / excerpt (untuk daftar artikel dan SEO)"</span>
+                    <textarea class="input" name="excerpt" required maxlength="500" rows="3"
+                        placeholder="Ringkas isi artikel dengan jelas dalam 1–3 kalimat."
+                        inner_html=crate::web::fmt::textarea_html(&article.excerpt)></textarea>
+                </label>
+                <label class="field">
+                    <span class="field__label">"Isi artikel"</span>
+                    <textarea class="input adm-article-form__content" name="content" required maxlength="30000" rows="18"
+                        placeholder="Tulis isi artikel di sini. Gunakan baris kosong untuk memulai paragraf baru."
+                        inner_html=crate::web::fmt::textarea_html(&article.content)></textarea>
+                </label>
+                <section class="adm-article-seo">
+                    <h2><Icon name="search" />"Pratinjau SEO"</h2>
+                    <p class="muted">"Judul dan deskripsi ini dipakai mesin pencari serta pratinjau tautan. Kosongkan untuk memakai judul dan ringkasan artikel."</p>
+                    <label class="field">
+                        <span class="field__label">"Judul SEO (opsional)"</span>
+                        <input class="input" name="seo_title" maxlength="180" value=article.seo_title.clone()
+                            placeholder="Judul hasil pencarian, idealnya singkat dan spesifik" />
+                    </label>
+                    <label class="field">
+                        <span class="field__label">"Deskripsi SEO (opsional)"</span>
+                        <textarea class="input" name="seo_description" maxlength="320" rows="2"
+                            placeholder="Ringkasan untuk hasil pencarian, sekitar 140–160 karakter."
+                            inner_html=crate::web::fmt::textarea_html(&article.seo_description)></textarea>
+                    </label>
+                    <label class="field">
+                        <span class="field__label">"URL gambar sampul (opsional)"</span>
+                        <input class="input" name="cover_image" maxlength="500" value=article.cover_image.clone()
+                            placeholder="/img/artikel/foto.webp atau https://…" />
+                        <small class="muted">"Gunakan path situs yang dimulai / atau URL HTTPS. Gambar dipakai untuk kartu, Open Graph, dan data artikel."</small>
+                    </label>
+                </section>
+                <div class="adm-article-form__actions">
+                    <button class="btn btn--primary" type="submit"><Icon name="check" />{if is_new { "Simpan Artikel" } else { "Simpan Perubahan" }}</button>
+                    <a class="btn btn--soft" href="/admin/artikel">"Batal"</a>
+                </div>
+            </form>
+            {(!is_new).then(|| view! {
+                <form method="post" action="/admin/artikel/hapus" data-confirm="Hapus artikel ini secara permanen?">
+                    <input type="hidden" name="id" value=id_for_delete />
+                    <button class="btn btn--sm adm-btn-danger" type="submit"><Icon name="delete" />"Hapus artikel"</button>
+                </form>
+            })}
+        </div>
     }
 }
 

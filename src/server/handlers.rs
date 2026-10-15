@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::{
-    extract::{Multipart, Path, Query},
+    extract::{Form, Multipart, Path, Query},
     http::{header, StatusCode},
     response::{IntoResponse, Redirect, Response},
     Extension,
@@ -851,8 +851,7 @@ pub async fn gaya_css(
     }
 }
 
-/// GET /sitemap.xml — halaman publik + demo tiap tema yang tampil di katalog +
-/// detail paket dekorasi. Dari cache AppState (tanpa query DB per request).
+/// GET /sitemap.xml — halaman publik + demo tema, paket dekorasi, dan artikel terbit.
 pub async fn sitemap(Extension(state): Extension<Arc<AppState>>) -> Response {
     use crate::web::seo::SITE_URL;
     let cat = state.themes();
@@ -861,7 +860,7 @@ pub async fn sitemap(Extension(state): Extension<Arc<AppState>>) -> Response {
     // (security.rs is_private); mencantumkannya = galat di Search Console.
     // (path, changefreq, priority, lastmod YYYY-MM-DD — kosong = tak dicantumkan)
     let mut urls: Vec<(String, &str, &str, String)> = [
-        ("/", "daily", "1.0"), ("/paket", "weekly", "0.9"), ("/panduan", "monthly", "0.7"),
+        ("/", "daily", "1.0"), ("/paket", "weekly", "0.9"), ("/panduan", "monthly", "0.7"), ("/artikel", "weekly", "0.8"),
         ("/cetak", "monthly", "0.6"), ("/dekorasi", "monthly", "0.6"), ("/mua", "monthly", "0.6"), ("/seserahan", "monthly", "0.6"),
         ("/privasi", "yearly", "0.2"), ("/syarat", "yearly", "0.2"),
     ]
@@ -873,6 +872,11 @@ pub async fn sitemap(Extension(state): Extension<Arc<AppState>>) -> Response {
     let tgl = |epoch: i64| chrono::DateTime::from_timestamp(epoch, 0).map(|d| d.format("%Y-%m-%d").to_string()).unwrap_or_default();
     urls.extend(cat.list.iter().filter(|t| t.listed && crate::web::skin::is_slug(&t.slug)).map(|t| (format!("/tema/{}", t.slug), "weekly", "0.8", if t.created > 0 { tgl(t.created) } else { String::new() })));
     urls.extend(konten.dekor_paket.iter().filter(|p| crate::web::fmt::is_slug(&p.slug, 64)).map(|p| (format!("/dekorasi/{}", p.slug), "monthly", "0.5", String::new())));
+    if let Ok(articles) = repo::published_article_urls(&state.pool).await {
+        urls.extend(articles.into_iter().filter(|(slug, _)| crate::web::fmt::is_slug(slug, 120)).map(|(slug, lastmod)| {
+            (format!("/artikel/{slug}"), "monthly", "0.7", lastmod)
+        }));
+    }
     let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
     for (path, freq, prio, lastmod) in urls {
         let lm = if lastmod.is_empty() { String::new() } else { format!("<lastmod>{lastmod}</lastmod>") };
@@ -1150,6 +1154,103 @@ pub async fn admin_own_password(
     match repo::set_admin_password(&state.pool, me.id, &new_hash, keep.as_deref()).await {
         Ok(()) => to(back, "ok", "Sandi diganti. Sesi di perangkat lain dikeluarkan."),
         Err(_) => to(back, "galat", "Gagal mengganti sandi."),
+    }
+}
+
+/// Simpan artikel baru atau ubah artikel. Akses wajib peran Admin, bukan Editor.
+pub async fn admin_save_article(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    Form(f): Form<HashMap<String, String>>,
+) -> Response {
+    let me = match require(&state, &headers, true).await {
+        Ok(u) => u,
+        Err(r) => return r,
+    };
+    let get = |key: &str| f.get(key).map(String::as_str).unwrap_or("");
+    let id = match get("id").parse::<i64>() {
+        Ok(id) if id >= 0 => id,
+        _ => return to("/admin/artikel", "galat", "ID artikel tidak valid."),
+    };
+    let back = if id == 0 { "/admin/artikel/baru".to_string() } else { format!("/admin/artikel/{id}") };
+    let title = clean(get("title"), 180);
+    if title.is_empty() {
+        return to(&back, "galat", "Judul artikel wajib diisi.");
+    }
+    let raw_slug = clean(get("slug"), 180);
+    let slug = fmt::slug(if raw_slug.is_empty() { &title } else { &raw_slug }, 120);
+    if !fmt::is_slug(&slug, 120) {
+        return to(&back, "galat", "Slug URL tidak valid. Gunakan huruf, angka, dan tanda hubung.");
+    }
+    let excerpt = clean(get("excerpt"), 500);
+    if excerpt.is_empty() {
+        return to(&back, "galat", "Ringkasan artikel wajib diisi.");
+    }
+    let content = clean(get("content"), 30_000);
+    if content.is_empty() {
+        return to(&back, "galat", "Isi artikel wajib diisi.");
+    }
+    let cover_image = clean(get("cover_image"), 500);
+    if !cover_image.is_empty()
+        && !(cover_image.starts_with('/') && !cover_image.starts_with("//"))
+        && !cover_image.starts_with("https://")
+    {
+        return to(&back, "galat", "Gambar harus berupa path situs (/...) atau URL HTTPS.");
+    }
+    let status = match get("status") {
+        "published" => "published",
+        "draft" => "draft",
+        _ => return to(&back, "galat", "Status artikel tidak valid."),
+    };
+    let article = crate::web::model::Article {
+        id,
+        title,
+        slug,
+        excerpt,
+        content,
+        seo_title: clean(get("seo_title"), 180),
+        seo_description: clean(get("seo_description"), 320),
+        cover_image,
+        status: status.to_string(),
+        ..Default::default()
+    };
+    match repo::save_article(&state.pool, &article, me.id).await {
+        Ok(id) => {
+            tracing::info!(by = %me.username, id, slug = %article.slug, status = %article.status, "admin: artikel disimpan");
+            to("/admin/artikel", "ok", if article.status == "published" { "Artikel diterbitkan." } else { "Draf artikel tersimpan." })
+        }
+        Err(e) if repo::is_unique_violation(&e) => to(&back, "galat", "Slug tersebut sudah digunakan artikel lain."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: simpan artikel");
+            to(&back, "galat", "Gagal menyimpan artikel. Pastikan migration/048_artikel.sql sudah dijalankan.")
+        }
+    }
+}
+
+/// Hapus artikel hanya untuk Admin.
+pub async fn admin_delete_article(
+    Extension(state): Extension<Arc<AppState>>,
+    headers: axum::http::HeaderMap,
+    Form(f): Form<HashMap<String, String>>,
+) -> Response {
+    let me = match require(&state, &headers, true).await {
+        Ok(u) => u,
+        Err(r) => return r,
+    };
+    let id = f.get("id").and_then(|v| v.parse::<i64>().ok()).filter(|id| *id > 0);
+    let Some(id) = id else {
+        return to("/admin/artikel", "galat", "ID artikel tidak valid.");
+    };
+    match repo::delete_article(&state.pool, id).await {
+        Ok(true) => {
+            tracing::info!(by = %me.username, id, "admin: artikel dihapus");
+            to("/admin/artikel", "ok", "Artikel dihapus.")
+        }
+        Ok(false) => to("/admin/artikel", "galat", "Artikel tidak ditemukan."),
+        Err(e) => {
+            tracing::error!(error = %format!("{e:#}"), "admin: hapus artikel");
+            to("/admin/artikel", "galat", "Gagal menghapus artikel.")
+        }
     }
 }
 
