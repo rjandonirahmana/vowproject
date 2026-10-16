@@ -636,6 +636,36 @@ mod tests {
         assert!(from_form(f(&[("slug", "abc"), ("name", "X"), ("image_url", "javascript:x")])).is_err());
     }
 
+    /// Regresi tema gelap `danau-rembulan-3d` (migrasi 050): teks/aksen harus
+    /// terbaca di atas latar & kartu gelapnya (dulu ink #242744 di atas #171d38 = 1,14:1).
+    #[test]
+    fn danau_rembulan_3d_kontras_terbaca() {
+        fn lum(h: &str) -> f64 {
+            let c = |i: usize| {
+                let v = f64::from(u8::from_str_radix(&h[1 + i * 2..3 + i * 2], 16).unwrap()) / 255.0;
+                if v <= 0.03928 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+            };
+            0.2126 * c(0) + 0.7152 * c(1) + 0.0722 * c(2)
+        }
+        fn kontras(a: &str, b: &str) -> f64 {
+            let (x, y) = (lum(a), lum(b));
+            (x.max(y) + 0.05) / (x.min(y) + 0.05)
+        }
+        let sql = include_str!("../../migration/050_perbaiki_danau_rembulan_3d.sql");
+        let mulai = sql.find("SET tokens = '").unwrap() + "SET tokens = '".len();
+        let json = &sql[mulai..mulai + sql[mulai..].find("'::jsonb").unwrap()];
+        let tok: BTreeMap<String, String> = serde_json::from_str(json).unwrap();
+        let t = |k: &str| tok[k].as_str();
+        assert!(tok.values().all(|v| is_color(v)));
+        assert!(kontras(t("ink"), t("bg")) >= 7.0, "ink/latar");
+        assert!(kontras(t("ink"), t("card")) >= 7.0, "ink/kartu");
+        assert!(kontras(t("muted"), t("card")) >= 4.5, "muted/kartu");
+        assert!(kontras(t("muted"), t("bg")) >= 4.5, "muted/latar");
+        assert!(kontras(t("primary"), t("bg")) >= 4.5, "judul/latar");
+        assert!(kontras(t("gold-deep"), t("card")) >= 4.5, "aksen/kartu");
+        assert!(kontras(t("on-primary"), t("primary")) >= 4.5, "teks tombol");
+    }
+
     #[test]
     fn bahan_tampilan_baru() {
         let t = ThemeInfo {

@@ -54,7 +54,8 @@ pub fn pilih(slug: &str, nuansa: &str, wilayah: &str, sinema: bool) -> &'static 
         "teratai-mekar" | "bali-frangipani" => return "teratai",
         "samudra-biru" | "phinisi-layar-tujuh" | "raja-ampat" | "lancang-kuning-kepri" => return "lumba",
         "langit-awan" => return "bangau",
-        "fajar-rembulan" | "midnight-celestial" => return "rasi",
+        // Tema malam: rasi bintang (bukan kupu-kupu bawaan nuansa "Modern").
+        "fajar-rembulan" | "midnight-celestial" | "danau-rembulan-3d" => return "rasi",
         _ => {}
     }
     let n = nuansa.to_lowercase();
@@ -208,5 +209,7 @@ mod tests {
         assert_eq!(pilih("sinema-kenangan", "Modern", "Video", true), "");
         assert_eq!(pilih("x", "Melayu", "Kepulauan Bangka Belitung", false), "lumba");
         assert_eq!(pilih("x", "Modern", "Evening", false), "kupu");
+        // Tema malam danau: rasi bintang, bukan kupu-kupu siang.
+        assert_eq!(pilih("danau-rembulan-3d", "Modern", "Danau Rembulan", false), "rasi");
     }
 }
