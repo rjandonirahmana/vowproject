@@ -730,14 +730,34 @@ async fn render(st: &AppState, slug: &str, query: &str, headers: &HeaderMap, non
     let pv = row.inv.is_demo && q.get("pv").is_some_and(|v| v == "1");
     let page = Page { row: &row, guest, to, qs, preview, wishes, assets, rsvp_flash, lang, lang_href, pv };
     let mut body = unslash(set.env.get_template(&t.slug)?.render(page_ctx(&page))?);
-    // Panggung 3D (web/panggung.rs) — prolog pertama di dalam <main> templat,
-    // tampil tepat setelah sampul dibuka (sama dengan tema Leptos).
-    if let Some(r) = cat.resep(&theme.slug) {
-        if let Some(i) = body.find("<main").and_then(|m| body[m..].find('>').map(|j| m + j + 1)) {
-            body.insert_str(i, &crate::web::panggung::html(&r, &row.inv, lang));
+    // Panggung 3D ditempatkan setelah sampul agar tidak mendorong hero utama
+    // sejauh 640svh. Templat taman sudah memiliki adegan 3D scroll-driven
+    // sendiri; menambah panggung umum di sana membuat intro ganda dan halaman
+    // terlalu panjang. Templat pesta ulang tahun juga tidak memakai panggung nikah.
+    if !theme.ulang_tahun() && t.slug != "taman" {
+        if let Some(r) = cat.resep(&theme.slug) {
+            let panggung = crate::web::panggung::html(&r, &row.inv, lang);
+            if !sisipkan_setelah_sampul(&mut body, &panggung) {
+                tracing::warn!(theme = %theme.slug, template = %t.slug, "templat tidak memiliki sampul; panggung 3D tidak disisipkan");
+            }
         }
     }
     Ok(Some(document(st, t, theme, &page, &body, nonce)))
+}
+
+/// Sisipkan panggung setelah section sampul, bukan sebelum konten pertama main.
+/// Jika sebuah templat tidak memiliki sampul yang dikenali, biarkan markup tetap
+/// utuh daripada menggeser seluruh halaman ke bawah.
+fn sisipkan_setelah_sampul(html: &mut String, sisipan: &str) -> bool {
+    let Some(sampul) = html.find("id=\"sampul\"") else {
+        return false;
+    };
+    let Some(tutup) = html[sampul..].find("</section>") else {
+        return false;
+    };
+    let akhir = sampul + tutup + "</section>".len();
+    html.insert_str(akhir, sisipan);
+    true
 }
 
 /// Autoescape minijinja menulis "/" sebagai `&#x2f;`. Di HTML artinya sama
@@ -868,6 +888,31 @@ pub async fn rsvp_kirim(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn panggung_tidak_mendorong_sampul_templat() {
+        let mut html = String::from(
+            "<main><section id=\"sampul\"><div>hero</div></section><section id=\"ayat\">ayat</section></main>",
+        );
+        assert!(sisipkan_setelah_sampul(
+            &mut html,
+            "<aside class=\"pg\">3D</aside>"
+        ));
+        assert_eq!(
+            html,
+            "<main><section id=\"sampul\"><div>hero</div></section><aside class=\"pg\">3D</aside><section id=\"ayat\">ayat</section></main>",
+        );
+    }
+
+    #[test]
+    fn panggung_tidak_disisipkan_jika_sampul_tidak_dikenali() {
+        let mut html = String::from("<main><section id=\"isi\">isi</section></main>");
+        assert!(!sisipkan_setelah_sampul(
+            &mut html,
+            "<aside class=\"pg\">3D</aside>"
+        ));
+        assert_eq!(html, "<main><section id=\"isi\">isi</section></main>");
+    }
 
     #[test]
     fn templat_bawaan_lolos_validasi() {

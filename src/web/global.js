@@ -330,7 +330,12 @@
   // Lepas KEDUA listener penyelesai video pintu. `{once:true}` hanya melepas
   // yang terpicu — 'error' yang tak pernah terjadi tertinggal & menumpuk
   // +1 tiap buka-tutup (terukur di audit CDP Okt 2026).
-  function dropFin(v){ if(!v._fin) return; v.removeEventListener('ended', v._fin); v.removeEventListener('error', v._fin); v._fin=null; }
+  function dropFin(v){
+    if(v._fin){ v.removeEventListener('ended', v._fin); v.removeEventListener('error', v._fin); v._fin=null; }
+    // Callback cadangan juga memegang gerbang & elemen video. Batalkan saat
+    // video selesai/gagal atau gerbang dibuka ulang sebelum callback berjalan.
+    if(v._finTimer){ clearTimeout(v._finTimer); v._finTimer=0; }
+  }
   function openGate(g, root){
     var v=g && g.querySelector('video[data-gatevideo]'); if(!v) return false;
     // Penyelesai pembukaan SEBELUMNYA (ditutup di tengah video) dilepas —
@@ -347,7 +352,7 @@
     v.muted=true; try{ v.currentTime=0; }catch(_){}
     v.addEventListener('ended', fin, {once:true}); v.addEventListener('error', fin, {once:true});
     var pr=v.play(); if(pr&&pr.catch) pr.catch(fin);
-    setTimeout(fin, 12000);
+    v._finTimer=setTimeout(fin, 12000);
     return true;
   }
   function pad(n){ return (n<10?'0':'')+n; }
@@ -418,7 +423,22 @@
     var inp=b.closest('[data-slot-tile]').querySelector('input[type=file][data-slot]');
     if(inp){ inp.value=''; inp.dispatchEvent(new Event('change', {bubbles:true})); }
   });
-  addEventListener('pagehide', function(){ slotBlobs.forEach(function(u){ URL.revokeObjectURL(u); }); slotBlobs.clear(); });
+  addEventListener('pagehide', function(e){
+    // Jangan mencabut URL ketika halaman masuk BFCache: DOM-nya masih hidup
+    // dan browser akan menampilkan kembali foto lokal saat halaman dipulihkan.
+    if(e && e.persisted) return;
+    slotBlobs.forEach(function(u){ URL.revokeObjectURL(u); });
+    slotBlobs.clear();
+  });
+  // Navigasi SPA melepas formulir sunting tanpa pagehide. Bersihkan URL blob
+  // dari slot yang sudah tak terpasang agar file foto tidak tertahan di memori.
+  onDom(function(){
+    var live=new Set();
+    d.querySelectorAll('[data-slot-tile][data-blob]').forEach(function(tile){ live.add(tile.dataset.blob); });
+    slotBlobs.forEach(function(u){
+      if(!live.has(u)){ URL.revokeObjectURL(u); slotBlobs.delete(u); }
+    });
+  });
   function release(u){
     var a=audio();
     if(a && a.getAttribute('src')===u){ a.pause(); a.removeAttribute('src'); a.load(); sync(); }
@@ -427,6 +447,9 @@
   function drop(el){
     blobs=blobs.filter(function(b){
       if(el && b.el!==el) return true;
+      if(b.media){
+        try{ b.media.pause(); b.media.removeAttribute('src'); b.media.load(); }catch(_){}
+      }
       release(b.url);
       (b.targets||[]).forEach(function(t){ if(t.dataset.orig!==undefined){ t.innerHTML=t.dataset.orig; delete t.dataset.orig; } });
       return false;
@@ -468,6 +491,7 @@
     if(inp.dataset.preview==='video'){
       if(!out) return;
       var v=d.createElement('video'); v.src=url; v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true; v.className='preview-video';
+      rec.media=v;
       out.appendChild(v); start(v);
       return;
     }
@@ -780,6 +804,11 @@
   var pvApi=null;
   if(PV){
     d.documentElement.classList.add('is-pv');
+    // Cegah scroll chaining dari dokumen preview ke halaman induk.
+    // overscroll-behavior pada dokumen iframe menjaga scroll tetap lokal.
+    d.documentElement.style.overscrollBehavior='none';
+    if(d.body) d.body.style.overscrollBehavior='none';
+    else d.addEventListener('DOMContentLoaded', function(){ d.body.style.overscrollBehavior='none'; }, {once:true});
     // Jabat tangan & gulir otomatis = web/bersama.js (sama dengan tata.js).
     // Di sini hanya cara MEMBUKA undangan Leptos: tombol "Lewati intro"
     // (gerbang hilang seketika); tanpa tombol buka → tetap tandai terbuka
@@ -796,7 +825,7 @@
     // sendiri. Lebar viewport iframe dari `data-pv-lebar` wadah (HP 390,
     // laptop 1280 = tata letak desktop), diskalakan ke ukuran wadahnya.
     var pvMesinSemua=[];
-    var pvMesin=function(){
+    var pvMesin=function(owner){
       var cur=null;
       var buangF=function(f){ try{ f.src='about:blank'; }catch(_){} f.remove(); };
       var stop=function(){
@@ -844,18 +873,31 @@
         f.src=u;
         h.appendChild(f);
       };
-      var m={start:start, stop:stop, cur:function(){ return cur; },
+      var m={owner:owner||null, start:start, stop:stop, cur:function(){ return cur; },
         // Iframe memberi tahu begitu HTML-nya terurai (lebih cepat dari onload).
         siap:function(src){
           if(!cur) return;
           var f=[].filter.call(cur.querySelectorAll('iframe'), function(x){ return x.contentWindow===src; })[0];
           if(!f) return;
           if(cur._baru===f) tukar(cur, f); else show(cur.parentNode, f);
+        },
+        dispose:function(){
+          stop();
+          var i=pvMesinSemua.indexOf(m);
+          if(i>=0) pvMesinSemua.splice(i, 1);
         }};
       pvMesinSemua.push(m);
       return m;
     };
-    onDom(function(){ pvMesinSemua.forEach(function(m){ var c=m.cur(); if(c && !c.isConnected) m.stop(); }); });
+    onDom(function(){
+      // Mesin milik komponen yang sudah dilepas dikeluarkan dari registri,
+      // bukan hanya dihentikan; tanpa ini array membesar setiap navigasi SPA.
+      for(var i=pvMesinSemua.length-1; i>=0; i--){
+        var m=pvMesinSemua[i];
+        if(m.owner && !m.owner.isConnected){ m.dispose(); continue; }
+        var c=m.cur(); if(c && !c.isConnected) m.stop();
+      }
+    });
     window.addEventListener('message', function(e){
       if(e.origin!==location.origin || !e.data || e.data.pv!=='ready') return;
       pvMesinSemua.forEach(function(m){ m.siap(e.source); });
@@ -939,14 +981,17 @@
       var sec=tr.closest('.etalase'), hp=sec.querySelector('.etalase__pv'), layar=hp.parentNode, info=sec.querySelector('[data-etalase-info]');
       var hitung=sec.querySelector('[data-etalase-hitung]'), progres=sec.querySelector('[data-etalase-progres]');
       // Laptop: tema yang sama di tata letak desktop, mesin pratinjau sendiri.
-      var lp=sec.querySelector('.etalase__lpv'), lpLayar=lp && lp.parentNode, lpM=lp && pvApi && pvApi.mesin ? pvApi.mesin() : null, lpView=false, lpT=0;
+      var lp=sec.querySelector('.etalase__lpv'), lpLayar=lp && lp.parentNode, lpM=null, lpView=false, lpT=0;
       // HP etalase punya mesin SENDIRI (dulu berbagi dengan kartu katalog:
       // hover kartu / pvPick-pvStop saat menggulir di layar sentuh merebut atau
       // mematikan iframe HP, sementara etalase mengira HP masih memutar tema).
-      var hpM=pvApi && pvApi.mesin ? pvApi.mesin() : pvApi;
+      var hpM=null;
       // Kartu jenis acara lain (.is-saring dari server) tak ikut coverflow awal.
       var semua=[].slice.call(tr.querySelectorAll('.etalase__item'));
       var items=semua.filter(function(it){ return !it.classList.contains('is-saring'); }); if(!items.length) return;
+      // Ikat mesin ke bagian etalase supaya bisa dilepas saat rute SPA berganti.
+      if(pvApi && pvApi.mesin){ lpM=lp ? pvApi.mesin(sec) : null; hpM=pvApi.mesin(sec); }
+      else hpM=pvApi;
       var act=-1, near=-1, raf=0, idleT=0, startT=0, autoT=0, userT=0, inView=false, seen=new Set();
       var dua=function(n){ return (n<10 ? '0' : '')+n; };
       // Didukung scroll-driven animation → transform/opacity diurus CSS
@@ -1278,15 +1323,15 @@
         });
       });
       // Ukuran berubah (putar layar / jendela) → ukur ulang posisi kartu.
-      // ResizeObserver pada track (bukan listener window) — ikut terbuang
-      // bersama elemennya saat pindah halaman; timer di atas berhenti sendiri
-      // (cek tr.isConnected), jadi tak ada yang menahan etalase lama.
+      // Daftarkan observer agar sapuan onDom melepas target & callback saat
+      // etalase dilepas ketika navigasi SPA.
       if(window.ResizeObserver){
         var lebar=0;
-        new ResizeObserver(function(es){
+        var ro=new ResizeObserver(function(es){
           var w=Math.round(es[0].contentRect.width); if(w===lebar) return; lebar=w;
           if(pos.length){ pos=[]; last=[]; lay(); }
-        }).observe(tr);
+        });
+        track(ro, tr);
       }
       // Posisi kartu baru diukur saat etalase pertama terlihat (callback IO,
       // setelah layout selesai) — mengukur di sini memaksa layout seluruh
@@ -1303,7 +1348,7 @@
       if(w._bpv) return; w._bpv=1;
       var hp=w.querySelector('.buat-pv__hp [data-pv]'), lp=w.querySelector('.buat-pv__laptop [data-pv]');
       if(!hp || !lp) return;
-      var mh=pvApi.mesin(), ml=pvApi.mesin(), lihat=false, t=0;
+      var mh=pvApi.mesin(w), ml=pvApi.mesin(w), lihat=false, t=0;
       var henti=function(){ clearTimeout(t); mh.stop(); ml.stop(); };
       var mulai=function(){
         clearTimeout(t); if(!lihat) return;

@@ -365,7 +365,9 @@ mod tests {
         assert!(c.contains("'nonce-abc123'") && c.contains("'wasm-unsafe-eval'") && c.contains("frame-ancestors 'self'"));
         assert!(!c.contains("ws:"));
         assert!(csp("x", true).contains("ws:"));
-        assert!(is_demo_preview("/u/yona-doni", "tema=jawa&pv=1") && is_demo_preview("/u/yona-doni/acara", "pv=1"));
+        assert!(is_demo_preview("/u/yona-doni", "tema=jawa&pv=1")
+            && is_demo_preview("/u/yona-doni", "tema=danau-rembulan-3d&pv=1")
+            && is_demo_preview("/u/yona-doni/acara", "pv=1"));
         assert!(!is_demo_preview("/u/yona-doni", "tema=jawa") && !is_demo_preview("/u/budi-ani-x1", "pv=1") && !is_demo_preview("/u/yona-doni-x", "pv=1"));
         assert_eq!(legacy_demo_target("/u/anindita-raditya/acara", Some("tema=x")).as_deref(), Some("/u/yona-doni/acara?tema=x"));
         assert_eq!(legacy_demo_target("/kelola/anindita-raditya", None).as_deref(), Some("/kelola/yona-doni"));

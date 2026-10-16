@@ -418,11 +418,16 @@ mod tests {
         let scenes: Vec<_> = slugs.iter().map(|s| pilih(s, "Modern", "", "navy", true)).collect();
         let unik: std::collections::HashSet<_> = scenes.iter().copied().collect();
         assert_eq!(unik.len(), slugs.len(), "panggung tema 3D baru tidak boleh berulang");
+        assert_eq!(scenes[2], "danau", "preview danau-rembulan-3d harus memakai adegan Danau");
         for scene in scenes {
             let ad = adegan(scene).expect("adegan khusus tersedia");
             for layer in ad.jauh.iter().chain(ad.depan.iter()).chain([&ad.utama, &ad.insan]) {
                 assert!(!svg(layer).is_empty(), "lapisan {layer} tak ada");
             }
+        }
+        let css = css_tema(&Resep { adegan: "danau", ..Default::default() });
+        for selector in [".pg--danau .pg__jauh", ".pg--danau .pg__utama", ".pg--danau .pg__depan"] {
+            assert!(css.contains(selector), "CSS preview Danau tidak memuat {selector}");
         }
     }
 }
