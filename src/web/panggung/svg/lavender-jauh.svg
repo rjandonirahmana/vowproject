@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><defs>
+<linearGradient id="lSky" x2="0" y2="1"><stop stop-color="#d9b9ec"/><stop offset=".45" stop-color="#f7d4e6"/><stop offset=".8" stop-color="#ffe8cf"/><stop offset="1" stop-color="#fff3d8"/></linearGradient>
+<radialGradient id="lSun"><stop stop-color="#fffdf0"/><stop offset=".4" stop-color="#ffe4a6" stop-opacity=".85"/><stop offset="1" stop-color="#ffd2a0" stop-opacity="0"/></radialGradient>
+<linearGradient id="lH1" x2="0" y2="1"><stop stop-color="#c3a9df"/><stop offset="1" stop-color="#a98bcc"/></linearGradient>
+<linearGradient id="lH2" x2="0" y2="1"><stop stop-color="#a28bc6"/><stop offset="1" stop-color="#8b72b2"/></linearGradient>
+<linearGradient id="lGrass" x2="0" y2="1"><stop stop-color="#b6c880"/><stop offset="1" stop-color="#7d9a54"/></linearGradient>
+<clipPath id="lClip"><path d="M0 1290h1080v630H0z"/></clipPath>
+</defs>
+<path fill="url(#lSky)" d="M0 0h1080v1920H0z"/>
+<ellipse cx="760" cy="1060" rx="520" ry="520" fill="url(#lSun)"/><circle cx="760" cy="1090" r="84" fill="#fffbe6" opacity=".95"/>
+<g fill="#fff" opacity=".7"><ellipse cx="220" cy="300" rx="150" ry="34"/><ellipse cx="330" cy="332" rx="120" ry="28"/><ellipse cx="780" cy="220" rx="170" ry="36"/><ellipse cx="900" cy="256" rx="110" ry="26"/><ellipse cx="560" cy="520" rx="130" ry="28"/></g>
+<path fill="url(#lH1)" d="M0 1240c140-70 260-86 400-40 120 40 220 30 340-24 120-52 240-38 340 8v138H0z"/>
+<path fill="url(#lH2)" d="M0 1290c180-52 320-38 470-6 160 34 400 40 610-26v108H0z"/>
+<g transform="translate(160 1214)"><path fill="#7a6a90" d="M-12 74l8-92h8l8 92z"/><g stroke="#7a6a90" stroke-width="6" stroke-linecap="round"><path d="M0-18l-60-44M0-18l60 44M0-18l44-60M0-18l-44 60"/></g></g>
+<path fill="url(#lGrass)" d="M0 1290h1080v630H0z"/>
+<g clip-path="url(#lClip)"><path fill="#8d63c4" d="M511.2 1290L513.308 1290L-794.6 1920L-900 1920z"/><path fill="#7a52b4" d="M514.6 1290L516.708 1290L-624.6 1920L-730 1920z"/><path fill="#8d63c4" d="M518.0 1290L520.108 1290L-454.6 1920L-560 1920z"/><path fill="#7a52b4" d="M521.4 1290L523.508 1290L-284.6 1920L-390 1920z"/><path fill="#8d63c4" d="M524.8 1290L526.908 1290L-114.6 1920L-220 1920z"/><path fill="#7a52b4" d="M528.2 1290L530.308 1290L55.400000000000006 1920L-50 1920z"/><path fill="#8d63c4" d="M531.6 1290L533.708 1290L225.4 1920L120 1920z"/><path fill="#7a52b4" d="M535.0 1290L537.108 1290L395.4 1920L290 1920z"/><path fill="#8d63c4" d="M538.4 1290L540.508 1290L565.4 1920L460 1920z"/><path fill="#7a52b4" d="M541.8 1290L543.908 1290L735.4 1920L630 1920z"/><path fill="#8d63c4" d="M545.2 1290L547.308 1290L905.4 1920L800 1920z"/><path fill="#7a52b4" d="M548.6 1290L550.708 1290L1075.4 1920L970 1920z"/><path fill="#8d63c4" d="M552.0 1290L554.108 1290L1245.4 1920L1140 1920z"/><path fill="#7a52b4" d="M555.4 1290L557.508 1290L1415.4 1920L1310 1920z"/><path fill="#8d63c4" d="M558.8 1290L560.908 1290L1585.4 1920L1480 1920z"/><path fill="#7a52b4" d="M562.2 1290L564.308 1290L1755.4 1920L1650 1920z"/><path fill="#8d63c4" d="M565.6 1290L567.708 1290L1925.4 1920L1820 1920z"/><path fill="#7a52b4" d="M569.0 1290L571.108 1290L2095.4 1920L1990 1920z"/></g>
+<path fill="#e9d6a8" opacity=".85" d="M510 1292h60l280 628H230z"/>
+<path fill="#fff6dc" opacity=".25" d="M0 1290h1080v34H0z"/></svg>

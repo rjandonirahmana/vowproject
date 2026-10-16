@@ -57,6 +57,10 @@
 /* Kabut cahaya di belakang teks — terbaca di atas kubah/atap mana pun. */
 .pg__t2::before, .pg__t4::before, .pg__t5::before, .pg__t1::before { content: ""; position: absolute; inset: -18% 4%; z-index: -1; border-radius: 50%;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--bg, #fff) 84%, transparent), color-mix(in srgb, var(--bg, #fff) 55%, transparent) 55%, transparent); }
+/* Nama mempelai & orang tua (t3) di bawah layar: tampil di atas pintu gelap /
+   dek terang — kabut yang sama agar terbaca di pemandangan mana pun. */
+.pg__t3::before { content: ""; position: absolute; inset: -34% 0; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--bg, #fff) 84%, transparent), color-mix(in srgb, var(--bg, #fff) 55%, transparent) 55%, transparent); }
 .pg__teks .script { text-shadow: none; }
 
 /* Gerak kamera (hanya bila didukung & tak dikurangi). */
@@ -84,6 +88,9 @@
     .pg-k3 .pg__jauh { animation-name: pg-jauh-k3; } .pg-k3 .pg__utama { animation-name: pg-utama-k3; } .pg-k3 .pg__insan { animation-name: pg-utama-k3, pg-insan; } .pg-k3 .pg__depan { animation-name: pg-depan-k3; }
     .pg-k4 .pg__jauh { animation-name: pg-jauh-k4; } .pg-k4 .pg__utama { animation-name: pg-utama-k4; } .pg-k4 .pg__insan { animation-name: pg-utama-k4, pg-insan; } .pg-k4 .pg__depan { animation-name: pg-depan-k4; }
     .pg-k5 .pg__jauh { animation-name: pg-jauh-k5; } .pg-k5 .pg__utama { animation-name: pg-utama-k5; } .pg-k5 .pg__insan { animation-name: pg-utama-k5, pg-insan; } .pg-k5 .pg__depan { animation-name: pg-depan-k5; }
+    .pg-k6 .pg__jauh { animation-name: pg-jauh-k6; } .pg-k6 .pg__utama { animation-name: pg-utama-k6; } .pg-k6 .pg__insan { animation-name: pg-utama-k6, pg-insan; } .pg-k6 .pg__depan { animation-name: pg-depan-k6; }
+    .pg-k7 .pg__jauh { animation-name: pg-jauh-k7; } .pg-k7 .pg__utama { animation-name: pg-utama-k7; } .pg-k7 .pg__insan { animation-name: pg-utama-k7, pg-insan; } .pg-k7 .pg__depan { animation-name: pg-depan-k7; }
+    .pg-k8 .pg__jauh { animation-name: pg-jauh-k8; } .pg-k8 .pg__utama { animation-name: pg-utama-k8; } .pg-k8 .pg__insan { animation-name: pg-utama-k8, pg-insan; } .pg-k8 .pg__depan { animation-name: pg-depan-k8; }
   }
 }
 /* k1 — CRANE: kamera naik sambil mendekat (pemandangan turun). */
@@ -107,6 +114,22 @@
 @keyframes pg-jauh-k5 { 0% { transform: translateX(-2%); } 42% { transform: scale(1.18) translateX(1.5%); } 70% { transform: scale(1.26) translate(2%, 3%); } 100% { transform: scale(1.06); } }
 @keyframes pg-utama-k5 { 0% { transform: translate(-5%, 2%); } 30% { transform: scale(1.35) translateX(-2%); } 42% { transform: scale(1.75) translateX(1.5%); } 56% { transform: scale(2.15) translate(2.5%, 4%); } 68% { transform: scale(2.2) translate(1.5%, 5%); } 86% { transform: scale(1.2) translate(-1.5%, 9%); } 100% { transform: scale(1.06) translateY(6%); } }
 @keyframes pg-depan-k5 { 0% { transform: scale(.42) translate(-8%, 3%); opacity: 1; } 12% { transform: scale(.55) translateX(-5%); } 26% { transform: scale(1.5) translateX(2%); } 34% { transform: scale(3) translateX(3%); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
+/* k6 — SAPU SAMPING (dolly): kamera menyusur lurus dari kiri ke kanan; tiap
+   lapisan bergeser berbeda jauh (depan >> utama >> jauh) = paralaks lebar,
+   lalu membelok masuk ke pintu. Dipakai adegan Gurun. */
+@keyframes pg-jauh-k6 { 0% { transform: scale(1.02) translateX(-4%); } 42% { transform: scale(1.14); } 70% { transform: scale(1.22) translate(3%, 2%); } 100% { transform: scale(1.06) translateX(1%); } }
+@keyframes pg-utama-k6 { 0% { transform: translateX(-30%); } 18% { transform: translateX(-17%); } 30% { transform: scale(1.3) translateX(-7%); } 42% { transform: scale(1.75); } 56% { transform: scale(2.15) translateY(4%); } 68% { transform: scale(2.2) translateY(5%); } 86% { transform: scale(1.2) translate(10%, 9%); } 100% { transform: scale(1.06) translate(4%, 6%); } }
+@keyframes pg-depan-k6 { 0% { transform: scale(.42) translateX(-40%); opacity: 1; } 12% { transform: scale(.55) translateX(-26%); } 26% { transform: scale(1.5) translateX(-9%); } 34% { transform: scale(3) translateX(2%); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
+/* k7 — TILT NAIK (pedestal): kamera mulai rendah menatap tanah/salju, lalu
+   naik perlahan menengadah ke bangunan. Dipakai adegan Salju. */
+@keyframes pg-jauh-k7 { 0% { transform: scale(1.06) translateY(-12%); } 42% { transform: scale(1.14) translateY(-3%); } 70% { transform: scale(1.24) translateY(2%); } 100% { transform: scale(1.06); } }
+@keyframes pg-utama-k7 { 0% { transform: scale(1.04) translateY(-27%); } 16% { transform: translateY(-15%); } 30% { transform: scale(1.35) translateY(-5%); } 42% { transform: scale(1.75) translateY(2%); } 56% { transform: scale(2.15) translateY(6%); } 68% { transform: scale(2.2) translateY(6%); } 86% { transform: scale(1.2) translateY(9%); } 100% { transform: scale(1.06) translateY(6%); } }
+@keyframes pg-depan-k7 { 0% { transform: scale(.42) translateY(-22%); opacity: 1; } 12% { transform: scale(.5) translateY(-10%); } 26% { transform: scale(1.5); } 34% { transform: scale(3) translateY(3%); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
+/* k8 — AYUN (sway): kamera mengayun kiri-kanan seperti berjalan santai
+   sambil mendekat (TANPA kemiringan). Dipakai adegan Lavender. */
+@keyframes pg-jauh-k8 { 0% { transform: translateX(2%); } 20% { transform: translateX(-2%); } 42% { transform: scale(1.14) translateX(2%); } 70% { transform: scale(1.22) translate(-2%, 2%); } 100% { transform: scale(1.06); } }
+@keyframes pg-utama-k8 { 0% { transform: translateX(8%); } 14% { transform: translateX(-7%); } 30% { transform: scale(1.35) translateX(5%); } 42% { transform: scale(1.75) translateX(-3%); } 56% { transform: scale(2.15) translate(1%, 4%); } 68% { transform: scale(2.2) translateY(5%); } 86% { transform: scale(1.2) translate(-4%, 9%); } 100% { transform: scale(1.06) translateY(6%); } }
+@keyframes pg-depan-k8 { 0% { transform: scale(.42) translateX(14%); opacity: 1; } 12% { transform: scale(.55) translateX(-11%); } 26% { transform: scale(1.5) translateX(6%); } 34% { transform: scale(3) translateX(-3%); opacity: 1; } 40% { transform: scale(5.6); opacity: 0; } 100% { transform: scale(6); opacity: 0; } }
 /* Versi CERMIN (properti `scale` terpisah dari `transform` animasi). */
 .pg-c .pg__lapis { scale: -1 1; }
 /* WARNA TEMA di seluruh pemandangan: lapisan multiply di atas langit &
@@ -184,6 +207,9 @@ html:is(.is-pv, .t-pv) .pg:not(.pg--jalan) .pg__layar > * { animation-play-state
   html:is(.is-pv, .t-pv) .pg-k3 .pg__jauh { animation-name: pg-jauh-k3; } html:is(.is-pv, .t-pv) .pg-k3 .pg__utama { animation-name: pg-utama-k3; } html:is(.is-pv, .t-pv) .pg-k3 .pg__insan { animation-name: pg-utama-k3, pg-insan; } html:is(.is-pv, .t-pv) .pg-k3 .pg__depan { animation-name: pg-depan-k3; }
   html:is(.is-pv, .t-pv) .pg-k4 .pg__jauh { animation-name: pg-jauh-k4; } html:is(.is-pv, .t-pv) .pg-k4 .pg__utama { animation-name: pg-utama-k4; } html:is(.is-pv, .t-pv) .pg-k4 .pg__insan { animation-name: pg-utama-k4, pg-insan; } html:is(.is-pv, .t-pv) .pg-k4 .pg__depan { animation-name: pg-depan-k4; }
   html:is(.is-pv, .t-pv) .pg-k5 .pg__jauh { animation-name: pg-jauh-k5; } html:is(.is-pv, .t-pv) .pg-k5 .pg__utama { animation-name: pg-utama-k5; } html:is(.is-pv, .t-pv) .pg-k5 .pg__insan { animation-name: pg-utama-k5, pg-insan; } html:is(.is-pv, .t-pv) .pg-k5 .pg__depan { animation-name: pg-depan-k5; }
+  html:is(.is-pv, .t-pv) .pg-k6 .pg__jauh { animation-name: pg-jauh-k6; } html:is(.is-pv, .t-pv) .pg-k6 .pg__utama { animation-name: pg-utama-k6; } html:is(.is-pv, .t-pv) .pg-k6 .pg__insan { animation-name: pg-utama-k6, pg-insan; } html:is(.is-pv, .t-pv) .pg-k6 .pg__depan { animation-name: pg-depan-k6; }
+  html:is(.is-pv, .t-pv) .pg-k7 .pg__jauh { animation-name: pg-jauh-k7; } html:is(.is-pv, .t-pv) .pg-k7 .pg__utama { animation-name: pg-utama-k7; } html:is(.is-pv, .t-pv) .pg-k7 .pg__insan { animation-name: pg-utama-k7, pg-insan; } html:is(.is-pv, .t-pv) .pg-k7 .pg__depan { animation-name: pg-depan-k7; }
+  html:is(.is-pv, .t-pv) .pg-k8 .pg__jauh { animation-name: pg-jauh-k8; } html:is(.is-pv, .t-pv) .pg-k8 .pg__utama { animation-name: pg-utama-k8; } html:is(.is-pv, .t-pv) .pg-k8 .pg__insan { animation-name: pg-utama-k8, pg-insan; } html:is(.is-pv, .t-pv) .pg-k8 .pg__depan { animation-name: pg-depan-k8; }
 }
 html:is(.is-pv, .t-pv) .pg .pg__layar > * { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 4.6s !important;
   animation-delay: .4s !important; animation-timing-function: cubic-bezier(.45, .05, .55, .95) !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }

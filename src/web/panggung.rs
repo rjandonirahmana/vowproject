@@ -246,15 +246,57 @@ pub const ADEGAN: &[Adegan] = &[
         langit: "linear-gradient(#10172f, #28345b 58%, #7c7796)",
         cahaya: "radial-gradient(circle at 50% 38%, #fff9ed, #d9c9e9 48%, rgba(191,166,223,0) 72%)",
     },
+    Adegan {
+        slug: "gurun",
+        nama: "Istana Pasir Senja",
+        jauh: &["gurun-jauh"],
+        utama: "gurun-utama",
+        insan: "insan-modern",
+        depan: &["gurun-depan"],
+        langit: "linear-gradient(#2d2154, #d9647a 60%, #ffd58a)",
+        cahaya: "radial-gradient(circle at 30% 62%, #fff3c9, #ffc065 48%, rgba(255,154,90,0) 72%)",
+    },
+    Adegan {
+        slug: "salju",
+        nama: "Pondok Lentera Salju",
+        jauh: &["salju-jauh"],
+        utama: "salju-utama",
+        insan: "insan-modern",
+        depan: &["salju-depan"],
+        langit: "linear-gradient(#08122b, #1e3a68 55%, #6f93c0)",
+        cahaya: "radial-gradient(circle at 74% 19%, #f4f9ff, #bcd6f6 48%, rgba(188,214,246,0) 72%)",
+    },
+    Adegan {
+        slug: "lavender",
+        nama: "Pergola Ladang Lavender",
+        jauh: &["lavender-jauh"],
+        utama: "lavender-utama",
+        insan: "insan-modern",
+        depan: &["lavender-depan"],
+        langit: "linear-gradient(#d9b9ec, #f7d4e6 55%, #fff3d8)",
+        cahaya: "radial-gradient(circle at 70% 55%, #fffdf0, #ffe4a6 48%, rgba(255,210,160,0) 72%)",
+    },
 ];
 
 /// Adegan baru memiliki siluet utama khusus dan dipasangkan satu tema per
 /// adegan. Tema lain memakai bank varian bangunan yang sudah ada.
 fn varian_utama(a: &Adegan) -> usize {
-    if matches!(a.slug, "aurora" | "karang" | "danau") {
+    if matches!(a.slug, "aurora" | "karang" | "danau" | "gurun" | "salju" | "lavender") {
         1
     } else {
         UTAMA_N
+    }
+}
+
+/// Adegan dengan gerak kamera KHAS sendiri (bukan hasil bagi-rata `tetapkan`):
+/// tiap tema 3D baru bergulir dengan cara berbeda — k6 sapu samping (gurun),
+/// k7 tilt naik (salju), k8 ayun kiri-kanan (lavender). Keyframes: _dasar.css.
+fn kamera_tetap(adegan: &str) -> Option<u8> {
+    match adegan {
+        "gurun" => Some(6),
+        "salju" => Some(7),
+        "lavender" => Some(8),
+        _ => None,
     }
 }
 
@@ -273,6 +315,9 @@ pub fn pilih(slug: &str, nuansa: &str, wilayah: &str, palet: &str, gelap: bool) 
         "aurora-kristal-3d" => return "aurora",
         "samudra-mutiara-3d" => return "karang",
         "danau-rembulan-3d" => return "danau",
+        "gurun-senja-3d" => return "gurun",
+        "salju-lentera-3d" => return "salju",
+        "ladang-lavender-3d" => return "lavender",
         "botanical-heritage" | "curug-asri" | "taman-kupu" | "teratai-mekar" | "titi-mentawai" => {
             return "alam"
         }
@@ -409,11 +454,12 @@ pub fn tetapkan<'a>(
                 jumlah += digit;
             }
             let [utama, insan, depan, jauh, kamera, cermin] = out_k;
+            let kamera = kamera_tetap(a_slug).map_or(kamera as u8, |k| k);
             out.insert(
                 s.to_string(),
                 Resep {
                     adegan: a_slug,
-                    kamera: kamera as u8,
+                    kamera,
                     cermin: cermin == 1,
                     depan: depan as u8,
                     jauh: jauh as u8,
@@ -576,6 +622,15 @@ fn svg(nama: &str) -> &'static str {
         "danau-jauh" => include_str!("panggung/svg/danau-jauh.svg"),
         "danau-utama" => include_str!("panggung/svg/danau-utama.svg"),
         "danau-depan" => include_str!("panggung/svg/danau-depan.svg"),
+        "gurun-jauh" => include_str!("panggung/svg/gurun-jauh.svg"),
+        "gurun-utama" => include_str!("panggung/svg/gurun-utama.svg"),
+        "gurun-depan" => include_str!("panggung/svg/gurun-depan.svg"),
+        "salju-jauh" => include_str!("panggung/svg/salju-jauh.svg"),
+        "salju-utama" => include_str!("panggung/svg/salju-utama.svg"),
+        "salju-depan" => include_str!("panggung/svg/salju-depan.svg"),
+        "lavender-jauh" => include_str!("panggung/svg/lavender-jauh.svg"),
+        "lavender-utama" => include_str!("panggung/svg/lavender-utama.svg"),
+        "lavender-depan" => include_str!("panggung/svg/lavender-depan.svg"),
         _ => daftar::SVG
             .iter()
             .find(|(n, _)| *n == nama)
@@ -591,7 +646,7 @@ fn rakit(a: &Adegan) -> String {
     // bulan purnama danau berada tepat di belakang judul/acara, jadi teks
     // butuh tinta terang + kabut gelap + bayangan (dulu teks tema gelap itu
     // tertimpa bulan krem & nyaris hilang saat acara tampil).
-    let malam = matches!(a.slug, "malam" | "danau");
+    let malam = matches!(a.slug, "malam" | "danau" | "salju");
     // Langit & cahaya DITURUNKAN dari warna tema (kecuali malam): panggung
     // selalu senada dengan undangan — tema emas berlangit keemasan, hijau
     // kehijauan, cokelat hangat. Lapisan multiply (_dasar.css) mewarnai bangunan.
@@ -704,11 +759,13 @@ mod tests {
                     "{}: {} & {} mempelai sama",
                     ad.slug, w[0], w[1]
                 );
-                assert_ne!(
-                    x.kamera, y.kamera,
-                    "{}: {} & {} kamera sama",
-                    ad.slug, w[0], w[1]
-                );
+                if kamera_tetap(ad.slug).is_none() {
+                    assert_ne!(
+                        x.kamera, y.kamera,
+                        "{}: {} & {} kamera sama",
+                        ad.slug, w[0], w[1]
+                    );
+                }
             }
         }
     }
@@ -805,6 +862,36 @@ mod tests {
                 css.contains(selector),
                 "CSS preview Danau tidak memuat {selector}"
             );
+        }
+    }
+
+    #[test]
+    fn tema_3d_gulir_beda_punya_adegan_dan_kamera_sendiri() {
+        let tema = [
+            ("gurun-senja-3d", "gurun", 6u8),
+            ("salju-lentera-3d", "salju", 7),
+            ("ladang-lavender-3d", "lavender", 8),
+        ];
+        let resep = tetapkan(tema.iter().map(|(s, a, _)| (*s, *a)));
+        let dasar = include_str!("panggung/_dasar.css");
+        let mut kamera = std::collections::HashSet::new();
+        for (slug, adegan_slug, k) in tema {
+            assert_eq!(pilih(slug, "Modern", "", "navy", true), adegan_slug);
+            let r = resep[slug];
+            assert_eq!((r.adegan, r.kamera), (adegan_slug, k), "{slug}");
+            assert!(kamera.insert(r.kamera), "kamera {k} dipakai ganda");
+            let ad = adegan(adegan_slug).expect("adegan terdaftar");
+            for layer in ad.jauh.iter().chain(ad.depan.iter()).chain([&ad.utama, &ad.insan]) {
+                assert!(!svg(layer).is_empty(), "lapisan {layer} tak ada");
+            }
+            // Keyframes kamera ada untuk tiap lapisan, + pemilih kelasnya.
+            for lapis in ["jauh", "utama", "depan"] {
+                assert!(dasar.contains(&format!("@keyframes pg-{lapis}-k{k} ")), "keyframes {lapis}-k{k}");
+                assert!(dasar.contains(&format!(".pg-k{k} .pg__{lapis} {{ animation-name: pg-{lapis}-k{k}")), "pemilih {lapis}-k{k}");
+            }
+            assert!(r.kelas().contains(&format!("pg-k{k}")));
+            let c = css_tema(&r);
+            assert_eq!(c.matches('{').count(), c.matches('}').count(), "kurung {slug}");
         }
     }
 }

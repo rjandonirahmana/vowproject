@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><defs>
+<linearGradient id="sWood" x2="0" y2="1"><stop stop-color="#8a5638"/><stop offset="1" stop-color="#4b2a22"/></linearGradient>
+<linearGradient id="sRoof" x2="0" y2="1"><stop stop-color="#5a3a46"/><stop offset="1" stop-color="#2d1d2d"/></linearGradient>
+<linearGradient id="sGlowD" x2="0" y2="1"><stop stop-color="#ffd890"/><stop offset="1" stop-color="#e8782f"/></linearGradient>
+<radialGradient id="sHalo"><stop stop-color="#ffc56e" stop-opacity=".75"/><stop offset="1" stop-color="#ffc56e" stop-opacity="0"/></radialGradient>
+<filter id="sBlur"><feGaussianBlur stdDeviation="20"/></filter>
+</defs>
+<ellipse cx="540" cy="1380" rx="480" ry="150" fill="#ffb25e" opacity=".34" filter="url(#sBlur)"/>
+<path fill="#e5eefa" d="M170 1450c120-34 240-44 370-44s250 10 370 44v40H170z"/>
+<path fill="url(#sWood)" stroke="#2b1812" stroke-width="8" d="M268 1430V1060h544v370z"/>
+<g stroke="#2b1812" stroke-opacity=".55" stroke-width="5"><path d="M268 1110h544M268 1160h544M268 1210h544M268 1260h544M268 1310h544M268 1360h544M268 1410h544"/></g>
+<path fill="#3a2220" d="M268 1060h544v-8H268z"/>
+<path fill="url(#sRoof)" stroke="#2b1812" stroke-width="10" d="M170 1090L540 780l370 310-50 30-320-258-320 258z"/>
+<path fill="#f1f6fd" d="M156 1100L540 770l384 330-30 22-26-8c-14 20-34 18-48 2-12 18-34 20-46-2-12 18-34 16-44-2-12 22-34 18-42-2-14 20-36 16-44-4-12 20-34 14-44-6-10 22-32 18-42-2-14 20-34 16-42-4l-26 20-26-20z"/>
+<path fill="#e1ebf8" d="M540 770L156 1100l30 22 354-300z" opacity=".55"/>
+<path fill="url(#sWood)" stroke="#2b1812" stroke-width="6" d="M690 870h58v-110h-58z"/><path fill="#f1f6fd" d="M682 766h74v-22h-74z"/>
+<path fill="none" stroke="#dce8f7" stroke-width="16" stroke-linecap="round" opacity=".55" d="M720 740c-20-44 30-70 6-122 18-36-8-70 14-100"/>
+<path fill="url(#sGlowD)" stroke="#2b1812" stroke-width="10" d="M432 1430v-250c0-12 8-20 20-20h176c12 0 20 8 20 20v250z"/>
+<path fill="none" stroke="#2b1812" stroke-width="6" opacity=".6" d="M540 1160v270"/>
+<g fill="url(#sGlowD)" stroke="#2b1812" stroke-width="8"><path d="M312 1230h88v90h-88zM680 1230h88v90h-88z"/></g>
+<path fill="none" stroke="#2b1812" stroke-width="6" d="M356 1230v90M312 1275h88M724 1230v90M680 1275h88"/>
+<circle cx="540" cy="1250" r="330" fill="url(#sHalo)" opacity=".55"/>
+<path fill="none" stroke="#2b1812" stroke-width="5" d="M190 1138q175 86 350 36t350-36"/>
+<g fill="#ffc762" stroke="#8a4a1a" stroke-width="3"><circle cx="262" cy="1170" r="16"/><circle cx="352" cy="1186" r="16"/><circle cx="446" cy="1190" r="16"/><circle cx="540" cy="1178" r="16"/><circle cx="634" cy="1190" r="16"/><circle cx="728" cy="1186" r="16"/><circle cx="818" cy="1170" r="16"/></g>
+<g stroke="#2b1812" stroke-width="10"><path d="M214 1430v-200M866 1430v-200"/></g>
+<g fill="#ffc762" stroke="#8a4a1a" stroke-width="4"><rect x="194" y="1190" width="40" height="52" rx="8"/><rect x="846" y="1190" width="40" height="52" rx="8"/></g>
+<path fill="#f1f6fd" d="M150 1470c110-26 250-34 390-34s280 8 390 34v26H150z"/></svg>

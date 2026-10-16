@@ -56,6 +56,10 @@ pub fn pilih(slug: &str, nuansa: &str, wilayah: &str, sinema: bool) -> &'static 
         "langit-awan" => return "bangau",
         // Tema malam: rasi bintang (bukan kupu-kupu bawaan nuansa "Modern").
         "fajar-rembulan" | "midnight-celestial" | "danau-rembulan-3d" => return "rasi",
+        // Tema 3D gulir-beda: lentera (salju), kupu (lavender), rasi senja (gurun).
+        "gurun-senja-3d" => return "rasi",
+        "salju-lentera-3d" => return "lampion",
+        "ladang-lavender-3d" => return "kupu",
         _ => {}
     }
     let n = nuansa.to_lowercase();
