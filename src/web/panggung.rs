@@ -290,12 +290,14 @@ fn varian_utama(a: &Adegan) -> usize {
 
 /// Adegan dengan gerak kamera KHAS sendiri (bukan hasil bagi-rata `tetapkan`):
 /// tiap tema 3D baru bergulir dengan cara berbeda — k6 sapu samping (gurun),
-/// k7 tilt naik (salju), k8 ayun kiri-kanan (lavender). Keyframes: _dasar.css.
+/// k7 tilt naik (salju), k9 KELILING orbit masuk makin dalam (danau), k10
+/// keliling balik + naik (lavender); k8 ayun kiri-kanan tersedia. Keyframes: _dasar.css.
 fn kamera_tetap(adegan: &str) -> Option<u8> {
     match adegan {
         "gurun" => Some(6),
         "salju" => Some(7),
-        "lavender" => Some(8),
+        "danau" => Some(9),
+        "lavender" => Some(10),
         _ => None,
     }
 }
@@ -870,7 +872,8 @@ mod tests {
         let tema = [
             ("gurun-senja-3d", "gurun", 6u8),
             ("salju-lentera-3d", "salju", 7),
-            ("ladang-lavender-3d", "lavender", 8),
+            ("danau-rembulan-3d", "danau", 9),
+            ("ladang-lavender-3d", "lavender", 10),
         ];
         let resep = tetapkan(tema.iter().map(|(s, a, _)| (*s, *a)));
         let dasar = include_str!("panggung/_dasar.css");
