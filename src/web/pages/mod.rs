@@ -6,6 +6,7 @@ pub mod artikel;
 pub mod buat;
 pub mod cetak;
 pub mod dekorasi;
+pub mod hub3d;
 pub mod info;
 pub mod katalog;
 pub mod kelola;

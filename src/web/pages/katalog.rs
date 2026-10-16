@@ -13,6 +13,7 @@ use crate::web::api::list_themes;
 use crate::web::skin::{ThemeInfo, PALETTES};
 use crate::web::konten::Konten;
 
+use super::hub3d::Hub3d;
 use super::{SiteFooter, SiteHeader};
 use crate::web::seo::{self, JsonLd, Seo};
 
@@ -189,6 +190,9 @@ pub fn KatalogPage() -> impl IntoView {
                     <span><Icon name="smartphone" />"Mobile optimal"</span>
                 </div>
             </section>
+
+            // HUB 3D: panggung gulir 5 panel + HP 3D (pages/hub3d.rs, CSS "HUB 3D").
+            <Hub3d />
 
             <Suspense fallback=|| view! { <div class="chips-row" id="katalog"></div> }>
                 <div class="chips-row" id="katalog">

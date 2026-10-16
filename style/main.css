@@ -12929,3 +12929,74 @@ html.is-pv .mapcard iframe {
         flex-direction: column;
     }
 }
+
+/* ═════════ HUB 3D (pages/hub3d.rs) ═════════
+ * Dasar = 5 kartu biasa (tanpa scroll-timeline / gerak dikurangi). Peningkatan
+ * di dalam @supports+@media di bawah: panggung lengket setinggi 520svh, HP 3D
+ * berputar, panel bergantian. Hanya transform/opacity/translate → compositor. */
+.hub3d { margin: 28px 0 8px; }
+.hub3d__head { text-align: center; max-width: 640px; margin: 0 auto 14px; padding: 0 16px; }
+.hub3d__head h2 { margin: 8px 0 6px; }
+.hub3d__lewati { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--primary); }
+.hub3d__rel { position: relative; }
+.hub3d__tata { display: block; width: min(1000px, 100%); margin: 0 auto; padding: 0 16px; }
+.hub3d__teks { display: grid; gap: 12px; }
+.hub3d__t { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; background: var(--card); border-radius: 18px; padding: 18px; box-shadow: 0 1px 0 rgba(0, 0, 0, .04); }
+.hub3d__no { font-size: 12px; letter-spacing: .14em; color: var(--primary-2); }
+.hub3d__t h3 { margin: 0; font-size: clamp(22px, 5.4vmin, 34px); line-height: 1.1; }
+.hub3d__t p { margin: 0; line-height: 1.55; }
+.hub3d__t ul { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.6; }
+.hub3d__dunia { display: none; }
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hub3d__rel { height: 520svh; view-timeline: --hub block; }
+    .hub3d__st { position: sticky; top: 0; height: 100svh; overflow: hidden; contain: paint; display: grid; align-items: center; }
+    .hub3d__tata { display: grid; grid-template-rows: auto 1fr; gap: 8px; height: 100%; padding-top: 4svh; }
+    .hub3d__teks { position: relative; display: block; height: 34svh; }
+    .hub3d__t { position: absolute; inset: 0; opacity: 0; background: transparent; box-shadow: none; padding: 0; justify-content: center; }
+    .hub3d__t.is-awal { opacity: 1; }
+    .hub3d__dunia { display: grid; place-items: center; position: relative; perspective: 1100px; min-height: 0; padding-bottom: 4svh; }
+    .hub3d__hp { position: relative; height: min(100%, 520px); aspect-ratio: 9 / 18.5; transform-style: preserve-3d; border: 6px solid var(--primary); border-radius: 30px; background: var(--bg);
+      box-shadow: 0 30px 50px -24px rgba(0, 0, 0, .45); animation: hub-hp linear both; }
+    .hub3d__hp::before { content: ""; position: absolute; inset: -6px; border-radius: 30px; background: var(--primary-2); transform: translateZ(-16px); }
+    .hub3d__l { position: absolute; inset: 0; border-radius: 22px; overflow: hidden; opacity: 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
+    .hub3d__l.is-awal { opacity: 1; }
+    .hub3d__kn { position: absolute; width: 84px; aspect-ratio: 4 / 3; border-radius: 14px; background: linear-gradient(135deg, var(--gold, #c9a24b), var(--surface-high)); box-shadow: 0 14px 26px -14px rgba(0, 0, 0, .4); animation: hub-kn linear both; }
+    .hub3d__kn--1 { left: 8%; top: 14%; transform: translateZ(90px); }
+    .hub3d__kn--2 { right: 8%; top: 46%; width: 64px; transform: translateZ(140px); }
+    .hub3d__kn--3 { left: 14%; bottom: 10%; width: 56px; transform: translateZ(60px); }
+    .hub3d__rel *, .hub3d__rel *::before { animation-timeline: --hub; animation-fill-mode: both; animation-timing-function: linear; animation-duration: auto; }
+    .hub3d__hp, .hub3d__kn { animation-range: contain 0% contain 100%; }
+    .hub3d__t, .hub3d__l { animation-name: hub-sc; animation-range: contain var(--s) contain var(--e); }
+    .hub3d__t.is-awal, .hub3d__l.is-awal { animation-name: hub-sc-awal; }
+    .hub3d__t.is-akhir, .hub3d__l.is-akhir { animation-name: hub-sc-akhir; }
+    @media (min-width: 860px) {
+      .hub3d__tata { grid-template-rows: none; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; padding-top: 0; }
+      .hub3d__teks { height: min(360px, 60svh); }
+      .hub3d__dunia { height: 100%; padding: 6svh 0; }
+    }
+  }
+}
+@keyframes hub-sc { 0% { opacity: 0; translate: 0 14px; } 18%, 82% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -14px; } }
+@keyframes hub-sc-awal { 0%, 82% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 -14px; } }
+@keyframes hub-sc-akhir { 0% { opacity: 0; translate: 0 14px; } 18%, 100% { opacity: 1; translate: 0 0; } }
+@keyframes hub-hp {
+  0% { transform: rotateY(-26deg) rotateX(8deg); } 20% { transform: rotateY(16deg) rotateX(4deg); }
+  40% { transform: rotateY(-18deg) rotateX(6deg); } 60% { transform: rotateY(22deg) rotateX(2deg); }
+  80% { transform: rotateY(-12deg) rotateX(7deg); } 100% { transform: rotateY(0) rotateX(0); }
+}
+@keyframes hub-kn { from { translate: 0 30px; } to { translate: 0 -50px; } }
+/* Isi layar HP (contoh visual murni CSS — tanpa gambar) */
+.m-tag { align-self: flex-end; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; opacity: .55; }
+.m-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; }
+.m-grid i { border-radius: 10px; background: var(--surface-high); }
+.m-grid i:nth-child(1) { background: #e9dcc0; } .m-grid i:nth-child(2) { background: #cfdccb; } .m-grid i:nth-child(3) { background: #e6cfc9; }
+.m-grid i:nth-child(4) { background: #d5d9e3; } .m-grid i:nth-child(5) { background: #ddd2e8; } .m-grid i:nth-child(6) { background: #f0e3b8; }
+.m-mono { align-self: center; display: grid; place-items: center; width: 64px; aspect-ratio: 1; border-radius: 50%; border: 2px solid var(--gold, #c9a24b); font-size: 16px; margin: 10px 0; }
+.m-baris { height: 12px; border-radius: 6px; background: var(--surface-high); }
+.m-baris--pendek { width: 60%; }
+.m-link { padding: 10px 12px; border-radius: 12px; background: var(--card); font-size: 11px; box-shadow: inset 0 0 0 1px var(--surface-high); word-break: break-all; }
+.m-btn { align-self: flex-start; padding: 9px 16px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 12px; }
+.m-qr { align-self: center; width: 96px; aspect-ratio: 1; border-radius: 8px; background: repeating-conic-gradient(var(--primary) 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+.m-chip { align-self: flex-start; padding: 8px 14px; border-radius: 999px; background: var(--surface-high); font-size: 12px; }
