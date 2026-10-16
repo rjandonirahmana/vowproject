@@ -815,7 +815,8 @@ pub struct Article {
     pub title: String,
     pub slug: String,
     pub excerpt: String,
-    /// Teks biasa; tiap paragraf dipisahkan dengan satu baris kosong.
+    /// Markdown ringan (pages/artikel.rs `urai_isi`): paragraf dipisah baris
+    /// kosong; `##`/`###`, daftar `-`/`1.`, `**tebal**`, `[teks](/tautan)`.
     pub content: String,
     pub seo_title: String,
     pub seo_description: String,

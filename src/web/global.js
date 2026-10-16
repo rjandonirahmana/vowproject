@@ -757,7 +757,29 @@
     };
     window.addEventListener('popstate', function(){ clearTimeout(posTimer); setTimeout(restorePos, 30); });
     var nav=performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
-    if(nav && nav.type==='reload') restorePos();
+    // back_forward: Back ke halaman publik yang dimuat penuh (lihat di bawah)
+    // tanpa bfcache — posisi dicatat sendiri karena scrollRestoration manual.
+    if(nav && (nav.type==='reload' || nav.type==='back_forward')) restorePos();
+  }
+  // Halaman publik → pindah halaman = navigasi DOKUMEN PENUH, bukan router SPA.
+  // Diukur Okt 2026 (Playwright+CDP, 50× pergi-pulang): tiap navigasi SPA
+  // menahan DOM rute lama di memori WASM (+95…380 node per putaran, linear;
+  // repro minimal Leptos 0.8.20 TIDAK bocor → pemicunya spesifik aplikasi,
+  // belum ketemu), sedangkan navigasi penuh datar (heap −7%, node +1%). speculationrules prerender (app.rs) membuatnya tetap instan &
+  // Back memakai bfcache. Router Leptos melepas klik ber-rel=external ke
+  // browser — penanda dipasang di fase capture, sebelum listener router di
+  // window. Tautan di PATH YANG SAMA (filter ?kategori=, #jangkar) tetap SPA:
+  // memuat ulang beranda per filter = 330 KB HTML. Daftar = halaman_publik().
+  var publik=function(p){ return /^\/(paket|panduan|artikel|cetak|dekorasi|mua|seserahan|privasi|syarat)?$/.test(p) || /^\/(artikel|tema|dekorasi)\//.test(p); };
+  if(!PV){
+    d.addEventListener('click', function(e){
+      if(!publik(location.pathname)) return;
+      var a=e.target.closest && e.target.closest('a[href]');
+      if(!a || a.target && a.target!=='_self') return;
+      var u; try{ u=new URL(a.href, location.href); }catch(_){ return; }
+      if(u.origin!==location.origin || u.pathname===location.pathname) return;
+      a.relList.add('external');
+    }, true);
   }
   // Banner beranda ([data-banner]): titik/‹ › menggulir track (scroll-snap);
   // otomatis tiap 6 dtk — jeda saat di-hover/disentuh/fokus, tab tersembunyi,

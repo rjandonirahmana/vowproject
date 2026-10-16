@@ -1,7 +1,9 @@
 //! pages/hub3d.rs — "HUB 3D" beranda: panggung gulir (sticky) dengan HP 3D yang
-//! berputar & lima panel (Pilih tema → Isi data → Sebarkan → RSVP/QR → Layanan),
-//! dengan pola yang sama seperti bagian #hub di belajarweb.dev (panel bernomor
-//! 01/05 yang bergantian saat digulir).
+//! berputar & lima panel mengikuti alur pesan yang SEBENARNYA (lihat /buat):
+//! Pilih tema → Isi data & pratinjau gratis → Pilih paket & bayar (undangan
+//! baru terbuka untuk tamu) → Sebarkan tautan → Tamu RSVP, amplop & hadir.
+//! Dulu "Sebarkan" datang sebelum bayar & langkah terakhir berisi layanan cetak
+//! — bertentangan dengan "bayar saat siap disebar" & judul "sampai tamu hadir".
 //!
 //! SSR murni: tanpa signal, tanpa JS, tanpa WASM, tanpa gambar. Seluruh gerak =
 //! CSS `view-timeline` (style/main.css, blok "HUB 3D"; hanya transform/opacity).
@@ -10,28 +12,31 @@
 
 use leptos::prelude::*;
 
-/// (judul, uraian, poin 1, poin 2, label tombol, tautan)
+use crate::web::seo::SITE_URL;
+use crate::web::themes::DEMO_SLUG;
+
+/// (judul, uraian, poin 1, poin 2, label tombol, tautan — kosong = undangan demo)
 const HUB: [(&str, &str, &str, &str, &str, &str); 5] = [
     ("Pilih tema yang terasa seperti Anda",
-     "Tema adat Jawa & Nusantara dengan animasi pembuka. Coba dulu di layar HP, bayar saat siap disebar.",
+     "Tema adat Jawa & Nusantara dengan animasi pembuka. Coba dulu di layar HP sebelum memutuskan.",
      "Pratinjau langsung seperti undangan sungguhan", "Coba gratis, bayar saat siap disebar",
      "Lihat katalog tema", "#katalog"),
-    ("Isi data, jadi dalam 5 menit",
-     "Nama mempelai, acara, foto, dan musik latar — sunting langsung dan lihat hasilnya di HP.",
-     "Musik latar bebas", "Galeri foto & cerita",
+    ("Isi data & lihat pratinjau gratis",
+     "Nama mempelai, acara, foto, dan musik latar — hasilnya langsung tampil di HP. Pratinjau ini khusus Anda, belum terlihat tamu.",
+     "Jadi dalam 5 menit", "Musik latar, galeri foto & cerita",
      "Mulai buat undangan", "/buat"),
+    ("Pilih paket & bayar saat sudah puas",
+     "Sekali bayar tanpa langganan, paling lambat 24 jam setelah pesanan dibuat. Setelah pembayaran dikonfirmasi, undangan terbuka untuk tamu.",
+     "Transfer bank, unggah bukti di dashboard", "Tanpa biaya bulanan",
+     "Lihat paket & harga", "/paket"),
     ("Sebarkan lewat satu tautan",
-     "Satu tautan untuk semua tamu, tampil sempurna di HP, tablet, maupun desktop.",
+     "Bagikan tautan undangan lewat WhatsApp atau media sosial — tampil sempurna di HP, tablet, maupun desktop.",
      "Mobile optimal", "Panduan langkah demi langkah",
      "Baca panduan", "/panduan"),
-    ("RSVP, amplop & QR check-in",
-     "Konfirmasi kehadiran, buku tamu QR, dan amplop digital — dalam satu undangan.",
-     "Amplop digital", "QR check-in di hari acara",
-     "Lihat paket & harga", "/paket"),
-    ("Lengkapi hari bahagia",
-     "Cetak undangan fisik, dekorasi & sound, make up pengantin, sampai sewa seserahan.",
-     "Satu tempat untuk layanan pendukung", "Pilih sesuai kebutuhan",
-     "Lihat layanan cetak", "/cetak"),
+    ("Tamu RSVP, kirim amplop & hadir",
+     "Tamu mengonfirmasi kehadiran dan mengirim amplop digital dari undangan. Di hari acara, buku tamu QR mencatat siapa yang datang.",
+     "RSVP & amplop digital", "QR check-in di hari acara",
+     "Coba undangan contoh", ""),
 ];
 
 /// Rentang gulir (% dari panggung) tiap panel — saling tumpang 4% untuk cross-fade.
@@ -59,7 +64,7 @@ pub fn Hub3d() -> impl IntoView {
                                         <li>{*p1}</li>
                                         <li>{*p2}</li>
                                     </ul>
-                                    <a class="btn btn--primary btn--sm" href=*href>{*cta}</a>
+                                    <a class="btn btn--primary btn--sm" href=if href.is_empty() { format!("/u/{DEMO_SLUG}") } else { href.to_string() }>{*cta}</a>
                                 </article>
                             }).collect_view()}
                         </div>
@@ -76,21 +81,24 @@ pub fn Hub3d() -> impl IntoView {
                                     <small class="m-tag">"contoh"</small>
                                     <b class="m-mono">"A & B"</b>
                                     <span class="m-baris"></span><span class="m-baris"></span><span class="m-baris m-baris--pendek"></span>
+                                    <span class="m-chip">"Pratinjau — khusus Anda"</span>
                                 </div>
                                 <div class="hub3d__l" style="--s:36%;--e:64%">
                                     <small class="m-tag">"contoh"</small>
-                                    <span class="m-link">"undangan.id/nama-kita"</span>
-                                    <span class="m-btn">"Bagikan"</span>
+                                    <span class="m-link">"Paket pilihan Anda"</span>
+                                    <span class="m-baris"></span><span class="m-baris m-baris--pendek"></span>
+                                    <span class="m-btn">"Bayar"</span>
+                                    <span class="m-chip">"Undangan aktif untuk tamu"</span>
                                 </div>
                                 <div class="hub3d__l" style="--s:56%;--e:84%">
                                     <small class="m-tag">"contoh"</small>
-                                    <i class="m-qr"></i>
-                                    <span class="m-chip">"Hadir"</span><span class="m-chip">"Amplop"</span>
+                                    <span class="m-link">{format!("{}/u/nama-kita", SITE_URL.trim_start_matches("https://"))}</span>
+                                    <span class="m-btn">"Bagikan"</span>
                                 </div>
                                 <div class="hub3d__l is-akhir" style="--s:76%;--e:100%">
                                     <small class="m-tag">"contoh"</small>
-                                    <span class="m-chip">"Cetak"</span><span class="m-chip">"Dekorasi"</span>
-                                    <span class="m-chip">"Make up"</span><span class="m-chip">"Seserahan"</span>
+                                    <i class="m-qr"></i>
+                                    <span class="m-chip">"Hadir"</span><span class="m-chip">"Amplop"</span>
                                 </div>
                             </div>
                         </div>

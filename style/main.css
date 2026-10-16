@@ -12826,6 +12826,50 @@ html.is-pv .mapcard iframe {
     margin: 0 0 1.35em;
     white-space: pre-line;
 }
+.article-detail__content h2 {
+    margin: 1.8em 0 .5em;
+    font-size: clamp(22px, 3.2vw, 28px);
+    line-height: 1.25;
+}
+.article-detail__content h3 {
+    margin: 1.4em 0 .4em;
+    font-size: 20px;
+    line-height: 1.3;
+}
+.article-detail__content ul,
+.article-detail__content ol {
+    margin: 0 0 1.35em;
+    padding-left: 1.3em;
+}
+.article-detail__content li + li {
+    margin-top: .35em;
+}
+.article-detail__content a {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.article-cta {
+    max-width: 740px;
+    margin: 40px auto 0;
+    padding: 22px;
+    border-radius: 18px;
+    background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+.article-cta p {
+    margin: 0 0 12px;
+    line-height: 1.6;
+}
+.article-cta__judul {
+    font-weight: 700;
+    font-size: 19px;
+}
+.article-cta__aksi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
 .article-not-found {
     min-height: 48vh;
     justify-content: center;
@@ -12939,6 +12983,12 @@ html.is-pv .mapcard iframe {
 .hub3d__head h2 { margin: 8px 0 6px; }
 .hub3d__lewati { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--primary); }
 .hub3d__rel { position: relative; }
+/* Tinggi header situs yang ikut menempel (.site-top, diukur): 1 baris ≥1360px,
+ * nav turun ke baris 2 ≤1359px, tombol turun ke baris 3 ≤539px. Panggung lengket
+ * dimulai DI BAWAH header — dulu top:0 → nomor & judul panel tertutup header. */
+.hub3d { --hdr: 65px; }
+@media (max-width: 1359px) { .hub3d { --hdr: 98px; } }
+@media (max-width: 539px) { .hub3d { --hdr: 138px; } }
 .hub3d__tata { display: block; width: min(1000px, 100%); margin: 0 auto; padding: 0 16px; }
 .hub3d__teks { display: grid; gap: 12px; }
 .hub3d__t { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; background: var(--card); border-radius: 18px; padding: 18px; box-shadow: 0 1px 0 rgba(0, 0, 0, .04); }
@@ -12951,7 +13001,7 @@ html.is-pv .mapcard iframe {
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     .hub3d__rel { height: 520svh; view-timeline: --hub block; }
-    .hub3d__st { position: sticky; top: 0; height: 100svh; overflow: hidden; contain: paint; display: grid; align-items: center; }
+    .hub3d__st { position: sticky; top: var(--hdr); height: calc(100svh - var(--hdr)); overflow: hidden; contain: paint; display: grid; align-items: center; }
     .hub3d__tata { display: grid; grid-template-rows: auto 1fr; gap: 8px; height: 100%; padding-top: 4svh; }
     .hub3d__teks { position: relative; display: block; height: 34svh; }
     .hub3d__t { position: absolute; inset: 0; opacity: 0; background: transparent; box-shadow: none; padding: 0; justify-content: center; }

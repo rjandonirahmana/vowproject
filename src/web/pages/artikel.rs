@@ -127,12 +127,7 @@ fn ArticleDetail(article: Article) -> impl IntoView {
     } else {
         article.seo_description.clone()
     };
-    let paragraphs: Vec<String> = article.content
-        .split("\n\n")
-        .map(str::trim)
-        .filter(|p| !p.is_empty())
-        .map(str::to_string)
-        .collect();
+    let blok = urai_isi(&article.content);
     let author = if article.author.is_empty() { crate::brand!().to_string() } else { article.author.clone() };
     let image_url = crate::web::seo::abs(article.cover_image.as_str());
     let canonical = crate::web::seo::abs(&path);
@@ -143,7 +138,14 @@ fn ArticleDetail(article: Article) -> impl IntoView {
         "description": description,
         "datePublished": article.published_at,
         "dateModified": article.updated_at,
-        "author": { "@type": "Person", "name": author },
+        // Penulis = nama merek → Organization (Person bernama merek menyesatkan
+        // Google); nama orang sungguhan → Person.
+        "author": if author == crate::brand!() {
+            serde_json::json!({ "@type": "Organization", "name": author, "url": crate::web::seo::SITE_URL })
+        } else {
+            serde_json::json!({ "@type": "Person", "name": author })
+        },
+        "inLanguage": "id-ID",
         "publisher": { "@type": "Organization", "name": crate::brand!() },
         "mainEntityOfPage": { "@type": "WebPage", "@id": canonical },
         "image": if article.cover_image.is_empty() { crate::web::seo::abs(crate::web::seo::OG_IMAGE) } else { image_url }
@@ -178,8 +180,19 @@ fn ArticleDetail(article: Article) -> impl IntoView {
                     </figure>
                 })}
                 <div class="article-detail__content">
-                    {paragraphs.into_iter().map(|paragraph| view! { <p>{paragraph}</p> }).collect_view()}
+                    {blok.into_iter().map(blok_view).collect_view()}
                 </div>
+                // Tautan internal ke halaman produk: artikel tanpa tautan keluar
+                // = halaman buntu bagi pembaca & perayap.
+                <aside class="article-cta">
+                    <p class="article-cta__judul">"Siap membuat undangan pernikahan?"</p>
+                    <p>"Pilih tema di katalog, isi data, dan lihat pratinjau gratis di HP — bayar hanya saat undangan siap disebar."</p>
+                    <div class="article-cta__aksi">
+                        <a class="btn btn--primary btn--sm" href="/buat">"Buat undangan online"</a>
+                        <a class="btn btn--soft btn--sm" href="/#katalog">"Lihat katalog tema"</a>
+                        <a class="btn btn--soft btn--sm" href="/artikel">"Artikel lainnya"</a>
+                    </div>
+                </aside>
             </article>
         </main>
     }
@@ -208,4 +221,159 @@ fn tanggal(iso: &str) -> String {
         _ => return String::new(),
     };
     format!("{day} {month} {year}")
+}
+
+// ── Isi artikel: Markdown ringan ────────────────────────────────────────────
+// Dulu isi dipecah per baris kosong & semuanya jadi <p> → `## Subjudul` tampil
+// sebagai teks mentah, artikel tanpa h2 & tanpa tautan. Pengurai kecil tanpa
+// dependensi (WASM tetap ramping), keluarannya node Leptos (teks di-escape,
+// bukan inner_html). Didukung: `##`/`###` subjudul (`#` dianggap `##` — h1
+// hanya judul artikel), `- `/`* ` daftar, `1. ` daftar bernomor, `**tebal**`,
+// `[teks](/tautan)` (hanya `/…` & `https://…`). Selain itu = paragraf.
+
+enum Blok {
+    Judul(u8, String),
+    Para(String),
+    Daftar(bool, Vec<String>),
+}
+
+fn urai_isi(isi: &str) -> Vec<Blok> {
+    let isi = isi.replace("\r\n", "\n");
+    let mut out: Vec<Blok> = Vec::new();
+    for bagian in isi.split("\n\n") {
+        let mut para: Vec<&str> = Vec::new();
+        let mut daftar: Option<(bool, Vec<String>)> = None;
+        let tutup = |out: &mut Vec<Blok>, para: &mut Vec<&str>, daftar: &mut Option<(bool, Vec<String>)>| {
+            if !para.is_empty() {
+                out.push(Blok::Para(para.join("\n")));
+                para.clear();
+            }
+            if let Some((urut, item)) = daftar.take() {
+                out.push(Blok::Daftar(urut, item));
+            }
+        };
+        for baris in bagian.lines() {
+            let t = baris.trim();
+            if t.is_empty() {
+                continue;
+            }
+            if let Some(h) = t.strip_prefix("### ") {
+                tutup(&mut out, &mut para, &mut daftar);
+                out.push(Blok::Judul(3, h.trim().to_string()));
+            } else if let Some(h) = t.strip_prefix("## ").or_else(|| t.strip_prefix("# ")) {
+                tutup(&mut out, &mut para, &mut daftar);
+                out.push(Blok::Judul(2, h.trim().to_string()));
+            } else if let Some((urut, item)) = butir(t) {
+                if !para.is_empty() || daftar.as_ref().is_some_and(|(u, _)| *u != urut) {
+                    tutup(&mut out, &mut para, &mut daftar);
+                }
+                daftar.get_or_insert_with(|| (urut, Vec::new())).1.push(item.to_string());
+            } else if let (Some((_, item)), true) = (daftar.as_mut(), baris.starts_with([' ', '\t'])) {
+                // Baris lanjutan butir daftar (diindentasi).
+                if let Some(akhir) = item.last_mut() {
+                    akhir.push(' ');
+                    akhir.push_str(t);
+                }
+            } else {
+                if daftar.is_some() {
+                    tutup(&mut out, &mut para, &mut daftar);
+                }
+                para.push(t);
+            }
+        }
+        tutup(&mut out, &mut para, &mut daftar);
+    }
+    out
+}
+
+/// `- x` / `* x` → (false, x); `12. x` → (true, x).
+fn butir(t: &str) -> Option<(bool, &str)> {
+    if let Some(x) = t.strip_prefix("- ").or_else(|| t.strip_prefix("* ")) {
+        return Some((false, x.trim()));
+    }
+    let digit = t.bytes().take_while(u8::is_ascii_digit).count();
+    if (1..=3).contains(&digit) {
+        if let Some(x) = t[digit..].strip_prefix(". ") {
+            return Some((true, x.trim()));
+        }
+    }
+    None
+}
+
+fn blok_view(b: Blok) -> AnyView {
+    match b {
+        Blok::Judul(2, t) => view! { <h2>{sebaris(&t)}</h2> }.into_any(),
+        Blok::Judul(_, t) => view! { <h3>{sebaris(&t)}</h3> }.into_any(),
+        Blok::Para(t) => view! { <p>{sebaris(&t)}</p> }.into_any(),
+        Blok::Daftar(false, item) => view! { <ul>{item.iter().map(|i| view! { <li>{sebaris(i)}</li> }).collect_view()}</ul> }.into_any(),
+        Blok::Daftar(true, item) => view! { <ol>{item.iter().map(|i| view! { <li>{sebaris(i)}</li> }).collect_view()}</ol> }.into_any(),
+    }
+}
+
+/// Inline: `**tebal**` & `[teks](href)`; sisanya teks biasa.
+fn sebaris(s: &str) -> Vec<AnyView> {
+    let mut out: Vec<AnyView> = Vec::new();
+    let mut teks = String::new();
+    let mut rest = s;
+    while !rest.is_empty() {
+        if let Some(r) = rest.strip_prefix("**") {
+            if let Some(end) = r.find("**").filter(|e| *e > 0) {
+                if !teks.is_empty() { out.push(std::mem::take(&mut teks).into_any()); }
+                out.push(view! { <strong>{r[..end].to_string()}</strong> }.into_any());
+                rest = &r[end + 2..];
+                continue;
+            }
+        }
+        if let Some(r) = rest.strip_prefix('[') {
+            if let Some((label, href, sisa)) = r.split_once("](").and_then(|(label, after)| after.split_once(')').map(|(h, sisa)| (label, h.trim(), sisa))) {
+                if !label.is_empty() && !label.contains(']') && (href.starts_with('/') && !href.starts_with("//") || href.starts_with("https://")) {
+                    if !teks.is_empty() { out.push(std::mem::take(&mut teks).into_any()); }
+                    let luar = href.starts_with("https://") && !href.starts_with(crate::web::seo::SITE_URL);
+                    out.push(if luar {
+                        view! { <a href=href.to_string() rel="noopener" target="_blank">{label.to_string()}</a> }.into_any()
+                    } else {
+                        view! { <a href=href.to_string()>{label.to_string()}</a> }.into_any()
+                    });
+                    rest = sisa;
+                    continue;
+                }
+            }
+        }
+        let ch = rest.chars().next().unwrap();
+        teks.push(ch);
+        rest = &rest[ch.len_utf8()..];
+    }
+    if !teks.is_empty() { out.push(teks.into_any()); }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn jenis(b: &[Blok]) -> Vec<String> {
+        b.iter().map(|x| match x {
+            Blok::Judul(n, t) => format!("h{n}:{t}"),
+            Blok::Para(t) => format!("p:{t}"),
+            Blok::Daftar(u, i) => format!("{}:{}", if *u { "ol" } else { "ul" }, i.join("|")),
+        }).collect()
+    }
+
+    #[test]
+    fn subjudul_dan_paragraf_dalam_satu_blok() {
+        let b = urai_isi("Pembuka.\n\n## Siapkan barang\nMasukkan dokumen.\n\n### Kecil\n- a\n- b\n1. satu\n2. dua\nPenutup.");
+        assert_eq!(jenis(&b), ["p:Pembuka.", "h2:Siapkan barang", "p:Masukkan dokumen.", "h3:Kecil", "ul:a|b", "ol:satu|dua", "p:Penutup."]);
+    }
+
+    #[test]
+    fn h1_jadi_h2_dan_baris_lanjutan_daftar() {
+        let b = urai_isi("# Judul\n- butir panjang\n  sambungan");
+        assert_eq!(jenis(&b), ["h2:Judul", "ul:butir panjang sambungan"]);
+    }
+
+    #[test]
+    fn butir_bukan_angka_tahun() {
+        assert!(butir("2026. tahun").is_none());
+        assert_eq!(butir("3. x"), Some((true, "x")));
+    }
 }

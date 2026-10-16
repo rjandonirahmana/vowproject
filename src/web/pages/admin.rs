@@ -299,7 +299,7 @@ fn AdminArticleForm(article: crate::web::model::Article) -> impl IntoView {
             <div class="adm-head">
                 <div>
                     <h1 class="adm-h1">{if is_new { "Artikel Baru" } else { "Sunting Artikel" }}</h1>
-                    <p class="muted">"Isi artikel dengan teks biasa; pisahkan paragraf memakai satu baris kosong."</p>
+                    <p class="muted">"Pisahkan paragraf dengan satu baris kosong. Format: ## Subjudul, ### Subjudul kecil, - butir daftar, 1. daftar bernomor, **tebal**, [teks tautan](/buat)."</p>
                 </div>
                 <a class="btn btn--soft btn--sm" href="/admin/artikel"><Icon name="arrow_back" />"Daftar artikel"</a>
             </div>
