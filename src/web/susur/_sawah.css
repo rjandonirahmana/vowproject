@@ -10,25 +10,21 @@
 /* Petak sawah. */
 .ss-petak { --c: #6faa45; }
 .ss-petak--kuning { --c: #c8b046; }
-.ss-petak--air { --c: #a9c6cf; background: linear-gradient(160deg, #c3dbe2, #93b5bf); }
-/* Blok 2×2 petak (satu bidang): empat warna + garis pematang. */
-.ss-petak4 { --p1: #6faa45; --p2: #c8b046; --p3: #7fb64e; --p4: #9cc2c9;
-  background: linear-gradient(90deg, transparent calc(50% - 15px), var(--ss-tanah) 0 calc(50% + 15px), transparent 0),
-    linear-gradient(transparent calc(50% - 15px), var(--ss-tanah) 0 calc(50% + 15px), transparent 0),
-    conic-gradient(from 90deg at 50% 50%, var(--p1) 0 25%, var(--p2) 0 50%, var(--p3) 0 75%, var(--p4) 0); }
-.ss-p4--b { --p1: #c8b046; --p2: #6faa45; --p3: #9cc2c9; --p4: #7fb64e; }
-.ss-p4--c { --p1: #7fb64e; --p2: #6faa45; --p3: #6faa45; --p4: #c8b046; }
-.ss-p4--d { --p1: #9cc2c9; --p2: #7fb64e; --p3: #c8b046; --p4: #6faa45; }
+.ss-petak--air { --c: #a9c6cf; }
+/* Petak luar (2× lebih lebar): warna polos — ubin warna tunggal tanpa
+   tekstur GPU (lihat _dasar.css .ss-datar); celah antar-petak = pematang. */
+.ss-petak4 { --c: #6faa45; }
+.ss-p4--b { --c: #c8b046; }
+.ss-p4--c { --c: #7fb64e; }
+.ss-p4--d { --c: #9cc2c9; }
 .ss-padi { background: var(--ss-padi) 0 100% / 136px 100% repeat-x; }
 .ss-padi--kuning { background-image: var(--ss-padi-kuning); }
 .ss-padi--muda { background-size: 136px 60%; opacity: .9; }
 .ss-jalan { --c: #b49a6c; }
 .ss-latar { --c: #c9b48c; }
 .ss-karpet { --c: #a3303a; box-shadow: inset 0 0 0 10px #d9b45a; }
-.ss-kali { background: linear-gradient(90deg, #6fa3b8, #8cc0cf 30%, #6fa3b8 60%, #87bbcb); overflow: hidden; }
-.ss-kali::after { content: ""; position: absolute; inset: 0 -50% 0 0; background: repeating-linear-gradient(90deg, transparent 0 60px, rgba(255, 255, 255, .35) 60px 64px, transparent 64px 140px);
-  animation: ss-arus 6s linear infinite; }
-@keyframes ss-arus { to { translate: -140px 0; } }
+/* Kali polos (4800 px: bergradien/beranimasi = tekstur raksasa). */
+.ss-kali { --c: #7fb3c6; }
 .ss-jembatan { background: repeating-linear-gradient(0deg, #d5b874 0 18px, #b8964e 18px 22px); box-shadow: inset 6px 0 0 #9a7a3a, inset -6px 0 0 #9a7a3a; }
 .ss-pagar { background: linear-gradient(#c9a65a, #c9a65a) 0 0 / 100% 10px no-repeat, linear-gradient(#c9a65a, #c9a65a) 0 50% / 100% 8px no-repeat,
   repeating-linear-gradient(90deg, #b8964e 0 10px, transparent 10px 104px); }

@@ -15,6 +15,17 @@
 //! Teks singgah = data undangan (lihat pages/undangan.rs `Susur3d`). Aset
 //! gambar dari scripts/gerak/susur.py (src/web/susur/svg), ikut sebagai data
 //! URI di /gaya/{slug}.css tema itu saja.
+//!
+//! IRIT MEMORI: isi dunia (`isi`) dirakit SEKALI per proses lalu disimpan —
+//! per request hanya menyisipkan nama mempelai — dan dipasang lewat
+//! `inner_html` sehingga tak ikut di-hydrate (perakit dunia tak masuk WASM).
+//! Di bawah perspektif, browser merasterisasi tiap bidang 3D pada ukuran
+//! CSS-nya × DPR berapa pun jauhnya (skala proyeksi diabaikan) → memori GPU
+//! ditekan lewat resolusi: seluruh dunia `zoom` ½ (layar DPR ≥ 1,5), benda
+//! yang tak pernah didekati kamera ½ lagi (`.ss-r2`, lihat `kasar`), dan
+//! bidang tanah berwarna POLOS tanpa sudut bulat (ubin polos tak butuh
+//! tekstur sama sekali).
+#![cfg_attr(not(feature = "ssr"), allow(dead_code))]
 
 /// Satu benda di dunia. Titik (x, z) = kaki benda di tanah (px dunia; z
 /// negatif = menjauh dari gapura), `y` negatif = terangkat (mis. atap).
@@ -81,7 +92,6 @@ fn tiang(kelas: &'static str, x: f32, z: f32, w: f32, h: f32) -> Benda {
 }
 
 /// Satu dunia susur.
-#[cfg_attr(not(feature = "ssr"), allow(dead_code))]
 pub struct Dunia {
     pub slug: &'static str,
     /// Keluarga sepasang mempelai di pelaminan (lapisan /panggung/insan-*.svg).
@@ -350,6 +360,68 @@ pub fn gaya(b: &Benda, off: Option<f32>) -> String {
     s
 }
 
+/// Jarak terdekat (px) yang pernah dicapai kamera ke benda tegak — di atas
+/// ini benda tak pernah tampil lebih besar dari ±⅓ ukuran CSS-nya.
+const JAUH: f32 = 1500.0;
+
+/// Benda tegak yang selama tampak SELALU ≥ `JAUH` dari mata → dirasterisasi
+/// setengah resolusi (`.ss-r2`: zoom ½ + scale 2, geometri sama). Bidang
+/// tanah tidak (ubin polos sudah gratis), begitu pula benda yang berputar
+/// lewat `transform` (kincir, sinar) — `scale` memindah poros putarnya.
+pub fn kasar(tabel: &[Pose], b: &Benda, off: Option<f32>) -> bool {
+    if b.datar || b.kelas.contains("ss-kincir") || b.kelas.contains("ss-sinar") {
+        return false;
+    }
+    let akhir = off.map_or(tabel.len(), |o| ((o * 10.0) as usize).min(tabel.len()));
+    let r = b.w.max(b.d) / 2.0;
+    tabel[..akhir].iter().all(|k| dalam(k, b.x, b.z) - r >= JAUH)
+}
+
+/// Penanda teks papan di HTML dunia yang disimpan (diganti per request).
+#[cfg(feature = "ssr")]
+const TEKS: [&str; 2] = ["\u{1}nama\u{1}", "\u{1}salam\u{1}"];
+
+/// HTML isi `.ss__dunia` satu dunia: dirakit sekali per proses (jalur,
+/// tabel pose 0,1 %, `--off` & resolusi tiap benda), lalu tiap request hanya
+/// mengganti penanda nama mempelai & salam (ter-escape).
+#[cfg(feature = "ssr")]
+pub fn isi(slug: &str, pasangan: &str, salam: &str) -> String {
+    use std::sync::OnceLock;
+    static ISI: [OnceLock<String>; DUNIA.len()] = [const { OnceLock::new() }; DUNIA.len()];
+    let Some(i) = DUNIA.iter().position(|d| d.slug == slug) else {
+        return String::new();
+    };
+    let html = ISI[i].get_or_init(|| rakit(&DUNIA[i]));
+    let e = super::fmt::html_escape;
+    html.replace(TEKS[0], &e(pasangan)).replace(TEKS[1], &e(salam))
+}
+
+#[cfg(feature = "ssr")]
+fn rakit(d: &Dunia) -> String {
+    let j = d.jalur();
+    let t = tabel(d, &j);
+    let mut s = String::new();
+    for b in d.benda(&j) {
+        let o = off(&t, &b);
+        let tanda = |ya: bool, k: &'static str| if ya { k } else { "" };
+        s.push_str(&format!(
+            "<div class=\"ss-b {}{}{}\" style=\"{}\">",
+            b.kelas,
+            tanda(o.is_some(), " ss-o"),
+            tanda(kasar(&t, &b, o), " ss-r2"),
+            gaya(&b, o)
+        ));
+        for _ in 0..b.anak {
+            s.push_str("<i></i>");
+        }
+        if b.teks > 0 {
+            s.push_str(TEKS[b.teks as usize - 1]);
+        }
+        s.push_str("</div>");
+    }
+    s
+}
+
 // ───────────────────────────── perakit dunia ─────────────────────────────
 
 /// Acak tetap (tanpa crate rand; sama di server & WASM).
@@ -528,10 +600,14 @@ fn sawah(j: &Jalur) -> Vec<Benda> {
 
 fn pesisir(j: &Jalur) -> Vec<Benda> {
     let mut out = Vec::new();
-    // Dua daratan pasir (bidang polos) di atas laut (latar), pulau karang mercusuar.
+    // Dua daratan pasir (bidang polos persegi — ubin warna tunggal tak butuh
+    // tekstur GPU) di atas laut (latar), pulau karang mercusuar = dua bujur
+    // sangkar bersilang 45° (segi delapan).
     out.push(datar("ss-datar ss-pasir", 0.0, -1250.0, 3800.0, 3000.0).y(3.0));
     out.push(datar("ss-datar ss-pasir", 0.0, -6300.0, 3400.0, 3200.0).y(3.0));
-    out.push(datar("ss-datar ss-pasir ss-pasir--karang", -1250.0, -4500.0, 760.0, 640.0).y(3.0));
+    for ry in [0.0, 45.0] {
+        out.push(datar("ss-datar ss-pasir ss-pasir--karang", -1250.0, -4500.0, 620.0, 620.0).y(3.0).ry(ry));
+    }
     for (z, w) in [(-2750.0, 3800.0), (-4700.0, 3400.0)] {
         out.push(datar("ss-datar ss-buih", 0.0, z, w, 50.0).y(2.0));
     }
@@ -724,5 +800,22 @@ mod tests {
         for d in DUNIA {
             assert!(super::super::panggung::lapisan(d.insan).is_some());
         }
+    }
+
+    #[cfg(feature = "ssr")]
+    #[test]
+    fn isi_dunia_tersimpan_dan_teks_ter_escape() {
+        for d in DUNIA {
+            let h = isi(d.slug, "Ana <b> & \"Budi\"", "Halo");
+            assert!(!h.contains('\u{1}') && !h.contains("<b>"), "{}", d.slug);
+            assert!(h.contains("Halo"), "{}", d.slug);
+            assert_eq!(h.matches("<div").count(), h.matches("</div>").count());
+            // Kedua kalinya dari simpanan, nama berbeda.
+            assert!(isi(d.slug, "Citra", "Halo").len() < h.len() || d.slug != "sawah");
+        }
+        assert!(isi("sawah", "Ana <b>", "").contains("Ana &lt;b&gt;"));
+        // Desa: ada benda yang tak pernah didekati → setengah resolusi.
+        assert!(isi("sawah", "", "").contains("ss-r2"));
+        assert!(isi("kebun", "", "").is_empty());
     }
 }

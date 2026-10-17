@@ -680,16 +680,20 @@ fn Susur3d() -> impl IntoView {
     let Some(dunia) = crate::web::susur::dunia(&c.page.skin.susur) else {
         return ().into_any();
     };
-    let jalur = dunia.jalur();
-    let tabel = crate::web::susur::tabel(dunia, &jalur);
-    let benda = dunia.benda(&jalur);
     let kisah = kisah_dua(&inv, l);
     let (b, g) = (inv.bride_first(), inv.groom_first());
     let pasangan = format!("{b}{}", if g.is_empty() { String::new() } else { format!(" & {g}") });
+    #[cfg(feature = "ssr")]
     let salam = match dunia.slug {
         "sawah" => tx!(l, "Sugeng Rawuh", "Welcome"),
         _ => tx!(l, "Selamat Datang", "Welcome"),
     };
+    // Isi dunia (±100–140 bidang 3D) = HTML server yang disimpan susur.rs;
+    // `inner_html` tak disentuh saat hydrate → perakit dunia tak masuk WASM.
+    #[cfg(feature = "ssr")]
+    let isi = crate::web::susur::isi(dunia.slug, &pasangan, salam);
+    #[cfg(not(feature = "ssr"))]
+    let isi = String::new();
     let label = move |i: usize| {
         let (id, en) = dunia.singgah[i];
         view! { <span class="ss__label"><b>{format!("{:02}", i + 1)}</b>{tx!(l, id, en)}</span> }
@@ -704,23 +708,7 @@ fn Susur3d() -> impl IntoView {
                 <i class="ss__latar" aria-hidden="true"></i>
                 <i class="ss__tanah" aria-hidden="true"></i>
                 <div class="ss__mata" aria-hidden="true">
-                    <div class="ss__dunia">
-                        {benda.into_iter().map(|bd| {
-                            let o = crate::web::susur::off(&tabel, &bd);
-                            let kelas = format!("ss-b {}{}", bd.kelas, if o.is_some() { " ss-o" } else { "" });
-                            let teks = match bd.teks {
-                                1 => pasangan.clone(),
-                                2 => salam.to_string(),
-                                _ => String::new(),
-                            };
-                            view! {
-                                <div class=kelas style=crate::web::susur::gaya(&bd, o)>
-                                    {(0..bd.anak).map(|_| view! { <i></i> }).collect_view()}
-                                    {teks}
-                                </div>
-                            }
-                        }).collect_view()}
-                    </div>
+                    <div class="ss__dunia" inner_html=isi></div>
                 </div>
                 <i class="ss__kabut" aria-hidden="true"></i>
                 <i class="ss__vinyet" aria-hidden="true"></i>

@@ -23,8 +23,9 @@
 .ss__surya { left: var(--ss-surya-x, 66%); top: calc(var(--hz) * var(--ss-surya-y, .34)); width: min(30vmin, 200px); aspect-ratio: 1; margin-left: max(-15vmin, -100px); display: block; border-radius: 50%;
   background: var(--ss-surya); }
 .ss__awan { left: -10%; right: -10%; top: 6%; height: 26%; display: block; pointer-events: none; opacity: .9;
-  background: radial-gradient(60px 22px at 12% 40%, #fff, transparent), radial-gradient(90px 28px at 18% 46%, #fff, transparent), radial-gradient(70px 20px at 58% 30%, #fff, transparent),
-    radial-gradient(110px 30px at 66% 36%, #fff, transparent), radial-gradient(80px 22px at 88% 60%, #fff, transparent);
+  --c: var(--ss-awan, #fff);
+  background: radial-gradient(60px 22px at 12% 40%, var(--c), transparent), radial-gradient(90px 28px at 18% 46%, var(--c), transparent), radial-gradient(70px 20px at 58% 30%, var(--c), transparent),
+    radial-gradient(110px 30px at 66% 36%, var(--c), transparent), radial-gradient(80px 22px at 88% 60%, var(--c), transparent);
   animation: ss-awan 70s linear infinite alternate; }
 @keyframes ss-awan { to { translate: 8% 0; } }
 /* Cakrawala panorama (bergeser saat kamera menoleh: keyframes ss-latar). */
@@ -37,16 +38,33 @@
 .ss__mata { left: 50%; top: var(--dasar); width: 0; height: 0; transform-style: preserve-3d; transform: translateZ(var(--pp)); }
 .ss__dunia { position: absolute; transform-style: preserve-3d; will-change: transform; }
 .ss__dunia * { position: absolute; display: block; }
+/* RESOLUSI (memori GPU): di bawah perspektif tiap bidang dirasterisasi pada
+   ukuran CSS-nya × DPR, berapa pun jauhnya. Layar rapat (HP) → seluruh dunia
+   digambar setengah ukuran (zoom ½ ikut mengecilkan translate & keyframes)
+   lalu diperbesar 2× di mata: geometri sama persis, tekstur ¼ (diukur:
+   tile GPU pesisir 223 → ±90 MB). Bedanya tak terlihat — benda hampir
+   selalu tampil lebih kecil dari ukuran CSS-nya. */
+@media (min-resolution: 1.5dppx) {
+  .ss__mata { transform: translateZ(var(--pp)) scale3d(2, 2, 2); }
+  .ss__dunia { zoom: .5; }
+}
 
 /* ── Primitif ── */
 .ss-b { left: 0; top: 0; transform-style: preserve-3d; translate: var(--x) var(--y, 0px) var(--z); rotate: y var(--ry, 0deg); }
+/* Benda yang tak pernah didekati kamera (susur.rs `kasar`): setengah
+   resolusi lagi. Papan diskalakan dari kakinya. */
+.ss-r2 { zoom: .5; scale: 2; translate: calc(var(--x) * 2) calc(var(--y, 0px) * 2) calc(var(--z) * 2); }
+.ss-papan.ss-r2 { transform-origin: 50% 100%; }
 /* Papan tegak: kaki di titik benda. */
 .ss-papan { width: var(--w); height: var(--h); margin: calc(var(--h) * -1) 0 0 calc(var(--w) / -2); transform-style: flat;
   background: var(--img) 50% 100% / 100% 100% no-repeat; }
-/* Bidang rebah (tanah). */
+/* Bidang rebah (tanah). Sebisa mungkin WARNA POLOS tanpa border-radius/
+   gradien: ubin warna tunggal digambar GPU tanpa tekstur (gratis), sudut
+   bulat/gradien = tekstur penuh selebar bidang (pasir 3800 px ±20 MB). */
 .ss-datar { width: var(--w); height: var(--d); margin: calc(var(--d) / -2) 0 0 calc(var(--w) / -2); transform-style: flat; transform: rotateX(90deg); background: var(--c, #8a7a5a); }
-/* Ruas jalan berujung bulat → sambungan antar-ruas di tikungan tak bergerigi. */
-.ss-jalan, .ss-papan-jalan, .ss-dermaga, .ss-karpet { border-radius: 50% / 9%; }
+/* Ruas jalan BERTEKSTUR (papan, dermaga, karpet) berujung bulat → sambungan
+   di tikungan tak bergerigi; jalan polos (sawah) tetap persegi. */
+.ss-papan-jalan, .ss-dermaga, .ss-karpet { border-radius: 50% / 9%; }
 /* Kotak dinding: depan, belakang, kiri, kanan (+ tutup). Sisi belakang tak digambar. */
 .ss-kotak > i { left: 0; top: 0; height: var(--h); margin-top: calc(var(--h) * -1); backface-visibility: hidden; -webkit-backface-visibility: hidden; background: var(--dinding, #c9a77a); }
 .ss-kotak > :nth-child(-n+2) { width: var(--w); margin-left: calc(var(--w) / -2); }
@@ -100,8 +118,9 @@
 .ss-papan-nama { display: grid !important; place-items: center; padding: 0 10px; overflow: hidden; text-align: center; white-space: nowrap; background: none;
   font: 500 34px/1 var(--font-script, var(--font-display, cursive)); color: #5a3a1e; }
 .ss-lampu { border-radius: 42% 42% 46% 46%; background: radial-gradient(circle at 50% 40%, #fff6d0, #f2a33a 72%);
-  box-shadow: 0 0 40px 14px rgba(255, 196, 96, .55); animation: ss-kelip 3.4s ease-in-out infinite alternate; }
-@keyframes ss-kelip { to { box-shadow: 0 0 56px 20px rgba(255, 196, 96, .7); } }
+  box-shadow: 0 0 46px 16px rgba(255, 196, 96, .6); animation: ss-kelip 3.4s ease-in-out infinite alternate; }
+/* Berkelip lewat opacity (compositor) — box-shadow beranimasi = gambar ulang tiap frame. */
+@keyframes ss-kelip { to { opacity: .78; } }
 
 /* ── Gerak (scroll-driven) ── */
 @keyframes ss-hilang { to { visibility: hidden; } }
