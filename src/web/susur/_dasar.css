@@ -35,6 +35,12 @@
   background: linear-gradient(transparent, var(--ss-kabut, rgba(255, 255, 255, .4)) 50%, transparent); }
 .ss__vinyet { inset: 0; display: block; pointer-events: none; z-index: 1; background: radial-gradient(ellipse at 50% 42%, transparent 58%, rgba(10, 20, 10, .28)); }
 
+/* Perender WebGL2 (crate susur-gl/): satu kanvas menggantikan dunia CSS
+   3D — muncul halus setelah atlas gambarnya siap. Bila WebGL2/WASM gagal,
+   kanvas disembunyikan & dunia CSS dari <template class="ss__cadangan"> dipasang. */
+.ss__gl { inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; opacity: 0; transition: opacity .5s ease; }
+.ss__gl.is-siap { opacity: 1; }
+.ss__gl.is-gagal { display: none; }
 .ss__mata { left: 50%; top: var(--dasar); width: 0; height: 0; transform-style: preserve-3d; transform: translateZ(var(--pp)); }
 .ss__dunia { position: absolute; transform-style: preserve-3d; will-change: transform; }
 .ss__dunia * { position: absolute; display: block; }

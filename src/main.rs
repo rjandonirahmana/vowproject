@@ -211,6 +211,8 @@ async fn main() -> Result<()> {
         .route("/gaya/{file}", axum::routing::get(handlers::gaya_css))
         .route("/sitemap.xml", axum::routing::get(handlers::sitemap))
         .route("/panggung/{file}", axum::routing::get(handlers::panggung_svg))
+        .route("/susur/{file}", axum::routing::get(handlers::susur_gl))
+        .route("/susur/svg/{file}", axum::routing::get(handlers::susur_svg))
         .route("/app.js", axum::routing::get(handlers::app_js))
         // Tema templat: mesin gerak bersama + kirim RSVP (server/templat.rs).
         .route("/tata.js", axum::routing::get(undangan::server::templat::tata_js))

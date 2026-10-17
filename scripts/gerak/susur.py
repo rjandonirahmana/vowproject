@@ -406,8 +406,24 @@ def layar():
     tulis("layar", w, h, "".join(out))
 
 
+def bohlam():
+    """Untaian bohlam melintang di atas lorong tamu: kabel melengkung
+    (Bezier kuadrat) + bohlam berpendar di sepanjang lengkungnya."""
+    w, h = 1280, 120
+    defs = ('<radialGradient id="g"><stop offset=".2" stop-color="#fff6c8"/>'
+            '<stop offset=".45" stop-color="#ffd27a" stop-opacity=".75"/>'
+            '<stop offset="1" stop-color="#ffb84a" stop-opacity="0"/></radialGradient>')
+    out = ['<path d="M0 10Q640 150 1280 10" fill="none" stroke="#3a2f2a" stroke-width="2"/><g fill="url(#g)">']
+    for x in range(40, w, 80):
+        t = x / w
+        y = (1 - t) ** 2 * 10 + 2 * t * (1 - t) * 150 + t * t * 10
+        out.append(f'<circle cx="{x}" cy="{f(y)}" r="18"/>')
+    out.append("</g>")
+    tulis("bohlam", w, h, "".join(out), defs)
+
+
 if __name__ == "__main__":
     kelapa(); pisang(); bambu(); padi(); padi(True); orang_orangan(); penjor()
     gapura_sawah(); gebyok(); kincir(); layangan(); gunung()
-    perahu(); gapura_pesisir(); kursi(); pandan(); layar()
+    perahu(); gapura_pesisir(); kursi(); pandan(); layar(); bohlam()
     print("ok", sorted(os.listdir(OUT)))

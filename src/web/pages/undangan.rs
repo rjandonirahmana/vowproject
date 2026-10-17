@@ -683,17 +683,20 @@ fn Susur3d() -> impl IntoView {
     let kisah = kisah_dua(&inv, l);
     let (b, g) = (inv.bride_first(), inv.groom_first());
     let pasangan = format!("{b}{}", if g.is_empty() { String::new() } else { format!(" & {g}") });
-    #[cfg(feature = "ssr")]
     let salam = match dunia.slug {
         "sawah" => tx!(l, "Sugeng Rawuh", "Welcome"),
         _ => tx!(l, "Selamat Datang", "Welcome"),
     };
-    // Isi dunia (±100–140 bidang 3D) = HTML server yang disimpan susur.rs;
-    // `inner_html` tak disentuh saat hydrate → perakit dunia tak masuk WASM.
+    // Dunia digambar WebGL2 (crate susur-gl/, /susur/gl.js — WASM kecil
+    // terpisah, tak menunggu hydrate). Dunia CSS 3D (±100–140 bidang, HTML
+    // server yang disimpan susur.rs) hanya CADANGAN di <template> (inert:
+    // tak dirender) — dipasang bila WebGL2/WASM gagal. `inner_html` tak
+    // disentuh saat hydrate → perakit dunia tak masuk WASM Leptos.
     #[cfg(feature = "ssr")]
-    let isi = crate::web::susur::isi(dunia.slug, &pasangan, salam);
+    let (isi, versi) = (crate::web::susur::isi(dunia.slug, &pasangan, salam), crate::web::susur::gl_versi().to_string());
     #[cfg(not(feature = "ssr"))]
-    let isi = String::new();
+    let (isi, versi) = (String::new(), String::new());
+    let nonce = leptos::nonce::use_nonce();
     let label = move |i: usize| {
         let (id, en) = dunia.singgah[i];
         view! { <span class="ss__label"><b>{format!("{:02}", i + 1)}</b>{tx!(l, id, en)}</span> }
@@ -708,8 +711,11 @@ fn Susur3d() -> impl IntoView {
                 <i class="ss__latar" aria-hidden="true"></i>
                 <i class="ss__tanah" aria-hidden="true"></i>
                 <div class="ss__mata" aria-hidden="true">
-                    <div class="ss__dunia" inner_html=isi></div>
+                    <div class="ss__dunia"></div>
                 </div>
+                <canvas class="ss__gl" aria-hidden="true" data-dunia=dunia.slug data-nama=pasangan.clone() data-salam=salam
+                    data-insan=format!("/panggung/{}.svg", dunia.insan) data-v=versi.clone()></canvas>
+                <template class="ss__cadangan" inner_html=isi></template>
                 <i class="ss__kabut" aria-hidden="true"></i>
                 <i class="ss__vinyet" aria-hidden="true"></i>
                 <span class="ss__jejak" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></span>
@@ -755,6 +761,7 @@ fn Susur3d() -> impl IntoView {
                 </div>
                 <p class="ss__gulir" aria-hidden="true">{tx!(l, "Gulir untuk berjalan", "Scroll to walk")}</p>
             </div>
+            <script type="module" nonce=nonce src=format!("/susur/gl.js?v={versi}")></script>
         </section>
     }
     .into_any()

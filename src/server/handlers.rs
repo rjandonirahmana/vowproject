@@ -921,6 +921,25 @@ pub async fn app_js() -> Response {
         .into_response()
 }
 
+/// GET /susur/gl.js, /susur/gl.wasm, /susur/svg/{nama}.svg — perender
+/// WebGL2 tema susur 3D & gambar atlasnya (web/susur.rs). Selalu diminta
+/// ber-`?v=` hash isi → boleh disimpan browser selamanya.
+pub async fn susur_gl(Path(file): Path<String>) -> Response {
+    const ABADI: &str = "public, max-age=31536000, immutable";
+    match file.as_str() {
+        "gl.js" => ([(header::CONTENT_TYPE, "text/javascript; charset=utf-8"), (header::CACHE_CONTROL, ABADI)], crate::web::susur::gl_js()).into_response(),
+        "gl.wasm" => ([(header::CONTENT_TYPE, "application/wasm"), (header::CACHE_CONTROL, ABADI)], crate::web::susur::GL_WASM).into_response(),
+        _ => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+pub async fn susur_svg(Path(file): Path<String>) -> Response {
+    match file.strip_suffix(".svg").and_then(crate::web::susur::svg_aset) {
+        Some(svg) => ([(header::CONTENT_TYPE, "image/svg+xml"), (header::CACHE_CONTROL, "public, max-age=31536000, immutable")], svg).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 /// Nilai cookie dari header `Cookie`.
 pub fn cookie_value<'a>(headers: &'a axum::http::HeaderMap, name: &str) -> Option<&'a str> {
     headers
