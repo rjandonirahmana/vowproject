@@ -21,6 +21,44 @@ pub const OG_IMAGE: &str = "/img/og-ilyvowcraft.jpg";
 /// Induk usaha (tampil di header & data Organization).
 pub const PARENT_ORG: &str = "Tresno Mulyo Group";
 
+/// Batas yang ditampilkan Google sebelum dipotong (± 600 px / ± 920 px).
+pub const TITLE_MAX: usize = 60;
+pub const DESC_MAX: usize = 160;
+
+/// Calon judul pertama yang muat ≤ TITLE_MAX; semua kepanjangan → yang terakhir.
+pub fn judul_pas(calon: &[String]) -> String {
+    calon.iter().find(|c| c.chars().count() <= TITLE_MAX).or(calon.last()).cloned().unwrap_or_default()
+}
+
+/// Judul kepanjangan → akhiran " | merek" / " — merek" dibuang (Google
+/// menampilkan nama situs sendiri di atas judul; kata kunci jangan terpotong).
+pub fn rapikan_judul(t: &str) -> String {
+    let t = t.trim();
+    if t.chars().count() > TITLE_MAX {
+        for sep in [" | ", " — ", " – ", " - "] {
+            if let Some(s) = t.strip_suffix(crate::brand!()).and_then(|s| s.strip_suffix(sep)) {
+                return s.trim_end().to_string();
+            }
+        }
+    }
+    t.to_string()
+}
+
+/// Ringkasan ≤ `max` karakter: spasi dirapikan, dipotong di batas kata + "…"
+/// (Google memotong sendiri di tengah kata bila kepanjangan).
+pub fn ringkas(s: &str, max: usize) -> String {
+    let s = s.split_whitespace().collect::<Vec<_>>().join(" ");
+    if s.chars().count() <= max {
+        return s;
+    }
+    let cut: String = s.chars().take(max.saturating_sub(1)).collect();
+    let cut = match cut.rfind(' ') {
+        Some(i) if i > cut.len() / 2 => &cut[..i],
+        _ => cut.as_str(),
+    };
+    format!("{}…", cut.trim_end_matches(|c: char| matches!(c, ',' | ';' | ':' | '-' | '—' | '–' | '(') || c.is_whitespace()))
+}
+
 pub fn abs(path: &str) -> String {
     if path.starts_with("http://") || path.starts_with("https://") { path.to_string() } else { format!("{SITE_URL}{path}") }
 }
@@ -37,6 +75,8 @@ pub fn Seo(
     /// og:type — "website" (bawaan) atau "article".
     #[prop(optional)] kind: Option<&'static str>,
 ) -> impl IntoView {
+    let title = rapikan_judul(&title);
+    let description = ringkas(&description, DESC_MAX);
     let url = abs(&path);
     let img = abs(image.as_deref().filter(|s| !s.is_empty()).unwrap_or(OG_IMAGE));
     view! {
@@ -147,6 +187,13 @@ mod tests {
         assert!(service(&[]).get("offers").is_none());
         let f = faq(&[("Apa itu?", "Jawab".into())]);
         assert_eq!(f["mainEntity"][0]["acceptedAnswer"]["text"], "Jawab");
+        assert!(rapikan_judul(&format!("Tema Undangan Online Lancang Kuning Kepri — Demo | {}", crate::brand!())).ends_with("Demo"));
+        assert_eq!(rapikan_judul("Pendek | x"), "Pendek | x");
+        let d = ringkas(&"kata ".repeat(60), DESC_MAX);
+        assert!(d.chars().count() <= DESC_MAX && d.ends_with("kata…"), "{d}");
+        assert_eq!(ringkas("  a   b ", 160), "a b");
+        assert_eq!(judul_pas(&["x".repeat(70), "pendek".into()]), "pendek");
+        assert_eq!(judul_pas(&["x".repeat(70)]), "x".repeat(70));
         assert_eq!(breadcrumb(&[("Beranda", "/"), ("Tema", "/tema/x")])["itemListElement"][1]["position"], 2);
     }
 }

@@ -2,9 +2,8 @@
    (dua lapis warna) memancar dari tengah layar, bernapas pelan. DIBUKA:
    kelopak mekar rebah ke arah tamu (rotateX dari pangkal) & membesar lalu
    lepas — lapis luar dulu — cahaya putik merekah, isi undangan muncul.
-   DITUTUP: kelopak menguncup kembali dari luar ke tengah membentuk bunga,
-   lalu sampul. Kelopak = --primary → --gold-light; putik = --gold. */
-{a} { --gate-reveal: 1500; --gate-close: 1700; }
+   Ditutup = gerak ini diputar mundur. Kelopak = --primary → --gold-light; putik = --gold. */
+{a} { --gate-reveal: 1500; }
 {a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--gold-pale, #ffdea5) 55%, var(--bg)), var(--bg) 62%, color-mix(in srgb, var(--primary) 18%, var(--bg))); }
 {a} .gate__panel { display: none; }
@@ -35,17 +34,7 @@
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { transform: perspective(1200px) rotateX(68deg) scale(1.7); opacity: 0;
   transition: transform 1.4s cubic-bezier(.45, 0, .2, 1) calc(.25s + var(--t)), opacity .7s ease calc(.85s + var(--t)); }
 .inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { transform: scale(9); opacity: 0; transition: transform 1.5s ease .5s, opacity .8s ease 1.1s; }
-/* ── Ditutup: menguncup ── */
-@media (prefers-reduced-motion: no-preference) {
-  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: tr-redup .4s ease .35s both !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; animation: none; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: tr-kuncup .9s cubic-bezier(.3, .6, .25, 1) calc(140ms - var(--t)) both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::after { transition: none; animation: tr-putik .5s ease .8s both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1s !important; }
-}
+
 @keyframes tr-napas { to { transform: scale(1.04) rotate(4deg); } }
-@keyframes tr-kuncup { from { transform: perspective(1200px) rotateX(68deg) scale(1.7); opacity: 0; } 40% { opacity: 1; } to { transform: none; opacity: 1; } }
-@keyframes tr-putik { from { transform: scale(0); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes tr-redup { from { opacity: 0; } to { opacity: 1; } }
 @keyframes tr-mekar { from { opacity: 0; transform: scale(.85); } }
 @keyframes tr-naik { from { opacity: 0; transform: translateY(24px); } }

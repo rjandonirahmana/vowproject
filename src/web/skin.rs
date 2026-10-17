@@ -94,6 +94,30 @@ pub struct ThemeInfo {
 
 pub const DEFAULT_THEME: &str = "botanical-heritage";
 
+/// Tema serupa untuk tautan internal halaman demo /tema/{slug}: jenis acara
+/// sama, lalu nuansa sama (paling kuat), kategori sama, warna sama. Seri
+/// diurutkan hash pasangan slug — bukan urutan katalog — agar tiap tema
+/// mendapat tautan masuk dari tetangga yang berbeda-beda (bukan 6 tema teratas
+/// terus). Hanya tema yang tampil di katalog.
+pub fn serupa<'a>(list: &'a [ThemeInfo], t: &ThemeInfo, n: usize) -> Vec<&'a ThemeInfo> {
+    let acak = |o: &str| {
+        // FNV-1a: stabil antar-build & antar-platform (bukan RandomState).
+        t.slug.bytes().chain([0]).chain(o.bytes()).fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ b as u64).wrapping_mul(0x100_0000_01b3))
+    };
+    let mut v: Vec<(u8, u64, &ThemeInfo)> = list
+        .iter()
+        .filter(|o| o.listed && o.slug != t.slug && o.acara() == t.acara())
+        .map(|o| {
+            let skor = 4 * u8::from(!o.nuansa.is_empty() && fmt::key(&o.nuansa) == fmt::key(&t.nuansa))
+                + 2 * u8::from(o.category_key() == t.category_key())
+                + u8::from(!o.palette.is_empty() && o.palette == t.palette);
+            (skor, acak(&o.slug), o)
+        })
+        .collect();
+    v.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    v.into_iter().take(n).map(|x| x.2).collect()
+}
+
 impl ThemeInfo {
     /// Tema cadangan bila tabel `themes` belum dimigrasi — tampilan bawaan
     /// `:root` di main.css.
@@ -590,6 +614,23 @@ pub fn from_form(get: impl Fn(&str) -> String) -> Result<ThemeInfo, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tema_serupa() {
+        let t = |slug: &str, cat: &str, nuansa: &str, listed: bool| ThemeInfo { slug: slug.into(), category: cat.into(), nuansa: nuansa.into(), listed, ..Default::default() };
+        let list = vec![
+            t("a", "Adat", "Jawa", true),
+            t("b", "Adat", "Bali", true),
+            t("c", "Modern", "Jawa", true),
+            t("d", "Adat", "Jawa", false),
+            t("e", "Ulang Tahun", "Jawa", true),
+            t("f", "Modern", "Bali", true),
+        ];
+        let got: Vec<&str> = serupa(&list, &list[0], 3).iter().map(|x| x.slug.as_str()).collect();
+        // c (nuansa sama) > b (kategori sama) > f; privat (d), diri sendiri & ulang tahun (e) tak ikut.
+        assert_eq!(got, ["c", "b", "f"]);
+        assert_eq!(serupa(&list, &list[0], 9).len(), 3);
+    }
 
     #[test]
     fn warna_dan_url_disaring() {

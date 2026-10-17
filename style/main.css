@@ -2011,9 +2011,10 @@ select.input {
     display: flex;
     gap: 8px;
 }
-/* Layar sempit (header 1 baris butuh ±1350px: 7 menu + 2 tombol): nav turun
- * ke baris kedua & bisa digeser horizontal. */
-@media (max-width: 1359px) {
+/* Layar sempit (header 1 baris butuh ±1415px: 8 menu + 2 tombol — dulu
+ * batasnya 1359px untuk 7 menu, sehingga laptop 1366px meluber ±48px ke
+ * samping): nav turun ke baris kedua & bisa digeser horizontal. */
+@media (max-width: 1439px) {
     .site-top {
         flex-wrap: wrap;
         row-gap: 4px;
@@ -2246,8 +2247,8 @@ select.input {
         scrollbar-width: thin;
     }
 }
-/* Header situs 2 baris di ≤1359px (±98px) → panel turun agar tak tertutup. */
-@media (min-width: 960px) and (max-width: 1359px) {
+/* Header situs 2 baris di ≤1439px (±98px) → panel turun agar tak tertutup. */
+@media (min-width: 960px) and (max-width: 1439px) {
     .k-filter {
         top: 112px;
         max-height: calc(100vh - 128px);
@@ -2887,7 +2888,125 @@ html.is-pv .gate:not(.gate--embed) {
     color: var(--gold-deep);
 }
 
+.empty-page__links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 18px;
+}
+.empty-page__links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--primary);
+    font-weight: 600;
+}
+
 /* ── Demo tema ────────────────────────────────────────────────────────── */
+/* Judul halaman (h1 = nama tema) + jejak lokasi di atas demo. */
+.tema-head {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 18px 20px 0;
+}
+.tema-crumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.tema-crumb a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    color: var(--primary);
+    font-weight: 600;
+}
+.tema-crumb .ms {
+    font-size: 17px;
+}
+.tema-head h1 {
+    margin: 6px 0 0;
+    font-size: clamp(24px, 4.2vw, 36px);
+}
+.tema-head__lead {
+    max-width: 70ch;
+    margin: 8px 0 0;
+    color: var(--ink-2);
+    line-height: 1.6;
+}
+.tema-head__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+}
+/* Tema serupa: tautan internal di bawah demo. */
+.tema-serupa {
+    max-width: 1240px;
+    margin: 40px auto 0;
+    padding: 0 20px;
+}
+.tema-serupa > h2 {
+    margin: 0 0 16px;
+    font-size: clamp(22px, 3.4vw, 28px);
+}
+/* 6 kartu → 2×3 di HP, 3×2 di layar lebar (tak ada kartu yatim). */
+.tema-serupa__list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+@media (min-width: 760px) {
+    .tema-serupa__list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.tema-serupa__item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 100%;
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: inset 0 0 0 1px var(--line);
+    transition: box-shadow .2s ease, transform .2s ease;
+}
+.tema-serupa__item:hover,
+.tema-serupa__item:focus-visible {
+    box-shadow: inset 0 0 0 1.5px var(--gold-deep);
+    transform: translateY(-2px);
+}
+.tema-serupa__item b {
+    color: var(--primary);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 500;
+}
+.tema-serupa__item small {
+    color: var(--ink-2);
+    font-size: 13px;
+}
+.tema-serupa__item .tema-serupa__asal {
+    color: var(--muted);
+}
+.tema-serupa__more {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 18px 0 0;
+}
+@media (prefers-reduced-motion: reduce) {
+    .tema-serupa__item { transition: none; }
+    .tema-serupa__item:hover, .tema-serupa__item:focus-visible { transform: none; }
+}
 .demo-bar {
     display: flex;
     flex-wrap: wrap;
@@ -4692,7 +4811,7 @@ html.is-pv .gate:not(.gate--embed) {
     text-transform: uppercase;
     color: var(--gold-c);
 }
-.lx-promo h3 {
+.lx-promo h2 {
     color: #fff;
     font-size: 20px;
 }
@@ -5007,7 +5126,8 @@ html.is-pv .gate:not(.gate--embed) {
 .lx-summary__cargo {
     text-align: right;
     font-size: 12px;
-    color: var(--gold-c);
+    /* Emas dicerahkan: --gold-c murni di hijau tua = 4,3:1 (< 4,5:1 WCAG AA). */
+    color: color-mix(in srgb, var(--gold-c) 80%, #fff);
 }
 .lx-summary__bonus {
     display: flex;
@@ -7148,140 +7268,29 @@ html:not(.inv-opened) body:has(.gate:not(.gate--embed)) {
     opacity: 0;
     transform: scale(0.96);
 }
-/* ── Tutup undangan (global.js closeInv): GERBANG MENUTUP ──────────────────
- * Bukan gerak buka diputar mundur — gerak buka bertahap (sampul pudar →
- * adegan → menembus pintu) terasa "terbalik" bila dimundurkan. Saat menutup:
- * adegan buka disembunyikan; dua panel gerbang (warna & ilustrasi TEMA itu)
- * bergeser merapat dari kiri-kanan seperti pintu; lalu isi sampul muncul.
- * Variasi per cara buka: layar-naik → layar turun dari atas; galaksi →
- * portal menyusut ke tengah. Lama total ±1,4 dtk (--gate-close). */
-@media (prefers-reduced-motion: no-preference) {
-    .inv-closing .gate:not(.gate--embed) {
-        visibility: visible !important;
-        opacity: 1 !important;
-        transform: none !important;
-        translate: none !important;
-        scale: none !important;
-        rotate: none !important;
-        filter: none !important;
-        clip-path: none !important;
-        -webkit-mask: none !important;
-        mask: none !important;
-        transition: none !important;
-        animation: none !important;
-        pointer-events: none;
-    }
-    .inv-closing .gate:not(.gate--embed)::before,
-    .inv-closing .gate:not(.gate--embed)::after,
-    .inv-closing .gate:not(.gate--embed) > :not(.gate__panel):not(.gate__content) {
-        visibility: hidden !important;
-    }
-    /* opacity:1 ada di keyframes (bukan !important) agar gate-tutup-pudar
-     * bisa memudarkannya — deklarasi !important mengalahkan animasi. */
-    .inv-closing .gate:not(.gate--embed) > .gate__panel {
-        visibility: visible !important;
-        filter: none !important;
-        clip-path: none !important;
-        transition: none !important;
-        animation: gate-tutup-kiri 0.85s cubic-bezier(0.7, 0, 0.25, 1) both !important;
-    }
-    .inv-closing .gate:not(.gate--embed) > .gate__panel--r {
-        animation-name: gate-tutup-kanan !important;
-    }
-    .inv-closing .gate--layar-naik:not(.gate--embed) > .gate__panel {
-        animation-name: gate-tutup-turun !important;
-    }
-    .inv-closing .gate--galaksi:not(.gate--embed) > .gate__panel {
-        animation-name: gate-tutup-portal !important;
-        animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1) !important;
-    }
-    .inv-closing .gate:not(.gate--embed) > .gate__content {
-        visibility: visible !important;
-        transition: none !important;
-        animation: gate-tutup-isi 0.6s ease 0.75s both !important;
-    }
-    /* Sampul tema ini tak memperlihatkan panel (gebyok, candi bentar):
-     * setelah merapat, panel memudar bersamaan isi sampul muncul — tanpa
-     * lompatan saat .inv-closing dicabut. (global.js: data-tutup-pudar) */
-    .inv-closing .gate[data-tutup-pudar]:not(.gate--embed) > .gate__panel {
-        animation-name: gate-tutup-kiri, gate-tutup-pudar !important;
-        animation-duration: 0.85s, 0.45s !important;
-        animation-delay: 0s, 0.9s !important;
-        animation-timing-function: cubic-bezier(0.7, 0, 0.25, 1), ease !important;
-        animation-fill-mode: both, forwards !important;
-    }
-    .inv-closing .gate[data-tutup-pudar]:not(.gate--embed) > .gate__panel--r {
-        animation-name: gate-tutup-kanan, gate-tutup-pudar !important;
-    }
-    /* Latar sampul (::before) dipasang lagi tepat saat pintu rapat, di
-     * belakang panel — isi undangan di bawahnya tak tembus saat panel pudar. */
-    .inv-closing .gate[data-tutup-pudar]:not(.gate--embed)::before {
-        visibility: visible !important;
-        transform: none !important;
-        transition: none !important;
-        animation: gate-tutup-latar 0.05s linear 0.8s both !important;
-    }
-    /* Gerbang tanpa panel pintu — panelnya display:none, jadi adegannya
-     * sendiri yang menutup. Tenun songket: 12 helai ditenun kembali
-     * bergantian dari kiri-kanan. */
-    .inv-closing .gate.gate--tenun-songket:not(.gate--embed) > .gate__fx.gate__fx {
-        visibility: visible !important;
-    }
-    .inv-closing .gate.gate--tenun-songket:not(.gate--embed) > .gate__fx i {
-        transition: none !important;
-        animation: gate-tutup-helai 0.7s cubic-bezier(0.2, 0.7, 0.3, 1) var(--d, 0ms) both;
-    }
-    .inv-closing .gate.gate--tenun-songket:not(.gate--embed) > .gate__fx i:nth-child(even) {
-        animation-name: gate-tutup-helai-r;
-    }
-    /* Video pintu: video latar sampul menyala lagi, sampul turun dari atas. */
-    .inv-closing .gate.gate--video-pintu:not(.gate--embed) > .gate__bg.gate__bg {
-        visibility: visible !important;
-        animation: gate-tutup-redup 0.6s ease both;
-    }
-    .inv-closing .gate.gate--video-pintu:not(.gate--embed) > .gate__content {
-        animation: gate-tutup-turun 0.75s cubic-bezier(0.2, 0.8, 0.3, 1) 0.3s both !important;
-    }
-    /* Pagelaran wayang: panggung meredup kembali & gunungan ditancapkan
-     * di tengah (tancep kayon — tanda pagelaran usai) lalu memudar bersama
-     * sampul muncul; tokoh disembunyikan. */
-    .inv-closing .gate.gate--pagelaran-wayang:not(.gate--embed) > .gate__panel {
-        visibility: hidden !important;
-    }
-    .inv-closing .gate.gate--pagelaran-wayang:not(.gate--embed)::before {
-        visibility: visible !important;
-        animation: gate-tutup-redup 0.5s ease both !important;
-    }
-    .inv-closing .gate.gate--pagelaran-wayang:not(.gate--embed) > .gate__orn.gate__orn {
-        visibility: visible !important;
-        animation:
-            gate-tutup-tancap 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.1) 0.1s both,
-            gate-tutup-pudar 0.4s ease 0.95s forwards;
-    }
-    /* Galaksi: panelnya bintang tembus pandang — langit (::before) ikut
-     * menyusut masuk bersama portal agar isi undangan tertutup. */
-    .inv-closing .gate.gate--galaksi:not(.gate--embed)::before {
-        visibility: visible !important;
-        transition: none !important;
-        animation: gate-tutup-portal 0.85s cubic-bezier(0.2, 0.8, 0.3, 1) both !important;
-    }
+/* ── Tutup undangan (global.js closeInv → bersama.js undMundur) ─────────────
+ * Tutup = gerak BUKA tema itu diputar MUNDUR (timeline buka dibangun ulang,
+ * laju −1) — tiap cara buka otomatis punya gerak tutup yang pas, tanpa
+ * aturan tutup per gerbang. Frame terakhir mundur = sampul; keadaan
+ * tertutup lalu dipasang di bawah .gate--diam (tanpa transisi) supaya tak
+ * ada gerak/lompatan tambahan. Blok .inv-closing lama (panel merapat) di
+ * berkas gerbang tak dipakai lagi. */
+.gate--diam,
+.gate--diam *,
+.gate--diam::before,
+.gate--diam::after,
+.gate--diam *::before,
+.gate--diam *::after {
+    transition: none !important;
 }
-@keyframes gate-tutup-latar {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-@keyframes gate-tutup-pudar {
-    to {
-        opacity: 0;
-    }
+/* Selama menutup: tombol tutup tak bisa ditekan dua kali. */
+html.inv-menutup .inv-close,
+html.inv-menutup .inv-side__close {
+    pointer-events: none;
 }
 /* Sampul setelah ditutup: gerak masuk per baris (dengan jeda 1–2 dtk) tak
- * diputar ulang — sampul muncul utuh lewat gate-tutup-isi; tombol tetap
- * berdenyut. Dicabut saat dibuka lagi. */
+ * diputar ulang — sampul tampil utuh seperti saat tombol buka ditekan
+ * (frame terakhir gerak mundur); tombol tetap berdenyut. Dicabut saat dibuka lagi. */
 .gate--ulang
     .gate__content
     :is(.cover__eyebrow, .arch-photo, .hero__seal, .cover__names, .hero__date, .pill, .guest) {
@@ -7306,85 +7315,6 @@ html.is-pv
         .gate__open
     ) {
     animation: none !important;
-}
-@keyframes gate-tutup-helai {
-    from {
-        transform: translateX(-104%) skewX(-8deg);
-    }
-    to {
-        transform: none;
-    }
-}
-@keyframes gate-tutup-helai-r {
-    from {
-        transform: translateX(104%) skewX(8deg);
-    }
-    to {
-        transform: none;
-    }
-}
-@keyframes gate-tutup-redup {
-    from {
-        opacity: 0;
-    }
-}
-@keyframes gate-tutup-tancap {
-    from {
-        transform: translateY(115%);
-    }
-    to {
-        transform: none;
-    }
-}
-@keyframes gate-tutup-kiri {
-    from {
-        opacity: 1;
-        transform: translateX(-102%);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
-}
-@keyframes gate-tutup-kanan {
-    from {
-        opacity: 1;
-        transform: translateX(102%);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
-}
-@keyframes gate-tutup-turun {
-    from {
-        opacity: 1;
-        transform: translateY(-104%);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
-}
-@keyframes gate-tutup-portal {
-    from {
-        opacity: 0;
-        transform: scale(1.35);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
-}
-@keyframes gate-tutup-isi {
-    from {
-        opacity: 0;
-        transform: translateY(14px) scale(0.97);
-    }
-    to {
-        opacity: 1;
-        transform: none;
-    }
 }
 /* Tombol tutup: hanya di halaman bergerbang & setelah dibuka (bilah atas
  * sendiri baru tampil setelah dibuka). Masuk pelan setelah gerbang hilang. */
@@ -8624,25 +8554,40 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
     position: absolute;
     z-index: 3;
     right: 36px;
-    bottom: 9px;
+    bottom: 0;
     display: flex;
-    gap: 6px;
     pointer-events: none;
 }
+/* Area sentuh 24×24 (WCAG 2.5.8); titik yang terlihat digambar ::after. */
 .bn__dot {
-    width: 7px;
-    height: 7px;
+    position: relative;
+    width: 24px;
+    height: 24px;
     padding: 0;
     border: 0;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.55);
+    background: none;
     cursor: pointer;
     pointer-events: auto;
+    transition: width 0.25s;
+}
+.bn__dot::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+    transform: translate(-50%, -50%);
     transition:
         width 0.25s,
         background 0.25s;
 }
 .bn__dot.is-on {
+    width: 30px;
+}
+.bn__dot.is-on::after {
     width: 20px;
     background: #fff;
 }
@@ -8687,7 +8632,7 @@ html:not(.inv-opened) .inv--gate:has(.gate) .bottom-nav {
         left: 0;
         right: 0;
         justify-content: center;
-        bottom: 6px;
+        bottom: 0;
     }
 }
 
@@ -12700,14 +12645,14 @@ html.is-pv .mapcard iframe {
     color: var(--gold-deep);
     font-size: 17px;
 }
-.article-card h2 {
+.article-card :is(h2, h3) {
     margin: 0 0 9px;
     color: var(--primary);
     font-family: var(--font-display);
     font-size: 22px;
     line-height: 1.25;
 }
-.article-card h2 a:hover,
+.article-card :is(h2, h3) a:hover,
 .article-read:hover {
     color: var(--gold-deep);
 }
@@ -12870,6 +12815,32 @@ html.is-pv .mapcard iframe {
     flex-wrap: wrap;
     gap: 10px;
 }
+.article-related {
+    max-width: 1100px;
+    margin: 56px auto 0;
+}
+.article-related > h2 {
+    margin: 0 0 20px;
+    color: var(--primary);
+    font-family: var(--font-display);
+    font-size: clamp(24px, 4vw, 30px);
+    text-align: center;
+}
+.article-related .article-card h3 {
+    font-size: 19px;
+}
+.article-related__all {
+    margin: 22px 0 0;
+    text-align: center;
+}
+.article-related__all a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    color: var(--primary);
+    font-weight: 600;
+}
 .article-not-found {
     min-height: 48vh;
     justify-content: center;
@@ -12983,11 +12954,11 @@ html.is-pv .mapcard iframe {
 .hub3d__head h2 { margin: 8px 0 6px; }
 .hub3d__lewati { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--primary); }
 .hub3d__rel { position: relative; }
-/* Tinggi header situs yang ikut menempel (.site-top, diukur): 1 baris ≥1360px,
- * nav turun ke baris 2 ≤1359px, tombol turun ke baris 3 ≤539px. Panggung lengket
+/* Tinggi header situs yang ikut menempel (.site-top, diukur): 1 baris ≥1440px,
+ * nav turun ke baris 2 ≤1439px, tombol turun ke baris 3 ≤539px. Panggung lengket
  * dimulai DI BAWAH header — dulu top:0 → nomor & judul panel tertutup header. */
 .hub3d { --hdr: 65px; }
-@media (max-width: 1359px) { .hub3d { --hdr: 98px; } }
+@media (max-width: 1439px) { .hub3d { --hdr: 98px; } }
 @media (max-width: 539px) { .hub3d { --hdr: 138px; } }
 .hub3d__tata { display: block; width: min(1000px, 100%); margin: 0 auto; padding: 0 16px; }
 .hub3d__teks { display: grid; gap: 12px; }

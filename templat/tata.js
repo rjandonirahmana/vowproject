@@ -8,14 +8,16 @@
 //   [data-pre]                  bagian yang animasinya jalan SEBELUM gerbang dibuka
 //   [data-open]                 tombol "Buka Undangan" (musik + video pembuka)
 //   [data-close]                tombol "Tutup Undangan" (dipasang platform) → kembali ke
-//                               sampul; gerak mundur milik templat (.t-closing), --t-close ms
+//                               sampul = gerak buka diputar mundur (bersama.js undMundur)
 //   video[data-open-video]      video pembuka — gerbang selesai saat video HABIS
 //   video[data-bg-video]        video latar berulang; data-loop-from="2.6" (detik)
 //   [data-a="zoomIn"]           animasi MASUK sekali (data-ad jeda ms, data-at durasi ms)
 //   [data-s="atas|kiri|…"]      gerak GULIR — aktif saat masuk layar, lepas lagi bila
 //                               digulir kembali ke atas (diulang, ala everlove)
 //   [data-slides="4000"]        silang-pudar anak <img> tiap N ms (+ Ken Burns CSS)
-//   [data-countdown="<ms>"]     hitung mundur; anak [data-cd=d|h|m|s]
+//   [data-countdown="<ms>"]     hitung mundur; anak [data-cd=d|h|m|s] — angka yang
+//                               berganti mendapat data-flip="a|b" bergantian (pemicu
+//                               animasi CSS "membalik" milik templat)
 //   [data-copy="teks"]          salin ke papan klip
 //   audio[data-music] + [data-music-toggle]
 //   form[data-rsvp]             kirim RSVP tanpa muat ulang; [data-rsvp-msg],
@@ -240,7 +242,7 @@
     watchA();
     scan();
     setTimeout(() => {
-      if (!opened) return; // sudah ditutup lagi sebelum gerbang sempat dilepas
+      if (!opened || tutup) return; // sedang/sudah ditutup sebelum gerbang sempat dilepas
       if (gate) gate.hidden = true;
       if (openEl) openEl.hidden = true;
     }, 2200);
@@ -248,7 +250,10 @@
   // Tiap pembukaan bernomor (`openRun`); menutup menaikkan nomornya, jadi
   // timer/listener pembukaan lama yang masih tertunda tak berbuat apa-apa.
   let openRun = 0;
-  let closeT = 0;
+  // Pembukaan terakhir: kapan & apakah video pembuka diputar (untuk tutup mundur).
+  let bukaAt = 0;
+  let bukaVideo = false;
+  let tutup = null;
   let videoEnd = null;
   const dropVideoEnd = () => {
     if (!videoEnd || !openVideo) return;
@@ -257,14 +262,10 @@
     videoEnd = null;
   };
   const open = (instant) => {
-    if (opened || html.classList.contains("t-opening")) return;
-    // Dibuka lagi di tengah gerak tutup → batalkan sisa penutupan.
-    if (closeT) {
-      clearTimeout(closeT);
-      closeT = 0;
-      html.classList.remove("t-closing");
-    }
+    if (opened || tutup || html.classList.contains("t-opening")) return;
     const run = ++openRun;
+    bukaAt = performance.now();
+    bukaVideo = !instant && !reduce && !!openVideo && !pv;
     const fin = () => run === openRun && finish();
     if (!instant) playMusic();
     // Pratinjau etalase (pv): video pintu dilewati — dekode video di iframe
@@ -276,6 +277,7 @@
     }
     html.classList.add("t-opening");
     openVideo.preload = "auto";
+    undMundur.panaskan(openVideo);
     dropVideoEnd();
     let done = false;
     const end = () => {
@@ -333,12 +335,14 @@
     }),
   );
   // ── Tutup undangan (tombol platform [data-close]) ─────────────────────────
-  // Kembali ke sampul: gerbang (dan video pembuka) dipasang lagi dalam gaya
-  // "terbuka", lalu t-open dicabut di bawah kelas t-closing — tiap templat
-  // menulis gerak mundurnya sendiri (.t-closing …). Lama: --t-close (ms).
+  // Kembali ke sampul = gerak BUKA templat diputar MUNDUR (bersama.js
+  // undMundur) — templat tak perlu menulis gerak tutup sendiri. Selama mundur
+  // html memegang t-open + t-opening + t-menutup: gerbang dalam keadaan
+  // "membuka", isi halaman tetap seperti terbuka (tak meloncat). Templat
+  // berjalan dua tahap bila memakai video pembuka: t-video-end mundur →
+  // video `-mundur` → sampul turun (t-opening mundur, menunggu video).
   const close = () => {
-    if (!opened || !gate || html.classList.contains("t-closing")) return;
-    const ms = reduce ? 0 : parseInt(getComputedStyle(gate).getPropertyValue("--t-close"), 10) || 1200;
+    if (!gate || tutup || !(opened || html.classList.contains("t-opening"))) return;
     if (audio && !audio.paused)
       fadeTo(0, 500, () => {
         audio.pause();
@@ -348,26 +352,87 @@
     openRun++;
     dropVideoEnd();
     store.set(KEY, "0");
-    gate.hidden = false;
-    if (openEl) {
-      openEl.hidden = false;
-      openEl.pause();
-      try {
-        openEl.currentTime = 0;
-      } catch (_) {}
-    }
-    void gate.offsetWidth; // gaya "terbuka" dihitung dulu → transisi punya titik awal
-    html.classList.add("t-closing");
-    requestAnimationFrame(() => {
-      html.classList.remove("t-open", "t-video-end", "t-instant");
+    const kini = {};
+    tutup = kini;
+    const lalu = opened ? null : performance.now() - bukaAt;
+    const vidTerpakai = openEl && (bukaVideo || !bukaAt) && !lite && !reduce && !pv;
+    const vidHabis = !bukaAt || opened || html.classList.contains("t-video-end");
+    const vDelay = +(data.video_delay_ms || 600);
+    html.classList.add("t-menutup");
+    const rampung = () => {
+      if (tutup !== kini) return;
+      tutup = null;
+      // Instan: html ber-scroll-behavior smooth + body overflow:hidden →
+      // gulir halus terhenti di tengah.
+      scrollTo({ top: 0, behavior: "instant" });
+      gate.classList.add("t-diam");
+      html.classList.remove("t-open", "t-opening", "t-video-end", "t-instant", "t-menutup");
+      if (openEl) {
+        openEl.pause();
+        try {
+          openEl.currentTime = 0;
+        } catch (_) {}
+      }
+      void getComputedStyle(gate).opacity;
+      [kini.s1, kini.s3].forEach((x) => x && x.anim.forEach((a) => a.cancel()));
+      gate.classList.remove("t-diam");
       opened = false;
-      closeT = setTimeout(() => {
-        closeT = 0;
-        html.classList.remove("t-closing");
-        // Instan: html ber-scroll-behavior smooth + body sudah overflow:hidden
-        // → gulir halus terhenti di tengah (sisa ±70px & tepi terang di bawah).
-        scrollTo({ top: 0, behavior: "instant" });
-      }, ms + 80);
+      bukaAt = 0;
+    };
+    // Gerbang dimunculkan DI DALAM langkah "tertutup" — dimunculkan lebih dulu
+    // berarti gayanya terhitung dalam keadaan terbuka, transisi pudarnya tak
+    // tercipta dan gerbang tampil penuh di frame pertama.
+    const munculkan = () => {
+      gate.hidden = false;
+      if (openEl) openEl.hidden = false;
+    };
+    if (reduce || !undMundur.ada) {
+      munculkan();
+      return rampung();
+    }
+    // Video pembuka bisa berdiri di luar gerbang (kusuma) — ikut dimundurkan.
+    const akar = openEl && !gate.contains(openEl) ? [gate, openEl] : gate;
+    const tutupKelas = () => {
+      html.classList.remove("t-open", "t-opening", "t-video-end", "t-instant");
+      munculkan();
+    };
+    const bukaKelas = () => html.classList.add("t-open", "t-opening");
+    // Tanpa video (atau ditutup sebelum video mulai): satu timeline.
+    if (!vidTerpakai || (lalu != null && lalu < vDelay)) {
+      kini.s3 = undMundur.bangun(akar, tutupKelas, bukaKelas, { t0: lalu });
+      return undMundur.jalan(kini.s3, rampung);
+    }
+    const tahap3 = () => {
+      if (tutup !== kini) return;
+      kini.s3 = undMundur.bangun(akar, tutupKelas, bukaKelas, {});
+      const dur = isFinite(openEl.duration) ? openEl.duration : 0;
+      const dari = vidHabis ? dur : openEl.currentTime || 0;
+      undMundur.videoMundur(
+        openEl,
+        dari,
+        (sisa) => tutup === kini && undMundur.jalan(kini.s3, rampung, sisa + vDelay),
+        () => {},
+      );
+    };
+    if (!vidHabis) return tahap3();
+    // Tahap 1: pintu video (t-video-end) kembali tampil.
+    kini.s1 = undMundur.bangun(
+      akar,
+      () => {
+        tutupKelas();
+        html.classList.add("t-open", "t-opening");
+      },
+      () => html.classList.add("t-video-end"),
+      {},
+    );
+    undMundur.jalan(kini.s1, () => {
+      if (tutup !== kini) return;
+      gate.classList.add("t-diam");
+      html.classList.remove("t-video-end");
+      void getComputedStyle(gate).opacity;
+      kini.s1.anim.forEach((a) => a.cancel());
+      gate.classList.remove("t-diam");
+      tahap3();
     });
   };
   q("[data-close]").forEach((b) => {
@@ -431,6 +496,11 @@
       s: box.querySelector("[data-cd=s]"),
     };
     const pad = (n) => String(n).padStart(2, "0");
+    const set = (el, v) => {
+      if (!el || el.textContent === v) return;
+      el.textContent = v;
+      el.dataset.flip = el.dataset.flip === "a" ? "b" : "a";
+    };
     const tick = () => {
       let s = Math.max(0, Math.floor((target - Date.now()) / 1000));
       const dd = Math.floor(s / 86400);
@@ -439,10 +509,10 @@
       s -= hh * 3600;
       const mm = Math.floor(s / 60);
       s -= mm * 60;
-      if (parts.d) parts.d.textContent = pad(dd);
-      if (parts.h) parts.h.textContent = pad(hh);
-      if (parts.m) parts.m.textContent = pad(mm);
-      if (parts.s) parts.s.textContent = pad(s);
+      set(parts.d, pad(dd));
+      set(parts.h, pad(hh));
+      set(parts.m, pad(mm));
+      set(parts.s, pad(s));
     };
     if (!target) return;
     tick();

@@ -726,6 +726,15 @@ pub async fn get_published_articles() -> Result<Vec<Article>, ServerFnError> {
     srv::repo::published_articles(&st.pool).await.map_err(srv::internal)
 }
 
+/// Artikel terkait (tautan internal di bawah artikel): kata di slug yang
+/// sama terbanyak, seri = terbaru. Daftar tanpa isi (ARTICLE_LIST_COLS).
+#[server]
+pub async fn get_related_articles(slug: String) -> Result<Vec<Article>, ServerFnError> {
+    let st = srv::state()?;
+    let all = srv::repo::published_articles(&st.pool).await.map_err(srv::internal)?;
+    Ok(super::model::artikel_terkait(&all, &slug, 3).into_iter().cloned().collect())
+}
+
 /// Artikel terbit saja; draf tidak dapat dibaca melalui endpoint publik.
 #[server]
 pub async fn get_published_article(slug: String) -> Result<Article, ServerFnError> {
@@ -829,6 +838,26 @@ pub async fn admin_templates() -> Result<AdminTemplatPage, ServerFnError> {
 #[server]
 pub async fn get_theme(slug: String) -> Result<Option<super::skin::ThemeInfo>, ServerFnError> {
     Ok(srv::state()?.themes().get(&slug).cloned())
+}
+
+/// Tema serupa untuk halaman demo (tautan internal antar-tema). Kolom yang
+/// dikirim hanya untuk kartu tautan — payload ini ikut terserialisasi ke HTML.
+#[server]
+pub async fn get_related_themes(slug: String) -> Result<Vec<super::skin::ThemeInfo>, ServerFnError> {
+    let cat = srv::state()?.themes();
+    let Some(t) = cat.get(&slug) else { return Ok(Vec::new()) };
+    Ok(super::skin::serupa(&cat.list, t, 6)
+        .into_iter()
+        .map(|t| super::skin::ThemeInfo {
+            slug: t.slug.clone(),
+            name: t.name.clone(),
+            category: t.category.clone(),
+            nuansa: t.nuansa.clone(),
+            region: t.region.clone(),
+            listed: true,
+            ..Default::default()
+        })
+        .collect())
 }
 
 // ── Konten situs (harga, paket, galeri — bisa disunting admin) ─────────────

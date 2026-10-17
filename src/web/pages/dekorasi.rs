@@ -231,7 +231,11 @@ fn DekorDetail(p: crate::web::konten::VendorPaket, others: Vec<crate::web::konte
     let note = if p.note.is_empty() { "Investasi".to_string() } else { p.note.clone() };
     let first = photos.with_value(|v| v.first().cloned().unwrap_or_default());
     view! {
-        <Seo title=format!(concat!("{} — Dekorasi Pernikahan ", crate::brand!()), p.name) description=p.desc.clone()
+        <Seo title=crate::web::seo::judul_pas(&[
+                format!(concat!("{} — Dekorasi Pernikahan | ", crate::brand!()), p.name),
+                format!("{} — Dekorasi Pernikahan", p.name),
+                p.name.clone(),
+            ]) description=p.desc.clone()
             path=format!("/dekorasi/{}", p.slug) image=first />
         <JsonLd data=crate::web::seo::breadcrumb(&[("Beranda", "/"), ("Dekorasi", "/dekorasi"), (p.name.as_str(), format!("/dekorasi/{}", p.slug).as_str())]) />
         <nav class="dd-crumb" aria-label="Lokasi halaman">

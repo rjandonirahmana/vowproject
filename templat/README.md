@@ -118,4 +118,4 @@ mengembalikannya.
 
 Pratinjau tanpa DB/server: `cargo test --lib pratinjau_templat -- --ignored`
 → `target/pratinjau/<templat>.body.html` + `.css` + `.fonts`.
-| `[data-close]` | tombol **Tutup Undangan** — dipasang PLATFORM (server/templat.rs, seperti navigasi bawah), tampil setelah dibuka. Kembali ke sampul: gerbang dipasang lagi, `t-open` dicabut di bawah kelas `t-closing`; templat menulis gerak mundurnya (`.t-closing …`), lama `--t-close` (ms) di gerbang. Posisi: `--t-close-right` |
+| `[data-close]` | tombol **Tutup Undangan** — dipasang PLATFORM (server/templat.rs, seperti navigasi bawah), tampil setelah dibuka. Kembali ke sampul = gerak BUKA templat diputar mundur otomatis (bersama.js `undMundur`) — templat TIDAK menulis gerak tutup. Selama mundur html memegang `t-open t-opening t-menutup`; aturan gerbang yang hanya memakai `.t-open` wajib `:not(.t-menutup)` (contoh `.k-door` kusuma). Video pembuka diputar mundur dari pasangan `<nama>-mundur.mp4`. Posisi: `--t-close-right` |

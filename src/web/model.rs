@@ -829,6 +829,41 @@ pub struct Article {
     pub updated_at: String,
 }
 
+/// Kata slug yang tak membedakan topik ("cara-membuat-…", "…-pernikahan").
+const KATA_UMUM: &[&str] = &["cara", "dan", "di", "yang", "untuk", "dengan", "setelah", "sebelum", "tips", "pernikahan", "menikah", "pasangan"];
+
+/// Artikel terkait `slug`: kata slug sama terbanyak; seri = urutan `list`
+/// (published_articles: terbaru dulu). Artikel tanpa kata sama tetap mengisi
+/// sisa slot agar tiap artikel selalu menautkan `n` artikel lain.
+pub fn artikel_terkait<'a>(list: &'a [Article], slug: &str, n: usize) -> Vec<&'a Article> {
+    fn kata(s: &str) -> impl Iterator<Item = &str> {
+        s.split('-').filter(|k| k.len() > 2 && !KATA_UMUM.contains(k))
+    }
+    let mine: Vec<&str> = kata(slug).collect();
+    let mut v: Vec<(usize, usize, &Article)> = list
+        .iter()
+        .enumerate()
+        .filter(|(_, a)| a.slug != slug)
+        .map(|(i, a)| (kata(&a.slug).filter(|k| mine.contains(k)).count(), i, a))
+        .collect();
+    v.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    v.into_iter().take(n).map(|x| x.2).collect()
+}
+
+#[cfg(test)]
+mod artikel_tests {
+    use super::*;
+
+    #[test]
+    fn terkait() {
+        let a = |s: &str| Article { slug: s.into(), ..Default::default() };
+        let list = [a("checklist-hari-pernikahan"), a("cara-membuat-anggaran-pernikahan"), a("cara-membuat-anggaran-rumah-tangga"), a("checklist-foto-video-pernikahan")];
+        let got: Vec<&str> = artikel_terkait(&list, "cara-membuat-anggaran-pernikahan", 2).iter().map(|x| x.slug.as_str()).collect();
+        assert_eq!(got, ["cara-membuat-anggaran-rumah-tangga", "checklist-hari-pernikahan"]);
+        assert_eq!(artikel_terkait(&list, "checklist-hari-pernikahan", 1)[0].slug, "checklist-foto-video-pernikahan");
+    }
+}
+
 #[cfg(test)]
 mod story_tests {
     use super::STORY_FILTERS;

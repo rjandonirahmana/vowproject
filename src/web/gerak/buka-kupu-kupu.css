@@ -1,10 +1,9 @@
 /* Kupu-kupu — 12 kupu-kupu hinggap di sekeliling sampul padang bunga,
    sesekali mengepak. DIBUKA: semuanya terbang berkumpul ke kartu sampul,
    lalu bersama-sama MENGANGKATNYA ke langit; padang memudar, isi undangan
-   muncul. DITUTUP: kawanan turun dari langit membawa kartu sampul,
-   meletakkannya, lalu kembali ke tempat hinggap masing-masing.
+   muncul. Ditutup = gerak ini diputar mundur.
    Sayap = --primary → --gold-light; padang = --sage. */
-{a} { --gate-reveal: 1500; --gate-close: 1600; }
+{a} { --gate-reveal: 1500; }
 {a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(120% 40% at 50% 108%, color-mix(in srgb, var(--sage, var(--primary)) 45%, var(--bg)), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--gold-pale, #ffdea5) 40%, var(--bg)), var(--bg) 55%, color-mix(in srgb, var(--sage, var(--primary)) 22%, var(--bg))); }
 {a} .gate__panel { display: none; }
@@ -46,19 +45,8 @@
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: kk-angkat 1.9s cubic-bezier(.45, .05, .55, .95) calc(var(--i) * 25ms) both; }
 .inv-opened {a}:not(.gate--embed) .gate__fx i::before, .inv-opened {a}:not(.gate--embed) .gate__fx i::after,
 .is-open > {a} .gate__fx i::before, .is-open > {a} .gate__fx i::after { animation: kk-terbang .16s ease-in-out infinite alternate; }
-/* ── Ditutup: kawanan menurunkan kartu sampul ── */
-@media (prefers-reduced-motion: no-preference) {
-  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: kk-redup .45s ease both !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { animation: kk-datang 1.3s cubic-bezier(.3, .55, .4, 1) calc(var(--i) * 20ms) both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i::before,
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i::after { animation: kk-terbang .16s ease-in-out infinite alternate; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation: kk-turun .8s cubic-bezier(.25, .7, .3, 1) .05s both !important; }
-}
+
 @keyframes kk-kepak { 0%, 62%, 100% { scale: 1 1; } 70% { scale: .25 1; } 78% { scale: 1 1; } 86% { scale: .3 1; } }
 @keyframes kk-terbang { to { scale: .18 1; } }
 @keyframes kk-angkat { 0% { transform: none; } 40% { transform: translate(var(--cx), var(--cy)); } 100% { transform: translate(var(--cx), calc(var(--cy) - 125cqh)); } }
-@keyframes kk-datang { 0% { transform: translate(var(--cx), calc(var(--cy) - 125cqh)); } 55% { transform: translate(var(--cx), var(--cy)); } 100% { transform: none; } }
-@keyframes kk-turun { from { transform: translateY(-120vh); } to { transform: none; } }
-@keyframes kk-redup { from { opacity: 0; } to { opacity: 1; } }
 @keyframes kk-hinggap { from { opacity: 0; transform: translateY(18px) scale(.97); } }

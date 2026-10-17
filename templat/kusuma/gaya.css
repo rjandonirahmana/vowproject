@@ -54,11 +54,6 @@
     will-change: transform;
 }
 .t-opening .k-cover, .t-open .k-cover { transform: translateY(-100%); }
-/* Tutup undangan: sampul turun kembali (transisi 1,5 dtk di atas), isinya
-   menyusul muncul — kebalikan dari "sampul naik". */
-.k-cover { --t-close: 1500; }
-.t-closing .k-cover__frame > * { animation: k-kembali .8s ease .9s both; }
-@keyframes k-kembali { from { opacity: 0; transform: translateY(14px); } }
 .k-cover__frame {
     position: relative; overflow: hidden;
     width: var(--k-col); height: 100%;
@@ -102,7 +97,8 @@
     transition: opacity .45s ease;
 }
 .t-opening .k-door { opacity: 1; visibility: visible; }
-.t-video-end .k-door, .t-open .k-door { opacity: 0; }
+/* t-menutup: tutup-mundur memegang t-open — pintu video tetap tampil sampai t-video-end. */
+.t-video-end .k-door, .t-open:not(.t-menutup) .k-door { opacity: 0; }
 
 /* ── Tombol ─────────────────────────────────────────────────────────────── */
 .k-btn {

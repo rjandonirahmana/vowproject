@@ -716,7 +716,7 @@ fn PanduanStories(items: Vec<crate::web::model::SiteStory>) -> impl IntoView {
                     {items.into_iter().enumerate().map(|(i, s)| view! {
                         <div class="story-item">
                             <button type="button" class="story-user-btn" data-story-open=i.to_string() data-story-src="panduan-data"
-                                data-story-id=s.id.to_string() aria-label=format!("Panduan langkah {}: {}", i + 1, s.judul)>
+                                data-story-id=s.id.to_string() aria-label=format!("{} — panduan langkah {}", s.judul, i + 1)>
                                 <span class="story-avatar-ring">
                                     <img class="story-avatar-img" src=s.img.clone() alt="" loading="lazy" decoding="async" />
                                     <b class="pd-stories__no" aria-hidden="true">{(i + 1).to_string()}</b>

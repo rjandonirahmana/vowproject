@@ -88,7 +88,7 @@ fn cetak_body(k: Konten) -> impl IntoView {
                     <span class="lx-promo__icon"><Icon name="redeem" /></span>
                     <div class="lx-promo__text">
                         <p><span class="chip chip--gold chip--xs">"Spesial Musim Menikah"</span><span class="lx-promo__val">{k.umum.cetak_bonus_label.clone()}</span></p>
-                        <h3>"Gratis Undangan Digital Website Botanical Heritage (1 Tahun)"</h3>
+                        <h2>"Gratis Undangan Digital Website Botanical Heritage (1 Tahun)"</h2>
                         <p class="lx-promo__sub">{format!("Untuk pemesanan cetak fisik minimal {bonus_qty} pcs. RSVP WhatsApp, hitung mundur, petunjuk arah Maps, dan amplop digital langsung aktif.")}</p>
                     </div>
                     <a class="btn btn--gold" href="#kalkulator">"Klaim Promo Paket"<Icon name="arrow_forward" /></a>

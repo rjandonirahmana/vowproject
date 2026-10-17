@@ -621,7 +621,7 @@ pub fn RsvpForm(slug: String, guest: Option<GuestInfo>, sessions: Vec<String>, #
                     <span class="field__label">{tx!(l, "Jumlah Tamu", "Number of Guests")}</span>
                     <div class="stepper">
                         <button type="button" on:click=move |_| pax.update(|p| *p = (*p - 1).max(1)) aria-label=tx!(l, "Kurangi", "Fewer")>"−"</button>
-                        <input name="pax" type="number" min="1" max="10" prop:value=move || pax.get().to_string()
+                        <input name="pax" type="number" min="1" max="10" aria-label=tx!(l, "Jumlah Tamu", "Number of Guests") prop:value=move || pax.get().to_string()
                             on:input=move |ev| { if let Ok(v) = event_target_value(&ev).parse() { pax.set(v) } } />
                         <button type="button" on:click=move |_| pax.update(|p| *p = (*p + 1).min(10)) aria-label=tx!(l, "Tambah", "More")>"+"</button>
                     </div>
@@ -703,10 +703,10 @@ pub fn GiftSection(inv: Invitation, guest: Option<GuestInfo>, #[prop(optional)] 
                 <input type="hidden" name="slug" value=inv.slug.clone() />
                 <input type="hidden" name="guest" value=code />
                 <input type="hidden" name="lang" value=l.code() />
-                <input class="input" name="name" required maxlength="80" value=name placeholder=tx!(l, "Nama pengirim", "Sender's name") />
+                <input class="input" name="name" required maxlength="80" value=name placeholder=tx!(l, "Nama pengirim", "Sender's name") aria-label=tx!(l, "Nama pengirim", "Sender's name") />
                 <div class="field-row">
-                    <input class="input" name="amount" required inputmode="numeric" placeholder=tx!(l, "Nominal (Rp)", "Amount (IDR)") />
-                    <select class="input" name="channel">
+                    <input class="input" name="amount" required inputmode="numeric" placeholder=tx!(l, "Nominal (Rp)", "Amount (IDR)") aria-label=tx!(l, "Nominal (Rp)", "Amount (IDR)") />
+                    <select class="input" name="channel" aria-label=tx!(l, "Dikirim lewat", "Sent via")>
                         {bank_names.into_iter().map(|b| view! { <option>{b}</option> }).collect_view()}
                         <option>{tx!(l, "Kado Fisik", "Physical Gift")}</option>
                     </select>

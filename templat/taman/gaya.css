@@ -134,6 +134,13 @@
     perspective: 900px; isolation: isolate;
     background: linear-gradient(180deg, var(--g-bg2) 0%, var(--g-bg) 62%, color-mix(in srgb, var(--g-daun2) 35%, var(--g-bg)) 100%);
 }
+/* Tepi atas & bawah layar memudar ke latar halaman: saat adegan berganti,
+   layar lama (bukit/semak) tak lagi terpotong garis lurus di atas langit
+   adegan berikutnya — keduanya menyatu lewat kabut tipis. */
+.g-adegan__layar, .g-cincin__layar {
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 7%, #000 92%, transparent 100%);
+    mask-image: linear-gradient(180deg, transparent 0, #000 7%, #000 92%, transparent 100%);
+}
 .g-lapis { position: absolute; inset: 0; pointer-events: none; transform-origin: 50% 70%; }
 .g-lapis > * { position: absolute; }
 .g-lapis--jauh { z-index: 0; }
@@ -234,7 +241,7 @@
 .g-cincin__putar { --r: calc(105px + var(--n) * 14px); position: relative; width: 150px; height: 210px; transform-style: preserve-3d; transform: translateZ(calc(-1 * var(--r))) rotateY(0deg); }
 .g-cincin__item { position: absolute; inset: 0; margin: 0; border-radius: 16px; overflow: hidden; background: var(--g-bg2); box-shadow: 0 16px 30px -18px rgba(0, 0, 0, .5); transform: rotateY(calc(var(--i) * 360deg / var(--n))) translateZ(var(--r)); backface-visibility: hidden; border: 4px solid var(--g-card); }
 .g-cincin__item img { width: 100%; height: 100%; object-fit: cover; }
-.g-cincin__hint { margin: 16px 0 0; font-size: 13px; letter-spacing: .1em; color: var(--g-soft); }
+.g-cincin__hint { margin: 16px 0 0; padding: 4px 14px; border-radius: 999px; background: color-mix(in srgb, var(--g-card) 86%, transparent); font-size: 13px; letter-spacing: .1em; color: var(--g-soft); }
 
 .g-kado { padding-bottom: 20px; }
 .g-kotak { position: relative; display: block; width: 170px; margin: 0 auto; padding: 10px 0 34px; border: 0; background: none; }
@@ -347,9 +354,63 @@
 @media (prefers-reduced-motion: reduce) {
     .g-adegan .g-lapis--jauh, .g-adegan .g-lapis--tengah, .g-adegan .g-dekat, .g-adegan__isi,
     .g-cincin .g-lapis--jauh, .g-cincin .g-lapis--tengah, .g-cincin__putar, .g-cincin__judul,
-    .g-v-naik, .g-v-kiri, .g-v-kanan, .g-kupu__ki, .g-kupu__ka, .g-gulir span::after, .g-side * { animation: none !important; }
+    .g-v-naik, .g-v-kiri, .g-v-kanan, .g-kupu__ki, .g-kupu__ka, .g-gulir span::after, .g-side *,
+    .g-kupu--adegan, .g-count b { animation: none !important; }
     .g-adegan, .g-cincin { height: auto; }
     .g-adegan__layar, .g-cincin__layar { position: relative; height: auto; min-height: 100svh; padding: 60px 22px; }
+}
+
+/* ═══ RAGAM LAVENDER (.th-taman-lavender) ═══════════════════════════════
+   Satu templat, ornamen khas: hamparan ladang lavender di depan semak,
+   ikatan lavender berpita menggantikan mawar (sudut dekat, sampul, foto),
+   dua kupu-kupu yang TERBANG MENGIKUTI GULIR melintasi tiap adegan, dan
+   angka hitung mundur yang MEMBALIK tiap berganti (data-flip dari tata.js).
+   Tema lain: unsur ini display:none. */
+.g-ladang, .g-lav-ikat, .g-kupu--b { display: none; }
+.th-taman-lavender .g-ladang, .th-taman-lavender .g-lav-ikat, .th-taman-lavender .g-kupu--b { display: block; }
+.th-taman-lavender .g-dekat .g-bunga, .th-taman-lavender .g-gate__sisi .g-bunga, .th-taman-lavender .g-foto__bunga { display: none; }
+.g-lav__batang { stroke: var(--g-daun); stroke-width: 1.6; stroke-linecap: round; }
+.g-lav__daun { fill: var(--g-daun2); }
+.g-lav__kuncup { fill: var(--g-bunga); }
+.g-lav__k2 { fill: color-mix(in srgb, var(--g-bunga) 68%, var(--g-deep)); }
+.g-lav__k3 { fill: var(--g-bunga2); }
+.g-lav__pita { fill: var(--g-putik); }
+.g-lav-ikat { overflow: visible; }
+.g-ladang { left: -8%; bottom: 9%; width: 116%; height: auto; aspect-ratio: 400 / 124; overflow: visible; }
+.g-ladang__b { opacity: .7; }
+.g-ladang__tanah { fill: color-mix(in srgb, var(--g-daun) 40%, var(--g-daun2)); }
+.th-taman-lavender .g-semak { bottom: 14%; }
+.g-dekat .g-lav-ikat { width: 112px; height: 168px; }
+.g-dekat--bl > :nth-child(4) { left: -22px; bottom: -40px; rotate: 16deg; }
+.g-dekat--br > :nth-child(4) { right: -22px; bottom: -40px; rotate: -16deg; }
+.g-gate__sisi .g-lav-ikat { width: 96px; height: 144px; rotate: 10deg; }
+.g-gate__sisi--r .g-lav-ikat { rotate: -10deg; }
+.g-foto__lav { position: absolute; right: -24px; bottom: -22px; width: 56px; height: 84px; rotate: 20deg; }
+.g-kupu--b { left: 72%; top: 60%; scale: .72; }
+.g-adegan--v3 .g-kupu--b { left: 18%; right: auto; top: 62%; }
+.g-kupu--b svg { fill: color-mix(in srgb, var(--g-bunga) 60%, var(--g-deep)); }
+.th-taman-lavender .g-count span { perspective: 320px; }
+.th-taman-lavender .g-count b { display: block; transform-origin: 50% 55%; }
+.th-taman-lavender .g-count b[data-flip="a"] { animation: g-balik-a .6s cubic-bezier(.3, 1.35, .5, 1); }
+.th-taman-lavender .g-count b[data-flip="b"] { animation: g-balik-b .6s cubic-bezier(.3, 1.35, .5, 1); }
+@keyframes g-balik-a { from { transform: rotateX(-96deg); opacity: .15; } to { transform: none; opacity: 1; } }
+@keyframes g-balik-b { from { transform: rotateX(-96deg); opacity: .15; } to { transform: none; opacity: 1; } }
+@supports (animation-timeline: view()) {
+    /* Kupu-kupu melintas menyertai gulir (seluruh rentang adegan). */
+    .th-taman-lavender .g-adegan .g-kupu--adegan { animation: g-kupu-gulir linear both; animation-timeline: --adegan; animation-range: cover 0% cover 100%; }
+    .th-taman-lavender .g-adegan .g-kupu--b { animation-name: g-kupu-gulir-b; }
+}
+@keyframes g-kupu-gulir {
+    0% { transform: translate(calc(var(--g-col) * -.3), 46svh) rotate(24deg); }
+    35% { transform: translate(calc(var(--g-col) * .12), 14svh) rotate(-8deg); }
+    65% { transform: translate(calc(var(--g-col) * .38), 26svh) rotate(12deg); }
+    100% { transform: translate(calc(var(--g-col) * .8), -24svh) rotate(-16deg); }
+}
+@keyframes g-kupu-gulir-b {
+    0% { transform: translate(calc(var(--g-col) * .3), 30svh) rotate(-20deg); }
+    40% { transform: translate(calc(var(--g-col) * -.18), 4svh) rotate(10deg); }
+    70% { transform: translate(calc(var(--g-col) * -.42), -12svh) rotate(-6deg); }
+    100% { transform: translate(calc(var(--g-col) * -.78), -40svh) rotate(14deg); }
 }
 
 /* ── Desktop: panel taman kiri, undangan di kolom kanan ────────────────── */
@@ -378,6 +439,8 @@
     .g-side .g-pohon--2 { animation-delay: -3s; }
     .g-side .g-pohon--3 { animation-delay: -6s; }
     .g-side .g-kupu--adegan { animation: g-kupu-terbang 16s ease-in-out infinite; }
+    .g-side .g-kupu--b { animation-delay: -8s; }
+    .g-side .g-dekat .g-lav-ikat { width: 168px; height: 252px; }
     .g-side__teks {
         position: absolute; left: 50%; top: 42%; translate: -50% -50%; z-index: 2;
         width: min(80%, 520px); padding: 40px 30px; text-align: center; border-radius: 30px;

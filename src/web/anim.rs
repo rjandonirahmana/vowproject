@@ -630,13 +630,13 @@ pub fn builtins() -> Vec<AnimInfo> {
         b("buka", "layar-naik", "Layar naik: sampul polaroid terangkat seperti layar bioskop", include_str!("gerak/buka-layar-naik.css"), 55),
         b("buka", "video-pintu", "Video pintu: video pembuka tema diputar sekali (cara everlove)", include_str!("gerak/buka-video-pintu.css"), 48),
         b("buka", "tenun-songket", "Tenun songket: helai kain diurai kiri-kanan", include_str!("gerak/buka-tenun-songket.css"), 54),
-        // Gerbang alam — tiap gerbang punya gerak TUTUP sendiri (blok .inv-closing di berkasnya).
-        b("buka", "air-terjun", "Air terjun: tirai air tersibak; ditutup air tercurah dari atas", include_str!("gerak/buka-air-terjun.css"), 56),
-        b("buka", "fajar-rembulan", "Fajar & rembulan: matahari terbit; ditutup senja, bulan naik", include_str!("gerak/buka-fajar-rembulan.css"), 57),
-        b("buka", "teratai-mekar", "Teratai mekar: kelopak raksasa mekar; ditutup menguncup", include_str!("gerak/buka-teratai-mekar.css"), 58),
-        b("buka", "kupu-kupu", "Kupu-kupu: kawanan mengangkat sampul ke langit; ditutup menurunkannya", include_str!("gerak/buka-kupu-kupu.css"), 59),
-        b("buka", "ombak-laut", "Ombak laut: ombak menyapu layar; ditutup pasang naik lalu surut", include_str!("gerak/buka-ombak-laut.css"), 60),
-        b("buka", "awan-berarak", "Awan berarak: menembus awan; ditutup awan berkumpul lalu berarak", include_str!("gerak/buka-awan-berarak.css"), 61),
+        // Gerbang alam. Tutup = gerak buka diputar mundur (bersama.js undMundur).
+        b("buka", "air-terjun", "Air terjun: tirai air tersibak", include_str!("gerak/buka-air-terjun.css"), 56),
+        b("buka", "fajar-rembulan", "Fajar & rembulan: matahari terbit", include_str!("gerak/buka-fajar-rembulan.css"), 57),
+        b("buka", "teratai-mekar", "Teratai mekar: kelopak raksasa mekar", include_str!("gerak/buka-teratai-mekar.css"), 58),
+        b("buka", "kupu-kupu", "Kupu-kupu: kawanan mengangkat sampul ke langit", include_str!("gerak/buka-kupu-kupu.css"), 59),
+        b("buka", "ombak-laut", "Ombak laut: ombak menyapu layar", include_str!("gerak/buka-ombak-laut.css"), 60),
+        b("buka", "awan-berarak", "Awan berarak: menembus awan", include_str!("gerak/buka-awan-berarak.css"), 61),
         // Gerbang budaya dunia & religi (3D) — aset scripts/gerak/dunia.py → public/img/tema/dunia/.
         b("buka", "naga-emas", "Naga emas (Tionghoa): pintu pernis merah berayun 3D, naga terbang, lampion naik", include_str!("gerak/buka-naga-emas.css"), 62),
         b("buka", "mashrabiya", "Mashrabiya (Islami): pintu kisi bintang berayun, menembus lengkung, fanous naik", include_str!("gerak/buka-mashrabiya.css"), 63),

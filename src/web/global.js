@@ -151,9 +151,10 @@
       // tab Story / Acara, muat ulang) disembunyikan CSS `.inv-seen` — pintu
       // & video pembuka tak diputar lagi.
       var g0=d.querySelector('.gate:not(.gate--embed)'); if(g0) g0.setAttribute('data-live','1');
-      // Dibuka lagi di tengah gerak tutup → batalkan sisa penutupan.
-      if(closing){ clearTimeout(closing); closing=0; d.documentElement.classList.remove('inv-closing'); }
+      // Masih menutup (gerbang tak bisa diklik selama itu; tombol keyboard bisa).
+      if(tutup) return;
       if(g0) g0.classList.remove('gate--ulang');
+      bukaAt=performance.now();
       // "Lewati intro" (data-open="lewati"): gerbang hilang seketika tanpa
       // gerak pintu/video — isi langsung terbaca.
       var instan=el.getAttribute('data-open')==='lewati';
@@ -188,46 +189,62 @@
       else { var ta=d.createElement('textarea'); ta.value=v; d.body.appendChild(ta); ta.select(); try{d.execCommand('copy')}catch(_){} ta.remove(); ok(); }
     }
   });
-  // Tutup undangan → kembali ke sampul: gerbang dipasang lagi, `inv-opened`
-  // dicabut, dan `.inv-closing` (main.css) memainkan gerak MENUTUP — panel
-  // gerbang bertema merapat, lalu isi sampul muncul. Lama: --gate-close (ms),
-  // bawaan 1400.
-  var closing=0, offT=0;
+  // Tutup undangan → kembali ke sampul = gerak BUKA tema itu diputar MUNDUR
+  // (bersama.js undMundur): timeline buka gerbang dibangun ulang lalu
+  // dijalankan dengan laju −1, jadi tiap frame tutup = frame buka dari
+  // belakang. Ditutup di tengah gerak buka → mundur dari detik itu.
+  // Gerbang video: video pasangan `-mundur` diputar, sampul turun kembali
+  // tepat di ujungnya (mundurnya transisi inv-opened). Selesai: keadaan
+  // tertutup dipasang tanpa transisi (.gate--diam) — tak ada lompatan.
+  var tutup=null, offT=0, bukaAt=0;
   function closeInv(){
     var h=d.documentElement, g=d.querySelector('.gate:not(.gate--embed)');
-    if(!g || closing || !h.classList.contains('inv-opened')) return;
+    if(!g || tutup || !h.classList.contains('inv-opened')) return;
     clearTimeout(offT);
-    h.classList.remove('inv-instan');
-    var ms=calm || h.classList.contains('motion-min') ? 0 : (parseInt(getComputedStyle(g).getPropertyValue('--gate-close'),10) || 1400);
     var a=audio(); if(a && !a.paused) fadeTo(a, 0, 500, function(){ pause(); try{ a.volume=1; }catch(_){} });
     try{ sessionStorage.setItem(KEY,'0'); }catch(_){}
     g.setAttribute('data-live','1');
-    g.classList.remove('gate--selesai','is-done');
-    // Video pintu kembali ke bingkai pertama (pintu tertutup); diputar lagi saat dibuka.
-    g.querySelectorAll('video[data-gatevideo]').forEach(function(v){
-      dropFin(v);
-      v.pause(); try{ v.currentTime=0; }catch(_){}
-    });
-    void g.offsetWidth; // gaya "terbuka" dihitung dulu agar transisi punya titik awal
-    h.classList.add('inv-closing');
-    // Sampul yang muncul lagi tampil utuh sekaligus (gate-tutup-isi), bukan
-    // memutar ulang gerak masuk tiap baris dengan jedanya masing-masing.
-    g.classList.add('gate--ulang');
-    requestAnimationFrame(function(){
-      // inv-seen ikut dicabut: gerbang yang dirender ulang (pindah tab lalu
-      // kembali) harus tampil lagi — undangan memang sedang tertutup.
-      h.classList.remove('inv-opened','inv-seen');
-      // Di sampul tema ini panel pintu tak terlihat (gebyok, candi bentar)?
-      // Diukur pada keadaan sampul (inv-closing dilepas sesaat, dalam frame
-      // yang sama) → panel yang baru merapat dipudarkan, bukan hilang mendadak
-      // saat inv-closing dicabut.
-      h.classList.remove('inv-closing');
-      var pl=g.querySelector(':scope > .gate__panel'), cs=pl && getComputedStyle(pl), r=pl && pl.getBoundingClientRect();
-      var tampak=!!pl && cs.display!=='none' && cs.visibility!=='hidden' && +cs.opacity>0.05 && r.right>0 && r.left<innerWidth && r.width*r.height>2000;
-      g.toggleAttribute('data-tutup-pudar', !!pl && !tampak);
-      h.classList.add('inv-closing');
-      closing=setTimeout(function(){ closing=0; window.scrollTo({top:0, behavior:'instant'}); h.classList.remove('inv-closing'); }, ms + 80);
-    });
+    var v=g.querySelector('video[data-gatevideo]'), kini={};
+    tutup=kini;
+    h.classList.add('inv-menutup');
+    // Video: tanpa pembukaan yang tercatat (muat ulang setelah dibuka) =
+    // anggap video sudah habis.
+    var habis=!v || g.classList.contains('is-done') || !bukaAt;
+    var vDari=v && !habis ? (v.currentTime || 0) : (v && isFinite(v.duration) ? v.duration : 0);
+    if(v) dropFin(v);
+    // Gerak buka masih berjalan (belum .gate--selesai) → mundur dari detik itu.
+    var lalu=!g.classList.contains('gate--selesai') && bukaAt ? performance.now()-bukaAt : null;
+    var rampung=function(){
+      if(tutup!==kini) return; tutup=null;
+      window.scrollTo({top:0, behavior:'instant'});
+      g.classList.add('gate--diam');
+      h.classList.remove('inv-opened','inv-seen','inv-instan','inv-menutup');
+      g.classList.remove('is-done','gate--selesai');
+      g.classList.add('gate--ulang');
+      if(v){ v.pause(); try{ v.currentTime=0; }catch(_){} v.style.visibility=''; }
+      void getComputedStyle(g).opacity;
+      if(kini.set) kini.set.anim.forEach(function(x){ try{ x.cancel(); }catch(_){} });
+      g.classList.remove('gate--diam');
+      // Latar bergerak sampul (dijeda saat pintu selesai) diputar lagi.
+      if(!calm) g.querySelectorAll('video[data-gatebg][data-gb]').forEach(start);
+      bukaAt=0;
+    };
+    if(calm || h.classList.contains('motion-min') || !undMundur.ada){ rampung(); return; }
+    // Animasi buka yang masih berjalan dilepas dulu (frame yang sama).
+    if(lalu!=null){ g.classList.add('gate--selesai'); void getComputedStyle(g).display; }
+    var pasangTutup=function(){ h.classList.remove('inv-opened','inv-instan'); g.classList.remove('gate--selesai','is-done'); g.classList.add('gate--ulang'); };
+    var pasangBuka=function(){ h.classList.add('inv-opened'); };
+    if(!v){
+      kini.set=undMundur.bangun(g, pasangTutup, pasangBuka, {t0:lalu});
+      undMundur.jalan(kini.set, rampung);
+      return;
+    }
+    // Video: keadaan "terbuka, video berjalan" (tanpa is-done), video di frame
+    // terakhirnya; timeline buka menunggu sampai video mundur hampir habis.
+    kini.set=undMundur.bangun(g, pasangTutup, pasangBuka, {});
+    undMundur.videoMundur(v, vDari, function(sisa){
+      if(tutup===kini) undMundur.jalan(kini.set, rampung, sisa);
+    }, function(){});
   }
   // Semburan kelopak & kilau emas dari tombol "Buka Undangan".
   function burst(el){
@@ -350,6 +367,7 @@
     // iframe mini yang berbagi thread dengan beranda = patah-patah & pecah piksel.
     if(calm || d.documentElement.classList.contains('motion-min') || d.documentElement.classList.contains('is-pv')){ fin(); return true; }
     v.muted=true; try{ v.currentTime=0; }catch(_){}
+    undMundur.panaskan(v);
     v.addEventListener('ended', fin, {once:true}); v.addEventListener('error', fin, {once:true});
     var pr=v.play(); if(pr&&pr.catch) pr.catch(fin);
     v._finTimer=setTimeout(fin, 12000);
@@ -1179,7 +1197,10 @@
         henti();
         if(!pos.length) measure();
         var c0=tr.scrollLeft+tr.clientWidth/2, c1=pos[i], jarak=c1-c0;
-        if(calm || Math.abs(jarak)<1){ progSL=Math.round(c1-tr.clientWidth/2); tr.scrollTo({left:c1-tr.clientWidth/2, behavior:'instant'}); return; }
+        // Sudah di tujuan (mis. tinggal satu tema setelah disaring): tak ada
+        // event scroll → settle dipanggil sendiri, kalau tidak pratinjau yang
+        // baru dihentikan henti() tak pernah dimuat lagi.
+        if(calm || Math.abs(jarak)<1){ progSL=Math.round(c1-tr.clientWidth/2); tr.scrollTo({left:c1-tr.clientWidth/2, behavior:'instant'}); setTimeout(settle, 0); return; }
         // Jarak satu kartu = 520 ms; snap pendek (setelah swipe) lebih singkat.
         var lama=Math.round(260+260*Math.min(1, Math.abs(jarak)/sp)), ikut=[];
         items.forEach(function(it, k){

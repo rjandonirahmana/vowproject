@@ -24,11 +24,13 @@ fn InfoShell(
     path: &'static str,
     /// Judul untuk Google (bawaan: "{title} — merek").
     #[prop(optional)] seo_title: Option<&'static str>,
+    /// Description untuk Google bila `lead` terlalu pendek (< ±120 karakter).
+    #[prop(optional)] seo_desc: Option<&'static str>,
     children: Children,
 ) -> impl IntoView {
     let full = seo_title.map(str::to_string).unwrap_or_else(|| format!(concat!("{} — ", crate::brand!()), title));
     view! {
-        <Seo title=full description=lead path=path />
+        <Seo title=full description=seo_desc.unwrap_or(lead) path=path />
         <div class="site">
             <SiteHeader active=active />
             <section class="info-hero">
@@ -264,6 +266,7 @@ pub fn PanduanPage() -> impl IntoView {
             title="Panduan Pasangan"
             eyebrow="Pusat Bantuan"
             lead="Dari memilih tema sampai check-in tamu di hari bahagia — semua langkahnya ada di sini."
+            seo_desc="Panduan membuat undangan online pernikahan: pilih tema, isi data, sebar tautan pribadi tamu via WhatsApp, musik latar, RSVP, amplop digital & QR check-in."
         >
             <section class="steps-guide">
                 {STEPS.iter().enumerate().map(|(i, (icon, t, d))| view! {
@@ -355,6 +358,7 @@ pub fn PrivasiPage() -> impl IntoView {
             title="Kebijakan Privasi & Data Tamu"
             eyebrow="Berlaku sejak 29 September 2026"
             lead=concat!("Bagaimana ", crate::brand!(), " mengumpulkan, memakai, dan melindungi data pasangan serta tamu undangan.")
+            seo_desc=concat!("Kebijakan privasi ", crate::brand!(), ": data pasangan & tamu yang dikumpulkan, penggunaannya, siapa yang dapat melihat, cara penyimpanan & keamanan, serta hak Anda.")
         >
             <article class="card legal">
                 <LegalSection title="1. Data yang kami kumpulkan" points=&[
@@ -397,6 +401,7 @@ pub fn SyaratPage() -> impl IntoView {
             title="Syarat & Ketentuan Layanan"
             eyebrow="Berlaku sejak 29 September 2026"
             lead=concat!("Ketentuan penggunaan layanan undangan pernikahan digital ", crate::brand!(), ".")
+            seo_desc=concat!("Syarat & ketentuan undangan pernikahan digital ", crate::brand!(), ": layanan, pemesanan & pembayaran, konten pengguna, tautan Kelola, dan batasan tanggung jawab.")
         >
             <article class="card legal">
                 <LegalSection title="1. Layanan" points=&[

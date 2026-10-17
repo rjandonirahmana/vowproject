@@ -5,11 +5,11 @@
 use leptos::either::Either;
 use leptos::prelude::*;
 use crate::web::skeleton::*;
-use leptos_meta::{Link, Meta};
+use leptos_meta::Meta;
 use crate::web::seo::{JsonLd, Seo};
 use leptos_router::hooks::use_params_map;
 
-use crate::web::api::{get_contact, get_demo, get_theme, list_songs};
+use crate::web::api::{get_contact, get_demo, get_related_themes, get_theme, list_songs};
 use crate::web::components::*;
 use crate::web::fmt::rupiah;
 use crate::web::icons::Icon;
@@ -25,6 +25,7 @@ pub fn TemaPage() -> impl IntoView {
     let slug = move || params.read().get("tema").unwrap_or_default();
     let demo = Resource::new(|| (), |_| get_demo());
     let theme = Resource::new(slug, get_theme);
+    let related = Resource::new(slug, get_related_themes);
     let konten = super::use_konten();
     let from = move || konten.get().and_then(|r| r.ok()).map(|k| k.min_price()).unwrap_or(0);
     view! {
@@ -40,24 +41,51 @@ pub fn TemaPage() -> impl IntoView {
                 // Demo selalu mulai TERTUTUP seperti yang dialami tamu; tema tanpa
                 // animasi pembuka memakai efek "pudar".
                 let anim = if t.open_anim.is_empty() || t.open_anim == "none" { "pudar".to_string() } else { t.open_anim.clone() };
+                let jenis = if t.ulang_tahun() { "Undangan Ulang Tahun" } else { "Undangan Online" };
+                let h1 = format!("{jenis} Tema {}", t.name);
+                let label: Vec<String> = [&t.category, &t.nuansa, &t.region].into_iter().filter(|s| !s.trim().is_empty()).cloned().collect();
+                let title = crate::web::seo::judul_pas(&[
+                    format!(concat!("{} — Demo Gratis | ", crate::brand!()), h1),
+                    format!("{h1} — Demo Gratis"),
+                    h1.clone(),
+                ]);
+                let ciri = [t.nuansa.trim(), t.category.trim()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(", ");
+                let description = format!(
+                    "Demo gratis {} tema {}{}: {} RSVP, QR check-in, amplop digital & musik.",
+                    jenis.to_lowercase(), t.name, if ciri.is_empty() { String::new() } else { format!(" ({ciri})") },
+                    t.description.trim().trim_end_matches('.').to_string() + "."
+                );
                 Either::Right(view! {
-                    <Seo
-                        title=format!(concat!("Tema Undangan Online {} — Demo Gratis | ", crate::brand!()), t.name)
-                        description=format!("Coba demo undangan online tema {}: {} Lengkap dengan RSVP, buku tamu QR, amplop digital & musik.", t.name, t.description.trim_end_matches('.').to_string() + ".")
-                        path=format!("/tema/{}", t.slug)
-                        image=t.image_url.clone()
-                    />
-                    // Animasi gerbang/hiasan untuk demo di HP (halaman lain cukup
-                    // CSS tema ringan). <link> biasa di body (sah di HTML5): ikut
-                    // terpasang juga saat datang dari beranda lewat navigasi klien,
-                    // dan markupnya identik SSR/klien (aman untuk hydration).
-                    <link rel="stylesheet" href="/tema.css" />
+                    <Seo title=title description=description path=format!("/tema/{}", t.slug) image=t.image_url.clone() />
+                    // CSS & huruf tema INI saja (/gaya: variabel, animasi, rupa
+                    // ±100 KB) — dulu /tema.css semua tema (±450 KB, memblokir
+                    // render ±2,5 dtk di HP). <link> di body (sah di HTML5):
+                    // ikut terpasang juga lewat navigasi klien, markup identik
+                    // SSR/klien. Tema templat dirender di iframe /u/… yang memuat
+                    // CSS-nya sendiri → tak perlu apa-apa di sini.
+                    {t.template.is_empty().then(|| view! {
+                        <link rel="stylesheet" href=format!("/gaya/{}.css", t.slug) />
+                        {let f = crate::web::skin::font_families([&t]);
+                         (!f.is_empty()).then(|| view! { <link rel="stylesheet" href=crate::web::fmt::font_css(&f, "swap") /> })}
+                    })}
                     // Tema privat (pesanan custom) tak boleh muncul di Google.
                     {(!t.listed).then(|| view! { <Meta name="robots" content="noindex, nofollow" /> })}
-                    <JsonLd data=crate::web::seo::breadcrumb(&[("Beranda", "/"), ("Katalog Tema", "/#katalog"), (t.name.as_str(), format!("/tema/{}", t.slug).as_str())]) />
+                    <JsonLd data=crate::web::seo::breadcrumb(&[("Katalog Tema", "/"), (t.name.as_str(), format!("/tema/{}", t.slug).as_str())]) />
+                    <header class="tema-head">
+                        <nav class="tema-crumb" aria-label="Lokasi halaman">
+                            <a href="/#katalog"><Icon name="arrow_back" />"Katalog Tema"</a>
+                            <span aria-hidden="true">"/"</span>
+                            <span aria-current="page">{t.name.clone()}</span>
+                        </nav>
+                        <h1>{h1}</h1>
+                        {(!t.description.trim().is_empty()).then(|| view! { <p class="tema-head__lead">{t.description.clone()}</p> })}
+                        <ul class="tema-head__tags" aria-label="Ciri tema">
+                            {label.into_iter().map(|l| view! { <li class="chip chip--soft">{l}</li> }).collect_view()}
+                            {(!t.listed).then(|| view! { <li class="chip chip--gold">"Tema privat"</li> })}
+                        </ul>
+                    </header>
                     <div class="demo-bar">
                         <span class="chip chip--live"><i class="dot dot--live"></i>"Live Interactive Preview"</span>
-                        <span class="chip chip--soft">{if t.listed { t.name.clone() } else { format!("{} • Tema privat", t.name) }}</span>
                         <a class="btn btn--soft btn--sm demo-bar__full" href=format!("/u/{}?tema={}", DEMO_SLUG, t.slug) target="_blank" rel="noopener">
                             <Icon name="open_in_new" />
                             "Coba Demo Layar Penuh"
@@ -123,6 +151,34 @@ pub fn TemaPage() -> impl IntoView {
                             </section>
                         </aside>
                     </div>
+                    // Tautan internal antar-tema: tanpa ini tiap halaman tema
+                    // hanya ditautkan dari beranda (diukur Okt 2026: 1 tautan
+                    // masuk per tema) — pengunjung pun buntu setelah demo.
+                    <Suspense fallback=|| ()>
+                        {move || related.get().and_then(|r| r.ok()).filter(|v| !v.is_empty()).map(|items| view! {
+                            <section class="tema-serupa" aria-labelledby="tema-serupa">
+                                <h2 id="tema-serupa">"Tema serupa"</h2>
+                                <ul class="tema-serupa__list">
+                                    {items.into_iter().map(|o| {
+                                        let sub = [o.category.as_str(), o.nuansa.as_str()].into_iter().filter(|s| !s.trim().is_empty()).collect::<Vec<_>>().join(" · ");
+                                        view! {
+                                            <li>
+                                                <a class="tema-serupa__item" href=format!("/tema/{}", o.slug)>
+                                                    <b>{o.name.clone()}</b>
+                                                    <small>{sub}</small>
+                                                    {(!o.region.trim().is_empty()).then(|| view! { <small class="tema-serupa__asal">{o.region.clone()}</small> })}
+                                                </a>
+                                            </li>
+                                        }
+                                    }).collect_view()}
+                                </ul>
+                                <p class="tema-serupa__more">
+                                    <a class="btn btn--soft btn--sm" href="/#katalog"><Icon name="grid_view" />"Lihat semua tema"</a>
+                                    <a class="btn btn--soft btn--sm" href="/paket"><Icon name="loyalty" />"Paket & harga"</a>
+                                </p>
+                            </section>
+                        })}
+                    </Suspense>
                 })
             })}
             </Suspense>
@@ -138,8 +194,6 @@ fn PreviewInvitation(inv: Invitation, anim: String, scroll: String, video: Strin
     let resepsi = inv.events.last().cloned();
     let names = format!("{} & {}", inv.bride_nick, inv.groom_nick);
     view! {
-        // Varian rupa hanya ada di CSS per tema (/gaya/…), bukan di /tema.css.
-        {(!rupa.is_empty()).then(|| view! { <Link rel="stylesheet" href=format!("/gaya/{}.css", inv.theme) /> })}
         <div class=format!("inv inv--embed th-{}{}{}{}", inv.theme, rupa, scroll_class(&scroll), if video.is_empty() { "" } else { " inv--video" })>
             <div class="inv__glow" aria-hidden="true"></div>
             <BgVideo src=video.clone() poster=Some(video_poster(&video, &inv.cover_photo)) />
@@ -167,7 +221,8 @@ fn PreviewInvitation(inv: Invitation, anim: String, scroll: String, video: Strin
                                 </div>
                             }.into_any()
                         }}
-                        <h1 class="cover__names">{names}</h1>
+                        // h2: h1 halaman = nama tema (tema-head), bukan nama pasangan demo.
+                        <h2 class="cover__names">{names}</h2>
                         <p class="pill"><Icon name="calendar_month" />{inv.date_label()}</p>
                     </section>
                     <section class="guest card">

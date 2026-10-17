@@ -145,7 +145,14 @@ if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",arm);else arm(
     view! { <script nonce=nonce inner_html=js></script> }.into_any()
 }
 
-/// Halaman pemasaran publik: hydration malas + CSS tema ringan.
+/// Halaman publik yang tak menampilkan tema (tanpa kelas `th-*`) + demo
+/// tema (memasang CSS satu tema sendiri).
+#[cfg(feature = "ssr")]
+fn tanpa_css_tema(path: &str) -> bool {
+    halaman_publik(path) && path != "/"
+}
+
+/// Halaman pemasaran publik: hydration malas.
 #[cfg(feature = "ssr")]
 fn halaman_publik(path: &str) -> bool {
     matches!(path, "/" | "/paket" | "/panduan" | "/artikel" | "/cetak" | "/dekorasi" | "/mua" | "/seserahan" | "/privasi" | "/syarat")
@@ -181,11 +188,16 @@ fn theme_links() -> AnyView {
         let path = p.uri.path();
         path.starts_with("/admin") || path.starts_with("/kelola")
     });
-    // Halaman demo tema memasang /tema.css penuh sendiri (tema.rs) — jangan
-    // diunduh dua kali (ringan + penuh).
-    let demo_tema = use_context::<axum::http::request::Parts>().is_some_and(|p| p.uri.path().starts_with("/tema/"));
+    // Halaman demo tema memasang CSS & huruf tema ITU saja (/gaya/{slug}.css,
+    // tema.rs). Halaman pemasaran tanpa kartu tema (paket, artikel, layanan…)
+    // tak memakai kelas th-*: ±180 KB CSS + 10 keluarga huruf yang memblokir
+    // render tak perlu diunduh. Aman karena pindah dari halaman publik selalu
+    // navigasi dokumen penuh (global.js), jadi tiap halaman membawa <head>-nya.
+    let tanpa_tema = use_context::<axum::http::request::Parts>().is_some_and(|p| tanpa_css_tema(p.uri.path()));
+    if tanpa_tema {
+        return ().into_any();
+    }
     let css = match &cat {
-        _ if demo_tema => String::new(),
         Some(c) if penuh => format!("/tema.css?v={}", c.version),
         Some(c) => format!("/tema.css?v={}&ringan=1", c.version),
         None => "/tema.css".into(),
@@ -281,15 +293,20 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/") view=KatalogPage />
                 <Route path=path!("/tema/:tema") view=TemaPage ssr=SsrMode::Async />
                 <Route path=path!("/buat") view={Lazy::<BuatRute>::new()} />
-                <Route path=path!("/paket") view=PaketPage />
-                <Route path=path!("/panduan") view=PanduanPage />
-                <Route path=path!("/artikel") view=ArticlesPage />
+                // Halaman pemasaran: Async = HTML pertama sudah berisi teks
+                // lengkap. Tanpa ini isinya datang belakangan sebagai <template>
+                // streaming dan HTML awal hanya skeleton (diukur Okt 2026:
+                // /cetak, /dekorasi, /mua, /seserahan tanpa h1) — perayap tanpa
+                // JS (Bing, pratinjau WhatsApp/FB, perayap AI) hanya melihat kerangka.
+                <Route path=path!("/paket") view=PaketPage ssr=SsrMode::Async />
+                <Route path=path!("/panduan") view=PanduanPage ssr=SsrMode::Async />
+                <Route path=path!("/artikel") view=ArticlesPage ssr=SsrMode::Async />
                 <Route path=path!("/artikel/:slug") view=ArticlePage ssr=SsrMode::Async />
-                <Route path=path!("/cetak") view=CetakPage />
-                <Route path=path!("/dekorasi") view=DekorasiPage />
+                <Route path=path!("/cetak") view=CetakPage ssr=SsrMode::Async />
+                <Route path=path!("/dekorasi") view=DekorasiPage ssr=SsrMode::Async />
                 <Route path=path!("/dekorasi/:slug") view=DekorasiDetailPage ssr=SsrMode::Async />
-                <Route path=path!("/mua") view=MuaPage />
-                <Route path=path!("/seserahan") view=SeserahanPage />
+                <Route path=path!("/mua") view=MuaPage ssr=SsrMode::Async />
+                <Route path=path!("/seserahan") view=SeserahanPage ssr=SsrMode::Async />
                 <Route path=path!("/admin") view={Lazy::<AdminHomeRute>::new()} />
                 <Route path=path!("/admin/artikel") view={Lazy::<AdminArticlesRute>::new()} />
                 <Route path=path!("/admin/artikel/:id") view={Lazy::<AdminArticleEditRute>::new()} />
@@ -309,8 +326,8 @@ pub fn App() -> impl IntoView {
                 <Route path=path!("/admin/konten/:key") view={Lazy::<AdminKontenEditRute>::new()} />
                 <Route path=path!("/admin/akun") view={Lazy::<AdminAkunRute>::new()} />
                 <Route path=path!("/admin/profil") view={Lazy::<AdminProfilRute>::new()} />
-                <Route path=path!("/privasi") view=PrivasiPage />
-                <Route path=path!("/syarat") view=SyaratPage />
+                <Route path=path!("/privasi") view=PrivasiPage ssr=SsrMode::Async />
+                <Route path=path!("/syarat") view=SyaratPage ssr=SsrMode::Async />
                 // Async: <head> (og:title/description untuk pratinjau tautan WhatsApp)
                 // dan status 404 baru dikirim setelah data undangan siap.
                 <ParentRoute path=path!("/u/:slug") view=InvitationLayout ssr=SsrMode::Async>

@@ -1,10 +1,8 @@
 /* Fajar & Rembulan — sampul = langit malam: bulan sabit di kanan atas,
    bintang berkelip, bukit di cakrawala. DIBUKA: bulan tenggelam, bintang
    padam, matahari terbit dari balik bukit & langit berubah pagi, cahaya
-   membanjir lalu isi undangan muncul. DITUTUP: senja memerah, malam turun,
-   matahari tenggelam, bulan naik kembali & bintang menyala — kembali ke
-   sampul malam. Bukit = --primary gelap; matahari = --gold. */
-{a} { --gate-reveal: 1900; --gate-close: 1800; }
+   membanjir lalu isi undangan muncul. Ditutup = gerak ini diputar mundur. Bukit = --primary gelap; matahari = --gold. */
+{a} { --gate-reveal: 1900; }
 /* Langit malam (::before) & langit pagi (::after, muncul saat dibuka). */
 {a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(70% 40% at 50% 100%, color-mix(in srgb, var(--gold) 30%, #3a2f5c), transparent 70%), linear-gradient(180deg, #070b1f, color-mix(in srgb, var(--primary) 18%, #142046) 55%, #2c2a55); }
@@ -38,24 +36,7 @@
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: none; opacity: 0; transition: opacity .7s ease; }
 .inv-opened {a}:not(.gate--embed) .gate__fx::before, .is-open > {a} .gate__fx::before { transform: translateY(-38vh) scale(2.6); transition: transform 1.9s cubic-bezier(.25, .7, .25, 1) .3s; }
 .inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { transform: translateY(45%); transition: transform 1.4s ease .9s; }
-/* ── Ditutup: senja → malam, bulan naik ── */
-@media (prefers-reduced-motion: no-preference) {
-  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: fr-malam 1.1s ease both !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed)::after { visibility: visible !important; transition: none !important; animation: fr-senja 1.1s ease both !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx,
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn.gate__orn { visibility: visible !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__orn { transition: none !important; animation: fr-bulan 1.2s cubic-bezier(.2, .7, .3, 1) .35s both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::before { transition: none; animation: fr-tenggelam 1.1s cubic-bezier(.5, 0, .7, .4) both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::after { transition: none; animation: fr-bukit .6s ease-out both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: fr-nyala .5s ease calc(.85s + var(--i) * 40ms) both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.05s !important; }
-}
+
 @keyframes fr-kelip { from { opacity: .25; } to { opacity: 1; } }
-@keyframes fr-senja { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes fr-malam { 0%, 25% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes fr-bulan { from { opacity: 0; transform: translate(30px, 60vh); } 35% { opacity: 1; } to { opacity: 1; transform: none; } }
-@keyframes fr-tenggelam { from { transform: translateY(-30vh) scale(1.6); } to { transform: translateY(70%); } }
-@keyframes fr-bukit { from { transform: translateY(45%); } to { transform: none; } }
-@keyframes fr-nyala { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fr-pudar { from { opacity: 0; transform: scale(.95); } }
 @keyframes fr-terbit { from { opacity: 0; transform: translateY(30px); } }

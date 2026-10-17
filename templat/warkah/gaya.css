@@ -97,19 +97,6 @@
 .w-gate__note { margin: 14px 0 0; font-size: 11.5px; color: var(--w-ink-soft); font-style: italic; }
 .w-chip { display: inline-block; margin: 8px 0 0; padding: 2px 12px; border-radius: 999px; background: var(--w-gold); color: #fff; font-size: 12px; letter-spacing: .08em; }
 
-/* Tutup undangan (kebalikan dari membuka): latar gelap kembali, kartu
-   turun dari atas & mendarat, segel lilin terbentuk lagi lalu berdenyut. */
-.w-gate { --t-close: 1300; }
-.t-closing .w-gate { transition: opacity .45s ease, visibility 0s; }
-.t-closing .w-gate__card { animation: w-kembali 1s cubic-bezier(.2, .8, .25, 1) .15s both; }
-.t-closing .w-seal__core { animation: w-pulih .6s cubic-bezier(.34, 1.56, .64, 1) .85s both; }
-.t-closing .w-seal__ring { animation: none; opacity: 0; }
-@keyframes w-kembali {
-    0% { transform: translateY(-110vh) rotate(-2deg); opacity: 0; }
-    70% { transform: translateY(12px) rotate(.4deg); opacity: 1; }
-    100% { transform: none; opacity: 1; }
-}
-@keyframes w-pulih { from { transform: scale(0) rotate(-20deg); opacity: 0; filter: brightness(2); } }
 
 /* Segel lilin berdenyut di atas kartu; saat dibuka: memijar, membesar, pecah. */
 .w-seal { position: absolute; top: -34px; left: 50%; width: 68px; height: 68px; translate: -50% 0; }
@@ -406,8 +393,7 @@
 .t-instant .w-env__photo { animation-duration: 0s; animation-delay: 0s; }
 @media (prefers-reduced-motion: reduce) {
     .w-gate { transition: none; }
-    .t-opening .w-gate__card, .t-opening .w-seal__core, .t-opening .w-seal__ring,
-    .t-closing .w-gate__card, .t-closing .w-seal__core { animation: none; }
+    .t-opening .w-gate__card, .t-opening .w-seal__core, .t-opening .w-seal__ring { animation: none; }
     .w-seal__ring, .w-btn--shine::after, .w-cal__heart, .w-kado__spark, .w-kado__shadow, .w-kado__hint, .w-scroll span::after { animation: none; }
     .t-open .w-env, .t-open .w-env__photo { animation: none; transform: translateY(-36px) rotate(-6deg); }
     .t-open .w-env { transform: none; }
@@ -451,8 +437,8 @@
     /* Tombol mengikuti keadaan undangan. */
     .w-side__acara, .w-side__close { display: none; }
     .t-open .w-side__open { display: none; }
-    .t-open .w-side__acara, .t-open:not(.t-closing) .w-side__close { display: inline-flex; }
-    .t-closing .w-side__acara { display: none; }
+    .t-open .w-side__acara, .t-open:not(.t-menutup) .w-side__close { display: inline-flex; }
+    .t-menutup .w-side__acara { display: none; }
 
     /* Undangan versi HP menempel di kanan; sampul hanya menutup kolom kanan. */
     .w-main { margin: 0 0 0 auto; width: var(--w-col); background: var(--w-paper); box-shadow: -10px 0 50px rgba(0, 0, 0, .25); }

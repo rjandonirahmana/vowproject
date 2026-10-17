@@ -4,7 +4,7 @@ use leptos::prelude::*;
 use leptos_meta::Meta;
 use leptos_router::hooks::use_params_map;
 
-use crate::web::api::{get_published_article, get_published_articles};
+use crate::web::api::{get_published_article, get_published_articles, get_related_articles};
 use crate::web::icons::Icon;
 use crate::web::model::Article;
 use crate::web::seo::{JsonLd, Seo};
@@ -65,8 +65,14 @@ pub fn ArticlesPage() -> impl IntoView {
 }
 
 #[component]
-fn ArticleCard(article: Article) -> impl IntoView {
+fn ArticleCard(
+    article: Article,
+    /// Kartu di bawah judul h2 ("Baca juga") → judul kartu h3.
+    #[prop(optional)] sub: bool,
+) -> impl IntoView {
     let href = format!("/artikel/{}", article.slug);
+    let judul = view! { <a href=href.clone()>{article.title.clone()}</a> };
+    let judul = if sub { view! { <h3>{judul}</h3> }.into_any() } else { view! { <h2>{judul}</h2> }.into_any() };
     view! {
         <article class="card article-card">
             {(!article.cover_image.is_empty()).then(|| view! {
@@ -76,7 +82,7 @@ fn ArticleCard(article: Article) -> impl IntoView {
             })}
             <div class="article-card__body">
                 <p class="article-date"><Icon name="calendar_month" />{tanggal(&article.published_at)}</p>
-                <h2><a href=href>{article.title.clone()}</a></h2>
+                {judul}
                 <p>{article.excerpt.clone()}</p>
                 <a class="article-read" href=format!("/artikel/{}", article.slug)>
                     "Baca artikel"<Icon name="arrow_forward" />
@@ -150,6 +156,7 @@ fn ArticleDetail(article: Article) -> impl IntoView {
         "mainEntityOfPage": { "@type": "WebPage", "@id": canonical },
         "image": if article.cover_image.is_empty() { crate::web::seo::abs(crate::web::seo::OG_IMAGE) } else { image_url }
     });
+    let related = Resource::new({ let s = article.slug.clone(); move || s.clone() }, get_related_articles);
     let breadcrumb = crate::web::seo::breadcrumb(&[
         ("Beranda", "/"),
         ("Artikel", "/artikel"),
@@ -190,10 +197,23 @@ fn ArticleDetail(article: Article) -> impl IntoView {
                     <div class="article-cta__aksi">
                         <a class="btn btn--primary btn--sm" href="/buat">"Buat undangan online"</a>
                         <a class="btn btn--soft btn--sm" href="/#katalog">"Lihat katalog tema"</a>
-                        <a class="btn btn--soft btn--sm" href="/artikel">"Artikel lainnya"</a>
+                        <a class="btn btn--soft btn--sm" href="/paket">"Lihat paket & harga"</a>
                     </div>
                 </aside>
             </article>
+            // Artikel terkait: tanpa ini tiap artikel hanya ditautkan dari
+            // /artikel (1 tautan masuk) dan pembaca berhenti di satu halaman.
+            <Suspense fallback=|| ()>
+                {move || related.get().and_then(|r| r.ok()).filter(|v| !v.is_empty()).map(|items| view! {
+                    <section class="article-related" aria-labelledby="artikel-terkait">
+                        <h2 id="artikel-terkait">"Baca juga"</h2>
+                        <div class="article-grid">
+                            {items.into_iter().map(|article| view! { <ArticleCard article sub=true /> }).collect_view()}
+                        </div>
+                        <p class="article-related__all"><a href="/artikel">"Semua artikel"<Icon name="arrow_forward" /></a></p>
+                    </section>
+                })}
+            </Suspense>
         </main>
     }
 }

@@ -1,10 +1,9 @@
 /* Awan Berarak — sampul di langit: 12 gumpal awan membingkai kartu dan
    berarak pelan. DIBUKA: seperti terbang menembus awan — awan tersibak ke
    kiri-kanan sambil membesar (yang dekat lebih cepat), langit memudar,
-   isi undangan muncul. DITUTUP: awan berdatangan dari tepi, berkumpul
-   menutup layar, lalu berarak kembali ke tempatnya membuka sampul.
+   isi undangan muncul. Ditutup = gerak ini diputar mundur.
    Langit = --primary pucat; bayang awan = --gold-pale. */
-{a} { --gate-reveal: 1300; --gate-close: 1800; }
+{a} { --gate-reveal: 1300; }
 {a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(70% 40% at 50% 0%, color-mix(in srgb, var(--gold-pale, #ffdea5) 60%, #fff), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--primary) 30%, #d6ecf8), color-mix(in srgb, var(--primary) 12%, #f3f9fc) 65%, var(--bg)); }
 {a} .gate__panel { display: none; }
@@ -42,14 +41,6 @@
 .inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(1.12); transition: opacity .5s ease, transform .8s ease; }
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: none; transform: translateX(var(--keluar)) scale(1.9); opacity: 0;
   transition: transform 1.5s cubic-bezier(.55, 0, .25, 1) calc(.15s + var(--i) * 35ms), opacity .8s ease calc(.85s + var(--i) * 35ms); }
-/* ── Ditutup: awan berkumpul lalu berarak kembali ── */
-@media (prefers-reduced-motion: no-preference) {
-  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: aw-redup .5s ease .3s both !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: aw-kumpul 1.6s cubic-bezier(.35, .1, .3, 1) calc(var(--i) * 25ms) both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.05s !important; }
-}
+
 @keyframes aw-arak { to { translate: 5% 2%; } }
-@keyframes aw-kumpul { 0% { transform: translateX(var(--keluar)) scale(1.9); opacity: 0; } 20% { opacity: 1; } 55% { transform: translateX(var(--kumpul)) scale(1.5); opacity: 1; } 100% { transform: none; opacity: .96; } }
-@keyframes aw-redup { from { opacity: 0; } to { opacity: 1; } }
 @keyframes aw-melayang { from { opacity: 0; transform: translateY(16px); } }

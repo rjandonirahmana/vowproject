@@ -174,9 +174,12 @@ impl ThemeCatalog {
 /// CSS satu tema: variabel + animasi yang benar-benar ia pakai + varian rupa.
 fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, anims: &[crate::web::anim::AnimInfo], resep: Option<&crate::web::panggung::Resep>) -> String {
     let mut css = format!(".th-{}{{{}}}\n", t.slug, skin::theme_vars_with(t, anims));
+    // Demo /tema/{slug} membuka tema TANPA animasi buka dengan "pudar"
+    // (pages/tema.rs) dan hanya memuat CSS ini → "pudar" ikut disertakan.
+    let buka = if t.open_anim.is_empty() || t.open_anim == crate::web::anim::NONE { "pudar" } else { t.open_anim.as_str() };
     for a in anims {
         let k = a.key();
-        if (a.kind == "buka" && k == t.open_anim) || (a.kind == "scroll" && k == t.scroll_anim) || (a.kind == "hiasan" && k == t.float_deco) {
+        if (a.kind == "buka" && k == buka) || (a.kind == "scroll" && k == t.scroll_anim) || (a.kind == "hiasan" && k == t.float_deco) {
             css.push_str(&crate::web::anim::css(a));
         }
     }

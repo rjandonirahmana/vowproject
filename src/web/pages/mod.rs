@@ -246,13 +246,19 @@ pub fn NotFoundPage() -> impl IntoView {
     }
     view! {
         <Title text=concat!("Halaman tidak ditemukan — ", crate::brand!()) />
+        <leptos_meta::Meta name="robots" content="noindex" />
         <div class="empty-page">
             <Monogram initials="404" />
             <h1 class="section__title">"Halaman tidak ditemukan"</h1>
-            <p class="muted">"Tautan undangan mungkin salah ketik atau sudah tidak aktif."</p>
+            <p class="muted">"Tautan mungkin salah ketik atau sudah tidak aktif. Untuk undangan, minta tautan terbaru ke pengirimnya."</p>
             // rel=external: halaman ini juga tampil di /u/… yang hanya memuat
             // CSS satu tema — katalog perlu dimuat penuh (dengan /tema.css).
             <a class="btn btn--primary" href="/" rel="external">"Kembali ke Katalog"</a>
+            <p class="empty-page__links">
+                <a href="/paket" rel="external">"Paket & Harga"</a>
+                <a href="/panduan" rel="external">"Panduan"</a>
+                <a href="/artikel" rel="external">"Artikel"</a>
+            </p>
         </div>
     }
 }

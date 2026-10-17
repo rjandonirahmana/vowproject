@@ -1,10 +1,9 @@
 /* Air Terjun — sampul di balik tirai air terjun: 12 aliran jatuh tanpa henti
    (tekstur digeser lewat transform, satu ubin = tinggi kolom → mulus), kabut
    bergulung di kaki. DIBUKA: tirai air tersibak dari tengah ke kiri-kanan,
-   kabut naik menyelimuti, isi undangan muncul. DITUTUP: air kembali
-   tercurah dari atas aliran demi aliran, percikan di kaki, lalu sampul.
+   kabut naik menyelimuti, isi undangan muncul. Ditutup = gerak ini diputar mundur.
    Air = --primary dicampur biru muda; tebing = --primary gelap. */
-{a} { --gate-reveal: 1300; --gate-close: 1700; --air: color-mix(in srgb, var(--primary) 45%, #d7eef5); }
+{a} { --gate-reveal: 1300; --air: color-mix(in srgb, var(--primary) 45%, #d7eef5); }
 {a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 75%, #06161b), color-mix(in srgb, var(--primary) 50%, #0b2229) 55%, color-mix(in srgb, var(--primary) 30%, #e6f4f7)); }
 {a} .gate__panel { display: none; }
@@ -39,20 +38,8 @@
 .inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: translateY(24px) scale(.96); transition: opacity .5s ease, transform .6s ease; }
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { transform: translateX(var(--far)); opacity: .3; transition: transform 1.25s cubic-bezier(.65, 0, .3, 1) calc(.2s + var(--d)), opacity .9s ease calc(.6s + var(--d)); }
 .inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { animation: none; transform: translateY(-150%) scale(2.4); opacity: 0; transition: transform 1.6s ease-out .25s, opacity 1s ease .9s; }
-/* ── Ditutup (global.js closeInv) ── */
-@media (prefers-reduced-motion: no-preference) {
-  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: at-redup .45s ease both !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none !important; animation: at-tuang .75s cubic-bezier(.5, 0, .75, .45) var(--t, 0ms) both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i:nth-child(3n+1) { --t: 90ms; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i:nth-child(3n+2) { --t: 180ms; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx::after { transition: none; animation: at-percik .8s ease-out .6s both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: .95s !important; }
-}
+
 @keyframes at-alir { to { transform: translateY(50%); } }
 @keyframes at-kabut { to { transform: translateY(-4%) scale(1.06); opacity: .8; } }
-@keyframes at-tuang { from { transform: translateY(-105%); } to { transform: none; } }
-@keyframes at-percik { from { opacity: 0; transform: translateY(30%) scale(.5); } to { opacity: 1; transform: none; } }
-@keyframes at-redup { from { opacity: 0; } to { opacity: 1; } }
 @keyframes at-turun { from { opacity: 0; transform: translateY(-30px); } }
 @keyframes at-muncul { from { opacity: 0; transform: translateY(26px); } }

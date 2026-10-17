@@ -2,9 +2,8 @@
    jingga & pantulan air; tirai 12 lampion sutra warna-warni bergantung pada
    kedalaman berbeda (skala, kecerahan), berayun pelan.
    DIBUKA: lampion terbang naik ke langit — yang dekat lebih cepat (paralaks
-   3D), langit memudar, isi undangan muncul. DITUTUP: lampion turun kembali
-   ke tempatnya, yang jauh lebih dulu. Warna lampion tetap (khas Hoi An). */
-{a} { --gate-reveal: 1700; --gate-close: 1700; }
+   3D), langit memudar, isi undangan muncul. Ditutup = gerak ini diputar mundur. Warna lampion tetap (khas Hoi An). */
+{a} { --gate-reveal: 1700; }
 {a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background: linear-gradient(180deg, #2b1f4b, #6b3260 38%, #e07a4f 64%, #f3a35e 70%, #3a2b55 71%, #2a1f45 82%, #1d1634); }
 {a} .gate__panel { display: none; }
@@ -42,16 +41,8 @@
 .inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: scale(.94); transition: opacity .45s ease, transform .6s ease; }
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { transform: translateY(-120vh); transition: transform calc(2.2s - var(--s) * .8s) cubic-bezier(.45, 0, .7, .4) calc(.15s + var(--i) * .04s); }
 .inv-opened {a}:not(.gate--embed) .gate__fx::after, .is-open > {a} .gate__fx::after { opacity: 0; transition: opacity .6s ease .6s; }
-/* ── Ditutup: lampion turun kembali (yang jauh dulu) ── */
-@media (prefers-reduced-motion: no-preference) {
-  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: lh-redup .45s ease both !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { transition: none; animation: lh-turun calc(.7s + var(--s) * .45s) cubic-bezier(.2, .7, .3, 1) calc(.1s + (1.3 - var(--s)) * .5s) both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: 1.15s !important; }
-}
+
 @keyframes lh-ayun { from { rotate: -4deg; } to { rotate: 4deg; } }
-@keyframes lh-turun { from { transform: translateY(-115vh); } to { transform: none; } }
-@keyframes lh-redup { from { opacity: 0; } to { opacity: 1; } }
 @keyframes lh-pudar { from { opacity: 0; transform: scale(.95); } }
 @keyframes lh-naik { from { opacity: 0; transform: translateY(26px); } }
 @keyframes lh-zoom { from { opacity: 0; transform: scale(.82); } }

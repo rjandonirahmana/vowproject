@@ -143,7 +143,7 @@ input, textarea, select { font: inherit; }
 }
 .t-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
 .t-close:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-.t-open:not(.t-closing) .t-close { opacity: 1; translate: none; pointer-events: auto; transition-delay: .9s; }
+.t-open:not(.t-menutup) .t-close { opacity: 1; translate: none; pointer-events: auto; transition-delay: .9s; }
 .t-pv .t-close { display: none; }
 /* Ganti bahasa ID/EN (platform) — di kiri atas, selalu tersedia. */
 .t-lang {
@@ -209,6 +209,8 @@ input, textarea, select { font: inherit; }
 /* Video pembuka tak dimuat di t-lite/reduce (tata.js) — jangan tampilkan bingkai kosong. */
 .t-lite [data-open-video], .t-reduce [data-open-video] { display: none !important; }
 .t-instant [data-gate] { transition: none !important; }
+/* Akhir tutup-mundur (tata.js close): keadaan tertutup dipasang tanpa transisi. */
+[data-gate].t-diam, [data-gate].t-diam *, [data-gate].t-diam::before, [data-gate].t-diam::after, [data-gate].t-diam *::before, [data-gate].t-diam *::after { transition: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
     .t-js [data-a], .t-js [data-s] { opacity: 1; transform: none; transition: none; animation: none !important; }

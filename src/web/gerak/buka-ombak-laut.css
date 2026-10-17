@@ -1,9 +1,8 @@
 /* Ombak Laut — sampul di tepi pantai: langit lembut, tiga lapis ombak
    berbuih bergoyang di kaki layar. DIBUKA: ombak besar bangkit lapis demi
    lapis, menyapu seluruh layar ke atas & menghilang — membawa sampul pergi,
-   isi undangan muncul. DITUTUP: pasang naik menutup layar, lalu surut
-   kembali ke kaki layar meninggalkan sampul. Laut = --primary. */
-{a} { --gate-reveal: 1500; --gate-close: 1800; }
+   isi undangan muncul. Ditutup = gerak ini diputar mundur. Laut = --primary. */
+{a} { --gate-reveal: 1500; }
 {a}::before { content: ""; position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(60% 30% at 70% 18%, color-mix(in srgb, var(--gold-pale, #ffdea5) 70%, #fff), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--primary) 18%, #eaf6fb), color-mix(in srgb, var(--primary) 10%, var(--bg)) 70%, color-mix(in srgb, var(--gold-pale, #ffdea5) 55%, var(--bg))); }
 {a} .gate__panel { display: none; }
@@ -34,15 +33,7 @@
 .inv-opened {a}:not(.gate--embed)::before, .is-open > {a}::before { opacity: 0; transition: opacity .2s linear .85s; }
 .inv-opened {a}:not(.gate--embed) .gate__content, .is-open > {a} .gate__content { opacity: 0; transform: translateY(-40px); transition: opacity .3s ease .7s, transform .9s ease .3s; }
 .inv-opened {a}:not(.gate--embed) .gate__fx i, .is-open > {a} .gate__fx i { animation: ol-sapu 1.9s cubic-bezier(.45, 0, .35, 1) var(--t) both; }
-/* ── Ditutup: pasang naik lalu surut ── */
-@media (prefers-reduced-motion: no-preference) {
-  .inv-closing .gate.gate{a}:not(.gate--embed)::before { visibility: visible !important; transition: none !important; animation: ol-redup .05s linear .6s both !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx.gate__fx { visibility: visible !important; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__fx i { animation: ol-pasang 1.6s cubic-bezier(.4, 0, .3, 1) var(--t) both; }
-  .inv-closing .gate.gate{a}:not(.gate--embed) > .gate__content { animation-delay: .95s !important; }
-}
+
 @keyframes ol-riak { to { translate: 320px 0; } }
 @keyframes ol-sapu { 0% { transform: translateY(var(--diam)); } 45% { transform: translateY(-6%); } 100% { transform: translateY(-110%); } }
-@keyframes ol-pasang { 0% { transform: translateY(100%); } 42% { transform: translateY(-6%); } 100% { transform: translateY(var(--diam)); } }
-@keyframes ol-redup { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ol-ayun { from { opacity: 0; transform: translateX(-20px) rotate(-2deg); } }
