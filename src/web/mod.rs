@@ -23,6 +23,7 @@ pub mod layanan;
 pub mod model;
 pub mod ornamen;
 pub mod pages;
+pub mod jelajah;
 pub mod panggung;
 pub mod pendamping;
 pub mod rupa;

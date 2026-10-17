@@ -799,6 +799,22 @@
       a.relList.add('external');
     }, true);
   }
+  // DUNIA 3D beranda ([data-dunia], pages/hub3d.rs): arah pandang mengikuti
+  // kursor — hanya menulis --mx/--my (−1…1) sekali per frame; rotasi &
+  // transisi di main.css. Sentuh diabaikan (jari = menggulir).
+  if(!calm){
+    var dnRaf=0, dnEl=null, dnX=0, dnY=0;
+    d.addEventListener('pointermove', function(e){
+      if(e.pointerType==='touch' || !e.target.closest) return;
+      var el=e.target.closest('[data-dunia]'); if(!el) return;
+      var r=el.getBoundingClientRect();
+      dnEl=el; dnX=(e.clientX-r.left)/r.width*2-1; dnY=(e.clientY-r.top)/r.height*2-1;
+      if(!dnRaf) dnRaf=requestAnimationFrame(function(){
+        dnRaf=0; if(!dnEl) return;
+        dnEl.style.setProperty('--mx', dnX.toFixed(3)); dnEl.style.setProperty('--my', dnY.toFixed(3)); dnEl=null;
+      });
+    }, {passive:true});
+  }
   // Banner beranda ([data-banner]): titik/‹ › menggulir track (scroll-snap);
   // otomatis tiap 6 dtk — jeda saat di-hover/disentuh/fokus, tab tersembunyi,
   // atau "kurangi animasi".

@@ -1,0 +1,195 @@
+/* JELAJAH 3D (web/jelajah.rs) — tamu MASUK ke dunia 3D & diputar berkeliling:
+   enam lensa melingkar (radius 760px) menghadap KELUAR mengelilingi bangunan
+   pusat; kamera di luar lingkaran memutar dunia 60° per lensa sambil mundur
+   lalu maju lagi. Lensa di sisi belakang tersembunyi sendiri (backface-
+   visibility) → tak ada benda di belakang mata. Akar = `.pg.jl` (ikut aturan
+   umum panggung di global.js/bersama.js: lewati reveal, .pg--jalan pratinjau).
+   JANGAN beri opacity/filter pada elemen ber-preserve-3d (__mata, __dunia,
+   __pos): itu meratakan 3D — filter malam dipasang di daun. */
+.pg.jl { position: relative; height: 720svh; margin: 0 0 28px; view-timeline: --pg block; opacity: 1; translate: none; filter: none;
+  width: 100vw; margin-left: calc(50% - 50vw); }
+@media (min-width: 1100px) {
+  .inv--rail .pg.jl { width: var(--half); margin-left: calc(var(--right-x) - var(--col-x) - 20px); }
+}
+.jl__layar { position: sticky; top: 0; height: 100svh; overflow: hidden; contain: strict; isolation: isolate; background: var(--bg);
+  perspective: 900px; perspective-origin: 50% 60%; }
+.jl__layar > * { position: absolute; }
+.jl__langit { inset: 0 -20%; display: block; background: var(--jl-jauh) 50% 62% / cover no-repeat; }
+.jl__kabut { left: 0; right: 0; top: 48%; height: 22%; display: block; pointer-events: none;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--bg) 45%, transparent) 50%, transparent); }
+.jl__mata { left: 50%; top: 79%; width: 0; height: 0; transform-style: preserve-3d; }
+.jl__dunia { position: absolute; transform-style: preserve-3d; will-change: transform; transform: translate3d(0, 0, -1140px) rotateY(0deg); }
+.jl__dunia > * { position: absolute; display: block; left: 0; top: 0; }
+.jl__pusat { width: 900px; height: 1600px; margin: -1226px 0 0 -450px; background: var(--jl-pusat) 50% 50% / 100% 100% no-repeat; }
+.jl__pos { transform-style: preserve-3d; transform: rotateY(var(--a)) translateZ(760px); }
+.jl__pos > * { position: absolute; display: block; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.jl__prop { width: 520px; height: 520px; left: -260px; top: -494px; background: 50% 50% / 100% 100% no-repeat; }
+/* Sepasang mempelai: potongan 300×300 (x430 y1125) dari kanvas insan 1080×1920, ×1.1. */
+.jl__insan { width: 330px; height: 330px; left: -165px; top: -312px; transform: translateZ(40px); background-size: 1188px auto; background-position: -473px -1237px; background-repeat: no-repeat; }
+.jl__batu { width: 90px; height: 46px; margin: -23px 0 0 -45px; border-radius: 50%; background: color-mix(in srgb, var(--gold-pale, #efe4cc) 70%, #fff);
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, .08); transform: rotateY(var(--a)) translateZ(960px) rotateX(90deg); }
+.jl__pohon { width: 150px; height: 300px; margin: -300px 0 0 -75px; transform: rotateY(var(--a)) translateZ(820px); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.jl__pohon::before { content: ""; position: absolute; left: 18px; right: 18px; top: 0; bottom: 48px; border-radius: 50% 50% 46% 46% / 62% 62% 38% 38%;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--primary) 30%, #7fae6a), color-mix(in srgb, var(--primary) 20%, #3f6b2c) 60%); }
+.jl__pohon--b::before { left: 0; right: 0; top: 50px; border-radius: 50%; }
+.jl__pohon::after { content: ""; position: absolute; left: 66px; width: 18px; bottom: 0; height: 60px; border-radius: 4px; background: #6b4a30; }
+/* ── MEWAH: panggung emas mempelai, sinar, kilau emas, vinyet, kartu berbingkai emas. ── */
+.jl__alas { width: 300px; height: 300px; left: -150px; top: -150px; border-radius: 50%; transform: translateZ(40px) rotateX(90deg); backface-visibility: visible !important;
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold-pale, #f3e6c4) 85%, #fff) 0 54%, var(--gold, #c9a24b) 56% 60%, color-mix(in srgb, var(--gold-pale, #f3e6c4) 70%, #fff) 61% 63%, var(--gold-deep, #8a6a1f) 64% 65%, transparent 67%);
+  box-shadow: 0 0 60px 6px color-mix(in srgb, var(--gold, #c9a24b) 35%, transparent); }
+.jl__batu { background: radial-gradient(circle at 40% 35%, #fff8e0, var(--gold, #c9a24b) 70%, var(--gold-deep, #8a6a1f)); box-shadow: 0 0 18px color-mix(in srgb, var(--gold, #c9a24b) 60%, transparent); width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+.jl__sinar { left: 50%; top: -30%; width: 160%; aspect-ratio: 1; margin-left: -80%; display: block; pointer-events: none; opacity: .32;
+  background: repeating-conic-gradient(from 0deg at 50% 50%, color-mix(in srgb, var(--gold-pale, #fff3cf) 80%, #fff) 0 4deg, transparent 4deg 13deg);
+  -webkit-mask: radial-gradient(closest-side, #000 10%, transparent 70%); mask: radial-gradient(closest-side, #000 10%, transparent 70%);
+  animation: jl-putar 90s linear infinite; }
+@keyframes jl-putar { to { transform: rotate(360deg); } }
+.jl__kilau { inset: 0; display: block; pointer-events: none; overflow: hidden; z-index: 1; }
+.jl__kilau::before, .jl__kilau::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 200%;
+  background:
+    radial-gradient(2.5px 2.5px at 8% 12%, var(--gold, #e0b85a), transparent), radial-gradient(1.5px 1.5px at 22% 38%, #fff6d8, transparent), radial-gradient(3px 3px at 37% 21%, var(--gold, #e0b85a), transparent),
+    radial-gradient(2px 2px at 54% 44%, #fff6d8, transparent), radial-gradient(2.5px 2.5px at 68% 9%, var(--gold, #e0b85a), transparent), radial-gradient(1.5px 1.5px at 81% 31%, #fff6d8, transparent),
+    radial-gradient(3px 3px at 93% 18%, var(--gold, #e0b85a), transparent), radial-gradient(2px 2px at 14% 47%, var(--gold, #e0b85a), transparent), radial-gradient(2px 2px at 46% 6%, #fff6d8, transparent),
+    radial-gradient(2.5px 2.5px at 74% 40%, var(--gold, #e0b85a), transparent);
+  background-size: 100% 50%; animation: jl-kilau 16s linear infinite; opacity: .85; filter: drop-shadow(0 0 3px var(--gold, #e0b85a)); }
+.jl__kilau::after { animation-duration: 26s; animation-delay: -9s; transform: scaleX(-1); opacity: .6; }
+@keyframes jl-kilau { from { translate: 0 0; } to { translate: 0 -50%; } }
+.jl__vinyet { inset: 0; display: block; pointer-events: none; z-index: 1; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(20, 12, 4, .32)); }
+/* Kartu teks: kaca krem berbingkai emas ganda + sudut berhias. */
+.jl .jl__teks { left: 5%; right: 5%; padding: 20px 18px 18px; }
+.jl .jl__teks::before { inset: 0; border-radius: 18px; background: color-mix(in srgb, var(--card, #fffdf8) 84%, transparent); border: 1px solid color-mix(in srgb, var(--gold, #c9a24b) 75%, transparent);
+  box-shadow: 0 24px 48px -26px rgba(0, 0, 0, .55), inset 0 0 0 5px color-mix(in srgb, var(--card, #fffdf8) 70%, transparent), inset 0 0 0 6px color-mix(in srgb, var(--gold, #c9a24b) 45%, transparent); }
+.jl .jl__teks::after { content: ""; position: absolute; inset: 9px; z-index: -1; pointer-events: none; border-radius: 12px;
+  background:
+    radial-gradient(circle at 0 0, var(--gold, #c9a24b) 0 3px, transparent 4px) 0 0 / 22px 22px no-repeat,
+    radial-gradient(circle at 100% 0, var(--gold, #c9a24b) 0 3px, transparent 4px) 100% 0 / 22px 22px no-repeat,
+    radial-gradient(circle at 0 100%, var(--gold, #c9a24b) 0 3px, transparent 4px) 0 100% / 22px 22px no-repeat,
+    radial-gradient(circle at 100% 100%, var(--gold, #c9a24b) 0 3px, transparent 4px) 100% 100% / 22px 22px no-repeat,
+    linear-gradient(90deg, var(--gold, #c9a24b), transparent) 14px 0 / 40px 1px no-repeat, linear-gradient(-90deg, var(--gold, #c9a24b), transparent) calc(100% - 14px) 0 / 40px 1px no-repeat,
+    linear-gradient(90deg, var(--gold, #c9a24b), transparent) 14px 100% / 40px 1px no-repeat, linear-gradient(-90deg, var(--gold, #c9a24b), transparent) calc(100% - 14px) 100% / 40px 1px no-repeat; }
+.jl .jl__teks h2, .jl .jl__mempelai b, .jl .jl__teks h3 {
+  background: linear-gradient(100deg, var(--gold-deep, #8a6a1f), var(--gold, #c9a24b) 30%, color-mix(in srgb, var(--gold-pale, #f3e6c4) 70%, #fff) 50%, var(--gold, #c9a24b) 70%, var(--gold-deep, #8a6a1f));
+  background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; animation: jl-kemilau 6s ease-in-out infinite; }
+@keyframes jl-kemilau { 50% { background-position: 100% 0; } }
+.jl.jl--kunang .jl__teks h2, .jl.jl--kunang .jl__mempelai b, .jl.jl--kunang .jl__teks h3 { background-image: linear-gradient(100deg, #e9c46a, #fff4c4 50%, #e9c46a); }
+.jl .jl__teks small::before, .jl .jl__teks small::after { content: ""; display: inline-block; vertical-align: middle; width: 26px; height: 1px; margin: 0 8px; background: var(--gold, #c9a24b); }
+.jl .jl__mempelai small::before, .jl__mempelai small::after { display: none; }
+.jl .jl__monogram { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 6px; border-radius: 50%; font: 500 22px/1 var(--font-display, Georgia, serif); letter-spacing: .02em;
+  color: var(--gold-deep, #8a6a1f); background: radial-gradient(circle, color-mix(in srgb, var(--gold-pale, #f3e6c4) 60%, #fff), var(--gold-pale, #f3e6c4));
+  box-shadow: 0 0 0 2px var(--gold, #c9a24b), 0 0 0 5px color-mix(in srgb, var(--card, #fff) 80%, transparent), 0 0 0 6px color-mix(in srgb, var(--gold, #c9a24b) 60%, transparent), 0 0 30px color-mix(in srgb, var(--gold, #c9a24b) 45%, transparent); }
+html:is(.is-pv, .t-pv) .jl__kilau, html:is(.is-pv, .t-pv) .jl__sinar { display: none; }
+@media (prefers-reduced-motion: reduce) { .jl__sinar, .jl__kilau::before, .jl__kilau::after, .jl__teks h2, .jl__teks h3, .jl__mempelai b { animation: none; } }
+.motion-min .jl__sinar, .motion-min .jl__kilau { display: none; }
+
+/* Dunia malam: daun diredupkan (bukan wadah 3D). */
+.jl--kunang :is(.jl__prop, .jl__pohon, .jl__batu) { filter: brightness(.62) saturate(.8); }
+.jl--kunang .jl__insan { filter: brightness(.85); }
+
+/* Teks lensa (data undangan) di atas pemandangan. */
+.jl__teks { left: 0; right: 0; top: calc(var(--pg-atas, 0px) + 5%); padding: 0 9%; text-align: center; color: var(--ink); opacity: 0; visibility: hidden; text-wrap: balance; z-index: 2;
+  text-shadow: 0 1px 12px color-mix(in srgb, var(--bg, #fff) 90%, transparent); }
+.jl__teks::before { content: ""; position: absolute; inset: -22% 2%; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--bg, #fff) 86%, transparent), color-mix(in srgb, var(--bg, #fff) 55%, transparent) 55%, transparent); }
+.jl__teks.is-awal { opacity: 1; visibility: visible; }
+.jl__teks h2 { font-size: clamp(32px, 10vmin, 56px); line-height: 1.05; margin: 2px 0 6px; }
+.jl__teks h3 { font-size: clamp(20px, 6vmin, 28px); margin: 0 0 4px; }
+.jl__teks p { margin: 0; font-size: 14px; line-height: 1.6; }
+.jl__teks small { display: block; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 70%, transparent); }
+.jl__teks .script { font-size: clamp(22px, 6.4vmin, 32px); color: var(--gold-deep, #8a6a1f); text-shadow: none; }
+.jl__mempelai b { display: block; font-size: clamp(19px, 5.4vmin, 26px); font-family: var(--font-display, Georgia, serif); font-weight: 500; color: var(--primary); }
+.jl__mempelai small { text-transform: none; letter-spacing: .02em; font-size: 13px; margin-top: 2px; }
+.jl__dan { display: block; margin: 6px 0; font-size: clamp(28px, 8vmin, 40px) !important; }
+.jl__kisah p { display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; font-style: italic; }
+.jl__acara + .jl__acara { margin-top: 14px; }
+.jl__gulir { bottom: 4%; left: 50%; translate: -50% 0; margin: 0; z-index: 2; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 75%, transparent);
+  animation: jl-angguk 1.8s ease-in-out infinite; }
+.jl__gulir::after { content: ""; display: block; width: 1px; height: 26px; margin: 6px auto 0; background: currentColor; }
+@keyframes jl-angguk { 50% { transform: translateY(5px); } }
+.jl h2, .jl h3 { font-family: var(--font-display, Georgia, serif); font-weight: 500; color: var(--primary); }
+.jl .script { font-family: var(--font-script, var(--font-display, cursive)); font-weight: var(--script-weight, 400); }
+
+/* Gerak (scroll-driven). Kunci kamera: lensa i diam di (20·i ± 5)%, sudut 60·i°. */
+@keyframes jl-kamera {
+  0%, 5% { transform: translate3d(0, 0, -1140px) rotateY(0deg); }
+  10% { transform: translate3d(0, 34px, -1480px) rotateY(-30deg); }
+  15%, 25% { transform: translate3d(0, 0, -1140px) rotateY(-60deg); }
+  30% { transform: translate3d(0, 34px, -1480px) rotateY(-90deg); }
+  35%, 45% { transform: translate3d(0, 0, -1140px) rotateY(-120deg); }
+  50% { transform: translate3d(0, 34px, -1480px) rotateY(-150deg); }
+  55%, 65% { transform: translate3d(0, 0, -1140px) rotateY(-180deg); }
+  70% { transform: translate3d(0, 34px, -1480px) rotateY(-210deg); }
+  75%, 85% { transform: translate3d(0, 0, -1140px) rotateY(-240deg); }
+  90% { transform: translate3d(0, 34px, -1480px) rotateY(-270deg); }
+  95%, 100% { transform: translate3d(0, 0, -1100px) rotateY(-300deg); }
+}
+/* Bangunan pusat selalu menghadap kamera (putaran balik dunia). */
+@keyframes jl-hadap {
+  0%, 5% { transform: rotateY(0deg); } 10% { transform: rotateY(30deg); } 15%, 25% { transform: rotateY(60deg); } 30% { transform: rotateY(90deg); }
+  35%, 45% { transform: rotateY(120deg); } 50% { transform: rotateY(150deg); } 55%, 65% { transform: rotateY(180deg); } 70% { transform: rotateY(210deg); }
+  75%, 85% { transform: rotateY(240deg); } 90% { transform: rotateY(270deg); } 95%, 100% { transform: rotateY(300deg); }
+}
+@keyframes jl-geser { from { transform: translateX(9%); } to { transform: translateX(-9%); } }
+@keyframes jl-sc { 0% { opacity: 0; visibility: hidden; transform: translateY(16px) scale(.96); } 25%, 75% { opacity: 1; visibility: visible; transform: none; } 100% { opacity: 0; visibility: hidden; transform: translateY(-16px); } }
+@keyframes jl-sc-awal { 0%, 70% { opacity: 1; visibility: visible; transform: none; } 100% { opacity: 0; visibility: hidden; transform: translateY(-16px); } }
+@keyframes jl-sc-akhir { 0% { opacity: 0; visibility: hidden; transform: translateY(16px); } 40%, 100% { opacity: 1; visibility: visible; transform: none; } }
+@keyframes jl-gulir { 0%, 3% { opacity: 1; } 7%, 100% { opacity: 0; } }
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .jl__dunia, .jl__pusat, .jl__langit, .jl__teks { animation-timeline: --pg; animation-fill-mode: both; animation-timing-function: linear; animation-duration: auto; animation-range: contain 0% contain 100%; }
+    .jl__dunia { animation-name: jl-kamera; }
+    .jl__pusat { animation-name: jl-hadap; }
+    .jl__langit { animation-name: jl-geser; }
+    .jl__teks { animation-name: jl-sc; animation-range: contain var(--s) contain var(--e); }
+    .jl__teks.is-awal { animation-name: jl-sc-awal; }
+    .jl__teks.is-akhir { animation-name: jl-sc-akhir; }
+    .jl__gulir { animation: jl-angguk 1.8s ease-in-out infinite, jl-gulir linear both; animation-timeline: auto, --pg; animation-range: normal, contain 0% contain 100%; }
+  }
+}
+/* Tanpa gerak gulir: satu layar lensa pertama (isi lengkap tetap ada di
+   bagian undangan di bawahnya). */
+@supports not (animation-timeline: view()) {
+  html:not(.is-pv):not(.t-pv) .pg.jl { height: auto; }
+  html:not(.is-pv):not(.t-pv) .jl__layar { position: relative; }
+  html:not(.is-pv):not(.t-pv) .jl__teks:not(.is-awal), html:not(.is-pv):not(.t-pv) .jl__gulir { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg.jl { height: auto; } .jl__layar { position: relative; }
+  .jl__teks:not(.is-awal), .jl__gulir { display: none; }
+}
+
+/* PRATINJAU etalase (html.is-pv): gerak WAKTU ±5 dtk, dimulai saat bersama.js
+   memasang .pg--jalan (lihat panggung/_dasar.css untuk alasannya). */
+html:is(.is-pv, .t-pv) .pg.jl { height: 100svh; }
+html:is(.is-pv, .t-pv) .jl__gulir { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  html:is(.is-pv, .t-pv) .jl__dunia { animation-name: jl-kamera; }
+  html:is(.is-pv, .t-pv) .jl__pusat { animation-name: jl-hadap; }
+  html:is(.is-pv, .t-pv) .jl__langit { animation-name: jl-geser; }
+  html:is(.is-pv, .t-pv) .jl__teks { animation-name: jl-sc; }
+  html:is(.is-pv, .t-pv) .jl__teks.is-awal { animation-name: jl-sc-awal; }
+  html:is(.is-pv, .t-pv) .jl__teks.is-akhir { animation-name: jl-sc-akhir; }
+}
+html:is(.is-pv, .t-pv) .pg.jl :is(.jl__dunia, .jl__pusat, .jl__langit) { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 5s !important;
+  animation-delay: .4s !important; animation-timing-function: cubic-bezier(.45, .05, .55, .95) !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
+html:is(.is-pv, .t-pv) .pg.jl .jl__teks { animation-timeline: auto !important; animation-range: normal !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important;
+  animation-duration: 1s !important; animation-timing-function: linear !important; }
+html:is(.is-pv, .t-pv) .pg.jl .jl__teks.is-awal { animation-duration: 1.2s !important; animation-delay: .4s !important; }
+html:is(.is-pv, .t-pv) .pg.jl .jl__teks:nth-of-type(3) { animation-delay: .9s !important; }
+html:is(.is-pv, .t-pv) .pg.jl .jl__teks:nth-of-type(4) { animation-delay: 1.9s !important; }
+html:is(.is-pv, .t-pv) .pg.jl .jl__teks:nth-of-type(5) { animation-delay: 2.9s !important; }
+html:is(.is-pv, .t-pv) .pg.jl .jl__teks:nth-of-type(6) { animation-delay: 3.9s !important; }
+/* div ke-1 = .jl__mata; teks lensa = div ke-2…7. */
+html:is(.is-pv, .t-pv) .pg.jl .jl__teks.is-akhir { animation-duration: .6s !important; animation-delay: 4.8s !important; }
+html:is(.is-pv, .t-pv) .pg.jl:not(.pg--jalan) .jl__layar * { animation-play-state: paused !important; }
+
+/* Selama prolog tampil: hiasan melayang & pendamping disembunyikan, padding
+   atas isi dibuang (sama seperti panggung). */
+@supports (timeline-scope: --pg) {
+  .inv:has(.pg) { timeline-scope: --pg; }
+  .inv:has(.pg.jl) .float-deco, .inv:has(.pg.jl) .pdp { animation: jl-sembunyi linear both; animation-timeline: --pg; animation-range: cover 0% cover 100%; }
+  @media (min-width: 1100px) {
+    .inv--rail:has(.pg.jl) > .inv-top { position: fixed; top: 16px; left: var(--col-x); margin: 0; animation: jl-sembunyi linear both; animation-timeline: --pg; animation-range: cover 0% cover 100%; }
+  }
+}
+@keyframes jl-sembunyi { 0% { opacity: 1; } 12%, 88% { opacity: 0; visibility: hidden; } 100% { opacity: 1; } }
+.inv:has(.pg.jl) .inv__main { padding-top: 0; }
+html:is(.is-pv, .t-pv) .pdp, html:is(.is-pv, .t-pv) .float-deco { display: none !important; }

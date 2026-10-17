@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920"><defs><linearGradient id="tWood" x2="0" y2="1"><stop stop-color="#b98a5a"/><stop offset="1" stop-color="#7d5634"/></linearGradient><linearGradient id="tRoof" x2="0" y2="1"><stop stop-color="#6d4a32"/><stop offset="1" stop-color="#3f2a1c"/></linearGradient><filter id="tBlur"><feGaussianBlur stdDeviation="20"/></filter></defs>
+<ellipse cx="540" cy="1470" rx="460" ry="70" fill="#2f4a20" opacity=".3" filter="url(#tBlur)"/>
+<path fill="#d9cfbf" stroke="#f3ece0" stroke-width="6" d="M210 1470h660l-30-50H240z"/>
+<path fill="#bfb3a0" d="M250 1420h580v-24H250z"/>
+<path fill="url(#tWood)" d="M278 1396V950h24v446z"/><path fill="url(#tWood)" d="M398 1396V950h24v446z"/><path fill="url(#tWood)" d="M658 1396V950h24v446z"/><path fill="url(#tWood)" d="M778 1396V950h24v446z"/>
+<path fill="#8a6a4a" d="M468 1396V1000h24v396z"/><path fill="#8a6a4a" d="M588 1396V1000h24v396z"/>
+<path fill="url(#tRoof)" d="M170 980L320 860h440l150 120z"/>
+<path fill="#a88760" d="M170 980h740v16H170z"/>
+<path fill="url(#tRoof)" d="M330 870L440 700h200l110 170z"/>
+<path fill="url(#tRoof)" d="M450 712L510 600h60l60 112z"/>
+<path fill="#e7c98e" d="M500 600h80v-10h-80z"/>
+<path fill="none" stroke="#e7c98e" stroke-width="5" d="M320 860h440M440 704h200"/>
+<path fill="#6b4a30" stroke="#e7c98e" stroke-width="4" d="M470 1396v-210h140v210z"/>
+<path fill="none" stroke="#e7c98e" stroke-width="3" d="M540 1186v210M490 1220h100M490 1300h100"/>
+<path stroke="#5c3e2c" stroke-width="3" d="M350 996v40"/><ellipse cx="350" cy="1060" rx="18" ry="24" fill="#f3c46b"/><path stroke="#5c3e2c" stroke-width="3" d="M730 996v40"/><ellipse cx="730" cy="1060" rx="18" ry="24" fill="#f3c46b"/>
+<path fill="none" stroke="#d8c46a" stroke-width="6" d="M260 1000q40 60 0 140M820 1000q-40 60 0 140"/>
+<circle cx="200" cy="1436" r="23" fill="#5b8a3c"/>
+<circle cx="240" cy="1440" r="26" fill="#5b8a3c"/>
+<circle cx="280" cy="1434" r="28" fill="#5b8a3c"/>
+<circle cx="320" cy="1432" r="27" fill="#5b8a3c"/>
+<circle cx="760" cy="1438" r="25" fill="#5b8a3c"/>
+<circle cx="800" cy="1436" r="29" fill="#5b8a3c"/>
+<circle cx="840" cy="1440" r="25" fill="#5b8a3c"/>
+<circle cx="880" cy="1431" r="29" fill="#5b8a3c"/></svg>

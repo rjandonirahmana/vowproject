@@ -164,6 +164,9 @@ pub fn KatalogPage() -> impl IntoView {
             <Suspense fallback=|| ()>
                 {move || banners.get().and_then(|r| r.ok()).map(|items| view! { <BannerCarousel items=items /> })}
             </Suspense>
+            // DUNIA 3D tepat di bawah banner: jelajah 5 pos alur pesan
+            // (pages/hub3d.rs, CSS "DUNIA 3D").
+            <Hub3d />
             <Suspense fallback=|| ()>
                 {move || panduan.get().and_then(|r| r.ok()).map(|items| view! { <PanduanStories items=items /> })}
             </Suspense>
@@ -191,8 +194,6 @@ pub fn KatalogPage() -> impl IntoView {
                 </div>
             </section>
 
-            // HUB 3D: panggung gulir 5 panel + HP 3D (pages/hub3d.rs, CSS "HUB 3D").
-            <Hub3d />
 
             <Suspense fallback=|| view! { <div class="chips-row" id="katalog"></div> }>
                 <div class="chips-row" id="katalog">

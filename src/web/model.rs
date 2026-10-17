@@ -123,6 +123,9 @@ pub struct InvSkin {
     pub panggung: String,
     /// Kelas akar panggung (adegan + kamera + cermin) — unik per tema.
     pub panggung_kelas: String,
+    /// Dunia tema JELAJAH 3D (`web/jelajah.rs`); "" = bukan. Bila diisi,
+    /// prolog jelajah menggantikan panggung.
+    pub jelajah: String,
     /// Kunci gerak scroll — akar undangan diberi kelas `rvs--{kunci}` (koreografi).
     pub scroll_anim: String,
     /// Lapisan ornamen per bagian (web/ornamen.rs).

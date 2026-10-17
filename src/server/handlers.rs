@@ -851,6 +851,20 @@ pub async fn gaya_css(
     }
 }
 
+/// GET /panggung/{nama}.svg — satu lapisan SVG panggung (web/panggung.rs)
+/// untuk papan bangunan DUNIA 3D beranda. Isi ter-embed di biner → berubah
+/// hanya saat deploy; cache sehari (URL tanpa hash versi).
+pub async fn panggung_svg(Path(file): Path<String>) -> Response {
+    match file.strip_suffix(".svg").and_then(crate::web::panggung::lapisan) {
+        Some(svg) => (
+            [(header::CONTENT_TYPE, "image/svg+xml"), (header::CACHE_CONTROL, "public, max-age=86400")],
+            svg,
+        )
+            .into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
 /// GET /sitemap.xml — halaman publik + demo tema, paket dekorasi, dan artikel terbit.
 pub async fn sitemap(Extension(state): Extension<Arc<AppState>>) -> Response {
     use crate::web::seo::SITE_URL;

@@ -460,7 +460,13 @@ pub fn SampulPage() -> impl IntoView {
     view! {
         {opening}
         <div id="isi" class="inv__isi">
-            {(single && !c.page.skin.panggung.is_empty()).then(|| view! { <Panggung3d /> })}
+            {if single && !c.page.skin.jelajah.is_empty() {
+                Some(view! { <Jelajah3d /> }.into_any())
+            } else if single && !c.page.skin.panggung.is_empty() {
+                Some(view! { <Panggung3d /> }.into_any())
+            } else {
+                None
+            }}
             <SampulExtras />
             {single.then(|| view! {
                 <div id="acara" class="inv__anchor"><AcaraBody countdown=false /></div>
@@ -535,6 +541,121 @@ fn Panggung3d() -> impl IntoView {
             </div>
         </section>
     }
+}
+
+/// Rentang gulir (% dari prolog) teks tiap lensa jelajah — pusat 0/20/40/60/80/100
+/// = saat kamera DIAM di lensa itu (keyframes `jl-kamera`, jelajah/_dasar.css).
+const JL_RENTANG: [&str; 6] = ["--s:0%;--e:10%", "--s:10%;--e:30%", "--s:30%;--e:50%", "--s:50%;--e:70%", "--s:70%;--e:90%", "--s:90%;--e:100%"];
+
+/// Prolog JELAJAH 3D (web/jelajah.rs): tamu masuk ke dunia 3D & diputar
+/// mengelilingi bangunan pusat; enam lensa melingkar, di tiap lensa sepasang
+/// mempelai. Teks lensa = data undangan (bisa disunting pemesan): sampul,
+/// mempelai, dua babak kisah (cadangan kutipan/doa), acara, salam penutup.
+/// Dirender server (terbaca mesin pencari); gerak = CSS scroll-driven.
+#[component]
+fn Jelajah3d() -> impl IntoView {
+    let c = ctx();
+    let l = c.lang;
+    let inv = c.page.inv.clone();
+    let Some(dunia) = crate::web::jelajah::dunia(&c.page.skin.jelajah) else {
+        return ().into_any();
+    };
+    // Dua babak kisah: love story pemesan; kosong → kutipan, lalu doa restu.
+    let mut kisah: Vec<(String, String, String)> = inv
+        .love_story
+        .iter()
+        .filter(|s| !s.title.trim().is_empty() || !s.text.trim().is_empty())
+        .take(2)
+        .map(|s| (s.year.clone(), s.title.clone(), s.text.clone()))
+        .collect();
+    if kisah.len() < 2 && !inv.quote_text.trim().is_empty() {
+        kisah.push((String::new(), inv.quote_source.clone(), inv.quote_text.clone()));
+    }
+    while kisah.len() < 2 {
+        kisah.push((
+            String::new(),
+            tx!(l, "Doa Restu", "Blessing").to_string(),
+            tx!(l, "Semoga cinta kami senantiasa tumbuh, saling menjaga dalam suka dan duka hingga akhir masa.",
+                "May our love keep growing, caring for one another in joy and sorrow, for all time.").to_string(),
+        ));
+    }
+    let (b, g) = (inv.bride_first(), inv.groom_first());
+    // Kolom orang tua biasanya sudah berawalan "Putri/Putra dari …" (isian
+    // pemesan) — awalan hanya ditambahkan bila belum ada.
+    let ortu = |o: &str, putri: bool| -> String {
+        let o = o.trim();
+        let kecil = o.to_lowercase();
+        if o.is_empty() || ["putri", "putra", "anak", "daughter", "son"].iter().any(|a| kecil.starts_with(a)) {
+            o.to_string()
+        } else if putri {
+            format!("{} {}", tx!(l, "Putri dari", "Daughter of"), o)
+        } else {
+            format!("{} {}", tx!(l, "Putra dari", "Son of"), o)
+        }
+    };
+    view! {
+        <section class=format!("pg jl jl--{}", dunia.slug) aria-label=tx!(l, "Jelajah undangan 3D", "3D invitation journey")>
+            <div class="jl__layar">
+                <i class="jl__langit" aria-hidden="true"></i>
+                <i class="jl__sinar" aria-hidden="true"></i>
+                <div class="jl__mata" aria-hidden="true">
+                    <div class="jl__dunia">
+                        <i class="jl__pusat"></i>
+                        {(0..24).map(|k| view! { <i class="jl__batu" style=format!("--a:{}deg", k * 15)></i> }).collect_view()}
+                        {(0..6).map(|k| view! { <i class="jl__pohon" class:jl__pohon--b=(k % 2 == 1) style=format!("--a:{}deg", 30 + k * 60)></i> }).collect_view()}
+                        {(0..6).map(|i| view! {
+                            <div class="jl__pos" style=format!("--a:{}deg", i * 60)>
+                                <i class="jl__prop" style=format!("background-image:url(/panggung/{}.svg)", crate::web::jelajah::PROPERTI[i])></i>
+                                <i class="jl__alas"></i>
+                                <i class="jl__insan" style=format!("background-image:url(/panggung/{}.svg)", crate::web::jelajah::insan(dunia, i))></i>
+                            </div>
+                        }).collect_view()}
+                    </div>
+                </div>
+                <i class="jl__kabut" aria-hidden="true"></i>
+                <i class="jl__kilau" aria-hidden="true"></i>
+                <i class="jl__vinyet" aria-hidden="true"></i>
+                <div class="jl__teks jl__t1 is-awal" style=JL_RENTANG[0]>
+                    <span class="jl__monogram" aria-hidden="true">{inv.initials()}</span>
+                    <p class="script">{if inv.groom_name.trim().is_empty() { tx!(l, "Selamat datang", "Welcome") } else { "The Wedding of" }}</p>
+                    <h2>{b.clone()}{(!g.is_empty()).then(|| format!(" & {g}"))}</h2>
+                    <small>{inv.date_label_in(l)}</small>
+                </div>
+                <div class="jl__teks" style=JL_RENTANG[1]>
+                    <div class="jl__mempelai">
+                        <b>{inv.bride_name.clone()}</b><small>{ortu(&inv.bride_parents, true)}</small>
+                    </div>
+                    {(!inv.groom_name.trim().is_empty()).then(|| view! {
+                        <span class="script jl__dan">"&"</span>
+                        <div class="jl__mempelai">
+                            <b>{inv.groom_name.clone()}</b><small>{ortu(&inv.groom_parents, false)}</small>
+                        </div>
+                    })}
+                </div>
+                {kisah.into_iter().enumerate().map(|(i, (tahun, judul, isi))| view! {
+                    <div class="jl__teks jl__kisah" style=JL_RENTANG[2 + i]>
+                        {(!tahun.trim().is_empty()).then(|| view! { <small>{tahun}</small> })}
+                        <h3>{judul}</h3>
+                        <p>{isi}</p>
+                    </div>
+                }).collect_view()}
+                <div class="jl__teks" style=JL_RENTANG[4]>
+                    {inv.events.iter().take(2).map(|e| view! {
+                        <div class="jl__acara">
+                            <h3>{if e.title.is_empty() { e.badge_in(l) } else { e.title.clone() }}</h3>
+                            <p>{e.date_label_in(l)}<br />{e.time_label_in(l)}<br />{e.venue.clone()}</p>
+                        </div>
+                    }).collect_view()}
+                </div>
+                <div class="jl__teks is-akhir" style=JL_RENTANG[5]>
+                    <p>{tx!(l, "Merupakan kehormatan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir memberikan doa restu.", "It would be our honour to have you with us and receive your blessing.")}</p>
+                    <p class="script">{b}{(!g.is_empty()).then(|| format!(" & {g}"))}</p>
+                </div>
+                <p class="jl__gulir" aria-hidden="true">{tx!(l, "Gulir untuk berkeliling", "Scroll to explore")}</p>
+            </div>
+        </section>
+    }
+    .into_any()
 }
 
 /// Dirender untuk PRATINJAU etalase (`?pv=1`, iframe mini di beranda yang

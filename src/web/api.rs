@@ -172,6 +172,7 @@ pub async fn get_invitation(slug: String, guest: Option<String>, k: Option<Strin
                 pendamping: t.pendamping().to_string(),
                 panggung: cat.resep(&t.slug).map(|r| r.adegan.to_string()).unwrap_or_default(),
                 panggung_kelas: cat.resep(&t.slug).map(|r| r.kelas()).unwrap_or_default(),
+                jelajah: crate::web::jelajah::pilih(&t.slug).to_string(),
                 scroll_anim: t.scroll_anim.clone(),
                 ornaments: t.ornaments.clone(),
                 bg_video: t.bg_video.clone(),

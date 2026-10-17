@@ -210,6 +210,7 @@ async fn main() -> Result<()> {
         .route("/fonts/g/{*path}", axum::routing::get(undangan::server::fonts::file))
         .route("/gaya/{file}", axum::routing::get(handlers::gaya_css))
         .route("/sitemap.xml", axum::routing::get(handlers::sitemap))
+        .route("/panggung/{file}", axum::routing::get(handlers::panggung_svg))
         .route("/app.js", axum::routing::get(handlers::app_js))
         // Tema templat: mesin gerak bersama + kirim RSVP (server/templat.rs).
         .route("/tata.js", axum::routing::get(undangan::server::templat::tata_js))

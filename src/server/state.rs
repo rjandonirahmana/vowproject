@@ -185,7 +185,11 @@ fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, a
     }
     css.push_str(&crate::web::rupa::css(rupa));
     css.push_str(crate::web::pendamping::css(t.pendamping()));
-    if let Some(r) = resep {
+    // Tema JELAJAH 3D: prolog jelajah menggantikan panggung (CSS panggung tak perlu).
+    let jelajah = crate::web::jelajah::pilih(&t.slug);
+    if !jelajah.is_empty() {
+        css.push_str(&crate::web::jelajah::css(jelajah));
+    } else if let Some(r) = resep {
         css.push_str(&crate::web::panggung::css_tema(r));
     }
     super::aset::tulis_ulang(&css).into_owned()

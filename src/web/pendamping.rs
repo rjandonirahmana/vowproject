@@ -60,6 +60,11 @@ pub fn pilih(slug: &str, nuansa: &str, wilayah: &str, sinema: bool) -> &'static 
         "gurun-senja-3d" => return "rasi",
         "salju-lentera-3d" => return "lampion",
         "ladang-lavender-3d" => return "kupu",
+        // Tema 3D 053: merpati (balon), kupu (kastil), rasi/kunang (hutan), bangau (teh).
+        "langit-balon-3d" => return "merpati",
+        "kastil-mawar-3d" => return "kupu",
+        "hutan-kunang-3d" => return "rasi",
+        "kebun-teh-3d" => return "bangau",
         _ => {}
     }
     let n = nuansa.to_lowercase();
