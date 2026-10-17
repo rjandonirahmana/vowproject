@@ -126,6 +126,9 @@ pub struct InvSkin {
     /// Dunia tema JELAJAH 3D (`web/jelajah.rs`); "" = bukan. Bila diisi,
     /// prolog jelajah menggantikan panggung.
     pub jelajah: String,
+    /// Dunia tema SUSUR 3D (`web/susur.rs`); "" = bukan. Bila diisi, prolog
+    /// susur (kamera berjalan menyusuri dunia) menggantikan panggung.
+    pub susur: String,
     /// Kunci gerak scroll — akar undangan diberi kelas `rvs--{kunci}` (koreografi).
     pub scroll_anim: String,
     /// Lapisan ornamen per bagian (web/ornamen.rs).

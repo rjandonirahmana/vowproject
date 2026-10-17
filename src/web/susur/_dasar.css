@@ -1,0 +1,220 @@
+/* SUSUR 3D (web/susur.rs) — tamu BERJALAN menyusuri dunia dari gapura ke
+   pelaminan. Kamera = .ss__dunia (keyframes `ss-kamera` dibangkitkan dari
+   jalur di susur.rs, JANGAN disunting tangan); mata = .ss__mata
+   (translateZ(--pp) = posisi mata, sama dengan `perspective`). Benda diletakkan
+   dengan properti `translate`/`rotate` (bukan `transform`) agar papan yang
+   selalu menghadap kamera (`.ss-hadap`) cukup menganimasikan `rotate`.
+   Benda yang sudah dilewati disembunyikan lewat visibility (`.ss-o`, --off).
+   JANGAN beri opacity/filter pada elemen ber-preserve-3d (.ss__mata,
+   .ss__dunia, .ss-b berisi anak) — meratakan 3D; efek hanya di daun.
+   Akar = `.pg.ss` (ikut aturan umum panggung: lewati reveal, .pg--jalan). */
+.pg.ss { position: relative; height: 760svh; margin: 0 0 28px; view-timeline: --pg block; opacity: 1; translate: none; filter: none;
+  width: 100vw; margin-left: calc(50% - 50vw); }
+@media (min-width: 1100px) {
+  .inv--rail .pg.ss { width: var(--half); margin-left: calc(var(--right-x) - var(--col-x) - 20px); }
+}
+/* --pp = jarak mata (perspective): HP potret ±550px (pandangan lebar), kolom
+   desktop dibatasi tinggi layar agar bangunan tinggi tak terpotong. */
+.ss__layar { --pp: clamp(500px, min(140vw, 72svh), 1000px); --hz: 40%; --dasar: 71%;
+  position: sticky; top: 0; height: 100svh; overflow: hidden; contain: strict; isolation: isolate; background: var(--ss-tanah, #6f8f4a);
+  perspective: var(--pp); perspective-origin: 50% var(--hz); }
+.ss__layar > * { position: absolute; }
+.ss__langit { left: 0; right: 0; top: 0; height: calc(var(--hz) + 1px); display: block; background: var(--ss-langit); }
+.ss__surya { left: var(--ss-surya-x, 66%); top: calc(var(--hz) * var(--ss-surya-y, .34)); width: min(30vmin, 200px); aspect-ratio: 1; margin-left: max(-15vmin, -100px); display: block; border-radius: 50%;
+  background: var(--ss-surya); }
+.ss__awan { left: -10%; right: -10%; top: 6%; height: 26%; display: block; pointer-events: none; opacity: .9;
+  background: radial-gradient(60px 22px at 12% 40%, #fff, transparent), radial-gradient(90px 28px at 18% 46%, #fff, transparent), radial-gradient(70px 20px at 58% 30%, #fff, transparent),
+    radial-gradient(110px 30px at 66% 36%, #fff, transparent), radial-gradient(80px 22px at 88% 60%, #fff, transparent);
+  animation: ss-awan 70s linear infinite alternate; }
+@keyframes ss-awan { to { translate: 8% 0; } }
+/* Cakrawala panorama (bergeser saat kamera menoleh: keyframes ss-latar). */
+.ss__latar { left: -100%; width: 300%; bottom: calc(100% - var(--hz) - 1px); height: min(16vh, 26vw); display: block; background: var(--ss-cakrawala); }
+.ss__tanah { left: 0; right: 0; top: var(--hz); bottom: 0; display: block; background: var(--ss-tanah-g, var(--ss-tanah)); }
+.ss__kabut { left: 0; right: 0; top: calc(var(--hz) - 7%); height: 16%; display: block; pointer-events: none; z-index: 1;
+  background: linear-gradient(transparent, var(--ss-kabut, rgba(255, 255, 255, .4)) 50%, transparent); }
+.ss__vinyet { inset: 0; display: block; pointer-events: none; z-index: 1; background: radial-gradient(ellipse at 50% 42%, transparent 58%, rgba(10, 20, 10, .28)); }
+
+.ss__mata { left: 50%; top: var(--dasar); width: 0; height: 0; transform-style: preserve-3d; transform: translateZ(var(--pp)); }
+.ss__dunia { position: absolute; transform-style: preserve-3d; will-change: transform; }
+.ss__dunia * { position: absolute; display: block; }
+
+/* ── Primitif ── */
+.ss-b { left: 0; top: 0; transform-style: preserve-3d; translate: var(--x) var(--y, 0px) var(--z); rotate: y var(--ry, 0deg); }
+/* Papan tegak: kaki di titik benda. */
+.ss-papan { width: var(--w); height: var(--h); margin: calc(var(--h) * -1) 0 0 calc(var(--w) / -2); transform-style: flat;
+  background: var(--img) 50% 100% / 100% 100% no-repeat; }
+/* Bidang rebah (tanah). */
+.ss-datar { width: var(--w); height: var(--d); margin: calc(var(--d) / -2) 0 0 calc(var(--w) / -2); transform-style: flat; transform: rotateX(90deg); background: var(--c, #8a7a5a); }
+/* Ruas jalan berujung bulat → sambungan antar-ruas di tikungan tak bergerigi. */
+.ss-jalan, .ss-papan-jalan, .ss-dermaga, .ss-karpet { border-radius: 50% / 9%; }
+/* Kotak dinding: depan, belakang, kiri, kanan (+ tutup). Sisi belakang tak digambar. */
+.ss-kotak > i { left: 0; top: 0; height: var(--h); margin-top: calc(var(--h) * -1); backface-visibility: hidden; -webkit-backface-visibility: hidden; background: var(--dinding, #c9a77a); }
+.ss-kotak > :nth-child(-n+2) { width: var(--w); margin-left: calc(var(--w) / -2); }
+.ss-kotak > :nth-child(1) { transform: translateZ(calc(var(--d) / 2)); }
+.ss-kotak > :nth-child(2) { transform: rotateY(180deg) translateZ(calc(var(--d) / 2)); }
+.ss-kotak > :nth-child(n+3) { width: var(--d); margin-left: calc(var(--d) / -2); box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .14); }
+.ss-kotak > :nth-child(3) { transform: rotateY(-90deg) translateZ(calc(var(--w) / 2)); }
+.ss-kotak > :nth-child(4) { transform: rotateY(90deg) translateZ(calc(var(--w) / 2)); }
+.ss-kotak > :nth-child(5) { width: var(--w); height: var(--d); margin: calc(var(--h) * -1 - var(--d) / 2) 0 0 calc(var(--w) / -2); transform: rotateX(90deg);
+  backface-visibility: visible; -webkit-backface-visibility: visible; box-shadow: none; background: var(--tutup, var(--dinding)); }
+/* Atap limasan: dua trapesium (depan/belakang) + dua segitiga (samping);
+   bubungan --t = --w → atap pelana (segitiga samping tegak = tebeng).
+   Bentuk miring DILUKIS gradien (sudut transparan), BUKAN clip-path: tiap
+   clip-path di ruang 3D = permukaan render sendiri → ±10× lebih berat
+   (diukur: 4 fps → 30+ fps). Warna: --atap-w (muka), --atap-s (samping),
+   --atap-g (tekstur bagian tengah). */
+.ss-limas { --sf: hypot(var(--h), calc(var(--d) / 2)); --sa: hypot(var(--h), calc((var(--w) - var(--t)) / 2)); --sudut: calc((var(--w) - var(--t)) / 2); }
+.ss-limas > i { left: 0; top: 0; transform-origin: 50% 100%; }
+.ss-limas > :nth-child(-n+2) { width: var(--w); height: var(--sf); margin: calc(var(--sf) * -1) 0 0 calc(var(--w) / -2);
+  background: linear-gradient(to bottom right, transparent calc(50% - .6px), var(--atap-w, #7a4a32) calc(50% + .6px)) 0 0 / var(--sudut) 100% no-repeat,
+    linear-gradient(to bottom left, transparent calc(50% - .6px), var(--atap-w, #7a4a32) calc(50% + .6px)) 100% 0 / var(--sudut) 100% no-repeat,
+    var(--atap-g, linear-gradient(var(--atap-w, #7a4a32), var(--atap-w, #7a4a32))) 50% 0 / var(--t) 100% no-repeat; }
+.ss-limas > :nth-child(1) { transform: translateZ(calc(var(--d) / 2)) rotateX(atan2(calc(var(--d) / 2), var(--h))); }
+.ss-limas > :nth-child(2) { transform: rotateY(180deg) translateZ(calc(var(--d) / 2)) rotateX(atan2(calc(var(--d) / 2), var(--h))); }
+.ss-limas > :nth-child(n+3) { width: var(--d); height: var(--sa); margin: calc(var(--sa) * -1) 0 0 calc(var(--d) / -2);
+  background: linear-gradient(to bottom right, transparent calc(50% - .6px), var(--atap-s, #5e3824) calc(50% + .6px)) 0 0 / 50% 100% no-repeat,
+    linear-gradient(to bottom left, transparent calc(50% - .6px), var(--atap-s, #5e3824) calc(50% + .6px)) 100% 0 / 50% 100% no-repeat; }
+.ss-limas > :nth-child(3) { transform: rotateY(-90deg) translateZ(calc(var(--w) / 2)) rotateX(atan2(calc((var(--w) - var(--t)) / 2), var(--h))); }
+.ss-limas > :nth-child(4) { transform: rotateY(90deg) translateZ(calc(var(--w) / 2)) rotateX(atan2(calc((var(--w) - var(--t)) / 2), var(--h))); }
+/* Prisma segi enam (mercusuar): sisi lebar --w, apotema --t. */
+.ss-prisma > i { left: 0; top: 0; width: var(--w); height: var(--h); margin: calc(var(--h) * -1) 0 0 calc(var(--w) / -2); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.ss-prisma > :nth-child(1) { transform: translateZ(var(--t)); }
+.ss-prisma > :nth-child(2) { transform: rotateY(60deg) translateZ(var(--t)); box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .1); }
+.ss-prisma > :nth-child(3) { transform: rotateY(120deg) translateZ(var(--t)); box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .22); }
+.ss-prisma > :nth-child(4) { transform: rotateY(180deg) translateZ(var(--t)); box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .3); }
+.ss-prisma > :nth-child(5) { transform: rotateY(240deg) translateZ(var(--t)); box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .22); }
+.ss-prisma > :nth-child(6) { transform: rotateY(300deg) translateZ(var(--t)); box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .1); }
+/* Tiang: papan tipis menghadap kamera (.ss-hadap). */
+.ss-tiang { background: linear-gradient(90deg, #5c3f28, #8f6a46 50%, #5c3f28); border-radius: 3px; }
+
+/* ── Benda umum ── */
+.ss-kelapa { --img: var(--ss-kelapa); }
+.ss-pisang { --img: var(--ss-pisang); }
+.ss-bambu { --img: var(--ss-bambu); }
+.ss-pandan { --img: var(--ss-pandan); }
+.ss-perahu { --img: var(--ss-perahu); }
+.ss-kursi { --img: var(--ss-kursi); }
+.ss-lengkung { --img: var(--ss-lengkung); }
+/* Sepasang mempelai: potongan 300×300 (x430 y1125) kanvas insan 1080×1920. */
+.ss-insan { background: var(--ss-insan) calc(var(--w) * -1.4333) calc(var(--w) * -3.75) / calc(var(--w) * 3.6) auto no-repeat; }
+.ss-papan-nama { display: grid !important; place-items: center; padding: 0 10px; overflow: hidden; text-align: center; white-space: nowrap; background: none;
+  font: 500 34px/1 var(--font-script, var(--font-display, cursive)); color: #5a3a1e; }
+.ss-lampu { border-radius: 42% 42% 46% 46%; background: radial-gradient(circle at 50% 40%, #fff6d0, #f2a33a 72%);
+  box-shadow: 0 0 40px 14px rgba(255, 196, 96, .55); animation: ss-kelip 3.4s ease-in-out infinite alternate; }
+@keyframes ss-kelip { to { box-shadow: 0 0 56px 20px rgba(255, 196, 96, .7); } }
+
+/* ── Gerak (scroll-driven) ── */
+@keyframes ss-hilang { to { visibility: hidden; } }
+@keyframes ss-sc { 0% { opacity: 0; visibility: hidden; transform: translateY(18px); } 25%, 75% { opacity: 1; visibility: visible; transform: none; } 100% { opacity: 0; visibility: hidden; transform: translateY(-14px); } }
+@keyframes ss-sc-awal { 0%, 70% { opacity: 1; visibility: visible; transform: none; } 100% { opacity: 0; visibility: hidden; transform: translateY(-14px); } }
+@keyframes ss-sc-akhir { 0% { opacity: 0; visibility: hidden; transform: translateY(18px); } 40%, 100% { opacity: 1; visibility: visible; transform: none; } }
+@keyframes ss-maju { from { left: 0; } to { left: 100%; } }
+@keyframes ss-gulir { 0%, 3% { opacity: 1; } 7%, 100% { opacity: 0; } }
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .ss__dunia, .ss__latar, .ss-hadap, .ss-o, .ss__teks, .ss__jejak b { animation-timeline: --pg; animation-fill-mode: both; animation-timing-function: linear; animation-duration: auto; animation-range: contain 0% contain 100%; }
+    .ss__dunia { animation-name: ss-kamera; }
+    .ss__latar { animation-name: ss-latar; }
+    .ss-hadap { animation-name: ss-hadap; }
+    .ss-o { animation-name: ss-hilang; animation-range: contain 0% contain var(--off); }
+    .ss-o.ss-hadap { animation-name: ss-hilang, ss-hadap; animation-range: contain 0% contain var(--off), contain 0% contain 100%; }
+    .ss__jejak b { animation-name: ss-maju; }
+    .ss__teks { animation-name: ss-sc; animation-range: contain var(--s) contain var(--e); }
+    .ss__teks.is-awal { animation-name: ss-sc-awal; }
+    .ss__teks.is-akhir { animation-name: ss-sc-akhir; }
+    .ss__gulir { animation: ss-angguk 1.8s ease-in-out infinite, ss-gulir linear both; animation-timeline: auto, --pg; animation-range: normal, contain 0% contain 100%; }
+  }
+}
+
+/* ── Kartu singgah (data undangan) di bawah layar ── */
+.ss__teks { left: 12px; right: 12px; max-width: 460px; margin: 0 auto; bottom: calc(var(--ss-bawah, 18px) + env(safe-area-inset-bottom)); z-index: 2; padding: 14px 18px 16px; border-radius: 22px;
+  text-align: center; color: var(--ink); opacity: 0; visibility: hidden; text-wrap: balance;
+  background: color-mix(in srgb, var(--card, #fffdf8) 88%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  box-shadow: 0 20px 44px -22px rgba(0, 0, 0, .55), inset 0 0 0 4px color-mix(in srgb, var(--card, #fff) 60%, transparent); }
+.ss__teks.is-awal { opacity: 1; visibility: visible; }
+.ss__label { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 4px 12px; border-radius: 999px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--on-primary, #fff); background: var(--primary); }
+.ss__label b { font-weight: 600; opacity: .75; }
+.ss__teks h2 { font-size: clamp(30px, 9vmin, 50px); line-height: 1.05; margin: 2px 0 6px; }
+.ss__teks h3 { font-size: clamp(19px, 5.6vmin, 26px); margin: 0 0 4px; }
+.ss__teks p { margin: 0; font-size: 14px; line-height: 1.55; }
+.ss__teks small { display: block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 68%, transparent); }
+.ss__teks .script { font-size: clamp(22px, 6.4vmin, 30px); color: var(--gold-deep, var(--primary)); }
+.ss__mempelai b { display: block; font-size: clamp(18px, 5.2vmin, 24px); font-family: var(--font-display, Georgia, serif); font-weight: 500; color: var(--primary); }
+.ss__mempelai small { text-transform: none; letter-spacing: .02em; font-size: 13px; margin-top: 2px; }
+.ss__dan { display: block; margin: 2px 0; font-size: clamp(24px, 7vmin, 34px) !important; }
+.ss__kisah p { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; font-style: italic; }
+.ss__acara + .ss__acara { margin-top: 10px; padding-top: 10px; border-top: 1px dashed color-mix(in srgb, var(--primary) 30%, transparent); }
+.ss h2, .ss h3 { font-family: var(--font-display, Georgia, serif); font-weight: 500; color: var(--primary); }
+.ss .script { font-family: var(--font-script, var(--font-display, cursive)); font-weight: var(--script-weight, 400); }
+/* Peta perjalanan: garis enam singgah + penanda tamu yang maju bersama gulir. */
+.ss__jejak { left: 50%; top: calc(14px + env(safe-area-inset-top)); width: min(70%, 320px); height: 18px; translate: -50% 0; z-index: 2; display: block; }
+.ss__jejak::before { content: ""; position: absolute; left: 0; right: 0; top: 8px; border-top: 2px dashed color-mix(in srgb, #fff 80%, transparent); filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .35)); }
+.ss__jejak i { position: absolute; top: 4px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
+.ss__jejak i:nth-of-type(1) { left: 0; } .ss__jejak i:nth-of-type(2) { left: 20%; } .ss__jejak i:nth-of-type(3) { left: 40%; }
+.ss__jejak i:nth-of-type(4) { left: 60%; } .ss__jejak i:nth-of-type(5) { left: 80%; } .ss__jejak i:nth-of-type(6) { left: 100%; }
+.ss__jejak b { position: absolute; top: -1px; left: 0; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--primary); border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .4); }
+.ss__gulir { left: 50%; top: calc(40px + env(safe-area-inset-top)); translate: -50% 0; margin: 0; z-index: 2; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+@keyframes ss-angguk { 50% { transform: translateY(4px); } }
+/* Bilah navigasi bawah undangan & kolom tombol mengambang (HP) tak boleh
+   menutupi kartu: kartu naik di atas bilah, sisi kanan dikosongkan. */
+.inv:has(.bottom-nav) .ss__teks { --ss-bawah: 86px; }
+@media (max-width: 1099px) { .inv:has(.inv-top) .ss__teks { right: 62px; } }
+
+/* Tanpa gerak gulir: satu layar singgah pertama (isi lengkap tetap ada di
+   bagian undangan di bawahnya). */
+@supports not (animation-timeline: view()) {
+  html:not(.is-pv):not(.t-pv) .pg.ss { height: auto; }
+  html:not(.is-pv):not(.t-pv) .ss__layar { position: relative; }
+  html:not(.is-pv):not(.t-pv) .ss__dunia { transform: rotateY(0deg) translate3d(0px, 0px, 0px); }
+  html:not(.is-pv):not(.t-pv) .ss__teks:not(.is-awal), html:not(.is-pv):not(.t-pv) .ss__gulir, html:not(.is-pv):not(.t-pv) .ss__jejak { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg.ss { height: auto; } .ss__layar { position: relative; }
+  .ss__teks:not(.is-awal), .ss__gulir, .ss__jejak { display: none; }
+  .ss__awan, .ss-lampu, .ss__layar * { animation: none !important; }
+}
+.motion-min .ss__awan { animation: none; }
+
+/* PRATINJAU etalase (html.is-pv): gerak WAKTU ±5 dtk (linear — `--ot` benda
+   = % waktu yang sama), dimulai saat bersama.js memasang .pg--jalan. */
+html:is(.is-pv, .t-pv) .pg.ss { height: 100svh; }
+html:is(.is-pv, .t-pv) .ss__gulir { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  html:is(.is-pv, .t-pv) .ss__dunia { animation-name: ss-kamera; }
+  html:is(.is-pv, .t-pv) .ss__latar { animation-name: ss-latar; }
+  html:is(.is-pv, .t-pv) .ss-hadap { animation-name: ss-hadap; }
+  html:is(.is-pv, .t-pv) .ss-o { animation-name: ss-hilang; }
+  html:is(.is-pv, .t-pv) .ss-o.ss-hadap { animation-name: ss-hilang, ss-hadap; }
+  html:is(.is-pv, .t-pv) .ss__jejak b { animation-name: ss-maju; }
+  html:is(.is-pv, .t-pv) .ss__teks { animation-name: ss-sc; }
+  html:is(.is-pv, .t-pv) .ss__teks.is-awal { animation-name: ss-sc-awal; }
+  html:is(.is-pv, .t-pv) .ss__teks.is-akhir { animation-name: ss-sc-akhir; }
+}
+html:is(.is-pv, .t-pv) .pg.ss :is(.ss__dunia, .ss__latar, .ss-hadap, .ss__jejak b) { animation-timeline: auto !important; animation-range: normal !important; animation-duration: 5s !important;
+  animation-delay: .4s !important; animation-timing-function: linear !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
+html:is(.is-pv, .t-pv) .pg.ss .ss-o { animation-timeline: auto !important; animation-range: normal !important; animation-duration: calc(var(--ot) * .05s) !important;
+  animation-delay: .4s !important; animation-timing-function: linear !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important; }
+html:is(.is-pv, .t-pv) .pg.ss .ss-o.ss-hadap { animation-duration: calc(var(--ot) * .05s), 5s !important; }
+html:is(.is-pv, .t-pv) .pg.ss .ss__teks { animation-timeline: auto !important; animation-range: normal !important; animation-fill-mode: both !important; animation-iteration-count: 1 !important;
+  animation-duration: 1s !important; animation-timing-function: linear !important; }
+html:is(.is-pv, .t-pv) .pg.ss .ss__teks.is-awal { animation-duration: 1.2s !important; animation-delay: .4s !important; }
+/* div ke-1 = .ss__mata; kartu singgah = div ke-2…7. */
+html:is(.is-pv, .t-pv) .pg.ss .ss__teks:nth-of-type(3) { animation-delay: .9s !important; }
+html:is(.is-pv, .t-pv) .pg.ss .ss__teks:nth-of-type(4) { animation-delay: 1.9s !important; }
+html:is(.is-pv, .t-pv) .pg.ss .ss__teks:nth-of-type(5) { animation-delay: 2.9s !important; }
+html:is(.is-pv, .t-pv) .pg.ss .ss__teks:nth-of-type(6) { animation-delay: 3.9s !important; }
+html:is(.is-pv, .t-pv) .pg.ss .ss__teks.is-akhir { animation-duration: .6s !important; animation-delay: 4.8s !important; }
+html:is(.is-pv, .t-pv) .pg.ss:not(.pg--jalan) .ss__layar * { animation-play-state: paused !important; }
+
+/* Selama prolog tampil: hiasan melayang & pendamping disembunyikan. */
+@supports (timeline-scope: --pg) {
+  .inv:has(.pg) { timeline-scope: --pg; }
+  .inv:has(.pg.ss) .float-deco, .inv:has(.pg.ss) .pdp { animation: ss-sembunyi linear both; animation-timeline: --pg; animation-range: cover 0% cover 100%; }
+  @media (min-width: 1100px) {
+    .inv--rail:has(.pg.ss) > .inv-top { position: fixed; top: 16px; left: var(--col-x); margin: 0; animation: ss-sembunyi linear both; animation-timeline: --pg; animation-range: cover 0% cover 100%; }
+  }
+}
+@keyframes ss-sembunyi { 0% { opacity: 1; } 12%, 88% { opacity: 0; visibility: hidden; } 100% { opacity: 1; } }
+.inv:has(.pg.ss) .inv__main { padding-top: 0; }
+html:is(.is-pv, .t-pv) .pdp, html:is(.is-pv, .t-pv) .float-deco { display: none !important; }

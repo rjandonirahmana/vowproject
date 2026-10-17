@@ -1,0 +1,51 @@
+/* SUSUR — PESISIR NYIUR: senja jingga, laut di cakrawala (tanah latar = laut),
+   daratan pasir (bidang polos), jalan papan, dermaga kayu bertiang, mercusuar
+   segi enam bersinar, rumah panggung di atas air, lorong kursi tamu berlampu
+   bohlam, lengkung bunga pelaminan. */
+.ss--pesisir { --ss-langit: linear-gradient(#3b4a86, #b7688c 45%, #f6a066 80%, #ffd59a);
+  --ss-tanah: #2f6f8e; --ss-tanah-g: radial-gradient(18% 60% at var(--ss-surya-x) 0, rgba(255, 214, 150, .75), transparent 70%), linear-gradient(#e6a67a, #3f7f9a 8%, #2f6f8e 40%, #2a6380);
+  --ss-surya-x: 40%; --ss-surya-y: .78;
+  --ss-surya: radial-gradient(circle, #fff3c4 30%, rgba(255, 190, 110, .7) 46%, rgba(255, 160, 90, 0) 70%);
+  --ss-cakrawala: var(--ss-layar) 22% 100% / 46px auto no-repeat, var(--ss-layar) 61% 90% / 30px auto no-repeat,
+    linear-gradient(#7d5a7a, #7d5a7a) 0 100% / 100% 10% no-repeat;
+  --ss-kabut: rgba(255, 196, 160, .45); }
+.ss--pesisir .ss__awan { opacity: .45; filter: sepia(.6) hue-rotate(-20deg); }
+.ss-pasir { --c: #ecd3a2; border-radius: 46% 46% 44% 44% / 38% 38% 40% 40%; }
+.ss-pasir--karang { --c: #b9ad98; border-radius: 50%; }
+.ss-buih { --c: rgba(255, 255, 255, .55); border-radius: 50%; animation: ss-buih 4s ease-in-out infinite alternate; }
+@keyframes ss-buih { to { opacity: .25; } }
+.ss-papan-jalan { background: repeating-linear-gradient(0deg, #c79d6a 0 24px, #a87e4c 24px 28px); }
+.ss-dermaga { background: repeating-linear-gradient(0deg, #9b7048 0 26px, #6f4c2e 26px 30px); box-shadow: inset 8px 0 0 #5a3c22, inset -8px 0 0 #5a3c22; }
+.ss-karpet { --c: #f6eee2; box-shadow: inset 0 0 0 10px #e98aa6; }
+.ss-tiang--dermaga { background: linear-gradient(90deg, #4a3220, #6f4c2e 50%, #4a3220); }
+.ss-tiang--lentera { background: #3a2f2a; }
+.ss-gapura--pesisir { --img: var(--ss-gapura-pesisir); }
+.ss-mercu > i { background: repeating-linear-gradient(0deg, #f4f1ea 0 120px, #d2453c 120px 240px); }
+.ss-mercu-kaca > i { background: linear-gradient(#ffe9a0, #ffd060); box-shadow: 0 0 30px 8px rgba(255, 220, 120, .8); }
+.ss-kubah { background: linear-gradient(to bottom right, transparent calc(50% - .6px), #a3322a calc(50% + .6px)) 0 0 / 50% 100% no-repeat,
+  linear-gradient(to bottom left, transparent calc(50% - .6px), #82261f calc(50% + .6px)) 100% 0 / 50% 100% no-repeat; }
+.ss-a--merah { --atap-w: #a3322a; --atap-s: #82261f; --atap-g: repeating-linear-gradient(90deg, #b0372f 0 22px, #8f2a24 22px 26px); }
+.ss-sinar { background: linear-gradient(90deg, transparent, rgba(255, 236, 170, .55) 30%, rgba(255, 250, 220, .9) 50%, rgba(255, 236, 170, .55) 70%, transparent);
+  -webkit-mask: linear-gradient(transparent, #000 40% 60%, transparent); mask: linear-gradient(transparent, #000 40% 60%, transparent);
+  animation: ss-sorot 7s linear infinite; }
+@keyframes ss-sorot { to { transform: rotateY(360deg); } }
+.ss-k--papan > i { background: repeating-linear-gradient(0deg, #e9f1f4 0 30px, #c9dbe2 30px 33px); }
+.ss-k--papan > :nth-child(1) { background: linear-gradient(#2f6aa0, #2f6aa0) 50% 100% / 110px 72% no-repeat, linear-gradient(#a8d0e6, #a8d0e6) 18% 40% / 80px 70px no-repeat,
+  linear-gradient(#a8d0e6, #a8d0e6) 82% 40% / 80px 70px no-repeat, repeating-linear-gradient(0deg, #e9f1f4 0 30px, #c9dbe2 30px 33px); }
+.ss-k--lantai > i { background: linear-gradient(90deg, #6f4c2e, #8f6a46 50%, #6f4c2e); }
+.ss-k--lantai > :nth-child(5) { background: repeating-linear-gradient(90deg, #a87e4c 0 26px, #8a6436 26px 28px); }
+/* Untaian bohlam melintang di atas lorong. */
+.ss-bohlam { background:
+    radial-gradient(circle, #fff6c8 0 7px, rgba(255, 210, 120, .7) 9px, transparent 18px) 0 0 / 80px 100% repeat-x;
+  -webkit-mask: radial-gradient(120% 140% at 50% -40%, transparent 60%, #000 61% 80%, transparent 81%); mask: radial-gradient(120% 140% at 50% -40%, transparent 60%, #000 61% 80%, transparent 81%);
+  animation: ss-kelip-b 2.6s ease-in-out infinite alternate; }
+@keyframes ss-kelip-b { to { opacity: .75; } }
+
+/* Camar melintas (2D di belakang dunia). */
+.ss__hias { inset: 0 0 calc(100% - var(--hz)); display: block; pointer-events: none; }
+.ss__hias i { position: absolute; display: block; }
+.ss__layang { display: none !important; }
+.ss__burung { left: -10%; width: 28px; height: 12px; background: #3a2f45; clip-path: polygon(0 30%, 40% 55%, 50% 0, 60% 55%, 100% 30%, 60% 80%, 50% 100%, 40% 80%); animation: ss-terbang 24s linear infinite; }
+.ss__burung:nth-child(3) { top: 30%; } .ss__burung:nth-child(4) { top: 44%; animation-delay: -8s; scale: .8; } .ss__burung:nth-child(5) { top: 38%; animation-delay: -15s; scale: .6; }
+@keyframes ss-terbang { to { translate: 120vw -24px; } }
+@media (prefers-reduced-motion: reduce) { .ss__hias i { animation: none; } }

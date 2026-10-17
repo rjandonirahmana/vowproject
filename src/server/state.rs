@@ -105,6 +105,10 @@ pub struct ThemeCatalog {
     /// slug → isi `/gaya/{slug}.css`: variabel + animasi + rupa tema itu SAJA.
     /// Halaman undangan memuat ini, bukan /tema.css (semua tema, ±220 KB).
     gaya: std::collections::HashMap<String, axum::body::Bytes>,
+    /// slug → hash isi `/gaya/{slug}.css` (`?v=`): CSS prolog 3D (panggung,
+    /// jelajah, susur) tak ikut `version`, jadi tiap tema perlu hash sendiri
+    /// agar URL immutable berganti saat isinya berubah.
+    gaya_v: std::collections::HashMap<String, String>,
     /// Semua varian rupa — pratinjau admin & demo `?rupa=`.
     pub rupa_all: axum::body::Bytes,
     /// slug → resep panggung 3D UNIK (web/panggung.rs::tetapkan).
@@ -123,13 +127,14 @@ impl ThemeCatalog {
         let fonts = skin::font_families(&list);
         let index = list.iter().enumerate().map(|(i, t)| (t.slug.clone(), i)).collect();
         let resep = crate::web::panggung::tetapkan(list.iter().map(|t| (t.slug.as_str(), t.panggung())));
-        let gaya = list
+        let gaya: std::collections::HashMap<String, axum::body::Bytes> = list
             .iter()
             .filter(|t| skin::is_slug(&t.slug))
             .map(|t| (t.slug.clone(), axum::body::Bytes::from(theme_css(t, &t.rupa, &anims, resep.get(&t.slug)))))
             .collect();
+        let gaya_v = gaya.iter().map(|(k, v)| (k.clone(), super::util::hash8(&String::from_utf8_lossy(v)))).collect();
         let rupa_all = axum::body::Bytes::from(super::aset::tulis_ulang(&crate::web::rupa::all_css()).into_owned());
-        Self { list, index, anims, css, css_ringan, version, fonts, gaya, rupa_all, resep }
+        Self { list, index, anims, css, css_ringan, version, fonts, gaya, gaya_v, rupa_all, resep }
     }
 
     /// Isi `/gaya/{slug}.css`; `rupa` = timpaan demo (`?rupa=`), dihitung saat itu.
@@ -142,7 +147,7 @@ impl ThemeCatalog {
 
     /// `<link>` CSS & font khusus satu tema (InvSkin.css / InvSkin.fonts).
     pub fn links(&self, t: &ThemeInfo, rupa_override: &str) -> (String, String) {
-        let mut css = format!("/gaya/{}.css?v={}", t.slug, self.version);
+        let mut css = format!("/gaya/{}.css?v={}", t.slug, self.gaya_v.get(&t.slug).unwrap_or(&self.version));
         if !rupa_override.is_empty() {
             css.push_str(&format!("&rupa={}", crate::web::fmt::url_encode(rupa_override)));
         }
@@ -185,10 +190,13 @@ fn theme_css(t: &ThemeInfo, rupa: &std::collections::BTreeMap<String, String>, a
     }
     css.push_str(&crate::web::rupa::css(rupa));
     css.push_str(crate::web::pendamping::css(t.pendamping()));
-    // Tema JELAJAH 3D: prolog jelajah menggantikan panggung (CSS panggung tak perlu).
+    // Tema JELAJAH / SUSUR 3D: prolognya menggantikan panggung (CSS panggung tak perlu).
     let jelajah = crate::web::jelajah::pilih(&t.slug);
+    let susur = crate::web::susur::pilih(&t.slug);
     if !jelajah.is_empty() {
         css.push_str(&crate::web::jelajah::css(jelajah));
+    } else if !susur.is_empty() {
+        css.push_str(&crate::web::susur::css(susur));
     } else if let Some(r) = resep {
         css.push_str(&crate::web::panggung::css_tema(r));
     }

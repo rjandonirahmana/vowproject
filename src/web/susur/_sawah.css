@@ -1,0 +1,67 @@
+/* SUSUR — DESA & SAWAH: pagi cerah, gunung kembar di cakrawala, petak sawah
+   hijau/menguning/baru tanam (bidang polos → murah), pematang, kali + kincir,
+   saung, lumbung, tarub janur, pendopo joglo & dalem. */
+.ss--sawah { --ss-langit: linear-gradient(#7fb6e6, #b9d8ef 55%, #f3ecd6);
+  --ss-tanah: #8a7d4e; --ss-tanah-g: linear-gradient(#8fa866, #8a8150 30%, #85764a);
+  --ss-surya: radial-gradient(circle, #fffbe8 30%, rgba(255, 246, 200, .55) 46%, rgba(255, 240, 190, 0) 70%);
+  --ss-cakrawala: var(--ss-gunung) 50% 100% / 1200px 100% repeat-x;
+  --ss-kabut: rgba(236, 244, 236, .22); }
+.ss--sawah .ss__langit::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+/* Petak sawah. */
+.ss-petak { --c: #6faa45; }
+.ss-petak--kuning { --c: #c8b046; }
+.ss-petak--air { --c: #a9c6cf; background: linear-gradient(160deg, #c3dbe2, #93b5bf); }
+/* Blok 2×2 petak (satu bidang): empat warna + garis pematang. */
+.ss-petak4 { --p1: #6faa45; --p2: #c8b046; --p3: #7fb64e; --p4: #9cc2c9;
+  background: linear-gradient(90deg, transparent calc(50% - 15px), var(--ss-tanah) 0 calc(50% + 15px), transparent 0),
+    linear-gradient(transparent calc(50% - 15px), var(--ss-tanah) 0 calc(50% + 15px), transparent 0),
+    conic-gradient(from 90deg at 50% 50%, var(--p1) 0 25%, var(--p2) 0 50%, var(--p3) 0 75%, var(--p4) 0); }
+.ss-p4--b { --p1: #c8b046; --p2: #6faa45; --p3: #9cc2c9; --p4: #7fb64e; }
+.ss-p4--c { --p1: #7fb64e; --p2: #6faa45; --p3: #6faa45; --p4: #c8b046; }
+.ss-p4--d { --p1: #9cc2c9; --p2: #7fb64e; --p3: #c8b046; --p4: #6faa45; }
+.ss-padi { background: var(--ss-padi) 0 100% / 136px 100% repeat-x; }
+.ss-padi--kuning { background-image: var(--ss-padi-kuning); }
+.ss-padi--muda { background-size: 136px 60%; opacity: .9; }
+.ss-jalan { --c: #b49a6c; }
+.ss-latar { --c: #c9b48c; }
+.ss-karpet { --c: #a3303a; box-shadow: inset 0 0 0 10px #d9b45a; }
+.ss-kali { background: linear-gradient(90deg, #6fa3b8, #8cc0cf 30%, #6fa3b8 60%, #87bbcb); overflow: hidden; }
+.ss-kali::after { content: ""; position: absolute; inset: 0 -50% 0 0; background: repeating-linear-gradient(90deg, transparent 0 60px, rgba(255, 255, 255, .35) 60px 64px, transparent 64px 140px);
+  animation: ss-arus 6s linear infinite; }
+@keyframes ss-arus { to { translate: -140px 0; } }
+.ss-jembatan { background: repeating-linear-gradient(0deg, #d5b874 0 18px, #b8964e 18px 22px); box-shadow: inset 6px 0 0 #9a7a3a, inset -6px 0 0 #9a7a3a; }
+.ss-pagar { background: linear-gradient(#c9a65a, #c9a65a) 0 0 / 100% 10px no-repeat, linear-gradient(#c9a65a, #c9a65a) 0 50% / 100% 8px no-repeat,
+  repeating-linear-gradient(90deg, #b8964e 0 10px, transparent 10px 104px); }
+.ss-kincir { --img: var(--ss-kincir); animation: ss-putar 14s linear infinite; }
+@keyframes ss-putar { to { transform: rotate(-360deg); } }
+.ss-gapura { --img: var(--ss-gapura-sawah); }
+.ss-penjor { --img: var(--ss-penjor); }
+.ss-penjor--balik { scale: -1 1; }
+.ss-orang { --img: var(--ss-orang-orangan); }
+.ss-gebyok { --img: var(--ss-gebyok); }
+/* Bangunan. */
+.ss-k--bilik { --dinding: repeating-linear-gradient(45deg, #d9c08a 0 8px, #c4a568 8px 16px), #d9c08a; }
+.ss-k--bilik > i { background: repeating-linear-gradient(45deg, #dcc38c 0 9px, #c2a265 9px 18px); }
+.ss-k--lantai > i { background: linear-gradient(90deg, #7a5530, #9a7044 50%, #7a5530); }
+.ss-k--lantai > :nth-child(5) { background: repeating-linear-gradient(90deg, #b48a56 0 26px, #9c7444 26px 28px); }
+.ss-k--umpak > i { background: linear-gradient(#cfc6b4, #a9a08c); }
+.ss-k--umpak > :nth-child(5) { background: conic-gradient(#efe8d8 25%, #e2d8c2 0 50%, #efe8d8 0 75%, #e2d8c2 0) 0 0 / 80px 80px; }
+.ss-k--gebyok > i { background: linear-gradient(90deg, transparent 0 calc(50% - 90px), #4a2a14 calc(50% - 90px) calc(50% + 90px), transparent 0) 0 100% / 100% 74% no-repeat,
+  repeating-linear-gradient(90deg, #8a5a32 0 58px, #74482a 58px 62px); }
+.ss-a--ijuk { --atap-w: #473929; --atap-s: #33291d; --atap-g: repeating-linear-gradient(90deg, #3d3226 0 6px, #514230 6px 11px); }
+.ss-a--sirap { --atap-w: #5c4030; --atap-s: #45301f; --atap-g: repeating-linear-gradient(0deg, #6a4a32 0 26px, #4f3524 26px 30px); }
+.ss-a--genteng { --atap-w: #98503a; --atap-s: #763a28; --atap-g: repeating-linear-gradient(0deg, #a8573a 0 30px, #7f3f2a 30px 34px); }
+.ss-a--brunjung { --atap-w: #523a2a; --atap-s: #3d2a1d; --atap-g: repeating-linear-gradient(0deg, #5d4030 0 22px, #45301f 22px 26px); }
+.ss-tiang--saka { background: linear-gradient(90deg, #4e2f18, #7a5030 50%, #4e2f18); box-shadow: inset 0 -26px 0 #c9a24b, inset 0 26px 0 #c9a24b; }
+
+/* Langit desa: layang-layang & bangau (2D di belakang dunia). */
+.ss__hias { inset: 0 0 calc(100% - var(--hz)); display: block; pointer-events: none; }
+.ss__hias i { position: absolute; display: block; }
+.ss__layang { width: 46px; height: 82px; background: var(--ss-layangan) 50% 0 / contain no-repeat; animation: ss-layang 5s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+.ss__layang:nth-child(1) { left: 14%; top: 14%; }
+.ss__layang:nth-child(2) { right: 18%; top: 30%; width: 30px; height: 54px; animation-delay: -2s; filter: hue-rotate(160deg); }
+@keyframes ss-layang { from { rotate: -8deg; translate: 0 0; } to { rotate: 10deg; translate: 10px -8px; } }
+.ss__burung { left: -10%; width: 26px; height: 12px; background: #fff; clip-path: polygon(0 30%, 40% 55%, 50% 0, 60% 55%, 100% 30%, 60% 80%, 50% 100%, 40% 80%); animation: ss-terbang 22s linear infinite; }
+.ss__burung:nth-child(3) { top: 40%; } .ss__burung:nth-child(4) { top: 52%; animation-delay: -7s; scale: .8; } .ss__burung:nth-child(5) { top: 46%; animation-delay: -14s; scale: .65; }
+@keyframes ss-terbang { to { translate: 120vw -30px; } }
+@media (prefers-reduced-motion: reduce) { .ss__hias i { animation: none; } }

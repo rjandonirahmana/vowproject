@@ -462,6 +462,8 @@ pub fn SampulPage() -> impl IntoView {
         <div id="isi" class="inv__isi">
             {if single && !c.page.skin.jelajah.is_empty() {
                 Some(view! { <Jelajah3d /> }.into_any())
+            } else if single && !c.page.skin.susur.is_empty() {
+                Some(view! { <Susur3d /> }.into_any())
             } else if single && !c.page.skin.panggung.is_empty() {
                 Some(view! { <Panggung3d /> }.into_any())
             } else {
@@ -543,7 +545,7 @@ fn Panggung3d() -> impl IntoView {
     }
 }
 
-/// Rentang gulir (% dari prolog) teks tiap lensa jelajah — pusat 0/20/40/60/80/100
+/// Rentang gulir (% dari prolog) teks tiap lensa jelajah & singgah susur — pusat 0/20/40/60/80/100
 /// = saat kamera DIAM di lensa itu (keyframes `jl-kamera`, jelajah/_dasar.css).
 const JL_RENTANG: [&str; 6] = ["--s:0%;--e:10%", "--s:10%;--e:30%", "--s:30%;--e:50%", "--s:50%;--e:70%", "--s:70%;--e:90%", "--s:90%;--e:100%"];
 
@@ -560,39 +562,9 @@ fn Jelajah3d() -> impl IntoView {
     let Some(dunia) = crate::web::jelajah::dunia(&c.page.skin.jelajah) else {
         return ().into_any();
     };
-    // Dua babak kisah: love story pemesan; kosong → kutipan, lalu doa restu.
-    let mut kisah: Vec<(String, String, String)> = inv
-        .love_story
-        .iter()
-        .filter(|s| !s.title.trim().is_empty() || !s.text.trim().is_empty())
-        .take(2)
-        .map(|s| (s.year.clone(), s.title.clone(), s.text.clone()))
-        .collect();
-    if kisah.len() < 2 && !inv.quote_text.trim().is_empty() {
-        kisah.push((String::new(), inv.quote_source.clone(), inv.quote_text.clone()));
-    }
-    while kisah.len() < 2 {
-        kisah.push((
-            String::new(),
-            tx!(l, "Doa Restu", "Blessing").to_string(),
-            tx!(l, "Semoga cinta kami senantiasa tumbuh, saling menjaga dalam suka dan duka hingga akhir masa.",
-                "May our love keep growing, caring for one another in joy and sorrow, for all time.").to_string(),
-        ));
-    }
+    let kisah = kisah_dua(&inv, l);
     let (b, g) = (inv.bride_first(), inv.groom_first());
-    // Kolom orang tua biasanya sudah berawalan "Putri/Putra dari …" (isian
-    // pemesan) — awalan hanya ditambahkan bila belum ada.
-    let ortu = |o: &str, putri: bool| -> String {
-        let o = o.trim();
-        let kecil = o.to_lowercase();
-        if o.is_empty() || ["putri", "putra", "anak", "daughter", "son"].iter().any(|a| kecil.starts_with(a)) {
-            o.to_string()
-        } else if putri {
-            format!("{} {}", tx!(l, "Putri dari", "Daughter of"), o)
-        } else {
-            format!("{} {}", tx!(l, "Putra dari", "Son of"), o)
-        }
-    };
+    let ortu = |o: &str, putri: bool| ortu_mempelai(l, o, putri);
     view! {
         <section class=format!("pg jl jl--{}", dunia.slug) aria-label=tx!(l, "Jelajah undangan 3D", "3D invitation journey")>
             <div class="jl__layar">
@@ -652,6 +624,148 @@ fn Jelajah3d() -> impl IntoView {
                     <p class="script">{b}{(!g.is_empty()).then(|| format!(" & {g}"))}</p>
                 </div>
                 <p class="jl__gulir" aria-hidden="true">{tx!(l, "Gulir untuk berkeliling", "Scroll to explore")}</p>
+            </div>
+        </section>
+    }
+    .into_any()
+}
+
+/// Dua babak kisah prolog 3D (jelajah & susur): love story pemesan; kosong
+/// → kutipan, lalu doa restu.
+fn kisah_dua(inv: &Invitation, l: Lang) -> Vec<(String, String, String)> {
+    let mut kisah: Vec<(String, String, String)> = inv
+        .love_story
+        .iter()
+        .filter(|s| !s.title.trim().is_empty() || !s.text.trim().is_empty())
+        .take(2)
+        .map(|s| (s.year.clone(), s.title.clone(), s.text.clone()))
+        .collect();
+    if kisah.len() < 2 && !inv.quote_text.trim().is_empty() {
+        kisah.push((String::new(), inv.quote_source.clone(), inv.quote_text.clone()));
+    }
+    while kisah.len() < 2 {
+        kisah.push((
+            String::new(),
+            tx!(l, "Doa Restu", "Blessing").to_string(),
+            tx!(l, "Semoga cinta kami senantiasa tumbuh, saling menjaga dalam suka dan duka hingga akhir masa.",
+                "May our love keep growing, caring for one another in joy and sorrow, for all time.").to_string(),
+        ));
+    }
+    kisah
+}
+
+/// Kolom orang tua biasanya sudah berawalan "Putri/Putra dari …" (isian
+/// pemesan) — awalan hanya ditambahkan bila belum ada.
+fn ortu_mempelai(l: Lang, o: &str, putri: bool) -> String {
+    let o = o.trim();
+    let kecil = o.to_lowercase();
+    if o.is_empty() || ["putri", "putra", "anak", "daughter", "son"].iter().any(|a| kecil.starts_with(a)) {
+        o.to_string()
+    } else if putri {
+        format!("{} {}", tx!(l, "Putri dari", "Daughter of"), o)
+    } else {
+        format!("{} {}", tx!(l, "Putra dari", "Son of"), o)
+    }
+}
+
+/// Prolog SUSUR 3D (web/susur.rs): tamu berjalan menyusuri dunia (desa &
+/// sawah, pesisir…) dari gapura ke pelaminan, berhenti di enam singgah. Kartu
+/// singgah = data undangan (sama dengan jelajah); dunia dirakit dari bidang
+/// CSS 3D, gerak = CSS scroll-driven (keyframes dibangkitkan susur.rs).
+#[component]
+fn Susur3d() -> impl IntoView {
+    let c = ctx();
+    let l = c.lang;
+    let inv = c.page.inv.clone();
+    let Some(dunia) = crate::web::susur::dunia(&c.page.skin.susur) else {
+        return ().into_any();
+    };
+    let jalur = dunia.jalur();
+    let tabel = crate::web::susur::tabel(dunia, &jalur);
+    let benda = dunia.benda(&jalur);
+    let kisah = kisah_dua(&inv, l);
+    let (b, g) = (inv.bride_first(), inv.groom_first());
+    let pasangan = format!("{b}{}", if g.is_empty() { String::new() } else { format!(" & {g}") });
+    let salam = match dunia.slug {
+        "sawah" => tx!(l, "Sugeng Rawuh", "Welcome"),
+        _ => tx!(l, "Selamat Datang", "Welcome"),
+    };
+    let label = move |i: usize| {
+        let (id, en) = dunia.singgah[i];
+        view! { <span class="ss__label"><b>{format!("{:02}", i + 1)}</b>{tx!(l, id, en)}</span> }
+    };
+    view! {
+        <section class=format!("pg ss ss--{}", dunia.slug) aria-label=tx!(l, "Perjalanan undangan 3D", "3D invitation walk")>
+            <div class="ss__layar">
+                <i class="ss__langit" aria-hidden="true"></i>
+                <i class="ss__surya" aria-hidden="true"></i>
+                <i class="ss__awan" aria-hidden="true"></i>
+                <span class="ss__hias" aria-hidden="true"><i class="ss__layang"></i><i class="ss__layang"></i><i class="ss__burung"></i><i class="ss__burung"></i><i class="ss__burung"></i></span>
+                <i class="ss__latar" aria-hidden="true"></i>
+                <i class="ss__tanah" aria-hidden="true"></i>
+                <div class="ss__mata" aria-hidden="true">
+                    <div class="ss__dunia">
+                        {benda.into_iter().map(|bd| {
+                            let o = crate::web::susur::off(&tabel, &bd);
+                            let kelas = format!("ss-b {}{}", bd.kelas, if o.is_some() { " ss-o" } else { "" });
+                            let teks = match bd.teks {
+                                1 => pasangan.clone(),
+                                2 => salam.to_string(),
+                                _ => String::new(),
+                            };
+                            view! {
+                                <div class=kelas style=crate::web::susur::gaya(&bd, o)>
+                                    {(0..bd.anak).map(|_| view! { <i></i> }).collect_view()}
+                                    {teks}
+                                </div>
+                            }
+                        }).collect_view()}
+                    </div>
+                </div>
+                <i class="ss__kabut" aria-hidden="true"></i>
+                <i class="ss__vinyet" aria-hidden="true"></i>
+                <span class="ss__jejak" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b></b></span>
+                <div class="ss__teks is-awal" style=JL_RENTANG[0]>
+                    {label(0)}
+                    <p class="script">{if inv.groom_name.trim().is_empty() { tx!(l, "Selamat datang", "Welcome") } else { "The Wedding of" }}</p>
+                    <h2>{pasangan.clone()}</h2>
+                    <small>{inv.date_label_in(l)}</small>
+                </div>
+                <div class="ss__teks" style=JL_RENTANG[1]>
+                    {label(1)}
+                    <div class="ss__mempelai">
+                        <b>{inv.bride_name.clone()}</b><small>{ortu_mempelai(l, &inv.bride_parents, true)}</small>
+                    </div>
+                    {(!inv.groom_name.trim().is_empty()).then(|| view! {
+                        <span class="script ss__dan">"&"</span>
+                        <div class="ss__mempelai">
+                            <b>{inv.groom_name.clone()}</b><small>{ortu_mempelai(l, &inv.groom_parents, false)}</small>
+                        </div>
+                    })}
+                </div>
+                {kisah.into_iter().enumerate().map(|(i, (tahun, judul, isi))| view! {
+                    <div class="ss__teks ss__kisah" style=JL_RENTANG[2 + i]>
+                        {label(2 + i)}
+                        {(!tahun.trim().is_empty()).then(|| view! { <small>{tahun}</small> })}
+                        <h3>{judul}</h3>
+                        <p>{isi}</p>
+                    </div>
+                }).collect_view()}
+                <div class="ss__teks" style=JL_RENTANG[4]>
+                    {label(4)}
+                    {inv.events.iter().take(2).map(|e| view! {
+                        <div class="ss__acara">
+                            <h3>{if e.title.is_empty() { e.badge_in(l) } else { e.title.clone() }}</h3>
+                            <p>{e.date_label_in(l)}" · "{e.time_label_in(l)}<br />{e.venue.clone()}</p>
+                        </div>
+                    }).collect_view()}
+                </div>
+                <div class="ss__teks is-akhir" style=JL_RENTANG[5]>
+                    {label(5)}
+                    <p>{tx!(l, "Merupakan kehormatan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir memberikan doa restu.", "It would be our honour to have you with us and receive your blessing.")}</p>
+                    <p class="script">{pasangan}</p>
+                </div>
+                <p class="ss__gulir" aria-hidden="true">{tx!(l, "Gulir untuk berjalan", "Scroll to walk")}</p>
             </div>
         </section>
     }

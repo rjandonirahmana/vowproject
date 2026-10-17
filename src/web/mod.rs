@@ -24,6 +24,7 @@ pub mod model;
 pub mod ornamen;
 pub mod pages;
 pub mod jelajah;
+pub mod susur;
 pub mod panggung;
 pub mod pendamping;
 pub mod rupa;

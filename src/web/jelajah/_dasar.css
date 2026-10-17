@@ -67,7 +67,7 @@
     linear-gradient(90deg, var(--gold, #c9a24b), transparent) 14px 0 / 40px 1px no-repeat, linear-gradient(-90deg, var(--gold, #c9a24b), transparent) calc(100% - 14px) 0 / 40px 1px no-repeat,
     linear-gradient(90deg, var(--gold, #c9a24b), transparent) 14px 100% / 40px 1px no-repeat, linear-gradient(-90deg, var(--gold, #c9a24b), transparent) calc(100% - 14px) 100% / 40px 1px no-repeat; }
 .jl .jl__teks h2, .jl .jl__mempelai b, .jl .jl__teks h3 {
-  background: linear-gradient(100deg, var(--gold-deep, #8a6a1f), var(--gold, #c9a24b) 30%, color-mix(in srgb, var(--gold-pale, #f3e6c4) 70%, #fff) 50%, var(--gold, #c9a24b) 70%, var(--gold-deep, #8a6a1f));
+  background: linear-gradient(100deg, var(--gold-deep, #8a6a1f), color-mix(in srgb, var(--gold-deep, #8a6a1f) 55%, var(--gold, #c9a24b)) 30%, var(--gold, #c9a24b) 50%, color-mix(in srgb, var(--gold-deep, #8a6a1f) 55%, var(--gold, #c9a24b)) 70%, var(--gold-deep, #8a6a1f));
   background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; animation: jl-kemilau 6s ease-in-out infinite; }
 @keyframes jl-kemilau { 50% { background-position: 100% 0; } }
 .jl.jl--kunang .jl__teks h2, .jl.jl--kunang .jl__mempelai b, .jl.jl--kunang .jl__teks h3 { background-image: linear-gradient(100deg, #e9c46a, #fff4c4 50%, #e9c46a); }

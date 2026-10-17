@@ -140,15 +140,16 @@ impl ThemeInfo {
 
     /// Adegan panggung 3D tema ini (`web/panggung.rs`); "" = tanpa.
     pub fn panggung(&self) -> &'static str {
-        // Panggung 3D = prolog PERNIKAHAN (pasangan di depan bangunan).
-        if self.ulang_tahun() {
+        // Panggung 3D = prolog PERNIKAHAN (pasangan di depan bangunan). Tema
+        // SUSUR punya prolog sendiri (tak ikut pembagian resep panggung).
+        if self.ulang_tahun() || !super::susur::pilih(&self.slug).is_empty() {
             return "";
         }
         super::panggung::pilih(&self.slug, &self.nuansa, &self.region, &self.palette, self.dark)
     }
     /// Jenis lapisan pendamping 3D tema ini (`web/pendamping.rs`).
     pub fn pendamping(&self) -> &'static str {
-        if self.ulang_tahun() {
+        if self.ulang_tahun() || !super::susur::pilih(&self.slug).is_empty() {
             return "";
         }
         super::pendamping::pilih(&self.slug, &self.nuansa, &self.region, !self.bg_video.is_empty())

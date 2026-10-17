@@ -125,8 +125,9 @@ pub fn Hub3d() -> impl IntoView {
         .iter()
         .enumerate()
         .filter(|(i, _)| i % 3 == 1)
-        // Tak ada pohon/tiang tepat di depan pos (menutupi bangunan saat kamera diam).
-        .filter(|(_, (_, z))| !POS.iter().any(|(_, zp, _, _)| (0.0..650.0).contains(&(z - *zp as f32))))
+        // Tak ada pohon/tiang di antara mata & pos saat kamera diam di sana
+        // (mata = z pos + 500 + perspective 900) — dulu menutupi bangunan.
+        .filter(|(_, (_, z))| !POS.iter().any(|(_, zp, _, _)| (0.0..1400.0).contains(&(z - *zp as f32))))
         .map(|(i, (x, z))| {
             let kanan = (i / 3) % 2 == 0;
             let jarak = 300.0 + ((i * 37) % 120) as f32;

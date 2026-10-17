@@ -13015,7 +13015,8 @@ html.is-pv .mapcard iframe {
   @media (prefers-reduced-motion: no-preference) {
     html:not(.motion-min) .hub3d__rel { height: 600svh; view-timeline: --hub block; }
     html:not(.motion-min) .hub3d__st { position: sticky; top: var(--hdr); height: calc(100svh - var(--hdr)); overflow: hidden; contain: paint; isolation: isolate; }
-    html:not(.motion-min) .hub3d__st .dunia3d, html:not(.motion-min) .hub3d__st .dunia3d__langitan, html:not(.motion-min) .hub3d__st .dunia3d__alat { display: block; }
+    html:not(.motion-min) .hub3d__st .dunia3d, html:not(.motion-min) .hub3d__st .dunia3d__langitan { display: block; }
+    html:not(.motion-min) .hub3d__st .dunia3d__alat { display: flex; }
 
     /* ── Dunia ── --hz = cakrawala (titik hilang), --dasar = tanah di bawah mata. */
     .dunia3d { position: absolute; inset: 0; overflow: hidden; --hz: 46%; --dasar: 73%; perspective: 900px; perspective-origin: 50% var(--hz); }
